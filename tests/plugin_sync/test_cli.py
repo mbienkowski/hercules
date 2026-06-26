@@ -639,3 +639,19 @@ def test_show_onboarding_prints_and_does_not_mark(monkeypatch, tmp_path, capsys)
     err = capsys.readouterr().err
     assert "code" in err.lower() and "conduct" in err.lower()
     assert load_config().onboarded_at is None
+
+
+# Stage 4/5 hardening — banner is shown on a normal launch, suppressed on --sync
+
+def test_normal_run_prints_banner(cli_harness):
+    from hercules.cli import main
+    with patch("hercules.cli._print_banner") as banner, patch("sys.argv", ["hercules"]):
+        main()
+    banner.assert_called_once()
+
+
+def test_sync_flag_suppresses_banner(cli_harness):
+    from hercules.cli import main
+    with patch("hercules.cli._print_banner") as banner, patch("sys.argv", ["hercules", "--sync"]):
+        main()
+    banner.assert_not_called()

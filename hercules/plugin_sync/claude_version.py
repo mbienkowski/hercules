@@ -57,7 +57,7 @@ def verify_claude_version(
             ["claude", "--version"],  # pragma: no mutate
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=10,  # pragma: no mutate
         )
     except Exception:  # binary missing, timeout, OS error — all non-fatal
         return

@@ -35,15 +35,17 @@ jobs:
       - name: Run tests with coverage
         run: make test
 
-  # ── Mutation testing — every commit on every branch, after tests pass ───────
-  # Runs mutmut against hercules/ and gates on a 90% kill rate. Keyed off the
-  # push event so it runs once per commit on every branch (and main, the release
-  # gate); the result still surfaces on PRs via the head commit. Skipped on the
-  # pull_request event so the same SHA isn't mutation-tested twice.
+  # ── Mutation testing — every commit on PR branches (+ main), after tests ────
+  # Runs mutmut against hercules/ and gates on a 90% kill rate. Runs on the
+  # pull_request event (every commit pushed to a branch with an open PR) and on
+  # main pushes (the release gate) — so feature-branch commits without a PR don't
+  # burn CI minutes, and a SHA is never mutation-tested twice.
   mutation:
     name: Mutation
     needs: [test]
-    if: github.event_name == 'push'
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 

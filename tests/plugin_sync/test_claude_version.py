@@ -100,3 +100,25 @@ def test_throttle_persists_detected_version_to_config():
     save_config(Config())
     cv.verify_claude_version(run=_fake_run(stdout="2.1.100"))
     assert load_config().options.get("claude_version_warned") == "2.1.100"
+
+
+# Stage 2 hardening — kill subprocess-arg and stderr-path mutants
+
+def test_verify_invokes_claude_version_with_capture_and_text():
+    captured = {}
+
+    def rec(cmd, **kwargs):
+        captured["cmd"] = cmd
+        captured.update(kwargs)
+        return types.SimpleNamespace(stdout="2.1.128", stderr="", returncode=0)
+
+    cv.verify_claude_version(run=rec)
+    assert captured["cmd"] == ["claude", "--version"]
+    assert captured["capture_output"] is True
+    assert captured["text"] is True
+
+
+def test_below_min_reported_via_stderr_also_warns(capsys):
+    # Some tools print --version to stderr; the check must read both streams.
+    cv.verify_claude_version(run=_fake_run(stdout="", stderr="2.1.100"))
+    assert "2.1.100" in capsys.readouterr().err

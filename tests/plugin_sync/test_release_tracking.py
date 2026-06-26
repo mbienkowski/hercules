@@ -176,3 +176,51 @@ def test_update_release_mode_no_tags_stays_put(tmp_path, capsys):
 
     assert "no release found" in capsys.readouterr().err.lower()
     assert not any("checkout" in c for c in calls)
+
+
+# Stage 5 hardening — kill semver-ordering, peeled-strip, branch-ref, timestamp mutants
+
+def test_latest_tag_orders_across_major_version():
+    assert _latest_release_tag("a\trefs/tags/v1.9.0\nb\trefs/tags/v2.1.0\n") == "v2.1.0"
+
+
+def test_latest_tag_distinguishes_minor_from_patch():
+    # If minor/patch were swapped, v1.2.10 would wrongly beat v1.10.2.
+    assert _latest_release_tag("a\trefs/tags/v1.2.10\nb\trefs/tags/v1.10.2\n") == "v1.10.2"
+
+
+def test_latest_tag_uses_peeled_ref_when_it_is_the_only_form():
+    # The highest version appears only as a peeled ref — the ^{} strip must run.
+    out = "a\trefs/tags/v2.0.0^{}\nb\trefs/tags/v1.0.0\n"
+    assert _latest_release_tag(out) == "v2.0.0"
+
+
+def test_clone_branch_mode_uses_the_named_branch(tmp_path):
+    calls = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        return _ok()
+
+    with patch.object(gs.subprocess, "run", side_effect=fake_run):
+        sync_plugin(clone_root=tmp_path, repo_url="https://example.com/r.git",
+                    branch="develop", mode=SyncMode.BRANCH)
+
+    clone = next(c for c in calls if "clone" in c)
+    assert "develop" in clone
+    assert "main" not in clone  # must not fall back to release/main in BRANCH mode
+
+
+def test_update_release_mode_writes_timestamp_on_success(tmp_path):
+    (tmp_path / ".git").mkdir()
+
+    def fake_run(cmd, **kw):
+        if "tag" in cmd:
+            return _ok(stdout="v2.1.0\n")
+        return _ok()  # fetch + checkout succeed
+
+    with patch.object(gs.subprocess, "run", side_effect=fake_run):
+        sync_plugin(clone_root=tmp_path, repo_url="https://example.com/r.git",
+                    mode=SyncMode.RELEASE, force=True)
+
+    assert (tmp_path / ".last-pull").exists()  # success path must stamp the sync time
