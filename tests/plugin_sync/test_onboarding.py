@@ -50,3 +50,27 @@ def test_run_onboarding_does_not_mark_when_non_interactive(tmp_path):
     with patch("sys.stdout.isatty", return_value=False):
         onboarding.run_onboarding()
     assert load_config().onboarded_at is None
+
+
+# Stage 6 — onboarding makes code-of-conduct prominent and is replayable
+
+def test_onboarding_text_mentions_code_of_conduct():
+    text = onboarding._ONBOARDING_TEXT.lower()
+    assert "code" in text and "conduct" in text
+
+
+def test_onboarding_text_has_actionable_next_step():
+    assert "/hercules:workflow" in onboarding._ONBOARDING_TEXT
+
+
+def test_onboarding_text_mentions_replay_command():
+    assert "--show-onboarding" in onboarding._ONBOARDING_TEXT
+
+
+def test_print_onboarding_prints_without_marking(tmp_path, capsys):
+    """print_onboarding shows the text on demand and never sets onboarded_at."""
+    save_config(Config())
+    onboarding.print_onboarding()
+    err = capsys.readouterr().err
+    assert "code" in err.lower() and "conduct" in err.lower()
+    assert load_config().onboarded_at is None

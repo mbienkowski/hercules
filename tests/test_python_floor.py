@@ -59,3 +59,12 @@ def test_code_of_conduct_documents_no_slash_branches(read_file):
     assert "branch" in content
     assert "slash" in content
     assert re.search(r"hyphen|-", content)
+
+
+def test_readme_leads_with_zero_install_path(read_file):
+    """README must surface the no-install plugin-directory path and a which-path guide."""
+    content = read_file("README.md")
+    assert "no install required" in content.lower()
+    assert "--add-dir" in content
+    # The zero-install path must appear before the pipx CLI path.
+    assert content.index("--add-dir") < content.index("pipx install")

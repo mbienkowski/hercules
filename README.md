@@ -8,6 +8,33 @@ Discover before you design. Design before you build. No shortcuts.
 
 ---
 
+## Install — pick your path
+
+**Fastest — no install required.** Any machine with `git` and Claude Code; no Python:
+
+```bash
+git clone https://github.com/mbienkowski/hercules.git ~/.hercules
+claude --add-dir ~/.hercules/plugin
+```
+
+**Auto-sync option.** Keeps the plugin updated for you; needs Python ≥ 3.9:
+
+```bash
+pipx install git+https://github.com/mbienkowski/hercules.git
+hercules        # launches Claude with the always-updated plugin
+```
+
+| Your situation | Use |
+|---|---|
+| Just trying it out, or no Python/pip on the machine | **Plugin directory** (`--add-dir`) |
+| Want the plugin to auto-update (every 30 min) | **CLI** (`pipx` → `hercules`) |
+| On Claude Code Desktop | **Plugin directory** (Settings → Plugin directories) |
+| Want `hercules --sync` and release/branch tracking | **CLI** (`pipx` → `hercules`) |
+
+Details for each path are below — see *Plugin directory* and *CLI auto-sync*.
+
+---
+
 ## Quickstart
 
 The fastest way to start is the guided workflow — Hercules walks you through every phase.

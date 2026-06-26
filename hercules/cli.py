@@ -22,7 +22,7 @@ from hercules.plugin_sync.lock import Lock
 from hercules.plugin_sync.git_sync import sync_plugin, SyncMode
 from hercules.plugin_sync.claude_runner import exec_claude
 from hercules.plugin_sync.self_update import run_self_update
-from hercules.plugin_sync.onboarding import run_onboarding
+from hercules.plugin_sync.onboarding import run_onboarding, print_onboarding
 from hercules.plugin_sync.claude_version import verify_claude_version
 
 VERSION = "dev"  # pragma: no mutate
@@ -72,6 +72,8 @@ def main() -> None:
     parser.add_argument("--sync", action="store_true",  # pragma: no mutate
                         help="Force an immediate plugin refresh (bypasses the 30-min timer) and exit")  # pragma: no mutate
     parser.add_argument("--uninstall", action="store_true", help="Print uninstall instructions")  # pragma: no mutate
+    parser.add_argument("--show-onboarding", dest="show_onboarding", action="store_true",  # pragma: no mutate
+                        help="Re-print the first-run explainer and exit")  # pragma: no mutate
 
     args, claude_args = parser.parse_known_args()
 
@@ -85,6 +87,10 @@ def main() -> None:
 
     if args.status:
         _print_status()
+        return
+
+    if args.show_onboarding:
+        print_onboarding()
         return
 
     # No --branch → track the latest stable release; an explicit branch opts out.

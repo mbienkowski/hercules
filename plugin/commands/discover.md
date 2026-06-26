@@ -15,6 +15,10 @@ Read `docs/INDEX.md` if present; show a one-line digest of recent sessions.
 Read `docs/learnings.md` if present; surface entries matching the user's opening idea
 (key-match on topic). No-op if absent or no match.
 
+**Code of conduct (recommended).** If the repo has no `code-of-conduct.md`, tell the user it is
+the single biggest lever on output quality — every agent reads it for the stack, test command,
+and quality bar — and offer to generate one (`code-of-conduct-generator`). Proceed either way.
+
 ## Step 1 — Upfront context
 
 Paste any documents you have — PRDs, ADRs, Figma links, QA test plans, API contracts, or a brain-dump. One sentence or ten pages — bring it all. Say **"no documents"** to skip to questions.

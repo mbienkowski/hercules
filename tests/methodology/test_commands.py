@@ -398,3 +398,11 @@ def test_design_produces_sub_specs_with_delivery_order(read_file):
         "design must show numbered sub-spec naming (e.g. spec-01-{slug}.md)"
     assert "satisfies" in lower, \
         "each sub-spec must carry a 'satisfies:' header linking to business-requirements.md"
+
+
+def test_discover_step0_nudges_code_of_conduct(read_file):
+    """discover Step 0 must surface code-of-conduct as a quality lever and offer to generate it."""
+    md = read_file("plugin/commands/discover.md").lower()
+    assert "code-of-conduct" in md
+    assert "generate" in md
+    assert "quality" in md

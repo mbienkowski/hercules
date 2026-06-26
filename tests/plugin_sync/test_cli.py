@@ -620,3 +620,22 @@ def test_banner_shows_branch_tracking_when_branch_given(monkeypatch, capsys):
     monkeypatch.setattr("sys.stderr.isatty", lambda: True)
     _print_banner("v1.0.0", "feat/x", SyncMode.BRANCH)
     assert "feat/x" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------------------
+# --show-onboarding (Stage 6) — replay the first-run explainer, no state change
+# ---------------------------------------------------------------------------
+
+def test_show_onboarding_prints_and_does_not_mark(monkeypatch, tmp_path, capsys):
+    from hercules.cli import main
+    from hercules.plugin_sync import config as config_mod
+    from hercules.plugin_sync.config import load_config
+    monkeypatch.setattr(config_mod, "HERCULES_HOME", tmp_path / ".hercules")
+    monkeypatch.setattr(config_mod, "_LEGACY_CONFIG_PATH", tmp_path / "legacy.json")
+
+    with patch("sys.argv", ["hercules", "--show-onboarding"]):
+        main()
+
+    err = capsys.readouterr().err
+    assert "code" in err.lower() and "conduct" in err.lower()
+    assert load_config().onboarded_at is None
