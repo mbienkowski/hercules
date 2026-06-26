@@ -34,6 +34,13 @@ itself. How a user *runs* Hercules (the workflow, phases, and artifact conventio
 - Must declare: phase-anchored trigger, precondition-then-stop guard, atomic/idempotent writes
 - Falls back gracefully when `code-of-conduct.md` is absent in the target project
 
+### Branching
+
+- **Branch names must not contain slashes.** A `/` makes git create nested directories under
+  `.git/refs/heads/` (e.g. `claude/feature-x` becomes `refs/heads/claude/feature-x`), which clutters
+  the ref namespace and blocks a later branch from reusing that name as a leaf.
+- Use **hyphens** instead: `claude-feature-x`, not `claude/feature-x`.
+
 ---
 
 ## Testing

@@ -199,7 +199,7 @@ get the latest agents and skills without pulling manually.
 
 ### Install
 
-Requires **Python ≥ 3.11** (macOS ships 3.9 — `brew install python@3.11` if needed).
+Requires **Python ≥ 3.9** (already shipped on most systems, including macOS 12+ — no install needed).
 
 There is no package index involved — install the `hercules` command directly from the repo.
 
@@ -213,7 +213,7 @@ pipx install git+https://github.com/mbienkowski/hercules.git
 
 ```bash
 git clone https://github.com/mbienkowski/hercules.git
-cd claude-hercules
+cd hercules
 pipx install .          # or, for an editable dev install: pip install -e .
 ```
 
@@ -303,7 +303,7 @@ all users within 5 minutes. Mitigations:
 
 ## Requirements
 
-- Python ≥ 3.11
+- Python ≥ 3.9 (only for the optional auto-sync CLI; the plugin-directory path needs no Python)
 - `git` on PATH
 - Claude Code ≥ v2.1.128
 
