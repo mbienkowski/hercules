@@ -9,7 +9,9 @@ import subprocess
 import sys
 import tempfile
 from datetime import datetime, timezone
+from enum import Enum
 from pathlib import Path
+from typing import Optional
 
 _SYNC_TTL_SECONDS = 1800  # pragma: no mutate  (30 minutes)
 
@@ -17,31 +19,180 @@ _VALID_URL_RE = re.compile(
     r"^(https://[^\s]+|git@[^:]+:[^\s]+)$"
 )
 
+# A stable release tag: vX.Y.Z or X.Y.Z (no pre-release suffix).
+_SEMVER_TAG_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
+
+_FALLBACK_BRANCH = "main"  # pragma: no mutate
+
+
+class SyncMode(Enum):
+    """How the plugin clone tracks upstream.
+
+    BRANCH  — follow a named branch (``--branch``); bleeding edge / testing.
+    RELEASE — follow the latest stable release tag; the default for users.
+    """
+
+    BRANCH = "branch"
+    RELEASE = "release"
+
 
 def sync_plugin(
     clone_root: Path,
     repo_url: str,
-    branch: str,
+    branch: Optional[str] = None,
     ssh_key: str = "",  # pragma: no mutate
     git_token: str = "",  # pragma: no mutate
     force: bool = False,  # pragma: no mutate
+    mode: SyncMode = SyncMode.BRANCH,
 ) -> None:
     """Ensure the plugin directory is up to date.
 
-    Clones on first run; pulls if the TTL has elapsed on subsequent runs.
-    ``force=True`` bypasses the TTL so a pull always runs (``hercules --sync``).
-    Pull failures are non-fatal warnings — cached content is used.
+    In ``RELEASE`` mode the clone tracks the latest stable release tag; in
+    ``BRANCH`` mode it follows ``branch``. Clones on first run; updates if the
+    TTL has elapsed (or ``force=True``, e.g. ``hercules --sync``). Update
+    failures are non-fatal warnings — cached content is used.
     """
     _validate_repo_url(repo_url)
 
     if not _is_git_repo(clone_root):
-        _clone(clone_root, repo_url, branch, ssh_key, git_token)
+        ref = _resolve_clone_ref(mode, branch, repo_url, ssh_key, git_token)
+        _clone(clone_root, repo_url, ref, ssh_key, git_token)
         return
 
     if not force and not _ttl_elapsed(clone_root):
         return
 
-    _pull(clone_root, branch, ssh_key, git_token)
+    if mode is SyncMode.RELEASE:
+        _update_to_latest_release(clone_root, repo_url, ssh_key, git_token)
+    else:
+        _pull(clone_root, branch, ssh_key, git_token)
+
+
+def _resolve_clone_ref(
+    mode: SyncMode,
+    branch: Optional[str],
+    repo_url: str,
+    ssh_key: str,
+    git_token: str,
+) -> str:
+    """Decide which git ref to clone: the latest release tag, or a branch."""
+    if mode is SyncMode.BRANCH:
+        return branch or _FALLBACK_BRANCH
+
+    tag = _resolve_latest_release(repo_url, ssh_key, git_token)
+    if tag:
+        return tag
+    print(
+        f"[hercules] No release found yet — tracking {_FALLBACK_BRANCH!r}.",  # pragma: no mutate
+        file=sys.stderr,
+    )
+    return _FALLBACK_BRANCH
+
+
+def _latest_release_tag(text: str) -> Optional[str]:
+    """Return the highest stable semver tag in ``text``, or None.
+
+    Accepts both ``git ls-remote --tags`` lines (``<sha>\\trefs/tags/v1.2.3``,
+    possibly peeled with ``^{}``) and bare ``git tag -l`` names. Pre-release
+    tags (e.g. ``v2.0.0-rc1``) are skipped; ordering is numeric, not lexical.
+    """
+    best_version = None
+    best_name = None
+    for raw in text.splitlines():
+        token = raw.strip()
+        if not token:
+            continue
+        if "\t" in token:
+            token = token.split("\t", 1)[1].strip()
+        if token.startswith("refs/tags/"):
+            token = token[len("refs/tags/"):]
+        if token.endswith("^{}"):
+            token = token[: -len("^{}")]
+        match = _SEMVER_TAG_RE.match(token)
+        if not match:
+            continue
+        version = (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+        if best_version is None or version > best_version:
+            best_version = version
+            best_name = token
+    return best_name
+
+
+def _resolve_latest_release(
+    repo_url: str,
+    ssh_key: str = "",
+    git_token: str = "",
+) -> Optional[str]:
+    """Query the remote's tags and return the latest stable release, or None."""
+    env = _git_env(ssh_key)
+    with _GitTokenAskpass(git_token) as askpass_script:
+        if askpass_script:
+            env["GIT_ASKPASS"] = askpass_script  # pragma: no mutate
+        result = subprocess.run(
+            ["git", "ls-remote", "--tags", repo_url],  # pragma: no mutate
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+    if result.returncode != 0:
+        return None
+    return _latest_release_tag(result.stdout)
+
+
+def _update_to_latest_release(
+    plugin_dir: Path,
+    repo_url: str,
+    ssh_key: str,
+    git_token: str,
+) -> None:
+    """Fetch tags and check out the latest release (detached). Non-fatal on failure."""
+    env = _git_env(ssh_key)
+    with _GitTokenAskpass(git_token) as askpass_script:
+        if askpass_script:
+            env["GIT_ASKPASS"] = askpass_script  # pragma: no mutate
+
+        fetch = subprocess.run(
+            ["git", "fetch", "--tags", "--quiet", "--force"],  # pragma: no mutate
+            cwd=plugin_dir,
+            env=env,
+            capture_output=True,
+        )
+        if fetch.returncode != 0:
+            print(
+                f"[hercules] Warning: could not fetch tags: {fetch.stderr.decode()}",  # pragma: no mutate
+                file=sys.stderr,
+            )
+            return
+
+        listing = subprocess.run(
+            ["git", "tag", "-l"],  # pragma: no mutate
+            cwd=plugin_dir,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        tag = _latest_release_tag(listing.stdout) if listing.returncode == 0 else None
+        if not tag:
+            print(
+                f"[hercules] No release found yet — staying on the current ref.",  # pragma: no mutate
+                file=sys.stderr,
+            )
+            return
+
+        checkout = subprocess.run(
+            ["git", "checkout", "--quiet", tag],  # pragma: no mutate
+            cwd=plugin_dir,
+            env=env,
+            capture_output=True,
+        )
+    if checkout.returncode != 0:
+        print(
+            f"[hercules] Warning: could not check out {tag}: {checkout.stderr.decode()}",  # pragma: no mutate
+            file=sys.stderr,
+        )
+        return
+
+    _write_timestamp(plugin_dir)
 
 
 def _validate_repo_url(url: str) -> None:

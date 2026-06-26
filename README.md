@@ -245,10 +245,16 @@ hercules --claude-dir ~/.claude-priv   # fully isolated Claude login + settings
 hercules -c ~/.claude-priv             # short form
 ```
 
-### Test a branch before it merges
+### Track the latest release (default) vs. a branch
+
+By default `hercules` tracks the **latest stable release** (the highest semver tag) — not the
+moving `main` branch — so you run a reviewed, tagged version. Until the first release is cut, it
+falls back to `main` automatically.
 
 ```bash
-hercules --branch my-feature-branch
+hercules                          # latest release (recommended)
+hercules --branch main            # bleeding edge: follow main
+hercules --branch my-feature-x    # test a specific branch before it merges
 ```
 
 ### First-time setup
@@ -276,8 +282,8 @@ hercules --status   # home, initialized, onboarded, last sync
 ```
 hercules [args]
   │
-  ├── First run:   git clone plugin repo → ~/.hercules/
-  ├── Every 30 min: git pull --ff-only
+  ├── First run:    git clone plugin repo → ~/.hercules/ (latest release tag)
+  ├── Every 30 min: fetch tags + checkout latest release  (or pull, in --branch mode)
   │
   └── exec claude --add-dir ~/.hercules/plugin [args]
 ```
@@ -289,10 +295,12 @@ Claude reads: `agents/`, `skills/`, `commands/`, `protocols/`.
 
 ## Security
 
-`hercules` auto-pulls from `main` on every sync. A compromised push to `main` would reach
-all users within 30 minutes. Mitigations:
+`hercules` auto-syncs every 30 minutes. Tracking the **latest release** (the default) means a
+push to `main` does not reach users until it is reviewed, merged, and tagged as a release — so the
+exposure window for an unreviewed change is a release, not a single push. (`--branch main` opts back
+into following every push.) Mitigations:
 
-- All changes go through pull requests and CI before merging
+- All changes go through pull requests and CI before merging, and releases are cut from `main`
 - Installs come from the pinned GitHub repo over HTTPS; integrity rests on that repo plus the
   PR/CI gate above
 - The git token never touches the shared `~/.hercules/hercules-config.json` (which the plugin and

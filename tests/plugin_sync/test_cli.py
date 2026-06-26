@@ -451,16 +451,20 @@ def test_missing_plugin_dir_after_sync_exits_with_code_1_exactly(tmp_path, capsy
     assert exc_info.value.code == 1
 
 
-def test_default_branch_is_main_when_flag_not_given(cli_harness):
-    """When --branch is not specified, the branch passed to sync_plugin must be 'main'."""
+def test_default_tracks_release_with_no_branch(cli_harness):
+    """When --branch is not specified, Hercules tracks the latest release (branch=None)."""
     from hercules.cli import main
+    from hercules.plugin_sync.git_sync import SyncMode
     captured = {}
-    cli_harness.sync.side_effect = lambda **kw: captured.update({"branch": kw["branch"]})
+    cli_harness.sync.side_effect = lambda **kw: captured.update(
+        {"branch": kw.get("branch"), "mode": kw.get("mode")}
+    )
 
     with patch("sys.argv", ["hercules"]):
         main()
 
-    assert captured["branch"] == "main"
+    assert captured["branch"] is None
+    assert captured["mode"] == SyncMode.RELEASE
 
 
 def test_effective_url_falls_back_to_default_when_no_source_set(cli_harness):
@@ -491,7 +495,7 @@ def test_retry_sync_when_plugin_dir_missing_but_clone_root_exists(tmp_path):
 
     sync_calls = []
 
-    def mock_sync(clone_root, repo_url, branch, ssh_key="", git_token="", force=False):
+    def mock_sync(clone_root, repo_url, branch=None, ssh_key="", git_token="", force=False, mode=None):
         sync_calls.append("called")
 
     with patch("sys.argv", ["hercules"]), \
@@ -570,3 +574,49 @@ def test_normal_run_does_not_force_sync(cli_harness):
         main()
     assert cli_harness.sync.call_args.kwargs.get("force") is False
     cli_harness.exec.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Tracking mode (Stage 5) — default tracks the latest release, not `main`
+# ---------------------------------------------------------------------------
+
+def test_no_branch_flag_selects_release_mode(cli_harness):
+    """With no --branch, Hercules tracks the latest release (RELEASE mode)."""
+    from hercules.cli import main
+    from hercules.plugin_sync.git_sync import SyncMode
+    with patch("sys.argv", ["hercules"]):
+        main()
+    kwargs = cli_harness.sync.call_args.kwargs
+    assert kwargs.get("mode") == SyncMode.RELEASE
+    assert kwargs.get("branch") is None
+
+
+def test_branch_flag_selects_branch_mode(cli_harness):
+    """An explicit --branch opts into BRANCH mode tracking that branch."""
+    from hercules.cli import main
+    from hercules.plugin_sync.git_sync import SyncMode
+    with patch("sys.argv", ["hercules", "--branch", "main"]):
+        main()
+    kwargs = cli_harness.sync.call_args.kwargs
+    assert kwargs.get("mode") == SyncMode.BRANCH
+    assert kwargs.get("branch") == "main"
+
+
+def test_banner_shows_release_tracking_by_default(monkeypatch, capsys):
+    """The banner reflects RELEASE tracking when no branch is given."""
+    from hercules.cli import _print_banner
+    from hercules.plugin_sync.git_sync import SyncMode
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setattr("sys.stderr.isatty", lambda: True)
+    _print_banner("v1.0.0", None, SyncMode.RELEASE)
+    assert "latest release" in capsys.readouterr().err.lower()
+
+
+def test_banner_shows_branch_tracking_when_branch_given(monkeypatch, capsys):
+    """The banner names the branch when one is tracked."""
+    from hercules.cli import _print_banner
+    from hercules.plugin_sync.git_sync import SyncMode
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setattr("sys.stderr.isatty", lambda: True)
+    _print_banner("v1.0.0", "feat/x", SyncMode.BRANCH)
+    assert "feat/x" in capsys.readouterr().err

@@ -19,7 +19,7 @@ from hercules.plugin_sync.config import (
     save_token,
 )
 from hercules.plugin_sync.lock import Lock
-from hercules.plugin_sync.git_sync import sync_plugin
+from hercules.plugin_sync.git_sync import sync_plugin, SyncMode
 from hercules.plugin_sync.claude_runner import exec_claude
 from hercules.plugin_sync.self_update import run_self_update
 from hercules.plugin_sync.onboarding import run_onboarding
@@ -37,13 +37,16 @@ _BANNER = (
 )
 
 
-def _print_banner(version: str, branch: str) -> None:
+def _print_banner(version: str, branch, mode: SyncMode = SyncMode.BRANCH) -> None:
     if os.environ.get("NO_COLOR") or not sys.stderr.isatty():  # pragma: no mutate
         return
     print(file=sys.stderr)
     for line in _BANNER.split("\n"):
         print(f"\x1b[38;5;214m{line}\x1b[0m", file=sys.stderr)  # pragma: no mutate
-    label = f"version: branch {branch}" if branch != "main" else f"version: {version}"  # pragma: no mutate
+    if mode is SyncMode.RELEASE:
+        label = "tracking: latest release"  # pragma: no mutate
+    else:
+        label = f"tracking: branch {branch}"  # pragma: no mutate
     print(f"\n\x1b[38;5;242m  {label}\x1b[0m\n", file=sys.stderr)  # pragma: no mutate
 
 
@@ -53,7 +56,8 @@ def main() -> None:
         description="Hercules — Claude Code plugin with AI-assisted delivery methodology",  # pragma: no mutate
     )
     parser.add_argument("-v", "--version", action="store_true", help="Print version and exit")  # pragma: no mutate
-    parser.add_argument("-b", "--branch", default="main", help="Plugin git branch (default: main)")
+    parser.add_argument("-b", "--branch", default=None,
+                        help="Track a git branch instead of the latest release (e.g. 'main' for bleeding edge)")
     parser.add_argument("-c", "--claude-dir", dest="claude_dir", metavar="DIR",  # pragma: no mutate
                         help="Override CLAUDE_CONFIG_DIR for this session")  # pragma: no mutate
     parser.add_argument("--repo-url", dest="repo_url", metavar="URL",  # pragma: no mutate
@@ -83,8 +87,11 @@ def main() -> None:
         _print_status()
         return
 
+    # No --branch → track the latest stable release; an explicit branch opts out.
+    mode = SyncMode.RELEASE if args.branch is None else SyncMode.BRANCH
+
     if not args.sync:  # --sync is a quiet maintenance command, like --status
-        _print_banner(VERSION, args.branch)
+        _print_banner(VERSION, args.branch, mode)
 
     if args.update:
         run_self_update()
@@ -130,6 +137,7 @@ def main() -> None:
                 ssh_key=ssh_key,
                 git_token=git_token,
                 force=args.sync,
+                mode=mode,
             )
         except Exception as exc:
             lock.release()
@@ -151,6 +159,7 @@ def main() -> None:
                 ssh_key=ssh_key,
                 git_token=git_token,
                 force=args.sync,
+                mode=mode,
             )
         except Exception as exc:
             print(f"[hercules] Recovery sync failed: {exc}", file=sys.stderr)  # pragma: no mutate
