@@ -234,8 +234,8 @@ hercules                        # launch Claude with auto-updated plugin
 hercules "write a test for X"  # pass a prompt directly
 ```
 
-The plugin syncs automatically every 5 minutes. The first run clones this repo and prompts
-for setup.
+The plugin syncs automatically every 30 minutes (run `hercules --sync` to refresh immediately).
+The first run clones this repo and prompts for setup.
 
 ### Multiple config directories (work vs. personal)
 
@@ -276,7 +276,7 @@ hercules --status   # home, initialized, onboarded, last sync
 hercules [args]
   │
   ├── First run:   git clone plugin repo → ~/.hercules/
-  ├── Every 5 min: git pull --ff-only
+  ├── Every 30 min: git pull --ff-only
   │
   └── exec claude --add-dir ~/.hercules/plugin [args]
 ```
@@ -289,7 +289,7 @@ Claude reads: `agents/`, `skills/`, `commands/`, `protocols/`.
 ## Security
 
 `hercules` auto-pulls from `main` on every sync. A compromised push to `main` would reach
-all users within 5 minutes. Mitigations:
+all users within 30 minutes. Mitigations:
 
 - All changes go through pull requests and CI before merging
 - Installs come from the pinned GitHub repo over HTTPS; integrity rests on that repo plus the

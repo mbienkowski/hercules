@@ -11,7 +11,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-_SYNC_TTL_SECONDS = 300  # pragma: no mutate
+_SYNC_TTL_SECONDS = 1800  # pragma: no mutate  (30 minutes)
 
 _VALID_URL_RE = re.compile(
     r"^(https://[^\s]+|git@[^:]+:[^\s]+)$"
