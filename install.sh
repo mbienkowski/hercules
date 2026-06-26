@@ -65,6 +65,7 @@ fi
 
 echo "Usage:"
 echo "  hercules                        # launch claude with auto-updated plugins"
+echo "  hercules --sync                 # force an immediate plugin refresh and exit"
 echo "  hercules --branch feature-x     # test a plugin branch"
 echo "  hercules --setup                # configure plugin repository"
 echo "  hercules --self-update          # upgrade hercules itself"

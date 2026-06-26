@@ -474,3 +474,43 @@ def test_pull_passes_git_askpass_env_to_subprocess_when_token_given(tmp_path):
         _pull(tmp_path, "main", "", "my-token")
 
     assert any("GIT_ASKPASS" in e for e in captured_envs)
+
+
+# ---------------------------------------------------------------------------
+# force refresh (Stage 4) — bypasses the TTL on demand (hercules --sync)
+# ---------------------------------------------------------------------------
+
+def test_force_true_updates_even_when_ttl_is_fresh(tmp_path):
+    """force=True must run the update path even if the last pull was just now."""
+    from unittest.mock import patch
+    import hercules.plugin_sync.git_sync as gs
+    (tmp_path / ".git").mkdir()
+    recent = datetime.now(timezone.utc) - timedelta(seconds=5)
+    (tmp_path / ".last-pull").write_text(recent.isoformat())
+
+    with patch.object(gs, "_pull") as mock_pull:
+        gs.sync_plugin(
+            clone_root=tmp_path,
+            repo_url="https://github.com/mbienkowski/hercules.git",
+            branch="main",
+            force=True,
+        )
+    mock_pull.assert_called_once()
+
+
+def test_force_false_skips_update_when_ttl_is_fresh(tmp_path):
+    """force=False (default) must respect the TTL and skip the update."""
+    from unittest.mock import patch
+    import hercules.plugin_sync.git_sync as gs
+    (tmp_path / ".git").mkdir()
+    recent = datetime.now(timezone.utc) - timedelta(seconds=5)
+    (tmp_path / ".last-pull").write_text(recent.isoformat())
+
+    with patch.object(gs, "_pull") as mock_pull:
+        gs.sync_plugin(
+            clone_root=tmp_path,
+            repo_url="https://github.com/mbienkowski/hercules.git",
+            branch="main",
+            force=False,
+        )
+    mock_pull.assert_not_called()

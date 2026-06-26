@@ -65,6 +65,8 @@ def main() -> None:
     parser.add_argument("--update", action="store_true", help="Upgrade Hercules via pipx")  # pragma: no mutate
     parser.add_argument("--setup", action="store_true", help="Run first-time setup wizard")  # pragma: no mutate
     parser.add_argument("--status", action="store_true", help="Show install status and exit")  # pragma: no mutate
+    parser.add_argument("--sync", action="store_true",  # pragma: no mutate
+                        help="Force an immediate plugin refresh (bypasses the 30-min timer) and exit")  # pragma: no mutate
     parser.add_argument("--uninstall", action="store_true", help="Print uninstall instructions")  # pragma: no mutate
 
     args, claude_args = parser.parse_known_args()
@@ -81,7 +83,8 @@ def main() -> None:
         _print_status()
         return
 
-    _print_banner(VERSION, args.branch)
+    if not args.sync:  # --sync is a quiet maintenance command, like --status
+        _print_banner(VERSION, args.branch)
 
     if args.update:
         run_self_update()
@@ -126,6 +129,7 @@ def main() -> None:
                 branch=args.branch,
                 ssh_key=ssh_key,
                 git_token=git_token,
+                force=args.sync,
             )
         except Exception as exc:
             lock.release()
@@ -146,6 +150,7 @@ def main() -> None:
                 branch=args.branch,
                 ssh_key=ssh_key,
                 git_token=git_token,
+                force=args.sync,
             )
         except Exception as exc:
             print(f"[hercules] Recovery sync failed: {exc}", file=sys.stderr)  # pragma: no mutate
@@ -154,6 +159,10 @@ def main() -> None:
         print("[hercules] Error: plugin directory missing and could not be downloaded.", file=sys.stderr)  # pragma: no mutate
         print("[hercules] Check your network connection and try again.", file=sys.stderr)  # pragma: no mutate
         sys.exit(1)
+
+    if args.sync:  # manual refresh: done — do not launch claude
+        print("[hercules] Plugin refreshed.", file=sys.stderr)  # pragma: no mutate
+        return
 
     # The clone now exists, so it is safe to create the (gitignored) config file
     # inside ~/.hercules; then onboard once on first run.

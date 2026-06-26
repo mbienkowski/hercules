@@ -24,10 +24,12 @@ def sync_plugin(
     branch: str,
     ssh_key: str = "",  # pragma: no mutate
     git_token: str = "",  # pragma: no mutate
+    force: bool = False,  # pragma: no mutate
 ) -> None:
     """Ensure the plugin directory is up to date.
 
     Clones on first run; pulls if the TTL has elapsed on subsequent runs.
+    ``force=True`` bypasses the TTL so a pull always runs (``hercules --sync``).
     Pull failures are non-fatal warnings — cached content is used.
     """
     _validate_repo_url(repo_url)
@@ -36,7 +38,7 @@ def sync_plugin(
         _clone(clone_root, repo_url, branch, ssh_key, git_token)
         return
 
-    if not _ttl_elapsed(clone_root):
+    if not force and not _ttl_elapsed(clone_root):
         return
 
     _pull(clone_root, branch, ssh_key, git_token)

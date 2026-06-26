@@ -231,6 +231,7 @@ Use `hercules` everywhere you would use `claude`:
 
 ```bash
 hercules                        # launch Claude with auto-updated plugin
+hercules --sync                 # force an immediate plugin refresh, then exit
 hercules "write a test for X"  # pass a prompt directly
 ```
 

@@ -491,7 +491,7 @@ def test_retry_sync_when_plugin_dir_missing_but_clone_root_exists(tmp_path):
 
     sync_calls = []
 
-    def mock_sync(clone_root, repo_url, branch, ssh_key="", git_token=""):
+    def mock_sync(clone_root, repo_url, branch, ssh_key="", git_token="", force=False):
         sync_calls.append("called")
 
     with patch("sys.argv", ["hercules"]), \
@@ -538,3 +538,35 @@ def test_old_claude_version_warns_but_still_launches(cli_harness, monkeypatch, c
 
     cli_harness.exec.assert_called_once()  # launched despite the old version
     assert "2.1.0" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------------------
+# Manual --sync (Stage 4) — force a refresh now, then exit without launching
+# ---------------------------------------------------------------------------
+
+def test_sync_flag_forces_refresh_and_exits(cli_harness):
+    """--sync must force a sync (bypass TTL) and exit without exec'ing claude."""
+    from hercules.cli import main
+    with patch("sys.argv", ["hercules", "--sync"]):
+        main()
+    assert cli_harness.sync.call_args.kwargs.get("force") is True
+    cli_harness.exec.assert_not_called()
+
+
+def test_sync_flag_composes_with_branch(cli_harness):
+    """--sync --branch main must force a refresh of the named branch."""
+    from hercules.cli import main
+    with patch("sys.argv", ["hercules", "--sync", "--branch", "main"]):
+        main()
+    kwargs = cli_harness.sync.call_args.kwargs
+    assert kwargs.get("force") is True
+    assert kwargs.get("branch") == "main"
+
+
+def test_normal_run_does_not_force_sync(cli_harness):
+    """A plain launch must not force a sync (TTL still governs)."""
+    from hercules.cli import main
+    with patch("sys.argv", ["hercules"]):
+        main()
+    assert cli_harness.sync.call_args.kwargs.get("force") is False
+    cli_harness.exec.assert_called_once()
