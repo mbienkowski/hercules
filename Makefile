@@ -4,7 +4,7 @@ install:
 	pip install -e ".[dev]"
 
 test:
-	python -m pytest tests/ -v --cov=hercules --cov-report=term-missing
+	python -m pytest tests/ -v --cov=hercules --cov-branch --cov-report=term-missing --cov-fail-under=90
 
 test-mutation:
 	mutmut run --paths-to-mutate hercules/ || true

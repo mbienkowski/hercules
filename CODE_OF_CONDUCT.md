@@ -52,12 +52,16 @@ the wrapper's logic, the plugin-content lint, and the A2A protocol/metric budget
 # Set up once
 pip install -e ".[dev]"
 
-# Run everything
-python -m pytest tests/
+# Run everything — CI gates on >= 90% branch coverage (make test)
+make test
 
-# With coverage (target: ≥ 90% on hercules/)
-python -m pytest tests/ --cov=hercules --cov-report=term-missing
+# Branch coverage, same gate as CI
+python -m pytest tests/ --cov=hercules --cov-branch --cov-report=term-missing --cov-fail-under=90
 ```
+
+Hercules holds itself to the bar it enforces on its users: **>= 90% branch coverage** (gated by
+`make test`) and a **>= 90% mutation kill rate** (gated by `make test-mutation`). Both run in CI on
+every PR — practice what we preach.
 
 ### What's covered
 
