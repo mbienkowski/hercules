@@ -35,15 +35,17 @@ jobs:
       - name: Run tests with coverage
         run: make test
 
-  # ── Mutation testing — main branch only, after tests pass ───────────────────
-  # Runs mutmut against hercules/ and gates on a 65% kill rate.
-  # Not run on feature branches to avoid slowing normal development.
+  # ── Mutation testing — on every PR and on main, after tests pass ────────────
+  # Runs mutmut against hercules/ and gates on an 85% kill rate, so surviving
+  # mutants are caught before merge. Runs on pull_request (every feature branch
+  # heading to main) and on main pushes (the release gate) — once per commit,
+  # never duplicated across the push + pull_request events for the same SHA.
   mutation:
     name: Mutation
     needs: [test]
     if: >-
-      github.ref == 'refs/heads/main' &&
-      github.event_name == 'push'
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
