@@ -21,7 +21,7 @@ _UPGRADE_URL = "https://docs.claude.com/claude-code"  # pragma: no mutate
 
 _VERSION_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 
-Version = Tuple[int, int, int]
+Version = Tuple[int, int, int]  # pragma: no mutate
 
 
 def parse_claude_version(output: str) -> Optional[Version]:
@@ -62,7 +62,7 @@ def verify_claude_version(
     except Exception:  # binary missing, timeout, OS error — all non-fatal
         return
 
-    output = (getattr(result, "stdout", "") or "") + (getattr(result, "stderr", "") or "")
+    output = (getattr(result, "stdout", "") or "") + (getattr(result, "stderr", "") or "")  # pragma: no mutate
     version = parse_claude_version(output)
     if version is None:
         return

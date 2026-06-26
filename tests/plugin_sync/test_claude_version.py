@@ -122,3 +122,13 @@ def test_below_min_reported_via_stderr_also_warns(capsys):
     # Some tools print --version to stderr; the check must read both streams.
     cv.verify_claude_version(run=_fake_run(stdout="", stderr="2.1.100"))
     assert "2.1.100" in capsys.readouterr().err
+
+
+def test_verify_uses_subprocess_run_by_default(monkeypatch, capsys):
+    # With no injected run, it must resolve subprocess.run at call time.
+    monkeypatch.setattr(
+        cv.subprocess, "run",
+        lambda *a, **k: types.SimpleNamespace(stdout="2.1.0", stderr="", returncode=0),
+    )
+    cv.verify_claude_version()  # no run= → default path
+    assert "2.1.0" in capsys.readouterr().err

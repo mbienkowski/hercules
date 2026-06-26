@@ -224,3 +224,68 @@ def test_update_release_mode_writes_timestamp_on_success(tmp_path):
                     mode=SyncMode.RELEASE, force=True)
 
     assert (tmp_path / ".last-pull").exists()  # success path must stamp the sync time
+
+
+# Stage 5 hardening (round 2) — env/kwargs, empty-line skip, equal-version order, _pull cmd
+
+def test_latest_tag_skips_blank_lines_without_stopping():
+    # A blank line must `continue`, not `break` (else a later, higher tag is missed).
+    assert _latest_release_tag("v1.0.0\n\nv2.0.0\n") == "v2.0.0"
+
+
+def test_latest_tag_keeps_first_of_equal_versions():
+    # v1.0.0 and 1.0.0 parse equal; '>' keeps the first seen (not '>=' → last).
+    assert _latest_release_tag("a\trefs/tags/v1.0.0\nb\trefs/tags/1.0.0\n") == "v1.0.0"
+
+
+def test_resolve_latest_release_passes_real_env_and_captures_output():
+    captured = {}
+
+    def rec(cmd, **kw):
+        captured.update(kw)
+        return _ok(stdout="x\trefs/tags/v1.0.0\n")
+
+    with patch.object(gs.subprocess, "run", side_effect=rec):
+        gs._resolve_latest_release("https://example.com/r.git")
+
+    assert isinstance(captured.get("env"), dict)               # env must not be None
+    assert captured["env"].get("GIT_TERMINAL_PROMPT") == "0"   # it's a real git env
+    assert captured["capture_output"] is True
+    assert captured["text"] is True
+
+
+def test_update_release_passes_real_env_and_captures_on_each_call(tmp_path):
+    (tmp_path / ".git").mkdir()
+    calls = []
+
+    def rec(cmd, **kw):
+        calls.append((cmd, kw))
+        return _ok(stdout="v2.1.0\n") if "tag" in cmd else _ok()
+
+    with patch.object(gs.subprocess, "run", side_effect=rec):
+        sync_plugin(clone_root=tmp_path, repo_url="https://example.com/r.git",
+                    mode=SyncMode.RELEASE, force=True)
+
+    for cmd, kw in calls:
+        assert isinstance(kw.get("env"), dict)  # env must be a real dict on every call
+    fetch = next(kw for cmd, kw in calls if "fetch" in cmd)
+    listing = next(kw for cmd, kw in calls if "tag" in cmd)
+    checkout = next(kw for cmd, kw in calls if "checkout" in cmd)
+    assert fetch["capture_output"] is True
+    assert listing["capture_output"] is True and listing["text"] is True
+    assert checkout["capture_output"] is True
+
+
+def test_pull_checkout_command_uses_git_and_quiet(tmp_path):
+    calls = []
+
+    def rec(cmd, **kw):
+        calls.append(cmd)
+        return _ok()
+
+    with patch.object(gs.subprocess, "run", side_effect=rec):
+        gs._pull(tmp_path, "main", "", "")
+
+    checkout = calls[0]
+    assert checkout[0] == "git"
+    assert "checkout" in checkout and "--quiet" in checkout and "main" in checkout

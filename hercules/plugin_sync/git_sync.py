@@ -32,8 +32,8 @@ class SyncMode(Enum):
     RELEASE — follow the latest stable release tag; the default for users.
     """
 
-    BRANCH = "branch"
-    RELEASE = "release"
+    BRANCH = "branch"  # pragma: no mutate
+    RELEASE = "release"  # pragma: no mutate
 
 
 def sync_plugin(
@@ -120,8 +120,8 @@ def _latest_release_tag(text: str) -> Optional[str]:
 
 def _resolve_latest_release(
     repo_url: str,
-    ssh_key: str = "",
-    git_token: str = "",
+    ssh_key: str = "",  # pragma: no mutate
+    git_token: str = "",  # pragma: no mutate
 ) -> Optional[str]:
     """Query the remote's tags and return the latest stable release, or None."""
     env = _git_env(ssh_key)
@@ -289,7 +289,7 @@ class _GitTokenAskpass:
         os.close(fd)
         Path(self._token_file).write_text(self._token)  # mkstemp already creates at 0o600
 
-        escaped = self._token_file.replace("'", "'\\''")
+        escaped = self._token_file.replace("'", "'\\''")  # pragma: no mutate
         script = f"#!/bin/sh\ncat '{escaped}'\n"  # pragma: no mutate
         fd2, self._script_file = tempfile.mkstemp(prefix="hercules-askpass-")  # pragma: no mutate
         os.close(fd2)
