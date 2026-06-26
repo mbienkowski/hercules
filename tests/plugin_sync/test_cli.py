@@ -514,3 +514,27 @@ def test_retry_sync_when_plugin_dir_missing_but_clone_root_exists(tmp_path):
     assert not last_pull.exists()
     # sync_plugin must have been called at least twice (initial + retry)
     assert len(sync_calls) >= 2
+
+
+# ---------------------------------------------------------------------------
+# Claude version check is advisory (Stage 2) — warns but never blocks launch
+# ---------------------------------------------------------------------------
+
+def test_old_claude_version_warns_but_still_launches(cli_harness, monkeypatch, capsys):
+    """An old Claude Code must produce a warning yet still exec claude."""
+    import types as _types
+    from hercules.cli import main
+    from hercules.plugin_sync import config as config_mod
+
+    # Isolate the throttle's config writes to the harness's temp home.
+    monkeypatch.setattr(config_mod, "HERCULES_HOME", cli_harness.home / ".hercules")
+    monkeypatch.setattr(
+        "hercules.plugin_sync.claude_version.subprocess.run",
+        lambda *a, **k: _types.SimpleNamespace(stdout="2.1.0", stderr="", returncode=0),
+    )
+
+    with patch("sys.argv", ["hercules"]):
+        main()
+
+    cli_harness.exec.assert_called_once()  # launched despite the old version
+    assert "2.1.0" in capsys.readouterr().err

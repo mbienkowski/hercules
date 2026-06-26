@@ -23,6 +23,7 @@ from hercules.plugin_sync.git_sync import sync_plugin
 from hercules.plugin_sync.claude_runner import exec_claude
 from hercules.plugin_sync.self_update import run_self_update
 from hercules.plugin_sync.onboarding import run_onboarding
+from hercules.plugin_sync.claude_version import verify_claude_version
 
 VERSION = "dev"  # pragma: no mutate
 
@@ -103,6 +104,9 @@ def main() -> None:
             file=sys.stderr,
         )
         sys.exit(1)
+
+    # Advisory only — warns if Claude Code is older than recommended, never blocks.
+    verify_claude_version()
 
     clone_root = Path.home() / ".hercules"
     plugin_dir = clone_root / "plugin"
