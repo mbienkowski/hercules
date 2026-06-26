@@ -101,6 +101,27 @@ python -m pytest tests/ --cov=hercules --cov-report=term-missing
 **A behavioral/CLI check → add a pytest test** in `tests/plugin_sync/test_cli.py` using the
 `fake_bin` and `isolated_home` fixtures from `tests/conftest.py`.
 
+### Budgets are fixed — stop and ask before you bump or cut
+
+Token and instruction budgets in `tests/testdata/thresholds.json` are quality gates, not
+obstacles: every token a command/agent/skill carries is consumed at startup and on every run,
+eating context the model needs for good output. More tokens → less room to think → lower quality.
+
+When a change would breach a budget, the assistant is the **guardian of the gate**. It must
+**not** silently raise the threshold, and must **not** silently cut content to make room. Instead:
+
+1. **Stop and surface it.** State plainly which budget would be exceeded and by how much, e.g.
+   *"The token budget for the Discover phase (`discover.md`) would be exceeded — ~1390 / limit 1350."*
+2. **Propose at least three options** and recommend one, for example:
+   - **Tighten verbose prose** elsewhere in the file to absorb the addition (usually the best fit).
+   - **Move content out** — extract detail into a separate file/reference the phase links to.
+   - **Drop a lower-value instruction** to make room for the higher-value one.
+   - **Raise the threshold** — only if the maintainer explicitly chooses this.
+3. **Let the maintainer decide.** Apply only the chosen option.
+
+Raise a threshold **only** when the maintainer explicitly instructs it in their own words. Absent
+that explicit instruction, treat every threshold as immovable.
+
 ### Tokens
 
 Token counts are computed offline with `tiktoken` (cl100k_base, no network call).

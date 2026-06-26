@@ -4,24 +4,21 @@
 
 ## Step 0 — Artifact location & prior context
 
-Resolve the **artifact root** — where all documents are written — per `CLAUDE.md §
-Artifact root resolution`: a `code-of-conduct.md` directive wins (same-repo directory →
-use it; separate repository → ask for its local path once and cache it in the project's
-home-config entry), otherwise default to `docs/` in the current directory. Record the resolved
-path as `docs_root` in the project's home-config entry (see `CLAUDE.md § Machine-local state`).
-All paths below are relative to that root (shown as `docs/`).
+Resolve the **artifact root** per `CLAUDE.md § Artifact root resolution`: a `code-of-conduct.md`
+directive wins (same-repo directory → use it; separate repo → ask its local path once, cache it),
+else default to `docs/`. Record it as `docs_root` in the project's home-config entry (see `CLAUDE.md
+§ Machine-local state`). All paths below are relative to that root (shown as `docs/`).
 
-Read `docs/INDEX.md` if present; show a one-line digest of recent sessions.
-Read `docs/learnings.md` if present; surface entries matching the user's opening idea
-(key-match on topic). No-op if absent or no match.
+Read `docs/INDEX.md` if present — one-line digest of recent sessions. Read `docs/learnings.md` if
+present — surface entries matching the opening idea (key-match on topic); no-op if absent.
 
-**Code of conduct (recommended).** If the repo has no `code-of-conduct.md`, tell the user it is
-the single biggest lever on output quality — every agent reads it for the stack, test command,
-and quality bar — and offer to generate one (`code-of-conduct-generator`). Proceed either way.
+**Code of conduct (recommended).** No `code-of-conduct.md` in the repo? Tell the user it's the
+biggest lever on output quality — every agent reads it for stack, test command, and bar — and offer
+to generate one (`code-of-conduct-generator`). Proceed either way.
 
 ## Step 1 — Upfront context
 
-Paste any documents you have — PRDs, ADRs, Figma links, QA test plans, API contracts, or a brain-dump. One sentence or ten pages — bring it all. Say **"no documents"** to skip to questions.
+Paste any documents you have — PRDs, ADRs, Figma links, QA test plans, API contracts, or a brain-dump. One sentence or ten pages. Say **"no documents"** to skip.
 
 If documents provided: acknowledge them in 2–3 sentences. Note which groups (A–E) they already answer; skip those in Step 2.
 
@@ -76,7 +73,7 @@ Do not create the file until the user says "approved".
 
 ## Step 6 — Validation gate
 
-Before writing: verify all five core sections (Goal, Users, Scope, Constraints, Success criteria) have content — no placeholders. Design references is optional and omitted when there is no visual scope.
+Before writing: verify all five core sections (Goal, Users, Scope, Constraints, Success criteria) have real content — no placeholders. Design references is optional (omit when no visual scope).
 
 (medium+) Share this draft with stakeholders before locking. Say **"stakeholders approved"** or **"skip stakeholder review"** to proceed.
 
@@ -114,14 +111,14 @@ File structure:
 (Figma, wireframes, mockups, or other external design links — omit if none. Links only, no code.)
 ```
 
-**Business language only** — this file is committed and read by business stakeholders at a high level. No class/method names, code, or file paths. Anything implementation-specific belongs in the spec, not here. Design references hold links to visual artifacts (Figma, wireframes), never implementation detail.
+**Business language only** — committed and read by stakeholders. No class/method names, code, or file paths; implementation detail belongs in the spec. Design references hold visual-artifact links (Figma, wireframes), never implementation detail.
 
 Write the session-init state to the project's `~/.hercules/hercules-config.json` entry (see
-`CLAUDE.md § Machine-local state`) — never into the repo: `directory`, `active_session`
-(`YYYY-MM-DD-{short-desc}`), `current_phase` `"discover"`, `docs_root`, empty `repositories`,
-`last_updated`. Write atomically, preserving other entries and CLI-managed keys.
+`CLAUDE.md § Machine-local state`), never the repo: `directory`, `active_session`,
+`current_phase` `"discover"`, `docs_root`, empty `repositories`, `last_updated`. Write
+atomically, preserving other entries and CLI-managed keys.
 
 Append a new row to `docs/INDEX.md` (create if absent) with `tier`, `active` status,
 and a one-line goal summary.
 
-Show the saved path. Then say: "The requirements are locked. Ready to move to the **Design** phase? Run `/hercules:design` — we'll shape the technical solution and delivery sequence there."
+Show the saved path. Then say: "The requirements are locked. Ready for **Design**? Run `/hercules:design` — we'll shape the solution and delivery sequence there."

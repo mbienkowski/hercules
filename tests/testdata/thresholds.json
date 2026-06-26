@@ -31,7 +31,7 @@
     "name": "discover-command-token-budget",
     "target": "plugin/commands/discover.md",
     "metric": "token_count",
-    "op": "<=", "limit": 1520, "warn_at": 1400,
+    "op": "<=", "limit": 1350, "warn_at": 1200,
     "severity": "gate"
   },
   {

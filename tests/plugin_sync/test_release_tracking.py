@@ -140,3 +140,39 @@ def test_update_release_mode_checkout_failure_is_non_fatal(tmp_path, capsys):
     with patch.object(gs.subprocess, "run", side_effect=fake_run):
         sync_plugin(clone_root=tmp_path, repo_url="https://example.com/r.git",
                     mode=SyncMode.RELEASE, force=True)
+
+
+def test_update_release_mode_fetch_failure_is_non_fatal(tmp_path, capsys):
+    (tmp_path / ".git").mkdir()
+    calls = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        if "fetch" in cmd:
+            return types.SimpleNamespace(stdout="", stderr=b"network down", returncode=1)
+        return _ok()
+
+    with patch.object(gs.subprocess, "run", side_effect=fake_run):
+        sync_plugin(clone_root=tmp_path, repo_url="https://example.com/r.git",
+                    mode=SyncMode.RELEASE, force=True)
+
+    assert "could not fetch tags" in capsys.readouterr().err.lower()
+    assert not any("checkout" in c for c in calls)  # bailed before checkout
+
+
+def test_update_release_mode_no_tags_stays_put(tmp_path, capsys):
+    (tmp_path / ".git").mkdir()
+    calls = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        if "tag" in cmd:
+            return _ok(stdout="")  # no tags at all
+        return _ok()
+
+    with patch.object(gs.subprocess, "run", side_effect=fake_run):
+        sync_plugin(clone_root=tmp_path, repo_url="https://example.com/r.git",
+                    mode=SyncMode.RELEASE, force=True)
+
+    assert "no release found" in capsys.readouterr().err.lower()
+    assert not any("checkout" in c for c in calls)
