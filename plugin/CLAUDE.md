@@ -1,6 +1,7 @@
 # hercules — project instructions
 
-Hercules is a Python wrapper for the `claude` CLI plus a plugin of agents/commands/skills.
+Hercules is a Claude Code plugin of agents, commands, and skills, distributed through the native
+plugin marketplace (with an optional thin `hercules` launcher for a branded entry point).
 
 ## Development principles
 
@@ -47,8 +48,8 @@ Reusable procedures in `skills/` (auto-loaded, model-invoked by description):
 - **Knowledge:** `learnings`, `code-of-conduct-generator`, `session-summary`
 
 Each obeys a shared contract (phase-anchored trigger, precondition-then-stop, atomic/idempotent
-writes, code-of-conduct fallback), pinned by `tests/methodology/`. Native subcommands are
-invoked `hercules --<name>` (never the bare form).
+writes, code-of-conduct fallback), pinned by `tests/methodology/`. Skills are model-invoked by their
+description; they are not shell subcommands.
 
 ## Testing
 

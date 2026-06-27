@@ -41,12 +41,23 @@ itself. How a user *runs* Hercules (the workflow, phases, and artifact conventio
   the ref namespace and blocks a later branch from reusing that name as a leaf.
 - Use **hyphens** instead: `claude-feature-x`, not `claude/feature-x`.
 
+### Invariants
+
+These rules are enforced by `tests/methodology/` — a change that breaks one fails CI:
+
+- **Every shipped artifact has an owning test.** A new manifest, agent, command, skill, or launcher
+  behaviour ships only with a test that fails when it is missing or malformed.
+- **The `hercules` launcher is a Python module** (`hercules/launcher.py`), never a shell script — so
+  branch coverage and mutation testing actually see it.
+- **The plugin version is single-sourced.** `pyproject.toml` and `plugin/.claude-plugin/plugin.json`
+  must carry the same version; CI fails on drift.
+
 ---
 
 ## Testing
 
 One language, one runner: **Python**. Everything is a pytest test under `python -m pytest tests/` —
-the wrapper's logic, the plugin-content lint, and the A2A protocol/metric budgets.
+the launcher, the plugin-content lint, and the A2A protocol/metric budgets.
 
 ```bash
 # Set up once
@@ -67,15 +78,13 @@ every PR — practice what we preach.
 
 | Area | Where | Kind |
 |------|-------|------|
-| CLI flag parsing and orchestration | `tests/plugin_sync/test_cli.py` | unit |
-| Config read/write and migration shim | `tests/plugin_sync/test_config.py`, `test_wizard.py` | unit |
-| Git clone/pull, URL validation, TTL | `tests/plugin_sync/test_git_sync.py`, `test_git_sync_subprocess.py` | unit |
-| Directory-based PID lock | `tests/plugin_sync/test_lock.py` | unit + subprocess |
-| claude exec and secret stripping | `tests/plugin_sync/test_claude_runner.py` | unit |
+| Launcher: arg passthrough, `--claude-dir`→`CLAUDE_CONFIG_DIR`, secret stripping, Python floor | `tests/methodology/test_launcher.py` | unit |
+| Marketplace + plugin manifests, default-agent persona, no-AGENT_TEAMS guard | `tests/methodology/test_plugin_integrity.py`, `test_agents.py` | unit + policy |
+| Docs match the marketplace reality; version single-sourced | `tests/methodology/test_docs.py` | policy |
 | A2A protocol grammar and status vocabulary | `tests/methodology/test_a2a_grammar.py`, `test_protocol_files.py` | unit + policy |
 | Instruction and token budget checks | `tests/methodology/test_threshold_runner.py`, `test_plugin_integrity.py` | unit + data-driven |
 | Agent and skill file hygiene | `tests/methodology/test_agents.py`, `test_skills.py` | policy |
-| Command file structure       | `tests/methodology/test_commands.py`                | policy |
+| Command file structure | `tests/methodology/test_commands.py` | policy |
 
 ### Adding a check
 
@@ -102,8 +111,8 @@ every PR — practice what we preach.
 
 **A new metric → add a function to `hercules/methodology/` and register it** in `METRIC_REGISTRY`.
 
-**A behavioral/CLI check → add a pytest test** in `tests/plugin_sync/test_cli.py` using the
-`fake_bin` and `isolated_home` fixtures from `tests/conftest.py`.
+**A behavioral check (the launcher) → add a pytest test** in `tests/methodology/test_launcher.py`,
+mocking `shutil.which` / `os.execvpe` as the existing cases do.
 
 ### Budgets are fixed — stop and ask before you bump or cut
 

@@ -70,3 +70,29 @@ jobs:
         with:
           name: mutmut-results
           path: mutmut-results.txt
+
+  # ── Validate the plugin package — manifests + single-source version ─────────
+  # Gates packaging itself (marketplace-validate + version-check). Runs without a
+  # Claude binary; the end-to-end install smoke stays an opt-in manual check.
+  validate:
+    name: Validate plugin package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+
+      - name: Validate manifests and single-source version
+        run: |
+          python - <<'PY'
+          import json, re
+          mk = json.load(open(".claude-plugin/marketplace.json"))
+          pl = json.load(open("plugin/.claude-plugin/plugin.json"))
+          assert any(p.get("name") == "hercules" for p in mk["plugins"]), \
+              "marketplace.json must list the hercules plugin"
+          version = re.search(r'(?m)^version\s*=\s*"([^"]+)"', open("pyproject.toml").read()).group(1)
+          assert version == pl["version"], f"version drift: pyproject {version} != plugin {pl['version']}"
+          print("plugin package valid; version", version)
+          PY
