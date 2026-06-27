@@ -38,8 +38,9 @@ jobs:
   # ── Mutation testing — every commit on PR branches (+ main), after tests ────
   # Runs mutmut against hercules/ and gates on a 90% kill rate. Runs on the
   # pull_request event (every commit pushed to a branch with an open PR) and on
-  # main pushes (the release gate) — so feature-branch commits without a PR don't
-  # burn CI minutes, and a SHA is never mutation-tested twice.
+  # main pushes (post-merge) — so feature-branch commits without a PR don't
+  # burn CI minutes, and a SHA is never mutation-tested twice. Releases are cut
+  # separately by release.yml on every merge to main.
   mutation:
     name: Mutation
     needs: [test]

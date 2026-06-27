@@ -1,0 +1,83 @@
+name: Release
+
+# Every merge to main cuts a release. The bump is derived from conventional commits (standard SemVer):
+#   - feature  (`feat:`)            → MINOR
+#   - fix      (`fix:`)             → PATCH
+#   - anything else                 → MINOR   (default_bump: minor)
+#   - a BREAKING change             → MAJOR   (only when flagged: a `!` after the type, e.g. `feat!:`,
+#                                              or a `BREAKING CHANGE:` footer — never a plain `feat:`)
+# The new version is written into BOTH pyproject.toml and the plugin
+# manifest, committed back with [skip ci], tagged v{version}, and published as a
+# GitHub Release whose notes are the aggregated commits since the previous release.
+#
+# Notes:
+#   - The bump commit carries [skip ci], so it does not re-trigger this workflow.
+#   - The job pushes directly to main; if main is protected, allow this workflow
+#     (or a PAT) to bypass the rule, or relax the protection.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency: release
+
+jobs:
+  release:
+    # Skip the workflow's own release bump commit (belt-and-suspenders with [skip ci]).
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+
+      # 1. Compute the next version + changelog from conventional commits (no tag yet).
+      - name: Compute next version
+        id: bump
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: minor
+          dry_run: true
+
+      # 2. Write the new version into pyproject.toml + the plugin manifest.
+      - name: Bump version files
+        run: python scripts/set_version.py "${{ steps.bump.outputs.new_version }}"
+
+      # 3. Prepend the release notes to CHANGELOG.md.
+      - name: Update CHANGELOG
+        run: |
+          {
+            echo "## ${{ steps.bump.outputs.new_tag }} ($(date +%F))"
+            echo
+            echo "${{ steps.bump.outputs.changelog }}"
+            echo
+            if [ -f CHANGELOG.md ]; then cat CHANGELOG.md; fi
+          } > CHANGELOG.next
+          mv CHANGELOG.next CHANGELOG.md
+
+      # 4. Commit the bump + tag it (the tag points at the bumped commit).
+      - name: Commit, tag, push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml plugin/.claude-plugin/plugin.json CHANGELOG.md
+          git commit -m "chore(release): ${{ steps.bump.outputs.new_version }} [skip ci]"
+          git tag "${{ steps.bump.outputs.new_tag }}"
+          git push --follow-tags
+
+      # 5. Publish the GitHub Release with the aggregated notes.
+      - name: GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.bump.outputs.new_tag }}
+          name: ${{ steps.bump.outputs.new_tag }}
+          body: ${{ steps.bump.outputs.changelog }}
