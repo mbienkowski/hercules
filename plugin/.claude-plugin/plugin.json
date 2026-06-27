@@ -1,0 +1,10 @@
+{
+  "name": "hercules",
+  "description": "Methodology & workflow system for software delivery with AI",
+  "version": "0.1.0",
+  "author": {
+    "name": "Michal Bienkowski"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/mbienkowski/hercules"
+}

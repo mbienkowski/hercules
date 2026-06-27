@@ -90,6 +90,47 @@ def test_plugin_json_has_all_required_metadata_fields(repo_root):
         )
 
 
+def test_marketplace_manifest_lists_the_hercules_plugin(repo_root):
+    """marketplace.json must list the hercules plugin with a source that resolves to a plugin manifest."""
+    # Given
+    marketplace = repo_root / ".claude-plugin" / "marketplace.json"
+
+    # When
+    data = json.loads(marketplace.read_text())
+
+    # Then
+    assert data.get("name"), "marketplace.json missing 'name'"
+    plugins = data.get("plugins") or []
+    entry = next((p for p in plugins if p.get("name") == "hercules"), None)
+    assert entry is not None, "marketplace.json does not list a plugin named 'hercules'"
+    source = entry.get("source", "")
+    assert source, "hercules plugin entry missing 'source'"
+    source_dir = (repo_root / source).resolve()
+    assert (source_dir / ".claude-plugin" / "plugin.json").is_file(), (
+        f"marketplace source {source!r} must resolve to a dir containing .claude-plugin/plugin.json"
+    )
+
+
+def test_plugin_scoped_manifest_exists_with_metadata(repo_root):
+    """plugin/.claude-plugin/plugin.json must be valid, carry required metadata, and match the root version."""
+    # Given
+    scoped = repo_root / "plugin" / ".claude-plugin" / "plugin.json"
+    root = repo_root / ".claude-plugin" / "plugin.json"
+
+    # When
+    data = json.loads(scoped.read_text())
+    root_data = json.loads(root.read_text())
+
+    # Then
+    for required in ["name", "version", "description", "author"]:
+        assert required in data and data[required], (
+            f"plugin-scoped manifest missing required field: {required}"
+        )
+    assert data["version"] == root_data["version"], (
+        f"plugin-scoped version {data['version']!r} != root manifest version {root_data['version']!r}"
+    )
+
+
 def test_agent_teams_feature_is_switched_on_in_shared_settings(repo_root):
     """CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 must be set — it enables multi-agent debates."""
     # Given
