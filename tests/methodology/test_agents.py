@@ -1,5 +1,6 @@
 """Tests that verify the specialist agent list is complete and follows the plugin contract."""
 
+import json
 import re
 
 import pytest
@@ -15,6 +16,8 @@ _AGENT_LIST = [
     # non-code / universal
     "business-analyst", "copywriter", "document-specialist",
     "simplicity-advocate",
+    # default persona / orchestrator (the plugin's default agent)
+    "hercules",
 ]
 
 _AGENT_NAME_RE = re.compile(r"(?m)^name:\s*(\S+)\s*$")
@@ -139,3 +142,26 @@ def test_senior_qa_engineer_documents_bdd_for_frontend_scope(repo_root):
         "senior-qa-engineer must mention BDD or Gherkin for frontend scope"
     assert "Cypress" in md or "Playwright" in md, \
         "senior-qa-engineer must name an e2e test tool for frontend scenarios"
+
+
+def test_plugin_declares_default_agent_with_persona(repo_root):
+    """plugin/settings.json must declare a default agent whose file carries the Hercules persona.
+
+    This is what keeps a marketplace-installed user in-character: a plugin does not auto-inject a
+    root CLAUDE.md, so the persona must ride on the default agent.
+    """
+    # Given
+    settings = json.loads((repo_root / "plugin" / "settings.json").read_text())
+
+    # When
+    agent_name = settings.get("agent")
+
+    # Then
+    assert agent_name, "plugin/settings.json must declare a default 'agent'"
+    agent_file = repo_root / "plugin" / "agents" / f"{agent_name}.md"
+    assert agent_file.is_file(), (
+        f"default agent {agent_name!r} has no file at plugin/agents/{agent_name}.md"
+    )
+    assert "You are **Hercules**" in agent_file.read_text(), (
+        "the default agent must carry the Hercules persona marker"
+    )

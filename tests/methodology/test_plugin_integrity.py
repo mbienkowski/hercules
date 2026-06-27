@@ -78,7 +78,7 @@ def test_no_empty_placeholder_files_exist_in_plugin(repo_root):
 def test_plugin_json_has_all_required_metadata_fields(repo_root):
     """plugin.json must be valid JSON with name, version, description, and author fields."""
     # Given
-    plugin_json = repo_root / ".claude-plugin" / "plugin.json"
+    plugin_json = repo_root / "plugin" / ".claude-plugin" / "plugin.json"
 
     # When
     fields = json.loads(plugin_json.read_text())
@@ -112,37 +112,38 @@ def test_marketplace_manifest_lists_the_hercules_plugin(repo_root):
 
 
 def test_plugin_scoped_manifest_exists_with_metadata(repo_root):
-    """plugin/.claude-plugin/plugin.json must be valid, carry required metadata, and match the root version."""
+    """plugin/.claude-plugin/plugin.json must be valid JSON and carry the required metadata."""
     # Given
     scoped = repo_root / "plugin" / ".claude-plugin" / "plugin.json"
-    root = repo_root / ".claude-plugin" / "plugin.json"
 
     # When
     data = json.loads(scoped.read_text())
-    root_data = json.loads(root.read_text())
 
     # Then
     for required in ["name", "version", "description", "author"]:
         assert required in data and data[required], (
             f"plugin-scoped manifest missing required field: {required}"
         )
-    assert data["version"] == root_data["version"], (
-        f"plugin-scoped version {data['version']!r} != root manifest version {root_data['version']!r}"
-    )
 
 
-def test_agent_teams_feature_is_switched_on_in_shared_settings(repo_root):
-    """CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 must be set — it enables multi-agent debates."""
+def test_no_shipped_artifact_references_agent_teams(repo_root):
+    """No shipped plugin artifact may depend on the experimental agent-teams flag.
+
+    Hercules' debates are orchestrator-mediated (sub-agents spawned via the Agent/Task tool and
+    relayed between rounds), which needs no flag — so the shipped plugin must not reference it.
+    """
     # Given
-    settings = json.loads((repo_root / ".claude" / "settings.json").read_text())
+    flag = "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"
+    plugin_dir = repo_root / "plugin"
+    offenders = []
 
     # When
-    value = settings.get("env", {}).get("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS")
+    for path in plugin_dir.rglob("*"):
+        if path.is_file() and path.suffix in {".md", ".json"} and flag in path.read_text(errors="ignore"):
+            offenders.append(str(path.relative_to(repo_root)))
 
     # Then
-    assert value == "1", (
-        f"expected CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in .claude/settings.json, got {value!r}"
-    )
+    assert not offenders, f"shipped plugin artifacts must not reference {flag}: {offenders}"
 
 
 def test_agent_frontmatter_name_uses_only_lowercase_characters(repo_root, agent_files):

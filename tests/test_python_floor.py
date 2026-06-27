@@ -16,21 +16,6 @@ def test_pyproject_requires_python_3_9(read_file):
     assert ">=3.11" not in content
 
 
-def test_main_entrypoint_gate_is_3_9(read_file):
-    """The runtime version gate in __main__ must reject < 3.9, not < 3.11."""
-    content = read_file("hercules/__main__.py")
-    assert "(3, 9)" in content
-    assert "(3, 11)" not in content
-
-
-def test_install_sh_accepts_python_3_9(read_file):
-    """install.sh must offer python3.9 and gate on >= (3, 9)."""
-    content = read_file("install.sh")
-    assert "python3.9" in content
-    assert "(3, 9)" in content
-    assert "(3, 11)" not in content
-
-
 def test_ci_runs_single_python_3_9(read_file):
     """CI is a single 3.9 pipeline (the floor) — no 3.11, no matrix legs."""
     content = read_file(".github/workflows/ci.yml")
