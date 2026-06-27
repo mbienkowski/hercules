@@ -1,6 +1,6 @@
 # /hercules:workflow
 
-**Plan mode — required across all phases.** Every draft is a full inline proposal. Iterate freely; write only on "approved". Never patch sections — always regenerate the complete draft.
+**Plan mode — required across all phases.** Open each phase with `EnterPlanMode`; present a full inline proposal; on the user's "approved", call `ExitPlanMode` (choose accept-edits) to write the phase artifact, then `EnterPlanMode` for the next phase. Iterate freely; write only on "approved". Never patch sections — always regenerate the complete draft.
 
 Guided end-to-end delivery: **Discover → Design → Build**. Runs all three phases in sequence with a human-approved transition between each. The more detail you put in early, the better the outcome.
 

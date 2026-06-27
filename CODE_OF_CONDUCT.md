@@ -74,6 +74,16 @@ Hercules holds itself to the bar it enforces on its users: **>= 90% branch cover
 `make test`) and a **>= 90% mutation kill rate** (gated by `make test-mutation`). Both run in CI on
 every PR — practice what we preach.
 
+### End-to-end smoke (manual)
+
+The static suite (`tests/methodology/test_workflow_modes.py`) asserts the workflow commands carry the
+right phase/mode directives, but the harness's permission-mode state can't be inspected from the
+plugin. To verify the *effect* — that Discover → Design → Build actually produces its artifacts — run
+the workflow by hand against a throwaway repo (install the plugin from a local-path marketplace, then
+drive `/hercules:workflow`) and confirm a `*-business-requirements.md`, then `*-spec-NN-*.md`, then
+code + tests appear in order. This is a release-time manual check, not a CI gate — it needs a Claude
+binary and credentials.
+
 ### What's covered
 
 | Area | Where | Kind |

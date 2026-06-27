@@ -74,7 +74,9 @@ documents; commands show paths relative to the resolved root as `docs/`.
 Three sequential steps, each a wizard command that produces artifacts in the session
 directory `docs/YYYY-MM-DD-{short-desc}/` (under the resolved artifact root). Each step runs
 in a propose→iterate→approve flow, classifies complexity before validating, and gates on
-coverage of the prior artifacts before it writes.
+coverage of the prior artifacts before it writes. Each step runs in plan mode — opened with
+`EnterPlanMode`, closed at the approval gate with `ExitPlanMode` (write only after the user
+approves; pick accept-edits).
 
 | Step         | Command               | Reads                                        | Produces                                          |
 |--------------|-----------------------|----------------------------------------------|---------------------------------------------------|
