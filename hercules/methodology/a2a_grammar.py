@@ -22,7 +22,7 @@ def extract_a2a_core(md: str) -> tuple[str, bool]:
                 start = i + 1
             else:
                 return "\n".join(lines[start:i]), True
-    return "", False  # pragma: no mutate
+    return "", False
 
 
 def count_core_entries(text: str) -> int:

@@ -34,10 +34,11 @@ def test_a2a_core_extraction_returns_false_when_no_fenced_block_exists():
     md = "just prose, no fences"
 
     # When
-    _, ok = extract_a2a_core(md)
+    core, ok = extract_a2a_core(md)
 
     # Then
     assert ok is False
+    assert core == "", "no fenced block must return an empty core string"
 
 
 def test_numbered_entries_are_counted_excluding_continuation_lines():

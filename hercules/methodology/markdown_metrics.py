@@ -7,15 +7,19 @@ _BULLET_RE = re.compile(r"^\s*[-*]\s")
 
 
 def count_instructions(text: str) -> int:
-    """Count numbered and bulleted list items, excluding fenced code blocks and table rows."""
+    """Count numbered and bulleted list items, excluding any inside fenced code blocks.
+
+    Table rows start with ``|`` and never match a list-item pattern, so they are excluded
+    automatically — no explicit table check is needed here.
+    """
     n = 0
-    in_fence = False  # pragma: no mutate
+    in_fence = False  # pragma: no mutate — sole mutant (False→None) is equivalent: None is falsy like False
     for line in text.split("\n"):
         stripped = line.lstrip()
         if stripped.startswith("```"):
             in_fence = not in_fence
             continue
-        if in_fence or stripped.startswith("|"):  # pragma: no mutate
+        if in_fence:
             continue
         if _NUMBERED_RE.match(line) or _BULLET_RE.match(line):
             n += 1

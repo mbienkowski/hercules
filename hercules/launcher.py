@@ -15,14 +15,8 @@ import sys
 # Stripped from the child environment so they never reach claude (harmless if unset).
 _SECRETS_TO_STRIP = frozenset({"HERCULES_GIT_TOKEN", "HERCULES_REPO_URL", "GIT_ASKPASS"})
 
-_BANNER = (
-    "██╗  ██╗███████╗██████╗  ██████╗██╗   ██╗██╗     ███████╗███████╗\n"  # pragma: no mutate
-    "██║  ██║██╔════╝██╔══██╗██╔════╝██║   ██║██║     ██╔════╝██╔════╝\n"  # pragma: no mutate
-    "███████║█████╗  ██████╔╝██║     ██║   ██║██║     █████╗  ███████╗\n"  # pragma: no mutate
-    "██╔══██║██╔══╝  ██╔══██╗██║     ██║   ██║██║     ██╔══╝  ╚════██║\n"  # pragma: no mutate
-    "██║  ██║███████╗██║  ██║╚██████╗╚██████╔╝███████╗███████╗███████║\n"  # pragma: no mutate
-    "╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝╚══════╝╚══════╝"  # pragma: no mutate
-)
+# Decorative ASCII banner — a single string literal (no behaviour); _print_banner splits it into rows.
+_BANNER = "██╗  ██╗███████╗██████╗  ██████╗██╗   ██╗██╗     ███████╗███████╗\n██║  ██║██╔════╝██╔══██╗██╔════╝██║   ██║██║     ██╔════╝██╔════╝\n███████║█████╗  ██████╔╝██║     ██║   ██║██║     █████╗  ███████╗\n██╔══██║██╔══╝  ██╔══██╗██║     ██║   ██║██║     ██╔══╝  ╚════██║\n██║  ██║███████╗██║  ██║╚██████╗╚██████╔╝███████╗███████╗███████║\n╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝╚══════╝╚══════╝"  # pragma: no mutate
 
 
 def _print_banner(stream) -> None:
