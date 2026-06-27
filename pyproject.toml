@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-hercules = "hercules.cli:main"
+hercules = "hercules.launcher:main"
 
 [project.optional-dependencies]
 dev = [
