@@ -118,6 +118,9 @@ binary and credentials.
 - `severity` — `gate` (fails the build) or `warn` (prints a warning, non-failing).
 - `warn_at` (optional) — emit a warning when the value crosses this soft line while still under
   the hard `limit`.
+- `per_file` (optional) — when `true`, apply the limit to **each** matched file individually
+  (e.g. "every agent ≤ 800 tokens"), instead of summing the metric across the glob. The agent and
+  skill token budgets use this, so a new agent or skill is gated automatically — no new row needed.
 
 **A new metric → add a function to `hercules/methodology/` and register it** in `METRIC_REGISTRY`.
 

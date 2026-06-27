@@ -4,8 +4,6 @@ import re
 
 import pytest
 
-from hercules.methodology.token_counter import count_tokens
-
 
 _SKILL_LIST = [
     "solution-complexity-scoring", "code-of-conduct-generator",
@@ -31,7 +29,6 @@ _STACK_LITERAL_PATTERNS = [
     re.compile(r"@anthropic-ai"),
 ]
 
-_SKILL_TOKEN_LIMIT = 900
 _BARE_SUBCOMMAND_RE = re.compile(r"hercules\s+(origin-trace|sessions)\b")
 
 
@@ -100,23 +97,6 @@ def test_skills_carry_no_framework_assumptions(repo_root, skill_files):
     # Then
     assert not violations, (
         "Skills contain stack literals:\n" + "\n".join(f"  {v}" for v in violations)
-    )
-
-
-def test_all_skills_stay_within_their_token_budget(repo_root, skill_files):
-    """Each skill file must stay under {_SKILL_TOKEN_LIMIT} tokens (cl100k_base)."""
-    # Given
-    over_budget = []
-
-    # When
-    for path in skill_files:
-        n = count_tokens(path.read_text())
-        if n > _SKILL_TOKEN_LIMIT:
-            over_budget.append(f"{path.parent.name}/SKILL.md: {n} tokens (limit {_SKILL_TOKEN_LIMIT})")
-
-    # Then
-    assert not over_budget, (
-        "Skill files over token budget:\n" + "\n".join(f"  {v}" for v in over_budget)
     )
 
 

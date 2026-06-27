@@ -54,5 +54,21 @@
     "metric": "token_count",
     "op": "<=", "limit": 2000, "warn_at": 1700,
     "severity": "gate"
+  },
+  {
+    "name": "agent-token-budget",
+    "target": "plugin/agents/*.md",
+    "metric": "token_count",
+    "op": "<=", "limit": 800, "warn_at": 650,
+    "severity": "gate",
+    "per_file": true
+  },
+  {
+    "name": "skill-token-budget",
+    "target": "plugin/skills/*/SKILL.md",
+    "metric": "token_count",
+    "op": "<=", "limit": 900,
+    "severity": "gate",
+    "per_file": true
   }
 ]

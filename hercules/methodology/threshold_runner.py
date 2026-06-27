@@ -52,6 +52,7 @@ class ThresholdCheck:
     limit: int
     severity: str
     warn_at: int | None = None  # pragma: no mutate
+    per_file: bool = False  # pragma: no mutate
 
 
 @dataclass
@@ -103,6 +104,7 @@ def load_thresholds(path: Path) -> list[ThresholdCheck]:
                 limit=limit,
                 severity=severity,
                 warn_at=warn_at,
+                per_file=row.get("per_file", False),
             )
         )
     return checks
@@ -132,25 +134,48 @@ def run_threshold_checks(
             continue
 
         fn = METRIC_REGISTRY[check.metric]
-        total = 0
-        for path in targets:
-            total += fn(path.read_text())
 
-        passed, err = compare_value(total, check.op, check.limit)
-        if err:
-            raise ValueError(f"check {check.name!r}: {err}")
+        if check.per_file:
+            # Apply the limit to each matched file individually (e.g. "every agent <= 800").
+            offenders: list[str] = []
+            worst = 0
+            for path in targets:
+                value = fn(path.read_text())
+                if value > worst:
+                    worst = value
+                ok, err = compare_value(value, check.op, check.limit)
+                if err:
+                    raise ValueError(f"check {check.name!r}: {err}")
+                if not ok:
+                    offenders.append(f"{path.relative_to(repo_root)}={value}")
+            passed = not offenders
+            reported = worst
+            msg = (
+                f"{check.name}: per-file {check.metric}({check.target}) "
+                f"want {check.op} {check.limit}"
+                + (f" — offenders: {', '.join(offenders)}" if offenders else "")
+            )
+        else:
+            # Sum the metric across all matched files (a combined budget).
+            total = 0
+            for path in targets:
+                total += fn(path.read_text())
+            passed, err = compare_value(total, check.op, check.limit)
+            if err:
+                raise ValueError(f"check {check.name!r}: {err}")
+            reported = total
+            msg = (
+                f"{check.name}: {check.metric}({check.target})={total}, "
+                f"want {check.op} {check.limit}"
+            )
 
-        msg = (
-            f"{check.name}: {check.metric}({check.target})={total}, "
-            f"want {check.op} {check.limit}"
-        )
         near_warn = (
-            check.warn_at is not None and passed and total >= check.warn_at
+            check.warn_at is not None and passed and reported >= check.warn_at
         )
         results.append(
             CheckResult(
                 name=check.name,
-                value=total,
+                value=reported,
                 passed=passed,
                 severity=check.severity,
                 message=msg,

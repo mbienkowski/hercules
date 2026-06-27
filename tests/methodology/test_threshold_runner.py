@@ -9,6 +9,7 @@ from hercules.methodology.threshold_runner import (
     ThresholdCheck,
     compare_value,
     load_thresholds,
+    resolve_targets,
     run_threshold_checks,
 )
 
@@ -561,6 +562,156 @@ def test_no_target_match_message_starts_with_target(tmp_path: Path):
     results = run_threshold_checks(tmp_path, checks)
 
     assert results[0].message.startswith("target ")
+
+
+def test_per_file_passes_when_every_file_is_under_limit(tmp_path: Path):
+    """per_file applies the limit to each matched file individually; all under → pass."""
+    # Given
+    (tmp_path / "a.md").write_text("aaa")
+    (tmp_path / "b.md").write_text("bb")
+    threshold_file = _write_thresholds(tmp_path, [{
+        "name": "per-file-tokens", "target": "*.md", "metric": "token_count",
+        "op": "<=", "limit": 50, "severity": "gate", "per_file": True,
+    }])
+
+    # When
+    results = run_threshold_checks(tmp_path, load_thresholds(threshold_file))
+
+    # Then
+    assert results[0].passed
+
+
+def test_per_file_fails_and_names_only_the_offender(tmp_path: Path):
+    """per_file fails if ANY file exceeds the limit, and the message names the offender(s)."""
+    # Given
+    (tmp_path / "small.md").write_text("a")
+    (tmp_path / "big.md").write_text("word " * 100)
+    threshold_file = _write_thresholds(tmp_path, [{
+        "name": "per-file-tokens", "target": "*.md", "metric": "token_count",
+        "op": "<=", "limit": 5, "severity": "gate", "per_file": True,
+    }])
+
+    # When
+    results = run_threshold_checks(tmp_path, load_thresholds(threshold_file))
+
+    # Then
+    assert not results[0].passed
+    assert "big.md" in results[0].message
+    assert "small.md" not in results[0].message
+
+
+def test_per_file_defaults_false_and_sums_across_files(tmp_path: Path):
+    """Without per_file the metric is summed across files (the default combined-budget behaviour)."""
+    # Given — two 1-token files; summed = 2 > limit 1, so it must fail (proves summing).
+    (tmp_path / "a.md").write_text("a")
+    (tmp_path / "b.md").write_text("b")
+    threshold_file = _write_thresholds(tmp_path, [{
+        "name": "sum-tokens", "target": "*.md", "metric": "token_count",
+        "op": "<=", "limit": 1, "severity": "gate",
+    }])
+
+    # When
+    checks = load_thresholds(threshold_file)
+    results = run_threshold_checks(tmp_path, checks)
+
+    # Then
+    assert checks[0].per_file is False
+    assert not results[0].passed
+
+
+def test_per_file_reports_worst_value_and_flags_near_warn(tmp_path: Path):
+    """per_file reports the worst (max) per-file value — not the sum — and flags near_warn off it."""
+    # Given
+    from hercules.methodology.token_counter import count_tokens
+    big, small = "alpha beta gamma delta epsilon", "x"
+    (tmp_path / "big.md").write_text(big)
+    (tmp_path / "small.md").write_text(small)
+    worst = max(count_tokens(big), count_tokens(small))
+    threshold_file = _write_thresholds(tmp_path, [{
+        "name": "pf", "target": "*.md", "metric": "token_count", "op": "<=",
+        "limit": worst + 5, "warn_at": worst, "severity": "gate", "per_file": True,
+    }])
+
+    # When
+    result = run_threshold_checks(tmp_path, load_thresholds(threshold_file))[0]
+
+    # Then
+    assert result.passed
+    assert result.value == worst, "per_file must report the worst per-file value, not the sum"
+    assert result.near_warn is True, "near_warn fires when the worst value reaches warn_at"
+
+
+def test_per_file_does_not_flag_near_warn_below_warn_at(tmp_path: Path):
+    """per_file leaves near_warn False when every file is below warn_at."""
+    # Given
+    (tmp_path / "a.md").write_text("x")
+    threshold_file = _write_thresholds(tmp_path, [{
+        "name": "pf", "target": "*.md", "metric": "token_count", "op": "<=",
+        "limit": 100, "warn_at": 50, "severity": "gate", "per_file": True,
+    }])
+
+    # When
+    result = run_threshold_checks(tmp_path, load_thresholds(threshold_file))[0]
+
+    # Then
+    assert result.passed and result.near_warn is False
+
+
+def test_compare_value_less_than_and_greater_than_boundaries():
+    """The < and > operators evaluate correctly at their boundaries."""
+    assert compare_value(1, "<", 2) == (True, "")
+    assert compare_value(2, "<", 2) == (False, "")
+    assert compare_value(3, ">", 2) == (True, "")
+    assert compare_value(2, ">", 2) == (False, "")
+
+
+def test_per_file_worst_is_zero_for_an_empty_file(tmp_path: Path):
+    """An empty file has 0 tokens, and per_file must report a worst of exactly 0 (not 1)."""
+    (tmp_path / "empty.md").write_text("")
+    threshold_file = _write_thresholds(tmp_path, [{
+        "name": "pf", "target": "*.md", "metric": "token_count", "op": "<=",
+        "limit": 5, "severity": "gate", "per_file": True,
+    }])
+    result = run_threshold_checks(tmp_path, load_thresholds(threshold_file))[0]
+    assert result.passed and result.value == 0
+
+
+def test_per_file_message_lists_all_offenders_comma_separated(tmp_path: Path):
+    """A per_file failure names every offending file, comma-separated, and only the offenders."""
+    (tmp_path / "big1.md").write_text("word " * 100)
+    (tmp_path / "big2.md").write_text("word " * 100)
+    (tmp_path / "ok.md").write_text("x")
+    threshold_file = _write_thresholds(tmp_path, [{
+        "name": "pf", "target": "*.md", "metric": "token_count", "op": "<=",
+        "limit": 5, "severity": "gate", "per_file": True,
+    }])
+    result = run_threshold_checks(tmp_path, load_thresholds(threshold_file))[0]
+    assert not result.passed
+    assert "big1.md" in result.message and "big2.md" in result.message
+    assert "ok.md" not in result.message
+    assert ", " in result.message, "multiple offenders must be comma-separated"
+    assert "XX" not in result.message
+
+
+def test_run_raises_with_check_prefixed_message_on_invalid_op(tmp_path: Path):
+    """An invalid op reaching run_threshold_checks raises a 'check '-prefixed error (both branches)."""
+    (tmp_path / "a.md").write_text("x")
+    bad_sum = ThresholdCheck(name="bad", target="a.md", metric="token_count",
+                             op="??", limit=1, severity="gate")
+    with pytest.raises(ValueError) as e_sum:
+        run_threshold_checks(tmp_path, [bad_sum])
+    assert str(e_sum.value).startswith("check")
+
+    bad_pf = ThresholdCheck(name="badpf", target="a.md", metric="token_count",
+                            op="??", limit=1, severity="gate", per_file=True)
+    with pytest.raises(ValueError) as e_pf:
+        run_threshold_checks(tmp_path, [bad_pf])
+    assert str(e_pf.value).startswith("check")
+
+
+def test_resolve_targets_plain_path_returns_path_even_when_missing(tmp_path: Path):
+    """A plain (non-glob) target resolves to its path even if the file is absent — not via glob."""
+    assert resolve_targets(tmp_path, "nope.md") == [tmp_path / "nope.md"]
 
 
 def test_compare_value_unknown_op_error_starts_with_unknown():

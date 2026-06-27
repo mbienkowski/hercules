@@ -5,8 +5,6 @@ import re
 
 import pytest
 
-from hercules.methodology.token_counter import count_tokens
-
 
 _AGENT_LIST = [
     # code / process
@@ -33,10 +31,6 @@ _STACK_LITERAL_PATTERNS = [
     re.compile(r"\bPrisma\b"), re.compile(r"\bActiveRecord\b"),
     re.compile(r"@anthropic-ai"),
 ]
-
-_AGENT_TOKEN_LIMIT = 800
-_AGENT_TOKEN_WARN = 650
-
 
 def test_all_specialist_agents_are_present(repo_root):
     """Every listed agent must have a corresponding file in agents/, and vice versa."""
@@ -112,23 +106,6 @@ def test_agents_carry_no_framework_assumptions(repo_root, agent_files):
     assert not violations, (
         "Agents contain stack literals — move them to code-of-conduct.md:\n"
         + "\n".join(f"  {v}" for v in violations)
-    )
-
-
-def test_all_agents_stay_within_their_token_budget(repo_root, agent_files):
-    """Each agent file must stay under {_AGENT_TOKEN_LIMIT} tokens (cl100k_base)."""
-    # Given
-    over_budget = []
-
-    # When
-    for path in agent_files:
-        n = count_tokens(path.read_text())
-        if n > _AGENT_TOKEN_LIMIT:
-            over_budget.append(f"{path.name}: {n} tokens (limit {_AGENT_TOKEN_LIMIT})")
-
-    # Then
-    assert not over_budget, (
-        "Agent files over token budget:\n" + "\n".join(f"  {v}" for v in over_budget)
     )
 
 
