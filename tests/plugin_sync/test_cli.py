@@ -451,16 +451,20 @@ def test_missing_plugin_dir_after_sync_exits_with_code_1_exactly(tmp_path, capsy
     assert exc_info.value.code == 1
 
 
-def test_default_branch_is_main_when_flag_not_given(cli_harness):
-    """When --branch is not specified, the branch passed to sync_plugin must be 'main'."""
+def test_default_tracks_release_with_no_branch(cli_harness):
+    """When --branch is not specified, Hercules tracks the latest release (branch=None)."""
     from hercules.cli import main
+    from hercules.plugin_sync.git_sync import SyncMode
     captured = {}
-    cli_harness.sync.side_effect = lambda **kw: captured.update({"branch": kw["branch"]})
+    cli_harness.sync.side_effect = lambda **kw: captured.update(
+        {"branch": kw.get("branch"), "mode": kw.get("mode")}
+    )
 
     with patch("sys.argv", ["hercules"]):
         main()
 
-    assert captured["branch"] == "main"
+    assert captured["branch"] is None
+    assert captured["mode"] == SyncMode.RELEASE
 
 
 def test_effective_url_falls_back_to_default_when_no_source_set(cli_harness):
@@ -491,7 +495,7 @@ def test_retry_sync_when_plugin_dir_missing_but_clone_root_exists(tmp_path):
 
     sync_calls = []
 
-    def mock_sync(clone_root, repo_url, branch, ssh_key="", git_token=""):
+    def mock_sync(clone_root, repo_url, branch=None, ssh_key="", git_token="", force=False, mode=None):
         sync_calls.append("called")
 
     with patch("sys.argv", ["hercules"]), \
@@ -514,3 +518,140 @@ def test_retry_sync_when_plugin_dir_missing_but_clone_root_exists(tmp_path):
     assert not last_pull.exists()
     # sync_plugin must have been called at least twice (initial + retry)
     assert len(sync_calls) >= 2
+
+
+# ---------------------------------------------------------------------------
+# Claude version check is advisory (Stage 2) — warns but never blocks launch
+# ---------------------------------------------------------------------------
+
+def test_old_claude_version_warns_but_still_launches(cli_harness, monkeypatch, capsys):
+    """An old Claude Code must produce a warning yet still exec claude."""
+    import types as _types
+    from hercules.cli import main
+    from hercules.plugin_sync import config as config_mod
+
+    # Isolate the throttle's config writes to the harness's temp home.
+    monkeypatch.setattr(config_mod, "HERCULES_HOME", cli_harness.home / ".hercules")
+    monkeypatch.setattr(
+        "hercules.plugin_sync.claude_version.subprocess.run",
+        lambda *a, **k: _types.SimpleNamespace(stdout="2.1.0", stderr="", returncode=0),
+    )
+
+    with patch("sys.argv", ["hercules"]):
+        main()
+
+    cli_harness.exec.assert_called_once()  # launched despite the old version
+    assert "2.1.0" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------------------
+# Manual --sync (Stage 4) — force a refresh now, then exit without launching
+# ---------------------------------------------------------------------------
+
+def test_sync_flag_forces_refresh_and_exits(cli_harness):
+    """--sync must force a sync (bypass TTL) and exit without exec'ing claude."""
+    from hercules.cli import main
+    with patch("sys.argv", ["hercules", "--sync"]):
+        main()
+    assert cli_harness.sync.call_args.kwargs.get("force") is True
+    cli_harness.exec.assert_not_called()
+
+
+def test_sync_flag_composes_with_branch(cli_harness):
+    """--sync --branch main must force a refresh of the named branch."""
+    from hercules.cli import main
+    with patch("sys.argv", ["hercules", "--sync", "--branch", "main"]):
+        main()
+    kwargs = cli_harness.sync.call_args.kwargs
+    assert kwargs.get("force") is True
+    assert kwargs.get("branch") == "main"
+
+
+def test_normal_run_does_not_force_sync(cli_harness):
+    """A plain launch must not force a sync (TTL still governs)."""
+    from hercules.cli import main
+    with patch("sys.argv", ["hercules"]):
+        main()
+    assert cli_harness.sync.call_args.kwargs.get("force") is False
+    cli_harness.exec.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Tracking mode (Stage 5) — default tracks the latest release, not `main`
+# ---------------------------------------------------------------------------
+
+def test_no_branch_flag_selects_release_mode(cli_harness):
+    """With no --branch, Hercules tracks the latest release (RELEASE mode)."""
+    from hercules.cli import main
+    from hercules.plugin_sync.git_sync import SyncMode
+    with patch("sys.argv", ["hercules"]):
+        main()
+    kwargs = cli_harness.sync.call_args.kwargs
+    assert kwargs.get("mode") == SyncMode.RELEASE
+    assert kwargs.get("branch") is None
+
+
+def test_branch_flag_selects_branch_mode(cli_harness):
+    """An explicit --branch opts into BRANCH mode tracking that branch."""
+    from hercules.cli import main
+    from hercules.plugin_sync.git_sync import SyncMode
+    with patch("sys.argv", ["hercules", "--branch", "main"]):
+        main()
+    kwargs = cli_harness.sync.call_args.kwargs
+    assert kwargs.get("mode") == SyncMode.BRANCH
+    assert kwargs.get("branch") == "main"
+
+
+def test_banner_shows_release_tracking_by_default(monkeypatch, capsys):
+    """The banner reflects RELEASE tracking when no branch is given."""
+    from hercules.cli import _print_banner
+    from hercules.plugin_sync.git_sync import SyncMode
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setattr("sys.stderr.isatty", lambda: True)
+    _print_banner("v1.0.0", None, SyncMode.RELEASE)
+    assert "latest release" in capsys.readouterr().err.lower()
+
+
+def test_banner_shows_branch_tracking_when_branch_given(monkeypatch, capsys):
+    """The banner names the branch when one is tracked."""
+    from hercules.cli import _print_banner
+    from hercules.plugin_sync.git_sync import SyncMode
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setattr("sys.stderr.isatty", lambda: True)
+    _print_banner("v1.0.0", "feat/x", SyncMode.BRANCH)
+    assert "feat/x" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------------------
+# --show-onboarding (Stage 6) — replay the first-run explainer, no state change
+# ---------------------------------------------------------------------------
+
+def test_show_onboarding_prints_and_does_not_mark(monkeypatch, tmp_path, capsys):
+    from hercules.cli import main
+    from hercules.plugin_sync import config as config_mod
+    from hercules.plugin_sync.config import load_config
+    monkeypatch.setattr(config_mod, "HERCULES_HOME", tmp_path / ".hercules")
+    monkeypatch.setattr(config_mod, "_LEGACY_CONFIG_PATH", tmp_path / "legacy.json")
+
+    with patch("sys.argv", ["hercules", "--show-onboarding"]):
+        main()
+
+    err = capsys.readouterr().err
+    assert "code" in err.lower() and "conduct" in err.lower()
+    assert load_config().onboarded_at is None
+
+
+# Stage 4/5 hardening — banner is shown on a normal launch, suppressed on --sync
+
+def test_normal_run_prints_banner(cli_harness):
+    from hercules.cli import main
+    with patch("hercules.cli._print_banner") as banner, patch("sys.argv", ["hercules"]):
+        main()
+    banner.assert_called_once()
+
+
+def test_sync_flag_suppresses_banner(cli_harness):
+    from hercules.cli import main
+    with patch("hercules.cli._print_banner") as banner, patch("sys.argv", ["hercules", "--sync"]):
+        main()
+    banner.assert_not_called()

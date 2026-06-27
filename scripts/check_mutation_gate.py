@@ -5,8 +5,8 @@ Usage: python scripts/check_mutation_gate.py
 import subprocess
 import sys
 
-GATE = 85
-WARN = 90
+GATE = 90
+WARN = 95
 
 
 def _count(status: str) -> int:

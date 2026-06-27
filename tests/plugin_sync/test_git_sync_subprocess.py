@@ -71,7 +71,7 @@ def test_sync_pulls_when_ttl_has_elapsed(tmp_path):
     (plugin_dir / ".git").mkdir()
 
     from datetime import datetime, timedelta, timezone
-    old = datetime.now(timezone.utc) - timedelta(minutes=10)
+    old = datetime.now(timezone.utc) - timedelta(minutes=40)
     (plugin_dir / ".last-pull").write_text(old.isoformat())
 
     # When
@@ -110,7 +110,7 @@ def test_successful_pull_updates_the_last_pull_timestamp(tmp_path):
     (plugin_dir / ".git").mkdir()
 
     from datetime import datetime, timedelta, timezone
-    old = datetime.now(timezone.utc) - timedelta(minutes=10)
+    old = datetime.now(timezone.utc) - timedelta(minutes=40)
     (plugin_dir / ".last-pull").write_text(old.isoformat())
 
     # When
@@ -134,7 +134,7 @@ def test_pull_failure_is_a_non_fatal_warning(tmp_path, capsys):
     (plugin_dir / ".git").mkdir()
 
     from datetime import datetime, timedelta, timezone
-    old = datetime.now(timezone.utc) - timedelta(minutes=10)
+    old = datetime.now(timezone.utc) - timedelta(minutes=40)
     (plugin_dir / ".last-pull").write_text(old.isoformat())
 
     checkout_ok = _mock_run_ok(returncode=0)

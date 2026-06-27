@@ -290,3 +290,84 @@ def test_expand_tilde_expands_tilde_slash_prefix():
 def test_expand_tilde_leaves_absolute_paths_unchanged():
     from hercules.plugin_sync.config import _expand_tilde
     assert _expand_tilde("/home/user/.ssh/id_rsa") == "/home/user/.ssh/id_rsa"
+
+
+# ── Mutation hardening: defaults, atomic write, token store, legacy migration ──
+
+def _write(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+
+
+def test_credentials_path_is_named_credentials_json():
+    assert credentials_path().name == "credentials.json"
+
+
+def test_load_config_defaults_repo_url_to_empty_when_absent():
+    _write(config_path(), json.dumps({"ssh_key": "k"}))
+    cfg = load_config()
+    assert cfg.repo_url == ""
+    assert cfg.ssh_key == "k"
+
+
+def test_load_config_reads_schema_version_from_the_file():
+    _write(config_path(), json.dumps({"schema_version": 99}))
+    assert load_config().schema_version == 99
+
+
+def test_save_config_overwrites_a_corrupt_existing_file():
+    _write(config_path(), "{ not valid json")
+    save_config(Config(repo_url="https://example.com/x.git"))
+    assert json.loads(config_path().read_text())["repo_url"] == "https://example.com/x.git"
+
+
+def test_save_config_serialises_with_two_space_indent():
+    save_config(Config(repo_url="u"))
+    expected = json.dumps(
+        {"schema_version": config_mod.SCHEMA_VERSION, "repo_url": "u"}, indent=2
+    ) + "\n"
+    assert config_path().read_text() == expected
+
+
+def test_save_token_clearing_an_absent_file_does_not_raise():
+    assert not credentials_path().exists()
+    save_token("")  # exercises path.unlink(missing_ok=True)
+    assert not credentials_path().exists()
+
+
+def test_save_token_serialises_with_two_space_indent():
+    save_token("secret")
+    assert credentials_path().read_text() == json.dumps({"git_token": "secret"}, indent=2) + "\n"
+
+
+def test_load_token_defaults_to_empty_when_key_missing():
+    _write(credentials_path(), json.dumps({"other": "x"}))
+    assert config_mod._load_token() == ""
+
+
+def test_load_token_returns_empty_on_corrupt_credentials():
+    _write(credentials_path(), "{ broken")
+    assert config_mod._load_token() == ""
+
+
+def test_load_token_returns_empty_when_no_file_and_no_env():
+    assert not credentials_path().exists()
+    assert config_mod._load_token() == ""
+
+
+def test_atomic_write_creates_missing_parent_directories():
+    nested = config_mod.HERCULES_HOME / "deep" / "nested" / "f.json"
+    config_mod._atomic_write(nested, "hi", 0o644)
+    assert nested.read_text() == "hi"
+
+
+def test_migrate_legacy_defaults_missing_fields_to_empty_strings():
+    _write(config_mod._LEGACY_CONFIG_PATH, json.dumps({}))
+    cfg = config_mod._migrate_legacy()
+    assert cfg.repo_url == "" and cfg.ssh_key == "" and cfg.git_token == ""
+
+
+def test_https_to_ssh_keeps_a_leading_slash_at_index_zero():
+    # After stripping 'https://', the slash sits at index 0; the guard is `slash < 0`.
+    # Mutating to <=0 or <1 would wrongly treat it as "no host" and return the URL as-is.
+    assert _https_to_ssh("https:///weird/path") == "git@:weird/path"

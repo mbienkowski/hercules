@@ -8,6 +8,33 @@ Discover before you design. Design before you build. No shortcuts.
 
 ---
 
+## Install — pick your path
+
+**Fastest — no install required.** Any machine with `git` and Claude Code; no Python:
+
+```bash
+git clone https://github.com/mbienkowski/hercules.git ~/.hercules
+claude --add-dir ~/.hercules/plugin
+```
+
+**Auto-sync option.** Keeps the plugin updated for you; needs Python ≥ 3.9:
+
+```bash
+pipx install git+https://github.com/mbienkowski/hercules.git
+hercules        # launches Claude with the always-updated plugin
+```
+
+| Your situation | Use |
+|---|---|
+| Just trying it out, or no Python/pip on the machine | **Plugin directory** (`--add-dir`) |
+| Want the plugin to auto-update (every 30 min) | **CLI** (`pipx` → `hercules`) |
+| On Claude Code Desktop | **Plugin directory** (Settings → Plugin directories) |
+| Want `hercules --sync` and release/branch tracking | **CLI** (`pipx` → `hercules`) |
+
+Details for each path are below — see *Plugin directory* and *CLI auto-sync*.
+
+---
+
 ## Quickstart
 
 The fastest way to start is the guided workflow — Hercules walks you through every phase.
@@ -199,7 +226,7 @@ get the latest agents and skills without pulling manually.
 
 ### Install
 
-Requires **Python ≥ 3.11** (macOS ships 3.9 — `brew install python@3.11` if needed).
+Requires **Python ≥ 3.9** (already shipped on most systems, including macOS 12+ — no install needed).
 
 There is no package index involved — install the `hercules` command directly from the repo.
 
@@ -213,7 +240,7 @@ pipx install git+https://github.com/mbienkowski/hercules.git
 
 ```bash
 git clone https://github.com/mbienkowski/hercules.git
-cd claude-hercules
+cd hercules
 pipx install .          # or, for an editable dev install: pip install -e .
 ```
 
@@ -231,11 +258,12 @@ Use `hercules` everywhere you would use `claude`:
 
 ```bash
 hercules                        # launch Claude with auto-updated plugin
+hercules --sync                 # force an immediate plugin refresh, then exit
 hercules "write a test for X"  # pass a prompt directly
 ```
 
-The plugin syncs automatically every 5 minutes. The first run clones this repo and prompts
-for setup.
+The plugin syncs automatically every 30 minutes (run `hercules --sync` to refresh immediately).
+The first run clones this repo and prompts for setup.
 
 ### Multiple config directories (work vs. personal)
 
@@ -244,10 +272,16 @@ hercules --claude-dir ~/.claude-priv   # fully isolated Claude login + settings
 hercules -c ~/.claude-priv             # short form
 ```
 
-### Test a branch before it merges
+### Track the latest release (default) vs. a branch
+
+By default `hercules` tracks the **latest stable release** (the highest semver tag) — not the
+moving `main` branch — so you run a reviewed, tagged version. Until the first release is cut, it
+falls back to `main` automatically.
 
 ```bash
-hercules --branch my-feature-branch
+hercules                          # latest release (recommended)
+hercules --branch main            # bleeding edge: follow main
+hercules --branch my-feature-x    # test a specific branch before it merges
 ```
 
 ### First-time setup
@@ -275,8 +309,8 @@ hercules --status   # home, initialized, onboarded, last sync
 ```
 hercules [args]
   │
-  ├── First run:   git clone plugin repo → ~/.hercules/
-  ├── Every 5 min: git pull --ff-only
+  ├── First run:    git clone plugin repo → ~/.hercules/ (latest release tag)
+  ├── Every 30 min: fetch tags + checkout latest release  (or pull, in --branch mode)
   │
   └── exec claude --add-dir ~/.hercules/plugin [args]
 ```
@@ -288,10 +322,12 @@ Claude reads: `agents/`, `skills/`, `commands/`, `protocols/`.
 
 ## Security
 
-`hercules` auto-pulls from `main` on every sync. A compromised push to `main` would reach
-all users within 5 minutes. Mitigations:
+`hercules` auto-syncs every 30 minutes. Tracking the **latest release** (the default) means a
+push to `main` does not reach users until it is reviewed, merged, and tagged as a release — so the
+exposure window for an unreviewed change is a release, not a single push. (`--branch main` opts back
+into following every push.) Mitigations:
 
-- All changes go through pull requests and CI before merging
+- All changes go through pull requests and CI before merging, and releases are cut from `main`
 - Installs come from the pinned GitHub repo over HTTPS; integrity rests on that repo plus the
   PR/CI gate above
 - The git token never touches the shared `~/.hercules/hercules-config.json` (which the plugin and
@@ -303,7 +339,7 @@ all users within 5 minutes. Mitigations:
 
 ## Requirements
 
-- Python ≥ 3.11
+- Python ≥ 3.9 (only for the optional auto-sync CLI; the plugin-directory path needs no Python)
 - `git` on PATH
 - Claude Code ≥ v2.1.128
 

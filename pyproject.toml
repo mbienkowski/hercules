@@ -8,7 +8,7 @@ version = "1.0.0"
 description = "Hercules — Claude Code plugin with AI-assisted delivery methodology enforcement"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.11"
+requires-python = ">=3.9"
 dependencies = [
     "platformdirs>=4.0",
     "tiktoken>=0.7.0",

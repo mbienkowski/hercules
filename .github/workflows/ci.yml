@@ -25,7 +25,7 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.9"
           cache: "pip"
           cache-dependency-path: "pyproject.toml"
 
@@ -35,15 +35,17 @@ jobs:
       - name: Run tests with coverage
         run: make test
 
-  # ── Mutation testing — main branch only, after tests pass ───────────────────
-  # Runs mutmut against hercules/ and gates on a 65% kill rate.
-  # Not run on feature branches to avoid slowing normal development.
+  # ── Mutation testing — every commit on PR branches (+ main), after tests ────
+  # Runs mutmut against hercules/ and gates on a 90% kill rate. Runs on the
+  # pull_request event (every commit pushed to a branch with an open PR) and on
+  # main pushes (the release gate) — so feature-branch commits without a PR don't
+  # burn CI minutes, and a SHA is never mutation-tested twice.
   mutation:
     name: Mutation
     needs: [test]
     if: >-
-      github.ref == 'refs/heads/main' &&
-      github.event_name == 'push'
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -52,7 +54,7 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.9"
           cache: "pip"
           cache-dependency-path: "pyproject.toml"
 

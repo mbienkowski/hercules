@@ -72,9 +72,9 @@ def test_ttl_elapsed_returns_false_when_last_pull_is_recent(tmp_path):
 
 
 def test_ttl_elapsed_returns_true_when_last_pull_is_old(tmp_path):
-    """A pull timestamp older than 5 minutes means the TTL has elapsed."""
+    """A pull timestamp older than 30 minutes means the TTL has elapsed."""
     # Given
-    old = datetime.now(timezone.utc) - timedelta(minutes=10)
+    old = datetime.now(timezone.utc) - timedelta(minutes=40)
     (tmp_path / ".last-pull").write_text(old.isoformat())
 
     # When / Then
@@ -178,12 +178,12 @@ def test_ttl_elapsed_returns_true_when_timestamp_file_is_corrupted(tmp_path):
     assert _ttl_elapsed(tmp_path) is True
 
 
-def test_ttl_elapsed_returns_false_at_exactly_299_seconds(tmp_path, monkeypatch):
-    """At 299 seconds old (< TTL), the TTL has not yet elapsed — distinguishes >= from >."""
+def test_ttl_elapsed_returns_false_at_exactly_1799_seconds(tmp_path, monkeypatch):
+    """At 1799 seconds old (< TTL), the TTL has not yet elapsed — distinguishes >= from >."""
     import hercules.plugin_sync.git_sync as gs_mod
 
     fixed_now = datetime(2024, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
-    ts = fixed_now - timedelta(seconds=299)
+    ts = fixed_now - timedelta(seconds=1799)
     (tmp_path / ".last-pull").write_text(ts.isoformat())
 
     class _MockDatetime:
@@ -198,12 +198,12 @@ def test_ttl_elapsed_returns_false_at_exactly_299_seconds(tmp_path, monkeypatch)
     assert gs_mod._ttl_elapsed(tmp_path) is False
 
 
-def test_ttl_elapsed_returns_true_at_exactly_300_seconds(tmp_path, monkeypatch):
-    """At exactly 300 seconds (== TTL), elapsed >= TTL is True; distinguishes >= from >."""
+def test_ttl_elapsed_returns_true_at_exactly_1800_seconds(tmp_path, monkeypatch):
+    """At exactly 1800 seconds (== TTL), elapsed >= TTL is True; distinguishes >= from >."""
     import hercules.plugin_sync.git_sync as gs_mod
 
     fixed_now = datetime(2024, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
-    ts = fixed_now - timedelta(seconds=300)
+    ts = fixed_now - timedelta(seconds=1800)
     (tmp_path / ".last-pull").write_text(ts.isoformat())
 
     class _MockDatetime:
@@ -474,3 +474,43 @@ def test_pull_passes_git_askpass_env_to_subprocess_when_token_given(tmp_path):
         _pull(tmp_path, "main", "", "my-token")
 
     assert any("GIT_ASKPASS" in e for e in captured_envs)
+
+
+# ---------------------------------------------------------------------------
+# force refresh (Stage 4) — bypasses the TTL on demand (hercules --sync)
+# ---------------------------------------------------------------------------
+
+def test_force_true_updates_even_when_ttl_is_fresh(tmp_path):
+    """force=True must run the update path even if the last pull was just now."""
+    from unittest.mock import patch
+    import hercules.plugin_sync.git_sync as gs
+    (tmp_path / ".git").mkdir()
+    recent = datetime.now(timezone.utc) - timedelta(seconds=5)
+    (tmp_path / ".last-pull").write_text(recent.isoformat())
+
+    with patch.object(gs, "_pull") as mock_pull:
+        gs.sync_plugin(
+            clone_root=tmp_path,
+            repo_url="https://github.com/mbienkowski/hercules.git",
+            branch="main",
+            force=True,
+        )
+    mock_pull.assert_called_once()
+
+
+def test_force_false_skips_update_when_ttl_is_fresh(tmp_path):
+    """force=False (default) must respect the TTL and skip the update."""
+    from unittest.mock import patch
+    import hercules.plugin_sync.git_sync as gs
+    (tmp_path / ".git").mkdir()
+    recent = datetime.now(timezone.utc) - timedelta(seconds=5)
+    (tmp_path / ".last-pull").write_text(recent.isoformat())
+
+    with patch.object(gs, "_pull") as mock_pull:
+        gs.sync_plugin(
+            clone_root=tmp_path,
+            repo_url="https://github.com/mbienkowski/hercules.git",
+            branch="main",
+            force=False,
+        )
+    mock_pull.assert_not_called()

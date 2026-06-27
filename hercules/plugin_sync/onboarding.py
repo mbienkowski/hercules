@@ -19,6 +19,11 @@ _ONBOARDING_TEXT = """\
   • Three phases, always run in order: Discover → Design → Build.
     Complexity sets how deep each phase goes; no phase is ever skipped.
 
+  • For best quality, give each project a 'code-of-conduct.md' — every Hercules
+    agent reads it for your stack, test command, and quality bar. It is the single
+    biggest lever on output quality. Don't have one? Just ask Hercules to
+    'generate a code of conduct' and it scaffolds one for you.
+
   • Your documents (requirements, design, specs, build summaries) are written to
     'docs/' in the directory where you launch Hercules. A project's
     code-of-conduct.md can redirect that, and cross-repo work will ask where to
@@ -29,7 +34,8 @@ _ONBOARDING_TEXT = """\
 
   • Nothing is saved until you say 'approved'. You review every artifact first.
 
-  • Start any time with:  /hercules:workflow
+  • Right now, try:  /hercules:workflow   to discover your first feature.
+    (Replay this anytime with:  hercules --show-onboarding)
 """
 
 
@@ -47,3 +53,11 @@ def run_onboarding() -> None:
         return
     print(_ONBOARDING_TEXT, file=sys.stderr)
     mark_onboarded(datetime.now(timezone.utc).isoformat())
+
+
+def print_onboarding() -> None:
+    """Print the first-run explainer on demand (``hercules --show-onboarding``).
+
+    Unconditional and side-effect-free: it never gates on a tty and never marks
+    onboarding as done, so it can be replayed any time."""
+    print(_ONBOARDING_TEXT, file=sys.stderr)

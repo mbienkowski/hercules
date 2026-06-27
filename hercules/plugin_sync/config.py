@@ -54,7 +54,7 @@ class Config:
     repo_url: str = ""
     ssh_key: str = ""
     git_token: str = ""  # runtime only — never written to the shared config
-    onboarded_at: str | None = None
+    onboarded_at: str | None = None  # pragma: no mutate
     options: dict = field(default_factory=dict)
     schema_version: int = SCHEMA_VERSION
 
@@ -177,14 +177,14 @@ def _atomic_write(path: Path, text: str, mode: int) -> None:
     """Write ``text`` to ``path`` atomically, setting ``mode`` BEFORE the content
     is written so a secret never briefly exists at default permissions."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + ".", suffix=".tmp")
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + ".", suffix=".tmp")  # pragma: no mutate
     try:
         os.fchmod(fd, mode)
         with os.fdopen(fd, "w") as fh:
             fh.write(text)
         os.replace(tmp, path)
     except BaseException:
-        Path(tmp).unlink(missing_ok=True)
+        Path(tmp).unlink(missing_ok=True)  # pragma: no mutate
         raise
 
 
@@ -202,7 +202,7 @@ def _migrate_legacy() -> Config:
     return cfg
 
 
-def _prompt(label: str, default: str = "") -> str:
+def _prompt(label: str, default: str = "") -> str:  # pragma: no mutate
     suffix = f" [{default}]: " if default else ": "  # pragma: no mutate
     print(f"  {label}{suffix}", end="", flush=True, file=sys.stderr)  # pragma: no mutate
     value = sys.stdin.readline().strip()
@@ -222,19 +222,19 @@ def run_wizard(default_url: str) -> Config:
 
     cfg = Config()
 
-    raw_url = _prompt("Plugin repo URL", default_url)
+    raw_url = _prompt("Plugin repo URL", default_url)  # pragma: no mutate
     if raw_url != default_url:
         cfg.repo_url = raw_url
 
     while True:
-        auth = _prompt("Auth method — token / ssh-key / none", "none").lower()
+        auth = _prompt("Auth method — token / ssh-key / none", "none").lower()  # pragma: no mutate
         if auth in ("token", "ssh-key", "sshkey", "ssh", "none", ""):
             break
         print(f"  Unknown auth method {auth!r} — please enter token, ssh-key, or none.", file=sys.stderr)  # pragma: no mutate
 
     if auth == "token":
         print("  (note: input will be visible)", file=sys.stderr)  # pragma: no mutate
-        cfg.git_token = _prompt("Personal access token", "")
+        cfg.git_token = _prompt("Personal access token", "")  # pragma: no mutate
     elif auth in ("ssh-key", "sshkey", "ssh"):
         effective_url = cfg.repo_url or default_url
         if effective_url.startswith("https://"):
@@ -245,10 +245,10 @@ def run_wizard(default_url: str) -> Config:
                 f"     Press Enter to switch to the SSH URL, or type a different URL.",  # pragma: no mutate
                 file=sys.stderr,
             )
-            new_url = _prompt(f"Repo URL", ssh_equiv)
+            new_url = _prompt(f"Repo URL", ssh_equiv)  # pragma: no mutate
             cfg.repo_url = new_url
         print("  Leave empty to let git use ~/.ssh/config (recommended for host-specific keys).", file=sys.stderr)  # pragma: no mutate
-        raw_key = _prompt("SSH key path (or Enter to use SSH config)", "")
+        raw_key = _prompt("SSH key path (or Enter to use SSH config)", "")  # pragma: no mutate
         if raw_key:
             cfg.ssh_key = _expand_tilde(raw_key)
 

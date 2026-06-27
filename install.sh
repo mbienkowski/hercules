@@ -11,9 +11,9 @@ UPGRADE="${1:-}"
 
 # ── Python version check ──────────────────────────────────────────────────────
 PYTHON=""
-for candidate in python3.11 python3.12 python3.13 python3; do
+for candidate in python3.9 python3.10 python3.11 python3.12 python3.13 python3; do
   if command -v "$candidate" >/dev/null 2>&1; then
-    version=$("$candidate" -c "import sys; print(sys.version_info >= (3, 11))" 2>/dev/null || echo "False")
+    version=$("$candidate" -c "import sys; print(sys.version_info >= (3, 9))" 2>/dev/null || echo "False")
     if [[ "$version" == "True" ]]; then
       PYTHON="$candidate"
       break
@@ -22,11 +22,10 @@ for candidate in python3.11 python3.12 python3.13 python3; do
 done
 
 if [[ -z "$PYTHON" ]]; then
-  echo "Error: Python 3.11 or later is required." >&2
+  echo "Error: Python 3.9 or later is required." >&2
   echo "" >&2
-  echo "macOS ships Python 3.9 — install a newer version via:" >&2
-  echo "  brew install python@3.11" >&2
-  echo "  or: https://www.python.org/downloads/" >&2
+  echo "Most systems already ship 3.9+ (incl. macOS 12+). If yours is older, install via:" >&2
+  echo "  https://www.python.org/downloads/  (or your package manager)" >&2
   exit 1
 fi
 
@@ -66,6 +65,7 @@ fi
 
 echo "Usage:"
 echo "  hercules                        # launch claude with auto-updated plugins"
+echo "  hercules --sync                 # force an immediate plugin refresh and exit"
 echo "  hercules --branch feature-x     # test a plugin branch"
 echo "  hercules --setup                # configure plugin repository"
 echo "  hercules --self-update          # upgrade hercules itself"
