@@ -116,7 +116,7 @@ File structure:
 Write the session-init state to the project's `~/.hercules/hercules-config.json` entry (see
 `CLAUDE.md § Machine-local state`), never the repo: `directory`, `active_session`,
 `current_phase` `"discover"`, `docs_root`, empty `repositories`, `last_updated`. Write
-atomically, preserving other entries and CLI-managed keys.
+atomically, preserving other entries.
 
 Append a new row to `docs/INDEX.md` (create if absent) with `tier`, `active` status,
 and a one-line goal summary.

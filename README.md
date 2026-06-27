@@ -131,7 +131,7 @@ Hercules guides you through a three-phase delivery workflow inside Claude:
 forever, written in plain business language, and shareable between stakeholders as the durable record
 of what a feature is for. Specs are **per-development** files — once a feature ships, its specs are
 deleted, because the **code, its tests, and git history become the single source of truth for
-developers**.
+developers**. Business people keep the documentation they can share; developers read the code.
 
 Every feature runs all three phases. Complexity scoring determines depth — trivial features get a
 single lightweight pass; critical features get multi-round specialist debate. No phase is ever skipped.

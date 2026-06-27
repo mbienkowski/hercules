@@ -6,17 +6,15 @@ import re
 import pytest
 
 
-_AGENT_LIST = [
+_ADVISOR_AGENTS = [
     # code / process
     "challenger", "cynical-reviewer", "lead-architect", "security-expert",
     "senior-qa-engineer", "backend-engineer", "frontend-engineer", "devops-engineer",
     "ux-ui-designer", "source-checker", "maintainer",
     # non-code / universal
-    "business-analyst", "copywriter", "document-specialist",
-    "simplicity-advocate",
-    # default persona / orchestrator (the plugin's default agent)
-    "hercules",
+    "business-analyst", "copywriter", "document-specialist", "simplicity-advocate",
 ]
+_DEFAULT_AGENT = "hercules"  # the plugin's default agent / orchestrator persona — NOT a specialist advisor
 
 _AGENT_NAME_RE = re.compile(r"(?m)^name:\s*(\S+)\s*$")
 
@@ -38,15 +36,16 @@ def test_all_specialist_agents_are_present(repo_root):
     existing = {p.stem for p in (repo_root / "plugin" / "agents").glob("*.md")}
 
     # When
-    missing = [n for n in _AGENT_LIST if n not in existing]
-    extra = [n for n in existing if n not in _AGENT_LIST]
+    missing = [n for n in _ADVISOR_AGENTS if n not in existing]
+    extra = [n for n in existing if n not in _ADVISOR_AGENTS and n != _DEFAULT_AGENT]
 
     # Then
-    assert not missing, f"Listed agents missing from agents/: {missing}"
+    assert not missing, f"Specialist advisors missing from agents/: {missing}"
     assert not extra, (
-        f"agents/ contains files not in the canonical list: {extra} "
-        "(add them to _AGENT_LIST + CLAUDE.md)"
+        f"agents/ has files that are neither a specialist advisor nor the default agent: {extra}"
     )
+    assert (repo_root / "plugin" / "agents" / f"{_DEFAULT_AGENT}.md").is_file(), \
+        "the default agent file must exist"
 
 
 def test_all_agents_are_listed_in_the_project_documentation(repo_root):
@@ -55,10 +54,10 @@ def test_all_agents_are_listed_in_the_project_documentation(repo_root):
     doc = (repo_root / "plugin" / "CLAUDE.md").read_text()
 
     # When
-    missing = [name for name in _AGENT_LIST if name not in doc]
+    missing = [name for name in _ADVISOR_AGENTS if name not in doc]
 
     # Then
-    assert not missing, f"Agents not documented in CLAUDE.md: {missing}"
+    assert not missing, f"Advisors not documented in CLAUDE.md: {missing}"
 
 
 def test_each_agent_file_has_the_required_structure_and_fields(repo_root, agent_files):

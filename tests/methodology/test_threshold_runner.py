@@ -6,12 +6,26 @@ from pathlib import Path
 import pytest
 
 from hercules.methodology.threshold_runner import (
+    CheckResult,
     ThresholdCheck,
     compare_value,
     load_thresholds,
     resolve_targets,
     run_threshold_checks,
 )
+
+
+def test_threshold_check_field_defaults():
+    """A ThresholdCheck built without the optional fields defaults to warn_at=None, per_file=False."""
+    c = ThresholdCheck(name="n", target="t", metric="token_count", op="<=", limit=1, severity="gate")
+    assert c.warn_at is None
+    assert c.per_file is False
+
+
+def test_check_result_near_warn_defaults_false():
+    """A CheckResult built without near_warn defaults to False."""
+    r = CheckResult(name="n", value=0, passed=True, severity="gate", message="m")
+    assert r.near_warn is False
 
 
 def _write_thresholds(tmp_path: Path, checks: list[dict]) -> Path:

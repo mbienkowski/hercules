@@ -43,7 +43,7 @@ def test_code_of_conduct_documents_no_slash_branches(read_file):
     content = read_file("CODE_OF_CONDUCT.md").lower()
     assert "branch" in content
     assert "slash" in content
-    assert re.search(r"hyphen|-", content)
+    assert "hyphen" in content, "CoC must name hyphens as the slash replacement for branch names"
 
 
 def test_readme_leads_with_marketplace_install(read_file):

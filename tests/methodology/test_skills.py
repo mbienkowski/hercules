@@ -65,8 +65,11 @@ def test_each_skill_file_declares_its_purpose_and_preconditions(repo_root, skill
         )
         assert "description:" in md, f"{path.parent.name}/SKILL.md frontmatter missing `description:`"
 
-        assert "use " in lower or "use in" in lower, (
-            f"{path.parent.name}/SKILL.md description must say when to use the skill"
+        desc_m = re.search(r"(?m)^description:\s*(.+)$", md)
+        assert desc_m, f"{path.parent.name}/SKILL.md frontmatter missing a description value"
+        desc = desc_m.group(1).lower()
+        assert any(t in desc for t in ("use ", "use in", "use on", "use when", "use to")), (
+            f"{path.parent.name}/SKILL.md description must state WHEN to use the skill"
         )
         assert "code-of-conduct.md" in md, (
             f"{path.parent.name}/SKILL.md must reference code-of-conduct.md"
@@ -76,7 +79,7 @@ def test_each_skill_file_declares_its_purpose_and_preconditions(repo_root, skill
             assert "precondition" in lower, (
                 f"{path.parent.name}/SKILL.md (active skill) must declare a Preconditions clause"
             )
-            assert "stop" in lower, (
+            assert re.search(r"\bstop\b", lower), (
                 f"{path.parent.name}/SKILL.md (active skill) must hard-stop on precondition miss"
             )
 
@@ -138,7 +141,7 @@ def test_session_summary_skill_covers_handoff_fields(repo_root):
         "session-summary must read delivered_specs from the home-config project entry"
     assert "hercules-config.json" in md, \
         "session-summary must read machine-local state from ~/.hercules/hercules-config.json"
-    assert ".context" not in md, \
+    assert "docs/.context" not in md, \
         "session-summary must not reference the removed docs/.context file"
     assert "handoff" in md.lower(), \
         "session-summary must produce a handoff note"

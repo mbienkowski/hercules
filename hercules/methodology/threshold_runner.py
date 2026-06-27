@@ -51,8 +51,8 @@ class ThresholdCheck:
     op: str
     limit: int
     severity: str
-    warn_at: int | None = None  # pragma: no mutate
-    per_file: bool = False  # pragma: no mutate
+    warn_at: int | None = None
+    per_file: bool = False
 
 
 @dataclass
@@ -62,7 +62,7 @@ class CheckResult:
     passed: bool
     severity: str
     message: str
-    near_warn: bool = False  # pragma: no mutate
+    near_warn: bool = False
 
 
 def load_thresholds(path: Path) -> list[ThresholdCheck]:

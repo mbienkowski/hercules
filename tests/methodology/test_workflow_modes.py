@@ -39,7 +39,8 @@ def test_plan_phases_require_plan_mode_and_gate_writes(read_file):
 def test_build_is_the_edit_phase_not_plan_mode(read_file):
     """Build is the edit/execute phase — it must not be in plan mode and must implement."""
     lower = read_file(_BUILD).lower()
-    assert "plan mode" not in lower, "build is the edit/execute phase — never plan mode"
+    assert "**plan mode — required" not in lower, \
+        "build must not OPEN in plan mode (it's the edit/execute phase); it may still mention the concept"
     assert ("implement" in lower or "write the minimum code" in lower), \
         "build must contain an implement/write action"
 

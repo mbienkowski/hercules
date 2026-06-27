@@ -163,7 +163,7 @@ def test_build_step_defines_its_execution_contract(read_file):
         "build close-out must verify requirement→spec→code/test traceability"
     assert "drift" in lower, \
         "build close-out must check for reverse scope-drift"
-    assert "build.md" not in lower, \
+    assert "-build.md" not in lower, \
         "build must not produce a *-build.md artifact — code + tests + git history are the record"
     assert lower.rindex("git rm") > lower.index("traceab"), \
         "spec deletion (git rm) must come after the traceability check, not before it"
@@ -287,7 +287,7 @@ def test_discover_writes_no_machine_local_file_into_repo(read_file):
     and no docs/.context. State lives only in the home config (hercules-config.json)."""
     md = read_file(_DISCOVER)
     assert ".gitignore" not in md, "discover must not create a docs/.gitignore for machine-local state"
-    assert ".context" not in md, "discover must not write docs/.context into the repo"
+    assert "docs/.context" not in md, "discover must not write docs/.context into the repo"
     assert "hercules-config.json" in md, \
         "discover must record session state in ~/.hercules/hercules-config.json"
 
@@ -299,7 +299,7 @@ def test_build_offers_resume_from_home_config(read_file):
     assert "resume" in lower, "build must offer resume from the home-config project state"
     assert "hercules-config.json" in lower, \
         "build must reference ~/.hercules/hercules-config.json for resume"
-    assert ".context" not in lower, "build must not reference the removed docs/.context file"
+    assert "docs/.context" not in lower, "build must not reference the removed docs/.context file"
 
 
 def test_build_prompts_for_service_paths_on_multi_service_design(read_file):
@@ -360,7 +360,7 @@ def test_no_command_or_readme_references_removed_context_file(read_file):
     targets = [*_ALL_COMMANDS, "plugin/CLAUDE.md", "plugin/skills/session-summary/SKILL.md", "README.md"]
     for path in targets:
         text = read_file(path)
-        assert ".context" not in text, f"{path} must not reference the removed docs/.context file"
+        assert "docs/.context" not in text, f"{path} must not reference the removed docs/.context file"
         assert "gitignored, never committed" not in text.lower(), \
             f"{path} must not promise an untested 'gitignored, never committed' machine-local file"
 

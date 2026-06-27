@@ -105,13 +105,11 @@ inside the user's repo. It sits under a `projects` map **keyed by project name**
 slug, default the launch-directory basename). Resolve the current project by matching the launch
 directory against each entry's `directory`; if none matches, create a new entry (name = directory
 basename, deduped if it collides). All writes are atomic (temp + rename) and update only the current
-project's entry — never other entries, and never the CLI-managed keys (`schema_version`, `repo_url`,
-`ssh_key`, `onboarded_at`, `options`).
+project's entry — never other entries, and never the top-level `schema_version` key.
 
 ```json
 {
   "schema_version": 1,
-  "repo_url": "https://github.com/mbienkowski/hercules.git",
   "projects": {
     "user-auth-platform": {
       "directory": "/Users/alice/work/myrepo",
@@ -136,7 +134,7 @@ project's entry — never other entries, and never the CLI-managed keys (`schema
 `delivered_specs` — array of spec filenames already shipped and deleted from the artifact root. Omit when empty.
 `pending_specs` — array of remaining spec filenames in delivery order. Omit when empty.
 `handed_off_by` / `handoff_note` — optional; written only at explicit handoff (Build Step 6).
-`repositories` maps additional service names to machine-local paths for cross-repo features; persists across features for the same project. (This is the project's repo list — distinct from the top-level `repo_url`, which is the Hercules plugin's own sync source.)
+`repositories` maps additional service names to machine-local paths for cross-repo features; persists across features for the same project.
 
 ## Agent scaling
 

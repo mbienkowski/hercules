@@ -130,6 +130,6 @@ or update it in place if the row exists. Write atomically (temp + rename).
 
 Update the project's entry in `~/.hercules/hercules-config.json`: set `current_phase` to `"design"`
 and write `pending_specs` (the spec filenames in ascending delivery order). Write atomically,
-preserving other entries and the CLI-managed keys.
+preserving other entries.
 
 Show the saved spec paths in delivery order. Then say: "The specs and delivery sequence are locked. Ready to **Build**? Run `/hercules:build` — I'll deliver each spec in order, tests first."
