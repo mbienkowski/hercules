@@ -38,6 +38,15 @@ hercules                               # launch claude
 hercules --claude-dir ~/.claude-work   # use an isolated config directory
 ```
 
+Or via the bootstrap script — handy if you don't have `pipx`; it finds a suitable Python and falls
+back to `pip --user`, then prints the marketplace commands for the plugin:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/mbienkowski/hercules/main/install.sh | bash
+```
+
+Upgrade the launcher later with `pipx upgrade hercules` (or re-run the script with `--upgrade`).
+
 | Your situation | Use |
 |---|---|
 | Just want the plugin (most people) | **Marketplace** (`/plugin install`) |

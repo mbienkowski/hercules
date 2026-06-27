@@ -14,10 +14,22 @@ def test_readme_documents_marketplace_install(read_file):
 
 
 def test_readme_has_no_removed_cli_references(read_file):
-    """README must not reference the removed auto-sync CLI surface."""
+    """README must not reference the removed auto-sync CLI surface (install.sh is now a launcher installer)."""
     content = read_file("README.md")
-    for banned in ["install.sh", "--sync", "--branch ", "auto-sync", "every 30 min"]:
+    for banned in ["--sync", "--branch ", "auto-sync", "every 30 min"]:
         assert banned not in content, f"README still references removed CLI surface: {banned!r}"
+
+
+def test_install_sh_installs_the_launcher(repo_root, read_file):
+    """install.sh installs the optional launcher from the git repo, gates on Python 3.9, points to
+    the marketplace, and carries none of the removed sync-CLI surface."""
+    assert (repo_root / "install.sh").exists(), "install.sh must exist to install the hercules launcher"
+    sh = read_file("install.sh")
+    assert "git+https://github.com/mbienkowski/hercules.git" in sh, "install.sh must install from the git repo"
+    assert "(3, 9)" in sh and "python3.9" in sh, "install.sh must gate on Python >= 3.9"
+    assert "/plugin marketplace add" in sh, "install.sh must point users to the marketplace for the plugin"
+    for banned in ["--sync", "--setup", "--branch", "--self-update"]:
+        assert banned not in sh, f"install.sh must not reference the removed sync flag {banned!r}"
 
 
 def test_code_of_conduct_whats_tested_rows_point_at_existing_files(repo_root, read_file):
