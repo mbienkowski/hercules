@@ -6,11 +6,19 @@ secret stripping before exec, the Python 3.9 floor, plus arg passthrough and the
 
 from __future__ import annotations
 
+import io
 from unittest.mock import patch
 
 import pytest
 
 from hercules import launcher
+
+
+class _FakeTTY(io.StringIO):
+    """A StringIO that reports itself as a TTY, for testing TTY-gated output."""
+
+    def isatty(self) -> bool:
+        return True
 
 
 def test_launcher_forwards_args_and_version(capsys):
@@ -106,6 +114,29 @@ def test_claude_dir_without_value_errors(capsys):
         launcher.main(["--claude-dir"])
     assert exc.value.code != 0
     assert "--claude-dir" in capsys.readouterr().err
+
+
+def test_launcher_prints_banner_to_a_tty(monkeypatch):
+    """The Hercules banner prints to a TTY stream (the branded launch experience)."""
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    stream = _FakeTTY()
+    launcher._print_banner(stream)
+    assert "█" in stream.getvalue(), "the banner art must be printed to a TTY"
+
+
+def test_launcher_suppresses_banner_when_output_is_piped():
+    """When stderr is not a TTY (piped/redirected), the banner is suppressed."""
+    stream = io.StringIO()  # isatty() is False
+    launcher._print_banner(stream)
+    assert stream.getvalue() == "", "no banner when the stream is not a TTY"
+
+
+def test_launcher_suppresses_banner_when_no_color_set(monkeypatch):
+    """NO_COLOR suppresses the banner even on a TTY."""
+    monkeypatch.setenv("NO_COLOR", "1")
+    stream = _FakeTTY()
+    launcher._print_banner(stream)
+    assert stream.getvalue() == "", "NO_COLOR must suppress the banner"
 
 
 def test_python_floor_rejects_below_39(capsys):

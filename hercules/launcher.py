@@ -15,6 +15,25 @@ import sys
 # Stripped from the child environment so they never reach claude (harmless if unset).
 _SECRETS_TO_STRIP = frozenset({"HERCULES_GIT_TOKEN", "HERCULES_REPO_URL", "GIT_ASKPASS"})
 
+_BANNER = (
+    "██╗  ██╗███████╗██████╗  ██████╗██╗   ██╗██╗     ███████╗███████╗\n"  # pragma: no mutate
+    "██║  ██║██╔════╝██╔══██╗██╔════╝██║   ██║██║     ██╔════╝██╔════╝\n"  # pragma: no mutate
+    "███████║█████╗  ██████╔╝██║     ██║   ██║██║     █████╗  ███████╗\n"  # pragma: no mutate
+    "██╔══██║██╔══╝  ██╔══██╗██║     ██║   ██║██║     ██╔══╝  ╚════██║\n"  # pragma: no mutate
+    "██║  ██║███████╗██║  ██║╚██████╗╚██████╔╝███████╗███████╗███████║\n"  # pragma: no mutate
+    "╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝╚══════╝╚══════╝"  # pragma: no mutate
+)
+
+
+def _print_banner(stream) -> None:
+    """Print the Hercules banner to a TTY stream; suppressed when piped or NO_COLOR is set."""
+    if os.environ.get("NO_COLOR") or not stream.isatty():
+        return
+    print(file=stream)
+    for line in _BANNER.split("\n"):
+        print(f"\x1b[38;5;214m{line}\x1b[0m", file=stream)  # pragma: no mutate
+    print(file=stream)
+
 
 def _check_python_floor(version_info: tuple = None) -> None:
     """Exit 1 if running under Python < 3.9 (re-homed from the old `__main__` gate)."""
@@ -69,6 +88,8 @@ def main(argv: list[str] | None = None) -> None:
         except Exception:  # pragma: no cover - fallback only
             print("dev")
         return
+
+    _print_banner(sys.stderr)
 
     claude_path = shutil.which("claude")
     if not claude_path:
