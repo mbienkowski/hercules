@@ -25,11 +25,11 @@ Then, three steps:
 
 ```
 /plugin marketplace add mbienkowski/hercules
-/plugin install hercules@hercules
+/plugin install hercules@mbienkowski
 ```
 
-`hercules@hercules` is `plugin@marketplace` (the plugin named `hercules`, from the marketplace named
-`hercules`). The `/plugin` and `/hercules:*` commands are typed **inside Claude Code**, not in a terminal.
+`hercules@mbienkowski` is `plugin@marketplace` (the plugin named `hercules`, from `mbienkowski`'s
+marketplace). The `/plugin` and `/hercules:*` commands are typed **inside Claude Code**, not in a terminal.
 
 **2 — Verify.** Run `/help` (or `/plugin`) and confirm the `/hercules:` commands appear. If they don't,
 the plugin is installed-but-disabled — enable it from the `/plugin` screen.
@@ -56,42 +56,17 @@ local) so everyone gets Hercules on clone:
   "extraKnownMarketplaces": {
     "hercules": { "source": { "source": "github", "repo": "mbienkowski/hercules" } }
   },
-  "enabledPlugins": ["hercules@hercules"]
+  "enabledPlugins": ["hercules@mbienkowski"]
 }
 ```
 
 Use the **project** scope to standardize a whole repo; consider an org fork + a pinned version for
 governance.
 
-### Optional: the branded `hercules` launcher (advanced)
-Most people don't need this. It's a thin command that just launches `claude` — handy if you like typing
-`hercules`, or want **isolated configs side by side** (work vs. personal). It does **not** install the
-plugin; you still run the `/plugin` commands above. Requires **Python ≥ 3.9**.
-
-```bash
-pipx install "git+https://github.com/mbienkowski/hercules.git@v0.1.0"   # pin to a release tag
-hercules                               # launch claude
-hercules --claude-dir ~/.claude-work   # use a separate config directory
-```
-
-`--claude-dir DIR` sets `CLAUDE_CONFIG_DIR`, so Claude reads a separate config directory — install the
-plugin once per directory you use (work and personal each get their own). Upgrade with `pipx upgrade
-hercules`.
-
-No `pipx`? There's a bootstrap script — **review it before running** (don't pipe an unread script into
-your shell):
-
-```bash
-curl -sSL https://raw.githubusercontent.com/mbienkowski/hercules/main/install.sh -o install.sh
-less install.sh        # read it
-bash install.sh        # then run it
-```
-
 | Your situation | Use |
 |---|---|
 | Just want the plugin (most people) | **Marketplace** — the steps above |
 | A whole team / CI | **`settings.json`** (`extraKnownMarketplaces` + `enabledPlugins`) |
-| Want a branded `hercules` command + isolated config dirs | **Launcher** (`pipx` → `hercules`) |
 
 ---
 
@@ -234,19 +209,17 @@ Updates are **manual and in your control** — there's no background process and
 the latest from the marketplace:
 
 ```
-/plugin marketplace update hercules
+/plugin marketplace update mbienkowski
 ```
 
-You can pin or roll back through Claude Code's plugin manager. If you use the optional launcher, upgrade
-it separately with `pipx upgrade hercules`.
+You can pin or roll back through Claude Code's plugin manager.
 
 ---
 
 ## Requirements
 
 - **Claude Code** — the plugin runs entirely inside it.
-- **Python ≥ 3.9** — only for the optional `hercules` launcher and for contributing (running the
-  tests). The plugin itself needs no Python.
+- **Python ≥ 3.9** — only for contributing (running the tests). The plugin itself needs no Python.
 
 ---
 
@@ -258,7 +231,7 @@ agents, and skills, plus how to run the tests.
 1. Fork and create a branch (use hyphens, no slashes)
 2. Add or edit files in `plugin/commands/`, `plugin/agents/`, or `plugin/skills/`
 3. Test the plugin locally: add your checkout as a local marketplace —
-   `/plugin marketplace add /path/to/your/checkout` — then `/plugin install hercules@hercules`, and
+   `/plugin marketplace add /path/to/your/checkout` — then `/plugin install hercules@mbienkowski`, and
    `git checkout` the branch you want to try.
 4. Run the suite: `pip install -e ".[dev]" && make test`
 5. Open a PR — CI runs the full suite plus mutation testing and validates the plugin package. Commit

@@ -1,7 +1,7 @@
 # hercules — project instructions
 
 Hercules is a Claude Code plugin of agents, commands, and skills, distributed through the native
-plugin marketplace (with an optional thin `hercules` launcher for a branded entry point).
+plugin marketplace.
 
 ## Development principles
 

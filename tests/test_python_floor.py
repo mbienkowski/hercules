@@ -44,12 +44,3 @@ def test_code_of_conduct_documents_no_slash_branches(read_file):
     assert "branch" in content
     assert "slash" in content
     assert "hyphen" in content, "CoC must name hyphens as the slash replacement for branch names"
-
-
-def test_readme_leads_with_marketplace_install(read_file):
-    """README must surface the native marketplace install before the optional pipx launcher."""
-    content = read_file("README.md")
-    assert "/plugin marketplace add" in content
-    # The zero-Python marketplace path must appear before the optional pipx launcher.
-    if "pipx install" in content:
-        assert content.index("/plugin marketplace add") < content.index("pipx install")

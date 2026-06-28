@@ -45,10 +45,8 @@ itself. How a user *runs* Hercules (the workflow, phases, and artifact conventio
 
 These rules are enforced by `tests/methodology/` — a change that breaks one fails CI:
 
-- **Every shipped artifact has an owning test.** A new manifest, agent, command, skill, or launcher
-  behaviour ships only with a test that fails when it is missing or malformed.
-- **The `hercules` launcher is a Python module** (`hercules/launcher.py`), never a shell script — so
-  branch coverage and mutation testing actually see it.
+- **Every shipped artifact has an owning test.** A new manifest, agent, command, or skill
+  ships only with a test that fails when it is missing or malformed.
 - **The plugin version is single-sourced.** `pyproject.toml` and `plugin/.claude-plugin/plugin.json`
   must carry the same version; CI fails on drift.
 
@@ -57,7 +55,7 @@ These rules are enforced by `tests/methodology/` — a change that breaks one fa
 ## Testing
 
 One language, one runner: **Python**. Everything is a pytest test under `python -m pytest tests/` —
-the launcher, the plugin-content lint, and the A2A protocol/metric budgets.
+the plugin-content lint and the A2A protocol/metric budgets.
 
 ```bash
 # Set up once
@@ -88,7 +86,6 @@ binary and credentials.
 
 | Area | Where | Kind |
 |------|-------|------|
-| Launcher: arg passthrough, `--claude-dir`→`CLAUDE_CONFIG_DIR`, secret stripping, Python floor | `tests/methodology/test_launcher.py` | unit |
 | Marketplace + plugin manifests, default-agent persona, no-AGENT_TEAMS guard | `tests/methodology/test_plugin_integrity.py`, `test_agents.py` | unit + policy |
 | Docs match the marketplace reality; version single-sourced | `tests/methodology/test_docs.py` | policy |
 | A2A protocol grammar and status vocabulary | `tests/methodology/test_a2a_grammar.py`, `test_protocol_files.py` | unit + policy |
@@ -123,9 +120,6 @@ binary and credentials.
   skill token budgets use this, so a new agent or skill is gated automatically — no new row needed.
 
 **A new metric → add a function to `hercules/methodology/` and register it** in `METRIC_REGISTRY`.
-
-**A behavioral check (the launcher) → add a pytest test** in `tests/methodology/test_launcher.py`,
-mocking `shutil.which` / `os.execvpe` as the existing cases do.
 
 ### Budgets are fixed — stop and ask before you bump or cut
 

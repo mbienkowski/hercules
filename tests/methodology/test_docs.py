@@ -14,7 +14,7 @@ def test_readme_documents_marketplace_install(read_file):
 
 
 def test_readme_has_no_removed_cli_references(read_file):
-    """README must not reference the removed auto-sync CLI surface (install.sh is now a launcher installer)."""
+    """README must not reference the removed auto-sync CLI surface."""
     content = read_file("README.md")
     for banned in ["--sync", "--branch", "auto-sync", "every 30 min"]:
         assert banned not in content, f"README still references removed CLI surface: {banned!r}"
@@ -29,9 +29,9 @@ def test_readme_states_claude_code_prerequisite(read_file):
 
 
 def test_readme_explains_marketplace_plugin_syntax(read_file):
-    """README must explain the plugin@marketplace syntax (otherwise hercules@hercules reads as a typo)."""
+    """README must explain the plugin@marketplace syntax (otherwise hercules@mbienkowski reads as a typo)."""
     assert "plugin@marketplace" in read_file("README.md"), \
-        "README must explain that hercules@hercules is plugin@marketplace"
+        "README must explain that hercules@mbienkowski is plugin@marketplace"
 
 
 def test_readme_documents_non_interactive_team_install(read_file):
@@ -49,17 +49,6 @@ def test_readme_has_no_misleading_auto_update_claim(read_file):
     assert "/plugin marketplace update" in content, "README must document the manual update command"
 
 
-def test_install_sh_installs_the_launcher(repo_root, read_file):
-    """install.sh installs the optional launcher from the git repo, gates on Python 3.9, points to
-    the marketplace, and carries none of the removed sync-CLI surface."""
-    assert (repo_root / "install.sh").exists(), "install.sh must exist to install the hercules launcher"
-    sh = read_file("install.sh")
-    assert "git+https://github.com/mbienkowski/hercules.git" in sh, "install.sh must install from the git repo"
-    assert "(3, 9)" in sh and "python3.9" in sh, "install.sh must gate on Python >= 3.9"
-    assert "/plugin marketplace add" in sh, "install.sh must point users to the marketplace for the plugin"
-    for banned in ["--sync", "--setup", "--branch", "--self-update"]:
-        assert banned not in sh, f"install.sh must not reference the removed sync flag {banned!r}"
-
 
 def test_code_of_conduct_whats_tested_rows_point_at_existing_files(repo_root, read_file):
     """Every test path named in CODE_OF_CONDUCT.md must exist (no stale 'what's covered' rows)."""
@@ -73,8 +62,6 @@ def test_code_of_conduct_states_contributor_invariants(read_file):
     """CODE_OF_CONDUCT.md must record the contributor invariants this migration relies on."""
     content = read_file("CODE_OF_CONDUCT.md").lower()
     assert "owning test" in content, "CoC must require every shipped artifact to have an owning test"
-    assert "launcher is a python module" in content, \
-        "CoC must record the launcher-is-a-Python-module invariant (coverage + mutation see it)"
     assert "single source" in content or "single-source" in content, \
         "CoC must record version single-sourcing across pyproject and the plugin manifest"
 

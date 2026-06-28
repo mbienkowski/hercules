@@ -13,9 +13,6 @@ dependencies = [
     "tiktoken>=0.7.0",
 ]
 
-[project.scripts]
-hercules = "hercules.launcher:main"
-
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
