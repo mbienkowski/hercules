@@ -20,6 +20,35 @@ def test_readme_has_no_removed_cli_references(read_file):
         assert banned not in content, f"README still references removed CLI surface: {banned!r}"
 
 
+def test_readme_states_claude_code_prerequisite(read_file):
+    """README must tell newcomers Hercules runs inside Claude Code (the hard prerequisite)."""
+    content = read_file("README.md").lower()
+    assert "claude code" in content
+    assert "prerequisite" in content or "runs inside" in content or "install claude code" in content, \
+        "README must state the Claude Code prerequisite up front"
+
+
+def test_readme_explains_marketplace_plugin_syntax(read_file):
+    """README must explain the plugin@marketplace syntax (otherwise hercules@hercules reads as a typo)."""
+    assert "plugin@marketplace" in read_file("README.md"), \
+        "README must explain that hercules@hercules is plugin@marketplace"
+
+
+def test_readme_documents_non_interactive_team_install(read_file):
+    """README must document the settings.json team/CI install path."""
+    content = read_file("README.md")
+    assert "enabledPlugins" in content and "extraKnownMarketplaces" in content, \
+        "README must show the settings.json team install block (extraKnownMarketplaces + enabledPlugins)"
+
+
+def test_readme_has_no_misleading_auto_update_claim(read_file):
+    """Updates are manual (/plugin marketplace update); the README must not claim auto-update."""
+    content = read_file("README.md")
+    assert "keeps the plugin updated" not in content.lower(), \
+        "README must not claim Claude Code auto-updates the plugin — updates are manual"
+    assert "/plugin marketplace update" in content, "README must document the manual update command"
+
+
 def test_install_sh_installs_the_launcher(repo_root, read_file):
     """install.sh installs the optional launcher from the git repo, gates on Python 3.9, points to
     the marketplace, and carries none of the removed sync-CLI surface."""
