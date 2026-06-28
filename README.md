@@ -6,17 +6,20 @@ Discover before you design. Design before you build. No shortcuts.
 **Who it's for:** engineers who want their AI to follow a disciplined process — *and* non-developers
 (QA, product) who want to turn messy notes into clear, reviewable requirements.
 
-> New to the terms? *Plugin* = an add-on you install into Claude Code. *Marketplace* = a source (here,
-> a GitHub repo) you add plugins from. *Agent* = a specialist persona Claude can consult. *Business
-> requirements* = the permanent, plain-language "what & why" doc. *Spec* = the temporary technical
-> blueprint, deleted once it's built.
+> **New to the terms?**
+> - **Plugin:** an add-on you install into Claude Code.
+> - **Marketplace:** a source (here, a GitHub repo) you add plugins from.
+> - **Agent:** a specialist persona Claude can consult.
+> - **Business requirements:** the permanent, plain-language "what & why" doc.
+> - **Spec:** specification — a temporary technical blueprint, deleted once it's built.
 
 ---
 
 ## Install
 
-**Prerequisite:** Hercules runs *inside* [Claude Code](https://code.claude.com) — install Claude Code
-first. The plugin itself needs **no Python**.
+**Prerequisite:** Hercules runs *inside* [Claude Code](https://code.claude.com) — install Claude Code first.
+
+You don't need any extra executables to run this plugin.
 
 Then, three steps:
 
@@ -33,11 +36,13 @@ marketplace). The `/plugin` and `/hercules:*` commands are typed **inside Claude
 **2 — Verify.** Run `/help` (or `/plugin`) and confirm the `/hercules:` commands appear. If they don't,
 the plugin is installed-but-disabled — enable it from the `/plugin` screen.
 
-**3 — Start.** There's nothing to configure — just run:
+**3 — Start.** Run:
 
 ```
 /hercules:workflow
 ```
+
+If this is a new repo, Hercules will detect it and walk you through the one-time setup first.
 
 When enabled, Hercules becomes your **default agent** — that's why you can also just say
 *"Hercules, where do I start?"*. This means Hercules is active for every Claude Code session where
@@ -82,7 +87,7 @@ The fastest way to start is the guided workflow — Hercules walks you through e
 Or run each phase on its own. Outputs are dated Markdown files (`YYYY-MM-DD` = today's date; `desc` = a
 short slug; `NN` = the spec number):
 
-| Command | Phase | WHAT / HOW / SHIP | What it produces |
+| Command | Phase | Focus | What it produces |
 |---|---|---|---|
 | `/hercules:discover` | Discover — **WHAT** | Pin the real need | a `*-business-requirements.md` (the permanent "what & why") |
 | `/hercules:design` | Design — **HOW** | Turn it into a spec | one or more `*-spec-NN-*.md` build blueprints |
@@ -167,7 +172,8 @@ Every feature runs all three phases — the *process* is constant; only the *dep
    where you left off.
 2. **Design — HOW** — turns requirements into one or more self-contained **specs**, challenged by
    specialist advisors before any code. Output: `*-spec-NN-*.md` (temporary).
-3. **Build — SHIP** — TDD (write the failing test first), then the implementation, then review.
+3. **Build — SHIP** — Runs a specialised sub-workflow that iterates until the goal is reached:
+   TDD (write the failing test first), then the implementation, then review.
    Output: code + tests. The specs are deleted on merge to main (`git rm`).
 
 **Two documents, two lifecycles.** Business-requirements are **long-lived** — committed forever, in
@@ -196,6 +202,8 @@ under pressure.
 
 ## Philosophy
 
+Spec-first delivery is front-heavy by design.
+
 AI removed the safety net. Without a clear requirement, quality doesn't degrade gracefully — it
 collapses. Hercules is front-heavy on purpose: the time invested in Discover and Design pays back in
 less rework, fewer misbuilt features, and code that does what was actually needed.
@@ -208,14 +216,14 @@ easier to do that well.
 
 ## Updating
 
-Updates are **manual and in your control** — there's no background process and nothing to manage. Pull
-the latest from the marketplace:
+Updates are **manual** — Claude Code does not auto-update plugins. Pull the latest when you want to:
 
 ```
 /plugin marketplace update mbienkowski
 ```
 
-You can pin or roll back through Claude Code's plugin manager.
+(`mbienkowski` is the marketplace source name — the same source you registered in step 1.
+This refreshes all plugins from it.) You can pin or roll back through Claude Code's plugin manager.
 
 ---
 
@@ -257,7 +265,7 @@ For a local dev clone:
 ```bash
 git clone https://github.com/mbienkowski/hercules.git
 cd hercules
-pip install -e ".[dev]"
+pip install -e ".[dev]"   # installs test dependencies (pytest, mutmut) — needed to run make test
 ```
 
 All `.md` filenames must be **lowercase** — macOS is case-insensitive but Linux is not.

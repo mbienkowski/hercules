@@ -13,7 +13,9 @@ itself. How a user *runs* Hercules (the workflow, phases, and artifact conventio
 
 - File: `plugin/commands/{name}.md` — **lowercase only** (macOS is case-insensitive, Linux is not)
 - Must contain the `/hercules:{name}` trigger phrase in the body
-- Must open with `**Plan mode — required.**`
+- Use plan mode when the command needs to wait for user review or approval before writing artifacts.
+  Phase commands (Discover, Design, Build) require it. Skills that operate without user approval
+  (read-only queries, utility transforms) may omit it.
 - Must use `YYYY-MM-DD` date format in all artifact paths
 - Must point forward to the next phase at close-out
 - Must update the delivery workflow table in `plugin/CLAUDE.md`
@@ -33,6 +35,16 @@ itself. How a user *runs* Hercules (the workflow, phases, and artifact conventio
 - Directory: `plugin/skills/{name}/SKILL.md`
 - Must declare: phase-anchored trigger, precondition-then-stop guard, atomic/idempotent writes
 - Falls back gracefully when `code-of-conduct.md` is absent in the target project
+
+### Documentation style
+
+Prefer bullet points over prose blobs for anything a contributor needs to scan — checklists, term
+definitions, rule lists. Long inline lists → one bullet per item, with the term in bold:
+
+- **Term:** definition — not `*Term* = definition` run together in a sentence.
+
+Apply this to glossaries, README callout boxes, and CoC rule lists. The goal: a developer scanning
+in 30 seconds should find any rule or definition without reading a full paragraph.
 
 ### Branching
 
