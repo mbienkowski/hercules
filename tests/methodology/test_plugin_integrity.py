@@ -146,6 +146,46 @@ def test_no_shipped_artifact_references_agent_teams(repo_root):
     assert not offenders, f"shipped plugin artifacts must not reference {flag}: {offenders}"
 
 
+def test_plugin_permissions_section_exists_in_readme(read_file):
+    """README must have a Plugin permissions section documenting all four capability areas."""
+    content = read_file("README.md")
+    assert "## Plugin permissions" in content, "README must have a '## Plugin permissions' section"
+    assert "~/.hercules/" in content, "Plugin permissions must document the ~/.hercules/ write location"
+    assert "no credentials" in content.lower(), "Plugin permissions must state no credentials are stored"
+    assert "no direct api calls" in content.lower() or "no separate network channel" in content.lower(), \
+        "Plugin permissions must state no direct API calls or separate network channel"
+
+
+def test_plugin_files_claim_no_external_network_calls(repo_root):
+    """No plugin Markdown file should claim to make direct API calls or open external network channels."""
+    for path in (repo_root / "plugin").rglob("*.md"):
+        content = path.read_text(encoding="utf-8").lower()
+        assert "direct api call" not in content, f"{path} claims direct API calls"
+        assert "external network channel" not in content, f"{path} claims external network channel"
+
+
+def test_plugin_only_external_write_location_is_hercules_dir(repo_root, read_file):
+    """The Plugin permissions section must name ~/.hercules/ as the ONLY external home-dir write location.
+
+    Scoped to the '## Plugin permissions' section only — the rest of the README legitimately mentions
+    ~/.claude/settings.json (documenting Claude Code's own config location), which must not be flagged.
+    """
+    readme = read_file("README.md")
+    claude_md = read_file("plugin/CLAUDE.md").lower()
+    assert "~/.hercules/" in readme.lower(), "README must document the ~/.hercules/ write location"
+    assert "~/.hercules/" in claude_md, "plugin/CLAUDE.md must reference ~/.hercules/"
+
+    match = re.search(r"## Plugin permissions\n(.*?)(?=\n## |\Z)", readme, re.DOTALL)
+    assert match, "README must contain a '## Plugin permissions' section"
+    perms_section = match.group(1).lower()
+
+    home_writes = re.findall(r"~/\.[a-z][a-z0-9_-]+/", perms_section)
+    assert all(p == "~/.hercules/" for p in home_writes), (
+        f"Plugin permissions section references unexpected home-dir locations: "
+        f"{set(home_writes) - {'~/.hercules/'}}"
+    )
+
+
 def test_agent_frontmatter_name_uses_only_lowercase_characters(repo_root, agent_files):
     """Agent frontmatter `name:` values must be lowercase (used as URL-safe identifiers)."""
     # Given

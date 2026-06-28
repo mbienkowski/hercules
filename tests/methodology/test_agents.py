@@ -120,6 +120,27 @@ def test_senior_qa_engineer_documents_bdd_for_frontend_scope(repo_root):
         "senior-qa-engineer must name an e2e test tool for frontend scenarios"
 
 
+def test_hercules_agent_has_first_run_detection(read_file):
+    """Hercules must detect first-run sessions via hercules-config.json and show onboarding."""
+    content = read_file("plugin/agents/hercules.md")
+    assert "first-run" in content.lower() or "first run" in content.lower(), \
+        "hercules.md must have first-run detection"
+    assert "code-of-conduct-generator" in content, \
+        "first-run onboarding must mention code-of-conduct-generator"
+    assert "hercules-config.json" in content, \
+        "first-run detection must reference hercules-config.json as the state file"
+
+
+def test_hercules_agent_has_ambiguity_elimination(read_file):
+    """Hercules must have explicit ambiguity-elimination behavior documented in its persona."""
+    content = read_file("plugin/agents/hercules.md")
+    assert "ambiguit" in content.lower(), \
+        "hercules.md must address ambiguity elimination"
+    assert "figure it out" in content.lower() or "tbd" in content.lower() or \
+           "open question" in content.lower(), \
+        "hercules.md must reject open questions / TBDs"
+
+
 def test_plugin_declares_default_agent_with_persona(repo_root):
     """plugin/settings.json must declare a default agent whose file carries the Hercules persona.
 

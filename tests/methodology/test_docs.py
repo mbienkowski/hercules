@@ -92,3 +92,19 @@ def test_plugin_claude_md_describes_a_plugin_not_a_wrapper(read_file):
     content = read_file("plugin/CLAUDE.md")
     assert "Python wrapper for the `claude` CLI" not in content, \
         "plugin/CLAUDE.md must not call Hercules a Python wrapper for the claude CLI"
+
+
+def test_readme_documents_uninstall(read_file):
+    """README must document how to uninstall the plugin and remove its marketplace entry."""
+    content = read_file("README.md")
+    assert "/plugin uninstall" in content, "README must show the /plugin uninstall command"
+    assert "## Uninstalling" in content, "README must have an Uninstalling section"
+
+
+def test_readme_documents_onboarding_skill(read_file):
+    """README must document the code-of-conduct-generator onboarding step for new repos."""
+    content = read_file("README.md")
+    assert "code-of-conduct-generator" in content, \
+        "README must mention the code-of-conduct-generator skill"
+    assert "set up this project" in content.lower() or "onboarding" in content.lower(), \
+        "README must explain the one-time per-repo onboarding step"

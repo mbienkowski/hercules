@@ -9,8 +9,7 @@ Discover before you design. Design before you build. No shortcuts.
 > New to the terms? *Plugin* = an add-on you install into Claude Code. *Marketplace* = a source (here,
 > a GitHub repo) you add plugins from. *Agent* = a specialist persona Claude can consult. *Business
 > requirements* = the permanent, plain-language "what & why" doc. *Spec* = the temporary technical
-> blueprint, deleted once it's built. *TDD* = write the failing test first. *Mutation testing* = checks
-> that your tests actually catch bugs.
+> blueprint, deleted once it's built.
 
 ---
 
@@ -41,7 +40,9 @@ the plugin is installed-but-disabled — enable it from the `/plugin` screen.
 ```
 
 When enabled, Hercules becomes your **default agent** — that's why you can also just say
-*"Hercules, where do I start?"*. It shapes the main session; the `/hercules:*` commands run the phases.
+*"Hercules, where do I start?"*. This means Hercules is active for every Claude Code session where
+this plugin is enabled — it does not add instructions to Claude sessions where the plugin is off.
+The `/hercules:*` commands run the phases.
 
 ### Claude Code Desktop
 Same flow: type the `/plugin` commands in the chat, **or** use the in-app plugin browser (the `+` near
@@ -61,7 +62,7 @@ local) so everyone gets Hercules on clone:
 ```
 
 Use the **project** scope to standardize a whole repo; consider an org fork + a pinned version for
-governance.
+governance. This file merges with any existing Claude Code settings — it does not replace them.
 
 | Your situation | Use |
 |---|---|
@@ -81,23 +82,39 @@ The fastest way to start is the guided workflow — Hercules walks you through e
 Or run each phase on its own. Outputs are dated Markdown files (`YYYY-MM-DD` = today's date; `desc` = a
 short slug; `NN` = the spec number):
 
-| Command | Phase | What it produces |
-|---|---|---|
-| `/hercules:discover` | Discover | a `*-business-requirements.md` (the permanent "what & why") |
-| `/hercules:design` | Design | one or more `*-spec-NN-*.md` build blueprints |
-| `/hercules:build` | Build | working code + tests (the specs are deleted on ship) |
+| Command | Phase | WHAT / HOW / SHIP | What it produces |
+|---|---|---|---|
+| `/hercules:discover` | Discover — **WHAT** | Pin the real need | a `*-business-requirements.md` (the permanent "what & why") |
+| `/hercules:design` | Design — **HOW** | Turn it into a spec | one or more `*-spec-NN-*.md` build blueprints |
+| `/hercules:build` | Build — **SHIP** | Write and verify code | working code + tests (specs deleted on merge to main) |
+
+Each feature is its own workflow run — start a new one any time with `/hercules:workflow` and a feature
+description. Your `docs/` folder accumulates business-requirements files over time; specs are temporary
+and deleted on merge to main (when the feature is accepted into the main codebase). Multiple features
+can be in-flight simultaneously — each gets its own spec files with unique sequential numbers.
 
 ---
 
 ## Your first session
 
-Type `/hercules:workflow`. Discovery is where the real work happens — bring everything you have:
+**One-time setup per repo:** before your first feature, run the onboarding skill once. It scans your
+repo, infers your stack and quality bar, and writes a `code-of-conduct.md` that all Hercules agents
+read. Without it, Hercules falls back to generic defaults. Just say:
+
+*"Hercules, set up this project"* — or explicitly: `code-of-conduct-generator`
+
+It asks ≤5 questions when it can't infer something; otherwise it's silent. Once it exists, you don't
+run it again unless your standards change.
+
+Then type `/hercules:workflow`. Discovery is where the real work happens — bring everything you have:
 PRDs, ADRs, Figma links, QA scenarios, API contracts, Slack threads. The more context you bring, the
-better. Hercules asks about the gaps; you answer them. Your first session ends with a requirements
-document saved to `docs/`.
+better. Hercules will always paraphrase what it understood before writing — correct it if anything's
+off. Your first session ends with a requirements document saved to `docs/`.
 
 At each phase, Hercules drafts the document and waits for you to say `approved` before saving it.
-That's the whole loop. Repeat for every feature.
+Saying `approved` tells Hercules to write the draft to `docs/` and advance to the next phase — it
+does not lock the document; you can revisit it any time. That's the whole loop. Repeat for every
+feature.
 
 ### What that looks like
 
@@ -134,8 +151,9 @@ config file Hercules reads at runtime. (Not to be confused with this repo's `COD
 is the contributor guide.)
 
 A feature that spans several services? Tell Hercules the local path to each — it asks once and remembers
-them on **your machine only**, in `~/.hercules/hercules-config.json` (auto-written; you never hand-edit
-it). Nothing about where your repos live is written into the docs themselves.
+them on **your machine only**, in `~/.hercules/hercules-config.json` (auto-written; it stores only
+local filesystem paths — no credentials, tokens, or telemetry). Nothing about where your repos live
+is written into the docs themselves.
 
 ---
 
@@ -143,63 +161,48 @@ it). Nothing about where your repos live is written into the docs themselves.
 
 Every feature runs all three phases — the *process* is constant; only the *depth* scales.
 
-1. **Discover** (the heaviest phase) — pins the real need, who benefits, what's in/out of scope, and
-   what "done" means. Output: a permanent `*-business-requirements.md`, in plain business language.
-2. **Design** — turns requirements into one or more self-contained **specs**, challenged by specialist
-   advisors before any code. Output: `*-spec-NN-*.md` (temporary).
-3. **Build** — TDD: failing tests first, then the implementation, then review. Output: code + tests.
-   The specs are deleted (`git rm`) the moment a feature ships.
+1. **Discover — WHAT** (the heaviest phase) — pins the real need, who benefits, what's in/out of
+   scope, and what "done" means. Output: a permanent `*-business-requirements.md`, in plain business
+   language. On a large feature, Discover may span multiple sessions; the draft is saved and picked up
+   where you left off.
+2. **Design — HOW** — turns requirements into one or more self-contained **specs**, challenged by
+   specialist advisors before any code. Output: `*-spec-NN-*.md` (temporary).
+3. **Build — SHIP** — TDD (write the failing test first), then the implementation, then review.
+   Output: code + tests. The specs are deleted on merge to main (`git rm`).
 
 **Two documents, two lifecycles.** Business-requirements are **long-lived** — committed forever, in
 business language, the shareable record of what a feature is *for*. Specs are **per-development** — once
-shipped, they're deleted, because the code, its tests, and git history become the source of truth.
+merged to main, they're deleted, because the code, its tests, and git history become the source of truth.
 
-**Complexity scoring (so depth isn't guesswork).** In Discover, Hercules scores the feature once on
-*effort* and *blast-radius* and takes the higher of the two. A typo or config tweak scores **trivial**
-→ one lean pass, no advisors. A change touching auth, payments, data migration, or deletion is floored
-at **high** → 2–4 advisors and multi-round debate. The most complex work draws **up to six**. You see
-the score and can override it.
+**Complexity scoring (so depth isn't guesswork).** In Discover, Hercules scores the feature on
+*effort* and *blast-radius* (how many users or systems a bug could harm) and takes the higher of the two.
 
-**Quality has numbers, not adjectives.** Build gates on **≥90% branch coverage** and a **mutation
-kill-rate scaled by tier** (90% for trivial → 80% for critical), and a requirement ships only when a
-**named test** asserts it. These are mandatory steps, not best-practices you skip under pressure.
+| Tier | Effort signals | Blast-radius signals | Advisors |
+|---|---|---|---|
+| trivial | typo, config tweak | no user-visible change | 0 |
+| low | single-service change | one bounded flow affected | 0–2 |
+| medium | cross-service or new API | multiple flows affected | 1–3 |
+| high | auth, payments, migration | data at risk, deletion, prod config | 2–4 |
+| critical | multi-service migration | user data, security primitives, money | 3–6 |
 
----
+You see the score and can override it. A single substantiated dissent escalates the tier.
 
-## Why sub-agents?
-
-A single model in a single pass has predictable failure modes. Specialist advisors counter each — and
-Hercules always **asks before running them** (they cost tokens and time, so it scales them to
-complexity and adds none for trivial work).
-
-- **Agents echo each other, and models are sycophantic.** The *structural* counter is a **blind round**:
-  each advisor forms its position independently, before seeing the others — then a consensus round, so
-  agreement has to be earned, not echoed. Advisors are briefed with deliberately opposing agendas
-  (e.g. a Cynical Reviewer vs. a Simplicity Advocate), because good decisions come from tension.
-- **One agent can only follow so many instructions.** Instruction adherence degrades as the count grows
-  — near-perfect at a few dozen, and noticeably worse by several hundred
-  ([arxiv.org/html/2507.11538v1](https://arxiv.org/html/2507.11538v1)). Splitting work across focused
-  advisors keeps each one in its high-adherence range.
-- **Context drifts over long sessions.** The counter: a spec locked before code, and TDD that freezes
-  expected behaviour into tests. Fresh advisors re-read the spec, not the chat history.
-- **Output volume feeds the drift.** The counter: a terse agent-communication protocol — structured,
-  low-noise replies.
-
-You stay in control: advisors are a recommendation you approve, never automatic.
+**Quality has numbers, not adjectives.** Build gates on **≥90% branch coverage** and a **≥90%
+mutation kill-rate** (mutation testing checks that your tests actually catch bugs), and a requirement
+ships only when a **named test** asserts it. These are mandatory steps, not best-practices you skip
+under pressure.
 
 ---
 
 ## Philosophy
 
-Software built from a clear specification is cheaper to build, easier to review, and harder to break
-than software that emerged from a prompt. Hercules is **front-heavy on purpose** — discovering the real
-problem (not the first stated one) and designing before implementing takes real time, and that
-investment pays back in less rework.
+AI removed the safety net. Without a clear requirement, quality doesn't degrade gracefully — it
+collapses. Hercules is front-heavy on purpose: the time invested in Discover and Design pays back in
+less rework, fewer misbuilt features, and code that does what was actually needed.
 
-**Hercules is a tool, and it amplifies intent.** Bring discipline and high standards and it reflects
-them back. Rush, skip the design, or approve requirements you haven't read, and it will faithfully
-build exactly what you described — which may not be what you needed. **You own the quality of what you
-build;** Hercules makes it easier to do that well.
+Bring discipline and it amplifies it. Rush the process and it will faithfully build what you described
+— which may not be what you needed. **You own the quality of what you build;** Hercules makes it
+easier to do that well.
 
 ---
 
@@ -213,6 +216,17 @@ the latest from the marketplace:
 ```
 
 You can pin or roll back through Claude Code's plugin manager.
+
+---
+
+## Uninstalling
+
+To remove the plugin and its marketplace entry:
+
+```
+/plugin uninstall hercules@mbienkowski
+/plugin marketplace remove mbienkowski
+```
 
 ---
 
@@ -230,9 +244,10 @@ agents, and skills, plus how to run the tests.
 
 1. Fork and create a branch (use hyphens, no slashes)
 2. Add or edit files in `plugin/commands/`, `plugin/agents/`, or `plugin/skills/`
-3. Test the plugin locally: add your checkout as a local marketplace —
+3. Test the plugin locally: add **your local checkout** as a marketplace first —
    `/plugin marketplace add /path/to/your/checkout` — then `/plugin install hercules@mbienkowski`, and
-   `git checkout` the branch you want to try.
+   `git checkout` the branch you want to test. (Don't install from the public marketplace first — you'd
+   test the released version, not your changes.)
 4. Run the suite: `pip install -e ".[dev]" && make test`
 5. Open a PR — CI runs the full suite plus mutation testing and validates the plugin package. Commit
    messages follow Conventional Commits (`feat:`/`fix:`/`feat!:`), which drive the version on release.
@@ -246,6 +261,54 @@ pip install -e ".[dev]"
 ```
 
 All `.md` filenames must be **lowercase** — macOS is case-insensitive but Linux is not.
+
+---
+
+## Plugin permissions
+
+Hercules is a set of Markdown files — commands, agents, and skills — interpreted by Claude Code.
+It has no executable code of its own. What it can do is exactly what Claude Code can do in your session:
+
+- **Project files** — reads your project files to understand context; writes to `docs/` (or wherever
+  `code-of-conduct.md` points). Nothing is written outside directories Claude Code already has access to.
+- **`~/.hercules/`** — full read/write/create access to this directory. `hercules-config.json` is the
+  only file stored here: local filesystem paths only (no credentials, no tokens, no telemetry, no code
+  snippets).
+- **Shell** — only during Build, when tests need to run. Claude Code executes the command; Hercules
+  issues no shell commands independently.
+- **Network** — none. All model calls go through your existing Claude Code session and API key.
+  Hercules makes no direct API calls and opens no separate network channel.
+
+You can audit the full plugin source in the `plugin/` directory of this repository.
+
+---
+
+## Why sub-agents?
+
+A single model in a single pass has predictable failure modes. Specialist advisors counter each — and
+Hercules always **asks before running them** (they cost tokens and time, so it scales them to
+complexity and adds none for trivial work).
+
+- **Agents echo each other, and models are sycophantic.** Research shows AI is 49% more likely than
+  humans to affirm users even when it knows the right answer, and agrees with wrong answers 51% of the
+  time ([Science 2026](https://www.science.org/doi/10.1126/science.adp9289)). The *structural* counter
+  is a **blind round**: each advisor forms its position independently, before seeing the others — then a
+  consensus round, so agreement has to be earned, not echoed. Advisors are briefed with deliberately
+  opposing agendas (e.g. a Cynical Reviewer vs. a Simplicity Advocate), because good decisions come
+  from tension.
+- **Multi-agent systems can still echo each other.** In 2,500+ simulations, agents conformed to the
+  majority in up to 83% of cases — driven by numbers, not reasoning. Opposing agendas are the
+  structural fix, not just a nice-to-have.
+- **One agent can only follow so many instructions.** At 150 instructions the best model followed ~96%;
+  at 500, ~68.9% — the drop is non-linear and invisible (no error, no warning)
+  ([arxiv.org/html/2507.11538v1](https://arxiv.org/html/2507.11538v1)). Splitting work across focused
+  advisors keeps each one in its high-adherence range.
+- **Context drifts over long sessions.** The counter: a spec locked before code, and TDD that freezes
+  expected behaviour into tests. Fresh advisors re-read the spec, not the chat history.
+- **Output volume feeds the drift.** The counter: a terse agent-communication protocol — structured,
+  low-noise replies.
+
+You stay in control: advisors are a recommendation you approve, never automatic.
 
 ---
 
