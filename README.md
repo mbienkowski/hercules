@@ -80,16 +80,17 @@ local) so everyone gets Hercules on clone:
 ```json
 {
   "extraKnownMarketplaces": {
-    "mbienkowski": { "source": { "source": "github", "repo": "mbienkowski/hercules", "ref": "v1.0.0" } }
+    "mbienkowski": { "source": { "source": "github", "repo": "mbienkowski/hercules" } }
   },
   "enabledPlugins": { "hercules@mbienkowski": true }
 }
 ```
 
-**Pin `ref` to a release tag** (above, a tag; a commit SHA also works) for reproducible installs
-across every machine and in CI — omit it and the install tracks the default branch, which drifts.
-When scopes conflict, the more-specific one wins (local over project over user). Updates are manual
-(`/plugin marketplace update mbienkowski`), so a pinned `ref` only moves when you bump it.
+**If you want to pin installation to a specific version**, add a `ref` to a release tag (a commit
+SHA also works) for reproducible installs across every machine and in CI — omit it (as above) and
+the install tracks the default branch, which drifts. When scopes conflict, the more-specific one
+wins (local over project over user). Updates are manual (`/plugin marketplace update mbienkowski`),
+so a pinned `ref` only moves when you bump it.
 
 Use the **project** scope to standardize a whole repo; consider an org fork + a pinned version for
 governance. This file merges with any existing Claude Code settings — it does not replace them.
