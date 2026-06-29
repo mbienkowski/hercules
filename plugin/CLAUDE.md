@@ -7,8 +7,8 @@ plugin marketplace.
 
 1. The package, command, and product name is `hercules` everywhere.
 2. `*-business-requirements.md` files are permanent business documents — committed forever, never deleted, updated whenever requirements change or a bug reveals a missing scope or flow. Written in business language only; they never name classes, code, or implementation detail (that lives in specs and code).
-3. Spec files (`*-spec-NN-*.md`) are temporary technical documents — deleted via `git rm` after the feature ships. Code is the single source of truth post-delivery.
-4. Every feature runs all phases (Discover → Design → Build → Ship). Complexity scoring determines depth, never phase skipping. Trivial features run a single lightweight pass through all phases.
+3. Spec files (`*-spec-NN-*.md`) are temporary technical documents — deleted via `git rm` once delivered in code (during Build). Code is the single source of truth post-delivery.
+4. Every feature runs all phases (Discover → Design → Build → Ship) and produces the same artifacts. Complexity scoring sets the advisor count only (trivial runs none), never which phases run.
 5. Discovery is the heaviest phase. Accept PRDs, ADRs, Figma links, QA scenarios, and any rich context upfront. The more invested here, the less rework in Build.
 6. Open Claude where documents live: monorepo → open in that repo; microservices with cross-repo features → use a dedicated requirements repo.
 7. No rework after delivery is the north star. Preparation quality drives build quality.
@@ -185,7 +185,7 @@ Sub-agent count per tier (main agent decides; user may override):
 | Tier | Sub-agents |
 |---|---|
 | trivial | 0 — main agent only |
-| low | 0–2 |
+| low | 1–2 |
 | medium | 1–3 |
 | high | 2–4 |
 | critical | 3–6 |

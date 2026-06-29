@@ -19,13 +19,9 @@ On resume, reconcile against the filesystem: a spec in `delivered_specs` whose f
 
 ### Step 1 — Session discovery
 
-Find sessions ready for delivery — two formats:
-- *medium+:* has `*-business-requirements.md` and at least one `*-spec-NN-*.md`, none delivered yet
-- *trivial/low:* has `*-session.md` with an empty `## Delivery` section
+Find sessions ready for delivery — a session has `*-business-requirements.md` and at least one `*-spec-NN-*.md`, none delivered yet.
 
-Present a numbered list with format indicators. Ask which to deliver (number, path, or Enter for most recent).
-
-For a `*-session.md` session, read that single file in Step 3 instead of the separate artifacts. If no sessions are found, tell the user to run `/hercules:design` first.
+Present a numbered list. Ask which to deliver (number, path, or Enter for most recent). If no sessions are found, tell the user to run `/hercules:design` first.
 
 ### Step 2 — Service paths
 

@@ -46,24 +46,11 @@ Paraphrase what you heard in 2–3 sentences so the user can correct any misunde
 
 Wait for the user to confirm or override. On confirmation, persist `tier` and `tier_rationale` to the active session in the project's state file (`~/.hercules/state/{slug}.json`; see `CLAUDE.md § Machine-local state`). Complexity is scored **once, here**, and read forward by Design and Build.
 
-### Lightweight path (trivial / low only)
+Every tier continues through Steps 4–7; the tier sets how many advisors run, never which steps.
 
-At `complexity:trivial` or `complexity:low`, run all pillars in a single auto-approved
-pass; pause only on genuine ambiguity.
+## Step 4 — Advisor recommendation
 
-Produce: `docs/YYYY-MM-DD-{short-desc}/YYYY-MM-DD-{short-desc}-session.md`
-
-Sections: `# Session` (complexity, date), `## Requirements` (goal + criterion, 2–4 sentences),
-`## Spec` (1–3 Given/When/Then + one-line test note), `## Delivery` (empty).
-
-Append a new row to `docs/INDEX.md` (create if absent) with status `active`, and write the session-init state under `~/.hercules/` exactly as in Step 7 so Build can resume it.
-Then say: "This is a lightweight task — running Design in one fast pass, then we Build." Point the user to `/hercules:build`. Do not proceed to Steps 4–7.
-
-**Medium+ complexity:** continue to Steps 4–7 (normal flow).
-
-## Step 4 — Advisor recommendation (medium+)
-
-Follow the **Sub-agent consent** flow in `CLAUDE.md § Agent scaling`. Recommended set for Discover: **business-analyst, challenger, source-checker**. Explain why each fits this feature, and proceed only on the user's go-ahead.
+The advisor count scales with the tier (`CLAUDE.md § Agent scaling`): `trivial` runs none — skip to Step 5; `low` runs a reduced set; `medium` and up run the fuller set. When advisors apply, follow the **Sub-agent consent** flow in `CLAUDE.md § Agent scaling`. Recommended set for Discover: **business-analyst, challenger, source-checker** (at `low`, a 1–2 subset). Explain why each fits this feature, and proceed only on the user's go-ahead.
 
 ## Step 5 — Draft & feedback loop
 
