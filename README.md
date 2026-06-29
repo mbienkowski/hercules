@@ -3,27 +3,20 @@
 Half god, half man — strong enough to wrestle a lion, patient enough to sit through your kickoff meeting.
 
 With the strength of ten men — or more — Hercules helps you slay your Hydras, your Nemean Lions,
-or, more realistically, the vague and ambiguous requirements that derail real work. Its heroic,
-**spec-first** workflow — **Discover → Design → Build → Ship** — gets what you're building shipped
-fast and reliably, without the rework.
+or, more realistically, the vague and ambiguous requirements that derail real work.
+
+Its heroic, **spec-first** workflow — **Discover → Design → Build → Ship** — gets what you're building shipped fast and reliably, without the rework.
 
 ![How Hercules works](docs/workflow/workflow-diagram-simplified.svg)
 
 *For more details, look into the [detailed diagram](https://htmlpreview.github.io/?https://github.com/mbienkowski/hercules/blob/main/docs/workflow/workflow-diagram-detailed.html).*
 
-- **Documented intent** — no code ships without an approved requirement, written in business
-  language; assumptions that slip through here become bugs and rework later
-- **Advisors that argue, not echo** — blind-round specialist debates counter AI sycophancy
-  before a spec is locked
-- **Quality with teeth** — mutation testing, at the bar your project's `code-of-conduct.md` sets,
-  means your tests catch bugs, not just run green
-
 **Who it's for:**
 
-- **Solo developers** — move fast without accumulating requirements debt
-- **Engineers** — who want their AI to follow a disciplined process
-- **Non-developers (QA, product)** — turn messy notes into clear, reviewable requirements
-- **Teams** — every feature traceable from requirement to merged code
+- **Solo developers** — move fast without accumulating requirements debt.
+- **Engineers** — who want their AI to follow a disciplined process.
+- **Non-developers (QA, product)** — turn messy notes into clear, reviewable requirements.
+- **Teams** — every feature traceable from requirement to merged code.
 
 > **New to the terms?**
 > - **Plugin:** an add-on you install into Claude Code.
