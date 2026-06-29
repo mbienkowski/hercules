@@ -1,3 +1,4 @@
-# Changelog
+## v1.0.0 (2026-06-29)
 
-Releases are cut automatically on merge to `main`; this file is generated from the commit history.
+* Hercules Claude Plugin Introduction
+
