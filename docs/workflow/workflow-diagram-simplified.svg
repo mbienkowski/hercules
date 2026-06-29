@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 380" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <rect x="0" y="0" width="1000" height="380" rx="14" fill="#0D1117"/>
+
+  <text x="500" y="38" text-anchor="middle" fill="#E6EDF3" font-size="20" font-weight="700">How Hercules Works</text>
+  <text x="500" y="60" text-anchor="middle" fill="#7D8590" font-size="12.5">Spec-first delivery in four steps — you approve before each one.</text>
+
+  <!-- DISCOVER -->
+  <g>
+    <rect x="20" y="84" width="219" height="208" rx="10" fill="#161B22" stroke="#30363D"/>
+    <rect x="20" y="84" width="219" height="5" rx="2.5" fill="#1F6FEB"/>
+    <circle cx="42" cy="118" r="13" fill="#58A6FF"/>
+    <text x="42" y="123" text-anchor="middle" fill="#0D1117" font-size="13" font-weight="700">1</text>
+    <text x="64" y="123" fill="#E6EDF3" font-size="15" font-weight="700">Discover</text>
+    <text x="38" y="158" fill="#8B949E" font-size="11.5">
+      <tspan x="38" dy="0">Understand what we're</tspan>
+      <tspan x="38" dy="17">building, and how complex it</tspan>
+      <tspan x="38" dy="17">is — scored once, here.</tspan>
+    </text>
+    <line x1="38" y1="232" x2="221" y2="232" stroke="#232A33"/>
+    <text x="38" y="252" fill="#586069" font-size="9" letter-spacing="1.2">YOU GET</text>
+    <text x="38" y="272" fill="#C9D1D9" font-size="13" font-weight="600">Business requirements</text>
+  </g>
+  <text x="253" y="194" text-anchor="middle" fill="#3A424D" font-size="20">&#8594;</text>
+
+  <!-- DESIGN -->
+  <g>
+    <rect x="267" y="84" width="219" height="208" rx="10" fill="#161B22" stroke="#30363D"/>
+    <rect x="267" y="84" width="219" height="5" rx="2.5" fill="#8957E5"/>
+    <circle cx="289" cy="118" r="13" fill="#BC8CFF"/>
+    <text x="289" y="123" text-anchor="middle" fill="#0D1117" font-size="13" font-weight="700">2</text>
+    <text x="311" y="123" fill="#E6EDF3" font-size="15" font-weight="700">Design</text>
+    <text x="285" y="158" fill="#8B949E" font-size="11.5">
+      <tspan x="285" dy="0">Decide how to build it,</tspan>
+      <tspan x="285" dy="17">checked against the real</tspan>
+      <tspan x="285" dy="17">codebase.</tspan>
+    </text>
+    <line x1="285" y1="232" x2="468" y2="232" stroke="#232A33"/>
+    <text x="285" y="252" fill="#586069" font-size="9" letter-spacing="1.2">YOU GET</text>
+    <text x="285" y="272" fill="#C9D1D9" font-size="13" font-weight="600">Specs to build from</text>
+  </g>
+  <text x="500" y="194" text-anchor="middle" fill="#3A424D" font-size="20">&#8594;</text>
+
+  <!-- BUILD -->
+  <g>
+    <rect x="514" y="84" width="219" height="208" rx="10" fill="#161B22" stroke="#30363D"/>
+    <rect x="514" y="84" width="219" height="5" rx="2.5" fill="#9E6A03"/>
+    <circle cx="536" cy="118" r="13" fill="#E3B341"/>
+    <text x="536" y="123" text-anchor="middle" fill="#0D1117" font-size="13" font-weight="700">3</text>
+    <text x="558" y="123" fill="#E6EDF3" font-size="15" font-weight="700">Build</text>
+    <text x="532" y="158" fill="#8B949E" font-size="11.5">
+      <tspan x="532" dy="0">Build it test-first: tests come</tspan>
+      <tspan x="532" dy="17">first and stay frozen, then the</tspan>
+      <tspan x="532" dy="17">code makes them pass.</tspan>
+    </text>
+    <line x1="532" y1="232" x2="715" y2="232" stroke="#232A33"/>
+    <text x="532" y="252" fill="#586069" font-size="9" letter-spacing="1.2">YOU GET</text>
+    <text x="532" y="272" fill="#C9D1D9" font-size="13" font-weight="600">Working, tested code</text>
+  </g>
+  <text x="747" y="194" text-anchor="middle" fill="#3A424D" font-size="20">&#8594;</text>
+
+  <!-- SHIP -->
+  <g>
+    <rect x="761" y="84" width="219" height="208" rx="10" fill="#161B22" stroke="#30363D"/>
+    <rect x="761" y="84" width="219" height="5" rx="2.5" fill="#238636"/>
+    <circle cx="783" cy="118" r="13" fill="#3FB950"/>
+    <text x="783" y="123" text-anchor="middle" fill="#0D1117" font-size="13" font-weight="700">4</text>
+    <text x="805" y="123" fill="#E6EDF3" font-size="15" font-weight="700">Ship</text>
+    <text x="779" y="158" fill="#8B949E" font-size="11.5">
+      <tspan x="779" dy="0">Review the plan, then commit</tspan>
+      <tspan x="779" dy="17">and push — nothing leaves</tspan>
+      <tspan x="779" dy="17">without your approval.</tspan>
+    </text>
+    <line x1="779" y1="232" x2="962" y2="232" stroke="#232A33"/>
+    <text x="779" y="252" fill="#586069" font-size="9" letter-spacing="1.2">YOU GET</text>
+    <text x="779" y="272" fill="#C9D1D9" font-size="13" font-weight="600">Commit &amp; PR creation</text>
+  </g>
+
+  <!-- footnotes -->
+  <circle cx="270" cy="330" r="4" fill="#58A6FF"/>
+  <text x="282" y="334" fill="#9DA7B3" font-size="11.5">Complexity is scored once, and sets how deep each step goes</text>
+  <circle cx="270" cy="352" r="4" fill="#3FB950"/>
+  <text x="282" y="356" fill="#9DA7B3" font-size="11.5">You approve before anything is written or shipped</text>
+</svg>

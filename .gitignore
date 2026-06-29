@@ -1,0 +1,33 @@
+# Build output
+/build/
+/dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.venv/
+.coverage
+.pytest_cache/
+.mutmut-cache
+
+# Runtime state (lives in the cloned copy at ~/.hercules on user machines)
+.last-pull
+/hercules-config.json
+/credentials.json
+
+# Editor
+.DS_Store
+*.swp
+
+# Personal root project instructions (only plugin/CLAUDE.md is committed)
+/CLAUDE.md
+
+# Hercules temporary artifacts (planning, intermediate drafts)
+docs/tmp/
+
+# IntelliJ IDEA
+.idea/*
+# Claude Code IDE settings (machine-local)
+.claude/

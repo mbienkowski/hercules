@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hercules — Full Delivery Workflow</title>
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#0D1117; font-family:ui-sans-serif,-apple-system,'Segoe UI',sans-serif; padding:26px 20px 40px; color:#C9D1D9; }
+  .wrap { max-width:1240px; margin:0 auto; }
+  .h-title { text-align:center; font-size:18px; font-weight:700; color:#E6EDF3; }
+  .h-sub { text-align:center; font-size:11.5px; color:#7D8590; margin-top:5px; margin-bottom:8px; }
+  .h-note { text-align:center; font-size:10.5px; color:#586069; margin-bottom:20px; }
+  .h-note b { color:#9DA7B3; font-weight:600; }
+
+  .rail { display:flex; align-items:flex-start; gap:0; }
+  .arrow { flex:0 0 22px; display:flex; align-items:flex-start; justify-content:center; padding-top:30px; color:#3A424D; font-size:16px; }
+  .col { flex:1; min-width:0; }
+
+  .phase-hd { display:flex; align-items:center; gap:9px; padding:9px 13px; border-radius:9px 9px 0 0; }
+  .c1 .phase-hd { background:linear-gradient(90deg,#1F6FEB,#1A56C4); }
+  .c2 .phase-hd { background:linear-gradient(90deg,#8957E5,#6E40C9); }
+  .c3 .phase-hd { background:linear-gradient(90deg,#9E6A03,#7A5200); }
+  .c4 .phase-hd { background:linear-gradient(90deg,#238636,#1A6E2C); }
+  .pnum { width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;}
+  .pname { font-size:14px; font-weight:700; color:#fff; letter-spacing:.3px; }
+  .ppurpose { font-size:9.5px; color:rgba(255,255,255,.7); margin-left:auto; font-style:italic; }
+
+  .body { background:#13181F; border:1px solid #262d37; border-top:none; border-radius:0 0 9px 9px; padding:6px 0 9px; min-height:610px; }
+
+  .step { display:flex; gap:6px; padding:4px 11px; font-size:10.5px; line-height:1.4; }
+  .st-n { flex-shrink:0; min-width:13px; color:#4A5260; font-size:9.5px; text-align:right; font-weight:600; }
+  .st-t { color:#AEB7C2; }
+  .st-sub { display:block; color:#5A636E; font-size:9px; margin-top:1px; }
+
+  .gate .st-t { color:#E6EDF3; }
+  .gate { background:rgba(88,166,255,.06); margin:2px 6px; border-radius:4px; padding:4px 6px; }
+  .gate .st-n { color:#58A6FF; }
+  .approve { background:rgba(63,185,80,.10); border:1px solid rgba(63,185,80,.35); }
+  .approve .st-t { color:#7EE2A0; font-weight:600; }
+  .approve .st-n { color:#3FB950; }
+  .cond .st-t { color:#9384c0; }
+  .cond .st-n { color:#A78BFA; }
+  .write .st-t { color:#52C77a; }
+  .write .st-n { color:#3FB950; }
+  .state .st-t { color:#58A6FF; }
+  .state .st-n { color:#58A6FF; }
+
+  .seclabel { padding:7px 11px 2px; font-size:8px; letter-spacing:1.5px; color:#3A424D; text-transform:uppercase; font-weight:700; }
+  .seclabel.pm { color:#6E7681; }
+  .divider { height:1px; background:#262d37; margin:5px 9px; }
+
+  .loop { margin:4px 7px; border:1px dashed #3a4350; border-radius:6px; background:rgba(227,179,65,.04); }
+  .loop-hd { padding:3px 9px; font-size:8.5px; letter-spacing:1px; color:#8a6d2a; text-transform:uppercase; font-weight:700; border-bottom:1px dashed #3a4350; }
+  .loop .step { padding:3px 9px; font-size:10px; }
+
+  .anno { margin:1px 9px 3px 26px; font-size:8.8px; color:#C2410C; line-height:1.35; }
+  .anno.blue { color:#3b82c4; }
+  .anno.green { color:#3a9e54; }
+
+  .panels { display:flex; gap:14px; margin-top:18px; }
+  .panel { flex:1; background:#13181F; border:1px solid #262d37; border-radius:9px; padding:13px 15px; }
+  .panel-h { font-size:11px; font-weight:700; color:#E6EDF3; margin-bottom:8px; display:flex; align-items:center; gap:7px; }
+  .file { font-family:ui-monospace,monospace; font-size:9.5px; color:#58A6FF; }
+  .kv { font-size:10px; color:#9DA7B3; line-height:1.7; }
+  .kv b { color:#C9D1D9; font-weight:600; }
+  .kv code { font-family:ui-monospace,monospace; color:#E3B341; font-size:9.5px; }
+
+  .legend { display:flex; gap:16px; justify-content:center; margin-top:16px; flex-wrap:wrap; }
+  .lg { display:flex; align-items:center; gap:6px; font-size:9.5px; color:#7D8590; }
+  .sw { width:11px; height:11px; border-radius:3px; flex-shrink:0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="h-title">Hercules — Full Delivery Workflow</div>
+  <div class="h-sub">The complete workflow, end to end.</div>
+  <div class="h-note"><b>Every phase opens in plan mode and ends at one "Plan approval" gate</b> · <b>Complexity is scored once in Discover</b> and read forward · depth scales to complexity, phases never skip · <b>quality gates come from the project's Code of Conduct</b></div>
+
+  <div class="rail">
+
+    <!-- DISCOVER -->
+    <div class="col c1">
+      <div class="phase-hd"><span class="pnum">1</span><span class="pname">Discover</span><span class="ppurpose">Pin the real need</span></div>
+      <div class="body">
+        <div class="seclabel pm">Plan mode</div>
+        <div class="step"><span class="st-n">1</span><span class="st-t">Load prior context<span class="st-sub">Learnings, session history, Code of Conduct (offer to generate)</span></span></div>
+        <div class="step"><span class="st-n">2</span><span class="st-t">Feature brief &amp; documents<span class="st-sub">PRDs, ADRs, Figma, brain-dump — or "no documents"</span></span></div>
+        <div class="step"><span class="st-n">3</span><span class="st-t">Discovery questions<span class="st-sub">Goal, users, scope, constraints, success — one topic at a time, paraphrased back</span></span></div>
+        <div class="step state"><span class="st-n">4</span><span class="st-t">Score complexity, save the tier<span class="st-sub">You confirm; written to state, read by every later phase</span></span></div>
+        <div class="anno blue">Scored once. Only you can change it — the workflow never re-scores.</div>
+        <div class="step cond"><span class="st-n">◆</span><span class="st-t">Advisor debate (medium and up)<span class="st-sub">Business analyst, challenger, source checker</span></span></div>
+        <div class="step"><span class="st-n">5</span><span class="st-t">Draft and iterate with you<span class="st-sub">Stakeholder nudge (medium and up)</span></span></div>
+        <div class="step gate approve"><span class="st-n">⬤</span><span class="st-t">Plan approval<span class="st-sub">You approve the phase after reviewing the plan</span></span></div>
+        <div class="step write"><span class="st-n">6</span><span class="st-t">Write the business requirements<span class="st-sub">Permanent; business language only</span></span></div>
+      </div>
+    </div>
+
+    <div class="arrow">&rarr;</div>
+
+    <!-- DESIGN -->
+    <div class="col c2">
+      <div class="phase-hd"><span class="pnum">2</span><span class="pname">Design</span><span class="ppurpose">Decide how</span></div>
+      <div class="body">
+        <div class="seclabel pm">Plan mode</div>
+        <div class="step"><span class="st-n">1</span><span class="st-t">Read the requirements<span class="st-sub">Extract every item — this becomes the coverage checklist</span></span></div>
+        <div class="step"><span class="st-n">2</span><span class="st-t">Scan the codebase for constraints<span class="st-sub">Code of Conduct, ADRs, the surface this will touch</span></span></div>
+        <div class="step"><span class="st-n">3</span><span class="st-t">Design questions<span class="st-sub">Architecture, data, non-functionals — only what the scan left open</span></span></div>
+        <div class="step state"><span class="st-n">&uarr;</span><span class="st-t">Read the tier from state</span></div>
+        <div class="anno blue">The tier carries over from Discover. You can override it manually; the workflow never re-scores.</div>
+        <div class="step cond"><span class="st-n">◆</span><span class="st-t">Advisor debate (medium and up)<span class="st-sub">Lead architect, security expert, senior QA engineer</span></span></div>
+        <div class="step"><span class="st-n">4</span><span class="st-t">Draft the specs and iterate with you<span class="st-sub">Stakeholder nudge (medium and up)</span></span></div>
+        <div class="step gate"><span class="st-n">⬤</span><span class="st-t">Implementability check<span class="st-sub">Named files exist or are explicitly new; every requirement link resolves</span></span></div>
+        <div class="step gate"><span class="st-n">⬤</span><span class="st-t">Requirements coverage gate<span class="st-sub">Every requirement quoted in a spec — &#10003; / &#10007; / partial</span></span></div>
+        <div class="anno">The automated checks run first, so what you approve is already validated.</div>
+        <div class="step gate approve"><span class="st-n">⬤</span><span class="st-t">Plan approval<span class="st-sub">You approve the phase after reviewing the plan</span></span></div>
+        <div class="step write"><span class="st-n">5</span><span class="st-t">Write the spec files<span class="st-sub">One per delivery track; temporary</span></span></div>
+      </div>
+    </div>
+
+    <div class="arrow">&rarr;</div>
+
+    <!-- BUILD -->
+    <div class="col c3">
+      <div class="phase-hd"><span class="pnum">3</span><span class="pname">Build</span><span class="ppurpose">Plan, then test-first</span></div>
+      <div class="body">
+        <div class="seclabel pm">Plan mode</div>
+        <div class="step cond"><span class="st-n">◆</span><span class="st-t">Resume or start fresh<span class="st-sub">Reads the checkpoint and handoff from state</span></span></div>
+        <div class="step state"><span class="st-n">1</span><span class="st-t">Read the tier from state</span></div>
+        <div class="step"><span class="st-n">2</span><span class="st-t">Present the delivery plan<span class="st-sub">Each spec, the requirement it satisfies, the order, the grouping</span></span></div>
+        <div class="anno blue">You can re-batch ("do spec 1 and 2 together"), reorder, or set the cadence — deliver all in one pass, or ship each.</div>
+        <div class="step gate approve"><span class="st-n">⬤</span><span class="st-t">Plan approval<span class="st-sub">You approve the phase after reviewing the plan</span></span></div>
+
+        <div class="divider"></div>
+        <div class="loop">
+          <div class="loop-hd">&#8635; Auto-execute — per spec, "Spec N of M"</div>
+          <div class="step"><span class="st-n">3</span><span class="st-t">Read the spec and acceptance criteria</span></div>
+          <div class="step"><span class="st-n">4</span><span class="st-t">Scaffold<span class="st-sub">Gate: must compile</span></span></div>
+          <div class="step"><span class="st-n">5</span><span class="st-t">Write the failing tests<span class="st-sub">Gate: compile, and fail for the right reason</span></span></div>
+          <div class="anno">&#9873; Tests are frozen — recorded and git-diff-guarded; the agent cannot edit them.</div>
+          <div class="step"><span class="st-n">6</span><span class="st-t">Implement<span class="st-sub">Minimum code to green; refactor inline; no test edits</span></span></div>
+          <div class="step gate"><span class="st-n">7</span><span class="st-t">Quality gates (per the Code of Conduct)<span class="st-sub">All tests pass; coverage, lint, types, arch-units as the CoC defines</span></span></div>
+          <div class="anno">Three rounds, then stop: analyse the root cause, mark it blocked, and you decide.</div>
+          <div class="step gate"><span class="st-n">8</span><span class="st-t">Mutation gate (when the CoC requires it)<span class="st-sub">Fix survivors here, while the spec is still live</span></span></div>
+          <div class="step gate"><span class="st-n">9</span><span class="st-t">Traceability<span class="st-sub">Each criterion maps to a named passing test</span></span></div>
+          <div class="step cond"><span class="st-n">◆</span><span class="st-t">Advance (honours the approved cadence)<span class="st-sub">Ship now also cross-checks this spec first</span></span></div>
+          <div class="step state"><span class="st-n">10</span><span class="st-t">Write the checkpoint to state<span class="st-sub">Criteria, decisions, interfaces, tests, coverage, mutation</span></span></div>
+          <div class="step write"><span class="st-n">11</span><span class="st-t">Retire the spec (git rm)<span class="st-sub">Code is now the only source of truth</span></span></div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="seclabel">After all specs</div>
+        <div class="step gate"><span class="st-n">12</span><span class="st-t">Cross-check validation<span class="st-sub">Does the delivery match what we set out to build? Bug or regression = blocker</span></span></div>
+        <div class="anno green">The look-back: checks the delivery against the original requirements and specs.</div>
+        <div class="step"><span class="st-n">13</span><span class="st-t">Capture learnings<span class="st-sub">Every tier</span></span></div>
+        <div class="step write"><span class="st-n">14</span><span class="st-t">Close out<span class="st-sub">Offer handoff; mark build complete; point to Ship</span></span></div>
+      </div>
+    </div>
+
+    <div class="arrow">&rarr;</div>
+
+    <!-- SHIP -->
+    <div class="col c4">
+      <div class="phase-hd"><span class="pnum">4</span><span class="pname">Ship</span><span class="ppurpose">Commit &amp; push</span></div>
+      <div class="body">
+        <div class="seclabel">Entry criteria</div>
+        <div class="step gate"><span class="st-n">&#9632;</span><span class="st-t">Local build complete</span></div>
+        <div class="step gate"><span class="st-n">&#9632;</span><span class="st-t">A git repo, on a named branch</span></div>
+        <div class="step cond"><span class="st-n">◆</span><span class="st-t">Pull request eligible (gh available)</span></div>
+
+        <div class="divider"></div>
+        <div class="seclabel pm">Plan mode</div>
+        <div class="step"><span class="st-n">1</span><span class="st-t">Stage the files</span></div>
+        <div class="step"><span class="st-n">2</span><span class="st-t">Compose the commit message<span class="st-sub">From the requirements; Conventional Commits</span></span></div>
+        <div class="step"><span class="st-n">3</span><span class="st-t">Choose the push target</span></div>
+        <div class="step cond"><span class="st-n">◆</span><span class="st-t">Draft the pull request (when eligible)</span></div>
+        <div class="step gate approve"><span class="st-n">⬤</span><span class="st-t">Plan approval<span class="st-sub">You approve the phase after reviewing the plan</span></span></div>
+
+        <div class="divider"></div>
+        <div class="seclabel">Execute</div>
+        <div class="step"><span class="st-n">4</span><span class="st-t">Stage, then commit<span class="st-sub">Hooks run; no bypass</span></span></div>
+        <div class="step"><span class="st-n">5</span><span class="st-t">Push<span class="st-sub">No force flags</span></span></div>
+        <div class="step state"><span class="st-n">6</span><span class="st-t">Record the commit to state</span></div>
+        <div class="step cond"><span class="st-n">◆</span><span class="st-t">Create the pull request, record its URL</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-h"><span class="sw" style="background:#58A6FF;"></span>Registry &nbsp;<span class="file">~/.hercules/config.json</span></div>
+      <div class="kv">A regenerable index — one entry per project, keyed by full directory path.<br>
+      <b>Per project:</b> <code>directory</code>, <code>docs_root</code>, <code>state_file</code> pointer, <code>repositories</code><br>
+      Rebuildable from the state files, so a torn write self-heals.</div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><span class="sw" style="background:#58A6FF;"></span>Delivery state &nbsp;<span class="file">~/.hercules/state/{slug}.json</span></div>
+      <div class="kv">The source of truth — one file per project, keyed by session (feature).<br>
+      <b>Per session:</b> <code>tier</code> + <code>tier_rationale</code>, <code>current_spec</code>, <code>current_spec_round</code>, <code>frozen_test_files</code>, <code>pending/delivered_specs</code>, <code>build_progress[]</code>, <code>build_complete</code>, <code>shipped_commit/pr</code></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="lg"><span class="sw" style="background:rgba(63,185,80,.4);border:1px solid rgba(63,185,80,.6);"></span>Plan approval (same in every phase)</div>
+    <div class="lg"><span class="sw" style="background:rgba(88,166,255,.5);"></span>Gate or check (must pass)</div>
+    <div class="lg"><span style="color:#A78BFA;font-size:11px;">◆</span>Conditional, or your choice</div>
+    <div class="lg"><span class="sw" style="background:#3FB950;"></span>Writes an artifact</div>
+    <div class="lg"><span class="sw" style="background:#58A6FF;"></span>Reads or writes state</div>
+    <div class="lg"><span style="color:#C2410C;">&#9873;</span>Key constraint</div>
+    <div class="lg"><span style="color:#8a6d2a;font-size:11px;">&#8635;</span>Repeats per spec</div>
+  </div>
+</div>
+</body>
+</html>
