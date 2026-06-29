@@ -2,15 +2,14 @@
 
 Half god, half man — strong enough to wrestle a lion, patient enough to sit through your kickoff meeting.
 
-Hercules can help you slay your Hydras, your Nemean Lions, or — more realistically — vague
-requirements, moving goalposts, and features nobody actually asked for. But not before you
-know what you're actually fighting: **Discover → Design → Build → Ship**. In that order. Every time.
-
-Strength of ten men is useless if you're fighting the wrong monster.
+With the strength of ten men — or more — Hercules helps you slay your Hydras, your Nemean Lions,
+or, more realistically, the vague and ambiguous requirements that derail real work. Its heroic,
+**spec-first** workflow — **Discover → Design → Build → Ship** — gets what you're building shipped
+fast and reliably, without the rework.
 
 ![How Hercules works](docs/workflow/workflow-diagram-simplified.svg)
 
-*For more details, look into the [detailed diagram](https://github.com/mbienkowski/hercules/blob/main/docs/workflow/workflow-diagram-detailed.html).*
+*For more details, look into the [detailed diagram](https://htmlpreview.github.io/?https://github.com/mbienkowski/hercules/blob/main/docs/workflow/workflow-diagram-detailed.html).*
 
 - **Documented intent** — no code ships without an approved requirement, written in business
   language; assumptions that slip through here become bugs and rework later
@@ -19,17 +18,20 @@ Strength of ten men is useless if you're fighting the wrong monster.
 - **Quality with teeth** — mutation testing, at the bar your project's `code-of-conduct.md` sets,
   means your tests catch bugs, not just run green
 
-**Who it's for:** solo developers who need to move fast without accumulating requirements debt —
-*and* engineers who want their AI to follow a disciplined process — *and* non-developers (QA,
-product) who want to turn messy notes into clear, reviewable requirements — *and* teams who want
-every feature traceable from requirement to merged code.
+**Who it's for:**
+
+- **Solo developers** — move fast without accumulating requirements debt
+- **Engineers** — who want their AI to follow a disciplined process
+- **Non-developers (QA, product)** — turn messy notes into clear, reviewable requirements
+- **Teams** — every feature traceable from requirement to merged code
 
 > **New to the terms?**
 > - **Plugin:** an add-on you install into Claude Code.
 > - **Marketplace:** a source (here, a GitHub repo) you add plugins from.
 > - **Agent:** a specialist persona Claude can consult.
 > - **Business requirements:** the permanent, plain-language "what & why" doc.
-> - **Spec:** specification — a temporary technical blueprint, deleted once it's built.
+> - **Spec:** specification — a temporary technical blueprint, deleted once delivered in code.
+> - **Mutation testing:** a quality check that deliberately introduces bugs to confirm your tests actually catch them — not just run green.
 
 ---
 
@@ -78,11 +80,16 @@ local) so everyone gets Hercules on clone:
 ```json
 {
   "extraKnownMarketplaces": {
-    "mbienkowski": { "source": { "source": "github", "repo": "mbienkowski/hercules" } }
+    "mbienkowski": { "source": { "source": "github", "repo": "mbienkowski/hercules", "ref": "v1.0.0" } }
   },
   "enabledPlugins": { "hercules@mbienkowski": true }
 }
 ```
+
+**Pin `ref` to a release tag** (above, a tag; a commit SHA also works) for reproducible installs
+across every machine and in CI — omit it and the install tracks the default branch, which drifts.
+When scopes conflict, the more-specific one wins (local over project over user). Updates are manual
+(`/plugin marketplace update mbienkowski`), so a pinned `ref` only moves when you bump it.
 
 Use the **project** scope to standardize a whole repo; consider an org fork + a pinned version for
 governance. This file merges with any existing Claude Code settings — it does not replace them.
@@ -135,12 +142,12 @@ short slug; `NN` = the spec number):
 |---|---|---|---|
 | `/hercules:discover` | Discover — **WHAT** | Pin the real need | a `*-business-requirements.md` (the permanent "what & why") |
 | `/hercules:design` | Design — **HOW** | Turn it into a spec | one or more `*-spec-NN-*.md` build blueprints |
-| `/hercules:build` | Build — **MAKE** | Approve the delivery plan, then build & verify | working code + tests (specs deleted on merge to main) |
+| `/hercules:build` | Build — **MAKE** | Approve the delivery plan, then build & verify | working code + tests (specs deleted once delivered in code) |
 | `/hercules:ship` | Ship — **COMMIT** | Commit the delivered work | a conventional commit + optional push + optional PR |
 
 Each feature is its own workflow run — start a new one any time with `/hercules:workflow` and a feature
 description. Your `docs/` folder accumulates business-requirements files over time; specs are temporary
-and deleted on merge to main (when the feature is accepted into the main codebase). Multiple features
+and deleted once the feature is delivered in code (during Build, when code becomes the source of truth). Multiple features
 can be in-flight simultaneously — each gets its own spec files with unique sequential numbers.
 
 ---
@@ -148,10 +155,14 @@ can be in-flight simultaneously — each gets its own spec files with unique seq
 ## Before your first feature
 
 > **Optional — but the difference between an agent that guesses at your standards and one that
-> follows them.**
+> follows them.** On a new repo, `/hercules:workflow` offers this automatically — you don't have to
+> remember it. To run it on its own, just ask Hercules to set up your code of conduct.
 
 Run `code-of-conduct-generator` once per repo — the one-time onboarding step that calibrates every
-Hercules agent to your actual standards before touching code.
+Hercules agent to your actual standards before touching code. Run it **even if you already have a Code
+of Conduct**: it reads your repository (and any existing CoC) and upgrades it — additions only — into
+a standards file tuned for *how* the agents implement (architecture, testing, and quality behaviours),
+not just contributor etiquette.
 
 **What it does in three steps:**
 
@@ -160,7 +171,7 @@ Hercules agent to your actual standards before touching code.
    coverage targets, why a particular pattern was chosen
 3. Presents the full draft as a plan for you to approve or edit before anything is written
 
-> **Thirty minutes now compounds into faster delivery on every future feature.** No corrections
+> **A focused setup now compounds into smoother delivery on every future feature.** No corrections
 > mid-build, no agents guessing at your testing bar. The structure is permanent; the payoff repeats.
 
 The result is a `CODE_OF_CONDUCT.md` with up to six sections — Architecture (including design
@@ -226,7 +237,10 @@ tokens, or telemetry). Nothing about where your repos live is written into the d
 
 ## How it works
 
-Every feature runs all four phases — the *process* is constant; only the *depth* scales.
+Every feature runs the **same four phases** — the process is constant; what scales is the **number of
+advisors**. Hercules brings strength in proportion to the task: a typo runs no advisor debate; a
+payment migration convenes the full council. Right-sized effort, never overkill on a small change nor
+under-prepared on a large one.
 
 1. **Discover — WHAT** (the heaviest phase) — pins the real need, who benefits, what's in/out of
    scope, and what "done" means. Output: a permanent `*-business-requirements.md`, in plain business
@@ -237,14 +251,14 @@ Every feature runs all four phases — the *process* is constant; only the *dept
 3. **Build — MAKE** — opens with a delivery plan you approve (which specs, in what order, grouped
    how), then delivers each spec test-first: scaffold, write the failing tests (frozen once written),
    implement, and pass the quality gates your `code-of-conduct.md` defines. A cross-check then confirms
-   the delivery matches the requirements. Output: code + tests. The specs are deleted on merge to main (`git rm`).
+   the delivery matches the requirements. Output: code + tests. The specs are deleted once delivered in code (`git rm`).
 4. **Ship — COMMIT** — after Build completes and you've reviewed the diff, drafts a commit
    plan (files to stage, commit message, push target), waits for your approval, then executes
    automatically. No follow-up questions.
 
 **Two documents, two lifecycles.** Business-requirements are **long-lived** — committed forever, in
 business language, the shareable record of what a feature is *for*. Specs are **per-development** — once
-merged to main, they're deleted, because the code, its tests, and git history become the source of truth.
+delivered in code, they're deleted, because the code, its tests, and git history become the source of truth.
 
 **Complexity scoring (so depth isn't guesswork).** In Discover, Hercules scores the feature on
 *effort* and *blast-radius* (how many users or systems a bug could harm) and takes the higher of the two.
@@ -252,17 +266,21 @@ merged to main, they're deleted, because the code, its tests, and git history be
 | Tier | Effort signals | Blast-radius signals | Advisors |
 |---|---|---|---|
 | trivial | typo, config tweak | no user-visible change | 0 |
-| low | single-service change | one bounded flow affected | 0–2 |
+| low | single-service change | one bounded flow affected | 1–2 |
 | medium | cross-service or new API | multiple flows affected | 1–3 |
 | high | auth, payments, migration | data at risk, deletion, prod config | 2–4 |
 | critical | multi-service migration | user data, security primitives, money | 3–6 |
 
-You see the score and can override it. A single substantiated dissent escalates the tier.
+Only **trivial** skips the advisory board; every other tier runs it, scaled to the number above. A
+change touching **auth, secrets, money, data migration, deletion, production config, or concurrency**
+is floored at `high` regardless of how small the diff looks. You see the score and can override it; a
+single substantiated dissent escalates the tier.
 
-**Quality has numbers, not adjectives.** Build gates on **≥90% branch coverage** and a **≥90%
-mutation kill-rate** (mutation testing checks that your tests actually catch bugs), and a requirement
-ships only when a **named test** asserts it. These are mandatory steps, not best-practices you skip
-under pressure.
+**Quality has numbers, not adjectives.** Build gates on the **branch-coverage** and **mutation-kill**
+thresholds your project's `code-of-conduct.md` sets — the generator suggests **≥90%** for both as a
+default, and you can change them. Mutation testing checks that your tests actually catch bugs, and a
+requirement ships only when a **named test** asserts it. These are mandatory steps, not best-practices
+you skip under pressure.
 
 ---
 
@@ -270,11 +288,11 @@ under pressure.
 
 **Ambiguous requirements are not fast. They're time borrowed against rework.**
 
-Ask why a feature took three times longer than estimated — the answer is almost always something
+Ask why a feature took far longer than estimated — the answer is almost always something
 that wasn't nailed down at the start. Hercules is front-heavy on purpose: the time invested in
 Discover and Design pays back in less rework, fewer misbuilt features, and code that does what
-was actually needed. The two weeks that feel slow upfront are the two weeks that don't become
-four weeks of fixes later.
+was actually needed. The work that feels slow upfront is the work that doesn't come back as fixes
+later.
 
 - **Works for one or for ten.** Clear requirements are not a team-size question — they're a "do
   you want to do this twice?" question. A solo developer under deadline pressure benefits from
@@ -283,11 +301,12 @@ four weeks of fixes later.
   with intent. Discover defines what you're actually building. Design decides how. Build and Ship
   execute against a spec the human approved — not against a guess. The structure is what makes
   the speed reliable.
-- **All four phases, even for trivial tasks.** Not because ceremony is the goal, but because
+- **All four phases, every time — depth scales, not the phases.** Every feature runs Discover →
+  Design → Build → Ship and produces the same artifacts; what changes with complexity is the
+  number of advisors (a trivial task runs none). Not because ceremony is the goal, but because
   even a one-line change in production code has a business reason. That reason belongs in
   `business-requirements.md` so six months from now anyone reading the history knows *why*
-  something changed — not just what. The trivial path through Hercules is fast; the
-  traceability is the same.
+  something changed — not just what. The trivial path is fast — fewer advisors, same traceability.
 - **Human in the loop, by design.** The human decides what is needed. Hercules ensures that
   decision is captured, challenged, and executed faithfully — with tests, traceability, and a
   clean git record. If you want an AI that acts without asking, this is the wrong tool. If you
@@ -341,10 +360,12 @@ agents, and skills, plus how to run the tests.
 
 1. Fork and create a branch (use hyphens, no slashes)
 2. Add or edit files in `plugin/commands/`, `plugin/agents/`, or `plugin/skills/`
-3. Test the plugin locally: add **your local checkout** as a marketplace first —
-   `/plugin marketplace add /path/to/your/checkout` — then `/plugin install hercules@mbienkowski`, and
-   `git checkout` the branch you want to test. (Don't install from the public marketplace first — you'd
-   test the released version, not your changes.)
+3. Test the plugin locally: add **your local checkout** as a marketplace —
+   `/plugin marketplace add /path/to/your/checkout`. Its `marketplace.json` declares the name
+   `mbienkowski`, so `/plugin install hercules@mbienkowski` then resolves to **your checkout**. If
+   you've already added the public marketplace under that same name, remove it first
+   (`/plugin marketplace remove mbienkowski`) so the name isn't ambiguous — otherwise you'd test the
+   released version, not your changes. `git checkout` the branch you want to test.
 4. Run the suite: `pip install -e ".[dev]" && make test`
 5. Open a PR — CI runs the full suite plus mutation testing and validates the plugin package. Commit
    messages follow Conventional Commits (`feat:`/`fix:`/`feat!:`), which drive the version on release.
@@ -405,8 +426,8 @@ complexity and adds none for trivial work).
 - **Output volume feeds the drift.** The counter: a terse agent-communication protocol — structured,
   low-noise replies.
 - **The debate costs fewer tokens than reworking a missed spec.** A requirement gap that slips into
-  Build means restated requirements, revised specs, re-run tests, and a second review cycle — easily
-  3–5× the token cost of the advisor debate that would have caught it upfront. The A2A communication
+  Build means restated requirements, revised specs, re-run tests, and a second review cycle — far
+  more costly than the advisor debate that would have caught it upfront. The A2A communication
   protocol keeps advisor messages structured and low-noise, bounding the per-debate cost. The debate
   is the cheap path; rework is the expensive one.
 

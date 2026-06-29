@@ -61,7 +61,7 @@ Re-invoke all agents in a single message, each receiving all Round 1 findings. E
 
 ## Round 3 — Resolution (`complexity:high` and `complexity:critical` only)
 
-Skip for `complexity:low` and `complexity:medium` — Round 2 is the final round.
+Skip for `complexity:low` (Round 1 is its only round) and `complexity:medium` (Round 2 is its final round).
 
 Re-invoke only agents who stated ≤4/5 after Round 2. Synthesise after Round 3 regardless
 of remaining agreement level.

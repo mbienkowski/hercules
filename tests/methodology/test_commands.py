@@ -150,7 +150,7 @@ def test_build_step_defines_its_execution_contract(read_file):
     assert "cynical-reviewer" in md, \
         "build command must invoke cynical-reviewer at medium+"
     assert "learnings" in md, \
-        "build command must invoke learnings skill at high/critical"
+        "build command must invoke learnings skill at every tier"
     assert "branch" in lower, \
         "build must reference branch coverage as a gate"
     assert "code-of-conduct" in lower, \
@@ -265,29 +265,79 @@ def test_commands_maintain_session_index(read_file):
         )
 
 
-def test_discover_implements_lightweight_path_for_trivial_low(read_file):
-    """Discover must implement the trivial/low single-pass path producing a session file."""
-    # Given
+def test_no_session_md_lightweight_path(repo_root, read_file):
+    """Regression guard: the workflow is one dynamic flow (the diagram is the source of truth).
+    There is no separate `*-session.md` 'lightweight path' / 'lightweight shortcut' / 'fast pass'
+    for trivial/low — every tier runs the same four phases and produces the same artifacts."""
+    targets = [*_ALL_COMMANDS, "plugin/CLAUDE.md", "plugin/skills/session-summary/SKILL.md", "README.md"]
+    for path in targets:
+        text = read_file(path)
+        lower = text.lower()
+        assert "session.md" not in text, f"{path} must not reference the removed *-session.md artifact"
+        assert "lightweight" not in lower, f"{path} must not describe a separate 'lightweight' path"
+        assert "fast pass" not in lower, f"{path} must not describe a 'fast pass' shortcut"
+
+
+def test_only_trivial_skips_advisors(read_file):
+    """Discover's advisor recommendation scales with the tier and is NOT gated at medium+: only
+    `trivial` skips advisors; `low` and up run a (scaled) advisor round."""
     md = read_file(_DISCOVER)
     lower = md.lower()
-
-    # When / Then
-    assert "session.md" in md, \
-        "discover must produce a *-session.md for trivial/low"
-    assert ("trivial" in lower or "lightweight" in lower), \
-        "discover must name the lightweight path"
-    assert "## Requirements" in md, \
-        "session template must include ## Requirements section"
+    assert "advisor recommendation (medium+)" not in lower, \
+        "discover must not gate the advisor recommendation at medium+ (low gets a scaled round)"
+    assert "trivial" in lower and "runs none" in lower, \
+        "discover must say trivial runs no advisors"
+    assert "reduced set" in lower, \
+        "discover must give `low` a reduced advisor set (not zero, not the full set)"
 
 
-def test_build_discovers_both_session_formats(read_file):
-    """Build must find trivial/low sessions (*-session.md) as well as medium+ spec-based sessions."""
-    # Given
-    md = read_file(_BUILD)
+def test_debate_round_counts_consistent(read_file):
+    """The debate-consensus protocol and the a2a Core must agree on rounds per tier, and `low`
+    must run exactly Round 1 (never reach Round 2)."""
+    debate = read_file("plugin/protocols/debate-consensus-protocol.md").lower()
+    a2a = read_file("plugin/protocols/a2a-communication-protocol.md").lower()
+    # a2a Core: trivial=skip; low=R1 only; medium=R1+R2; high=R1+R2+R3; critical=...fresh-eyes
+    assert "low=r1 only" in a2a, "a2a Core must state low=R1 only"
+    assert "medium=r1+r2" in a2a, "a2a Core must state medium=R1+R2"
+    # debate table mirrors it
+    assert "round 1 only" in debate, "debate protocol must state 'Round 1 only' for low"
+    assert "round 1 + 2" in debate, "debate protocol must state 'Round 1 + 2' for medium"
+    # the Round-3 skip line must not claim low reaches Round 2
+    assert "round 1 is its only round" in debate, \
+        "debate protocol must say low's only round is Round 1 (not that Round 2 is its final round)"
 
-    # When / Then
-    assert "session.md" in md, \
-        "build must handle trivial/low sessions (*-session.md, not separate files)"
+
+def test_spec_deletion_wording_consistent(repo_root, read_file):
+    """Specs are deleted when delivered in code (during Build), not on merge to main. No shipped
+    doc may describe spec deletion as happening on 'merge to main'."""
+    targets = ["README.md", *(str(p.relative_to(repo_root)) for p in (repo_root / "plugin").rglob("*.md"))]
+    for path in targets:
+        lower = read_file(path).lower()
+        assert "merge to main" not in lower, f"{path} must not say specs are deleted on 'merge to main'"
+        assert "merged to main" not in lower, f"{path} must not say specs are deleted on 'merged to main'"
+
+
+def test_readme_quality_thresholds_deferred_to_coc(read_file):
+    """README must present coverage/mutation thresholds as the project code-of-conduct.md default
+    (the plugin carries no numbers of its own), not as a hardcoded universal gate."""
+    content = read_file("README.md")
+    assert "Build gates on **≥90% branch coverage**" not in content, \
+        "README must not hardcode ≥90% as an absolute gate — thresholds come from the CoC"
+    assert "code-of-conduct.md` sets" in content, \
+        "README must tie quality thresholds to the project's code-of-conduct.md"
+    assert "suggests **≥90%**" in content, \
+        "README must frame ≥90% as the suggested CoC default"
+
+
+def test_high_risk_floor_list_consistent(read_file):
+    """The high-risk surfaces that floor a feature at `high` must be stated identically in the
+    README and plugin/CLAUDE.md (token-based, so minor wording differences elsewhere are fine)."""
+    readme = read_file("README.md").lower()
+    claude = read_file("plugin/CLAUDE.md").lower()
+    canonical = ["auth", "secrets", "money", "migration", "deletion", "production config", "concurrency"]
+    for token in canonical:
+        assert token in claude, f"plugin/CLAUDE.md floor list must name '{token}'"
+        assert token in readme, f"README high-risk floor rule must name '{token}'"
 
 
 def test_discover_writes_no_machine_local_file_into_repo(read_file):

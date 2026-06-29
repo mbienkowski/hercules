@@ -33,12 +33,6 @@ Run the full `/hercules:discover` flow (Steps 0–6). When all five discovery gr
 
 On "move to Design": announce "📐 Entering the **Design** phase." and continue.
 
-### Lightweight shortcut
-If complexity is `trivial` or `low` after Step 3 of Discover:
-> "This is a lightweight task — I'll Design and sequence in one fast pass, then we Build."
-
-Run the lightweight `*-session.md` path, then jump directly to Phase 3 (Build).
-
 ---
 
 ## Phase 2 — Design
