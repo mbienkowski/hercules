@@ -215,6 +215,8 @@ On **yes**: spawn per the tier counts above. On **yes, but one fewer**: spawn th
 ## Debate protocol
 
 Rule 7 in the Agent-Injected Core carries the minimal debate summary to all agents.
+Once the user consents to advisors (§ Sub-agent consent), Discover and Design run those rounds scaled
+to the session tier — running them is not separately optional.
 Full orchestrator mechanics: [protocols/debate-consensus-protocol.md](protocols/debate-consensus-protocol.md).
 For debates involving built-in Explore/Plan/Workflow agents, prepend the full
 `protocols/debate-consensus-protocol.md` to the per-call delegation prompt.

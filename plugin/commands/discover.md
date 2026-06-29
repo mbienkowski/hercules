@@ -48,9 +48,9 @@ Wait for the user to confirm or override. On confirmation, persist `tier` and `t
 
 Every tier continues through Steps 4–7; the tier sets how many advisors run, never which steps.
 
-## Step 4 — Advisor recommendation
+## Step 4 — Advisor debate
 
-The advisor count scales with the tier (`CLAUDE.md § Agent scaling`): `trivial` runs none — skip to Step 5; `low` runs a reduced set; `medium` and up run the fuller set. When advisors apply, follow the **Sub-agent consent** flow in `CLAUDE.md § Agent scaling`. Recommended set for Discover: **business-analyst, challenger, source-checker** (at `low`, a 1–2 subset). Explain why each fits this feature, and proceed only on the user's go-ahead.
+The advisor count scales with the tier (`CLAUDE.md § Agent scaling`): `trivial` runs none — skip to Step 5; `low` runs a reduced set; `medium` and up run the fuller set. When advisors apply, follow the **Sub-agent consent** flow in `CLAUDE.md § Agent scaling`. Recommended set for Discover: **business-analyst, challenger, source-checker** (at `low`, a 1–2 subset); explain why each fits. On the user's go-ahead, run the debate per `protocols/debate-consensus-protocol.md`, scaled to the tier — fold the synthesis into the draft and flag any contested point to the user.
 
 ## Step 5 — Draft & feedback loop
 
