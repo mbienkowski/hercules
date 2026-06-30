@@ -41,9 +41,9 @@ Ask only what is needed — only what the Step 3 scan and `*-business-requiremen
 **Group B — Data & behaviour:** data produced/consumed; critical business rules; UI/UX scope — wireframes, flows, visual design references?  
 **Group C — Non-functional:** performance, security, scalability, accessibility beyond basics
 
-## Step 5 — Advisor recommendation
+## Step 5 — Advisor debate
 
-Follow the **Sub-agent consent** flow in `CLAUDE.md § Agent scaling`. Recommended set for Design: **lead-architect, security-expert, senior-qa-engineer**. Explain why each fits this feature, and proceed only on the user's go-ahead.
+Follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **lead-architect, security-expert, senior-qa-engineer**) — choose deliberately different, even opposing, perspectives so they argue, not echo. Productive disagreement beats easy consensus. On the user's go-ahead, run the debate per `protocols/debate-consensus-protocol.md`, scaled to the tier; fold the synthesis into the draft and flag contested points.
 
 ## Step 6 — Draft & feedback loop
 

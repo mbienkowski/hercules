@@ -291,6 +291,16 @@ def test_only_trivial_skips_advisors(read_file):
         "discover must give `low` a reduced advisor set (not zero, not the full set)"
 
 
+def test_advisor_debate_step_is_operational(read_file):
+    """Discover and Design must title the step 'Advisor debate' and invoke the debate protocol
+    (not merely 'recommend' advisors)."""
+    for rel in [_DISCOVER, _DESIGN]:
+        md = read_file(rel)
+        assert "Advisor debate" in md, f"{rel} must title the advisor step 'Advisor debate'"
+        assert "debate-consensus-protocol.md" in md, \
+            f"{rel} must invoke the debate per debate-consensus-protocol.md"
+
+
 def test_debate_round_counts_consistent(read_file):
     """The debate-consensus protocol and the a2a Core must agree on rounds per tier, and `low`
     must run exactly Round 1 (never reach Round 2)."""

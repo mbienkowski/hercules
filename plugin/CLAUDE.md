@@ -190,7 +190,7 @@ Sub-agent count per tier (main agent decides; user may override):
 | high | 2–4 |
 | critical | 3–6 |
 
-Agent selection: choose from different specialisms with deliberately different — even opposing — perspectives. Productive disagreement produces better specs than easy consensus.
+Agent selection is the main agent's call, driven by the task at hand: the per-phase lists in the commands are a default starting point, not a fixed roster. Add, drop, or swap specialists to fit the feature and its context — e.g. a security-expert for auth, a senior-qa-engineer for solution design or a risky migration, or a source-checker when an article must be checked against its cited sources — choosing deliberately different, even opposing, perspectives (challenger, simplicity-advocate, and cynical-reviewer are strong general picks). Productive disagreement produces better specs than easy consensus.
 
 ### Sub-agent consent
 
@@ -215,6 +215,8 @@ On **yes**: spawn per the tier counts above. On **yes, but one fewer**: spawn th
 ## Debate protocol
 
 Rule 7 in the Agent-Injected Core carries the minimal debate summary to all agents.
+Once the user consents to advisors (§ Sub-agent consent), Discover and Design run those rounds scaled
+to the session tier — running them is not separately optional.
 Full orchestrator mechanics: [protocols/debate-consensus-protocol.md](protocols/debate-consensus-protocol.md).
 For debates involving built-in Explore/Plan/Workflow agents, prepend the full
 `protocols/debate-consensus-protocol.md` to the per-call delegation prompt.
