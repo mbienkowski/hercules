@@ -337,6 +337,29 @@ def test_readme_quality_thresholds_deferred_to_coc(read_file):
         "README must tie quality thresholds to the project's code-of-conduct.md"
     assert "suggests **≥90%**" in content, \
         "README must frame ≥90% as the suggested CoC default"
+    assert "mandatory steps, not best-practices you skip" not in content.lower(), \
+        "README must not call the (CoC-conditional) mutation gate unconditionally mandatory"
+    assert "when the coc" in content.lower() or "when the code-of-conduct.md" in content.lower(), \
+        "README must condition the mutation gate on the CoC defining a threshold"
+
+
+def test_readme_no_auto_escalation_claim(read_file):
+    """README must not claim a single dissent automatically escalates the tier — CLAUDE.md is
+    explicit that Hercules never re-scores; dissent only surfaces as input to the user."""
+    readme = read_file("README.md").lower()
+    assert "escalates the tier" not in readme, \
+        "README must not claim dissent auto-escalates the tier (contradicts CLAUDE.md's never-re-scores rule)"
+    assert "never re-scores" in read_file("plugin/CLAUDE.md").lower(), \
+        "sanity: CLAUDE.md must still state the never-re-scores rule this test pins README against"
+
+
+def test_readme_discover_no_false_resume_claim(read_file):
+    """README must not claim Discover's in-progress draft is saved/resumable across sessions —
+    discover.md has no state/file write before Step 7 (final output, after Plan approval); only
+    tier/tier_rationale persist earlier (Step 3)."""
+    readme = read_file("README.md").lower()
+    assert "picked up where you left off" not in readme, \
+        "README must not claim the in-progress Discover draft is saved/resumable"
 
 
 def test_high_risk_floor_list_consistent(read_file):
@@ -360,6 +383,21 @@ def test_discover_writes_no_machine_local_file_into_repo(read_file):
         "discover must record session state under ~/.hercules/ (registry config.json + state file)"
 
 
+def test_discover_disambiguates_approval_trigger(read_file):
+    """discover Step 5's draft-loop "approved" must not read as the literal, immediate save
+    trigger — design.md already disambiguates this at its equivalent step; discover must point
+    "approved"/file-creation forward at the real gate (Step 6's Plan approval) instead."""
+    md = read_file(_DISCOVER)
+    lower = md.lower()
+    assert "and i will save the file" not in lower, \
+        "Step 5 must not claim saying 'approved' immediately saves the file"
+    i_step5 = lower.index("## step 5")
+    i_step6 = lower.index("## step 6")
+    step5_text = lower[i_step5:i_step6]
+    assert "plan approval" in step5_text, \
+        "Step 5 must point file-creation at the Step 6 Plan-approval gate"
+
+
 def test_build_offers_resume_from_home_config(read_file):
     """Build (not all commands) must read the home-config project state and offer to resume by spec."""
     md = read_file(_BUILD)
@@ -368,6 +406,77 @@ def test_build_offers_resume_from_home_config(read_file):
     assert "~/.hercules/" in lower and "state" in lower, \
         "build must reference ~/.hercules/ (config.json + per-project state file) for resume"
     assert "docs/.context" not in lower, "build must not reference the removed docs/.context file"
+
+
+def test_build_writes_current_phase_on_plan_approval(read_file):
+    """Build must write current_phase: "build" at its own Plan-approval gate, otherwise Step 0's
+    resume offer (which checks current_phase == "build") can never fire for a session that crashes
+    before any spec has ever been retired — including silently hiding a handoff_note left for that
+    session, since Step 0 gates both on the identical condition."""
+    md = read_file(_BUILD)
+    assert 'current_phase: "build"' in md, \
+        "build must write current_phase: \"build\" somewhere in its own flow"
+    lower = md.lower()
+    assert lower.index("### plan approval") < lower.index('current_phase: "build"'.lower()), \
+        "current_phase: \"build\" must be written at the Plan-approval gate, not only at retire"
+
+
+def test_build_retire_advances_current_spec_to_next_pending(read_file):
+    """Step 10's retire-time write must give current_spec an explicit value (the next pending spec,
+    or unset) — the original text said 'set current_spec,' with no value at all, which would leave
+    current_spec stale on every spec after the first."""
+    lower = read_file(_BUILD).lower()
+    i_step10 = lower.index("10. **retire the spec.**")
+    i_end = lower.index("for a spec scoped to a service")
+    retire_text = lower[i_step10:i_end]
+    assert "set `current_spec`," not in retire_text, \
+        "retire must not leave current_spec's value unspecified"
+    assert "set `current_spec` to" in retire_text, \
+        "retire must set current_spec to an explicit value (next pending spec, or unset)"
+
+
+def test_build_ship_now_commits_independently_of_build_complete(read_file):
+    """"Ship now" in the per-spec cadence must commit via a path that does not depend on Ship's
+    build_complete precondition — otherwise a user picking "ship each spec" and saying "ship now"
+    after spec 1 of 3 would hit Ship's hard refusal (build_complete is only set true at Build's
+    session-wide close-out, after ALL specs are retired)."""
+    md = read_file(_BUILD)
+    lower = md.lower()
+    i_advance = lower.index("**advance.**")
+    i_close = lower.index("## close-out")
+    advance_section = lower[i_advance:i_close]
+    assert "ship now" in advance_section, "build must define the 'ship now' option inside Advance"
+    assert "git commit" in advance_section, \
+        "'ship now' must perform its own git commit, not defer to /hercules:ship"
+    assert "build_complete" not in advance_section, \
+        "'ship now' must not reference/depend on build_complete — that's Ship's session-wide gate, " \
+        "set only after ALL specs are retired, so a per-spec 'ship now' can never satisfy it"
+
+
+def test_build_bash_path_convention_is_single_and_consistent(read_file):
+    """build.md must state exactly one convention for multi-service Bash invocations — not both
+    'cd {service-path} && {command}' and 'never a bare relative path' for the same Bash calls."""
+    md = read_file(_BUILD)
+    assert "cd {service-path}" not in md, \
+        "build must not describe a 'cd into the service' Bash convention — it contradicts the " \
+        "absolute-path-for-every-Bash-run rule stated later in the same file"
+    assert "never a bare relative path" in md, \
+        "build must keep the single absolute-path convention for Read/Write/Edit/Bash"
+
+
+def test_build_session_discovery_filter_not_zero_delivered(read_file):
+    """Build Step 1's session filter must not require zero specs delivered — Step 0's resume path
+    expects to find a session with some specs already in delivered_specs, so Step 1 must still
+    surface a session that has delivered some (but not all) of its specs."""
+    md = read_file(_BUILD)
+    assert "none delivered yet" not in md, \
+        "build Step 1 must not phrase its filter as 'none delivered yet' — read literally that " \
+        "excludes any session with partial delivery progress, contradicting Step 0's resume path"
+    lower = md.lower()
+    i_step1 = lower.index("### step 1")
+    i_step2 = lower.index("### step 2")
+    assert "still pending" in lower[i_step1:i_step2] or "not yet delivered" in lower[i_step1:i_step2], \
+        "build Step 1 must phrase the filter as per-spec pending status, not session-wide zero-delivered"
 
 
 def test_build_prompts_for_service_paths_on_multi_service_design(read_file):
@@ -604,6 +713,9 @@ def test_build_cross_check_validation_is_post_loop(read_file):
         "cross-check must come before close-out"
     assert "match what we set out to build" in lower, \
         "cross-check must verify the delivery matches the original intent"
+    assert "build_progress" in lower, \
+        "build's cross-check must read from build_progress, matching cynical-reviewer's fallback " \
+        "spec-sync write target for when no live spec file exists"
 
 
 def test_config_registry_is_rebuildable_from_state(read_file):

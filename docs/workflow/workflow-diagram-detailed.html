@@ -152,15 +152,15 @@
         <div class="loop">
           <div class="loop-hd">&#8635; Auto-execute — per spec, "Spec N of M"</div>
           <div class="step"><span class="st-n">3</span><span class="st-t">Read the spec and acceptance criteria</span></div>
-          <div class="step"><span class="st-n">4</span><span class="st-t">Scaffold<span class="st-sub">Gate: must compile</span></span></div>
-          <div class="step"><span class="st-n">5</span><span class="st-t">Write the failing tests<span class="st-sub">Gate: compile, and fail for the right reason</span></span></div>
+          <div class="step gate"><span class="st-n">4</span><span class="st-t">Scaffold<span class="st-sub">Gate: must compile</span></span></div>
+          <div class="step gate"><span class="st-n">5</span><span class="st-t">Write the failing tests<span class="st-sub">Gate: compile, and fail for the right reason</span></span></div>
           <div class="anno">&#9873; Tests are frozen — recorded and git-diff-guarded; the agent cannot edit them.</div>
           <div class="step"><span class="st-n">6</span><span class="st-t">Implement<span class="st-sub">Minimum code to green; refactor inline; no test edits</span></span></div>
           <div class="step gate"><span class="st-n">7</span><span class="st-t">Quality gates (per the Code of Conduct)<span class="st-sub">All tests pass; coverage, lint, types, arch-units as the CoC defines</span></span></div>
           <div class="anno">Three rounds, then stop: analyse the root cause, mark it blocked, and you decide.</div>
           <div class="step gate"><span class="st-n">8</span><span class="st-t">Mutation gate (when the CoC requires it)<span class="st-sub">Fix survivors here, while the spec is still live</span></span></div>
           <div class="step gate"><span class="st-n">9</span><span class="st-t">Traceability<span class="st-sub">Each criterion maps to a named passing test</span></span></div>
-          <div class="step cond"><span class="st-n">◆</span><span class="st-t">Advance (honours the approved cadence)<span class="st-sub">Ship now also cross-checks this spec first</span></span></div>
+          <div class="step cond"><span class="st-n">◆</span><span class="st-t">Advance (honours the approved cadence)<span class="st-sub">Ship now cross-checks, then commits just this spec</span></span></div>
           <div class="step state"><span class="st-n">10</span><span class="st-t">Write the checkpoint to state<span class="st-sub">Criteria, decisions, interfaces, tests, coverage, mutation</span></span></div>
           <div class="step write"><span class="st-n">11</span><span class="st-t">Retire the spec (git rm)<span class="st-sub">Code is now the only source of truth</span></span></div>
         </div>

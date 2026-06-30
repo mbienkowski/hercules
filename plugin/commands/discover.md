@@ -55,10 +55,9 @@ The advisor count scales with the tier (`CLAUDE.md § Agent scaling`): `trivial`
 ## Step 5 — Draft & feedback loop
 
 Present the complete draft inline. Then ask:
-> This is the draft. Review it and tell me what to change, add, or remove.  
-> When satisfied, say **"approved"** and I will save the file.
+> This is the draft. Review it and tell me what to change, add, or remove.
 
-Do not create the file until the user says "approved".
+Do not create the file until formal **Plan approval** in Step 6 (the stakeholder nudge runs first, at medium+).
 
 ## Step 6 — Plan approval
 

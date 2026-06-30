@@ -108,3 +108,16 @@ def test_readme_documents_onboarding_skill(read_file):
         "README must mention the code-of-conduct-generator skill"
     assert "set up this project" in content.lower() or "onboarding" in content.lower(), \
         "README must explain the one-time per-repo onboarding step"
+
+
+def test_diagram_scaffold_and_failing_tests_steps_are_gates(read_file):
+    """The Build phase's Scaffold and Write-the-failing-tests steps are both described as gates in
+    their own st-sub text — they must carry class="step gate" like the other machine-enforced gate
+    steps (Quality gates, Mutation gate, Traceability), not bare class="step"."""
+    html = read_file("docs/workflow/workflow-diagram-detailed.html")
+    assert 'class="step"><span class="st-n">4</span><span class="st-t">Scaffold' not in html, \
+        "Scaffold step must not use the un-classed 'step' form"
+    assert 'class="step gate"><span class="st-n">4</span><span class="st-t">Scaffold' in html, \
+        "Scaffold step (Gate: must compile) must carry the gate CSS class"
+    assert 'class="step gate"><span class="st-n">5</span><span class="st-t">Write the failing tests' in html, \
+        "Write-the-failing-tests step (Gate: compile and fail for the right reason) must carry the gate CSS class"
