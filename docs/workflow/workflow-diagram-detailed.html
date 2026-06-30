@@ -69,6 +69,23 @@
   .legend { display:flex; gap:16px; justify-content:center; margin-top:16px; flex-wrap:wrap; }
   .lg { display:flex; align-items:center; gap:6px; font-size:9.5px; color:#7D8590; }
   .sw { width:11px; height:11px; border-radius:3px; flex-shrink:0; }
+
+  /* Mobile: stack the phases vertically instead of squashing them across the width */
+  @media (max-width: 860px) {
+    body { padding:18px 12px 32px; }
+
+    /* phases fall down the page, each full width, in source order */
+    .rail { flex-direction:column; align-items:stretch; }
+
+    /* arrows turn to point down between the stacked phase cards */
+    .arrow { flex:0 0 auto; align-self:center; padding:6px 0; transform:rotate(90deg); }
+
+    /* the tall fixed height only exists to balance side-by-side columns */
+    .body { min-height:0; }
+
+    /* the two info panels stack as well */
+    .panels { flex-direction:column; }
+  }
 </style>
 </head>
 <body>
