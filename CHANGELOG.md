@@ -1,3 +1,7 @@
+## v1.2.0 (2026-06-30)
+
+* refactor(tests): reorganize suite by plugin category and retire the vestigial package (#6)
+
 ## v1.1.0 (2026-06-30)
 
 * feat(workflow): run the advisor debate operationally in Discover and Design (#4)
