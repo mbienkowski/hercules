@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from hercules.methodology.threshold_runner import load_thresholds, run_threshold_checks
-from hercules.methodology.token_counter import count_tokens
+from tests.metrics.threshold_runner import load_thresholds, run_threshold_checks
+from tests.metrics.token_counter import count_tokens
 
 
 _CONTENT_DIRS = ["plugin/commands", "plugin/agents", "plugin/skills"]

@@ -37,7 +37,7 @@ per-project `code-of-conduct.md` each agent reads. Replies follow the A2A § Age
   `simplicity-advocate`.
 
 Domain experts beyond this list are spawned ad hoc per the debate protocol — not shipped as files.
-The list is pinned by `tests/methodology/` (drift, no-stack-literals, required clauses).
+The list is pinned by `tests/` (drift, no-stack-literals, required clauses).
 
 ## Skills
 
@@ -48,13 +48,13 @@ Reusable procedures in `skills/` (auto-loaded, model-invoked by description):
 - **Knowledge:** `learnings`, `code-of-conduct-generator`, `session-summary`
 
 Each obeys a shared contract (phase-anchored trigger, precondition-then-stop, atomic/idempotent
-writes, code-of-conduct fallback), pinned by `tests/methodology/`. Skills are model-invoked by their
+writes, code-of-conduct fallback), pinned by `tests/`. Skills are model-invoked by their
 description; they are not shell subcommands.
 
 ## Testing
 
 One runner: `python -m pytest tests/`. All checks live in Python — code tests plus
-deterministic doc/policy checks in `tests/methodology/` (instruction counts, token budgets,
+deterministic doc/policy checks in `tests/` (instruction counts, token budgets,
 protocol grammar, plugin-content lint). To add a metric/threshold check, add a row to
 `tests/testdata/thresholds.json`; see `CODE_OF_CONDUCT.md` § Testing.
 
