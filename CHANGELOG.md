@@ -1,3 +1,7 @@
+## v1.0.3 (2026-06-30)
+
+* fix(docs): stack workflow report phases vertically on mobile (#5)
+
 ## v1.0.2 (2026-06-29)
 
 * fix(agents): remove session-start banner from hercules persona
