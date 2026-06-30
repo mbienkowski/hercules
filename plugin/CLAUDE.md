@@ -190,7 +190,7 @@ Sub-agent count per tier (main agent decides; user may override):
 | high | 2–4 |
 | critical | 3–6 |
 
-Agent selection: choose from different specialisms with deliberately different — even opposing — perspectives. Productive disagreement produces better specs than easy consensus.
+Agent selection is the main agent's call, driven by the task at hand: the per-phase lists in the commands are a default starting point, not a fixed roster. Add, drop, or swap specialists to fit the feature and its context — e.g. a security-expert for auth, a senior-qa-engineer for solution design or a risky migration, a source-checker or copywriter for content-heavy work — choosing deliberately different, even opposing, perspectives. Productive disagreement produces better specs than easy consensus.
 
 ### Sub-agent consent
 

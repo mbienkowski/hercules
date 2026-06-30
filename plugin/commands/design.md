@@ -43,7 +43,7 @@ Ask only what is needed — only what the Step 3 scan and `*-business-requiremen
 
 ## Step 5 — Advisor debate
 
-Follow the **Sub-agent consent** flow in `CLAUDE.md § Agent scaling`. Recommended set for Design: **lead-architect, security-expert, senior-qa-engineer**; explain why each fits. On the user's go-ahead, run the debate per `protocols/debate-consensus-protocol.md`, scaled to the tier — fold the synthesis into the draft and flag any contested point to the user.
+Follow the **Sub-agent consent** flow in `CLAUDE.md § Agent scaling`. Pick the advisors the task needs (default for Design: **lead-architect, security-expert, senior-qa-engineer**); explain why each fits. On the user's go-ahead, run the debate per `protocols/debate-consensus-protocol.md`, scaled to the tier — fold the synthesis into the draft and flag any contested point to the user.
 
 ## Step 6 — Draft & feedback loop
 
