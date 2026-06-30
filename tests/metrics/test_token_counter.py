@@ -1,6 +1,6 @@
 """Unit tests for the offline token counter."""
 
-from hercules.methodology.token_counter import count_tokens
+from tests.metrics.token_counter import count_tokens
 
 
 def test_token_count_is_correct_for_known_input():

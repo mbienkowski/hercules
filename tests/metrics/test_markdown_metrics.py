@@ -1,6 +1,6 @@
 """Unit tests for the markdown metrics module — instruction and table-row counting."""
 
-from hercules.methodology.markdown_metrics import count_instructions, count_status_table_rows
+from tests.metrics.markdown_metrics import count_instructions, count_status_table_rows
 
 
 def test_fenced_code_regions_are_not_counted_as_instructions():

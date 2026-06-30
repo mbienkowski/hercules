@@ -45,7 +45,7 @@ Keep the two in lock-step:
 - Carries **no hardcoded stack or personal preferences** — project variance lives in each project's `code-of-conduct.md`
 - Replies follow the A2A `§ Agent-Injected Core` format (see `plugin/protocols/a2a-communication-protocol.md`)
 - Update the agent list in `plugin/CLAUDE.md` after adding
-- The list is pinned by `tests/methodology/` — run the suite to confirm no drift
+- The list is pinned by `tests/` — run the suite to confirm no drift
 
 ### Adding a skill
 
@@ -72,7 +72,7 @@ in 30 seconds should find any rule or definition without reading a full paragrap
 
 ### Invariants
 
-These rules are enforced by `tests/methodology/` — a change that breaks one fails CI:
+These rules are enforced by `tests/` — a change that breaks one fails CI:
 
 - **Every shipped artifact has an owning test.** A new manifest, agent, command, or skill
   ships only with a test that fails when it is missing or malformed.
@@ -114,7 +114,7 @@ pip install -e ".[dev]"
 make test
 
 # Branch coverage, same gate as CI
-python -m pytest tests/ --cov=hercules --cov-branch --cov-report=term-missing --cov-fail-under=90
+python -m pytest tests/ --cov=tests.metrics --cov-branch --cov-report=term-missing --cov-fail-under=90
 ```
 
 Hercules holds itself to the bar it enforces on its users: **>= 90% branch coverage** (gated by
@@ -123,7 +123,7 @@ every PR — practice what we preach.
 
 ### End-to-end smoke (manual)
 
-The static suite (`tests/methodology/test_workflow_modes.py`) asserts the workflow commands carry the
+The static suite (`tests/workflow/test_workflow_modes.py`) asserts the workflow commands carry the
 right phase/mode directives, but the harness's permission-mode state can't be inspected from the
 plugin. To verify the *effect* — that Discover → Design → Build → Ship actually produces its artifacts — run
 the workflow by hand against a throwaway repo (install the plugin from a local-path marketplace, then
@@ -135,12 +135,12 @@ binary and credentials.
 
 | Area | Where | Kind |
 |------|-------|------|
-| Marketplace + plugin manifests, default-agent persona, no-AGENT_TEAMS guard | `tests/methodology/test_plugin_integrity.py`, `test_agents.py` | unit + policy |
-| Docs match the marketplace reality; version single-sourced | `tests/methodology/test_docs.py` | policy |
-| A2A protocol grammar and status vocabulary | `tests/methodology/test_a2a_grammar.py`, `test_protocol_files.py` | unit + policy |
-| Instruction and token budget checks | `tests/methodology/test_threshold_runner.py`, `test_plugin_integrity.py` | unit + data-driven |
-| Agent and skill file hygiene | `tests/methodology/test_agents.py`, `test_skills.py` | policy |
-| Command file structure | `tests/methodology/test_commands.py` | policy |
+| Marketplace + plugin manifests, default-agent persona, no-AGENT_TEAMS guard | `tests/plugin/test_plugin_integrity.py`, `tests/agents/test_agents.py` | unit + policy |
+| Docs match the marketplace reality; version single-sourced | `tests/docs/test_docs.py` | policy |
+| A2A protocol grammar and status vocabulary | `tests/metrics/test_a2a_grammar.py`, `tests/protocols/test_protocol_files.py` | unit + policy |
+| Instruction and token budget checks | `tests/metrics/test_threshold_runner.py`, `tests/plugin/test_plugin_integrity.py` | unit + data-driven |
+| Agent and skill file hygiene | `tests/agents/test_agents.py`, `tests/skills/test_skills.py` | policy |
+| Command file structure | `tests/commands/test_commands.py` | policy |
 
 ### Adding a check
 
@@ -159,7 +159,7 @@ binary and credentials.
 - `target` — a path, or a comma-separated list of paths/globs. For a glob/list the metric is
   **summed** across all matched files.
 - `metric` — one of: `instruction_count`, `token_count`, `core_entry_count`, `core_token_count`.
-  Add new ones in `hercules/methodology/threshold_runner.py` (`METRIC_REGISTRY`).
+  Add new ones in `tests/metrics/threshold_runner.py` (`METRIC_REGISTRY`).
 - `op` — `==`, `<=`, `>=`, `<`, `>`.
 - `severity` — `gate` (fails the build) or `warn` (prints a warning, non-failing).
 - `warn_at` (optional) — emit a warning when the value crosses this soft line while still under
@@ -168,7 +168,7 @@ binary and credentials.
   (e.g. "every agent ≤ 800 tokens"), instead of summing the metric across the glob. The agent and
   skill token budgets use this, so a new agent or skill is gated automatically — no new row needed.
 
-**A new metric → add a function to `hercules/methodology/` and register it** in `METRIC_REGISTRY`.
+**A new metric → add a function to `tests/metrics/` and register it** in `METRIC_REGISTRY`.
 
 ### Budgets are fixed — stop and ask before you bump or cut
 

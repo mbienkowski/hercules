@@ -2,14 +2,14 @@
 
 import pytest
 
-from hercules.methodology.a2a_grammar import (
+from tests.metrics.a2a_grammar import (
     ALLOWED_STATUSES,
     extract_a2a_core,
     extract_used_statuses,
     find_core_entry_lines,
     matches_a2a_entry_format,
 )
-from hercules.methodology.markdown_metrics import count_status_table_rows
+from tests.metrics.markdown_metrics import count_status_table_rows
 
 
 _A2A_PROTOCOL = "plugin/protocols/a2a-communication-protocol.md"
@@ -83,7 +83,7 @@ def test_injected_agent_core_has_not_been_accidentally_changed(repo_root):
     """The A2A Core block must match the blessed golden snapshot exactly.
 
     If you intentionally changed the Core, update tests/testdata/core.golden with:
-      python -c "from hercules.methodology.a2a_grammar import extract_a2a_core; ..."
+      python -c "from tests.metrics.a2a_grammar import extract_a2a_core; ..."
     """
     # Given
     md = (repo_root / _A2A_PROTOCOL).read_text()

@@ -2,7 +2,7 @@
 
 import pytest
 
-from hercules.methodology.a2a_grammar import (
+from tests.metrics.a2a_grammar import (
     ALLOWED_STATUSES,
     count_core_entries,
     extract_a2a_core,

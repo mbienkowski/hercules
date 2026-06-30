@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from hercules.methodology.threshold_runner import (
+from tests.metrics.threshold_runner import (
     CheckResult,
     ThresholdCheck,
     compare_value,
@@ -208,7 +208,7 @@ def test_core_token_count_raises_when_no_fenced_block_exists():
     Guards against silent zero-count results if the protocol file loses its fenced block.
     """
     # Given
-    from hercules.methodology.threshold_runner import _core_token_count
+    from tests.metrics.threshold_runner import _core_token_count
 
     # When / Then
     with pytest.raises(ValueError, match="no fenced Core block found"):
@@ -364,7 +364,7 @@ def test_result_message_is_non_empty_string(tmp_path: Path):
 
 def test_resolve_targets_handles_comma_separated_paths(tmp_path: Path):
     """A comma-separated target list must resolve to all matching files."""
-    from hercules.methodology.threshold_runner import resolve_targets as _resolve_targets
+    from tests.metrics.threshold_runner import resolve_targets as _resolve_targets
 
     # Given
     (tmp_path / "a.md").write_text("a")
@@ -380,7 +380,7 @@ def test_resolve_targets_handles_comma_separated_paths(tmp_path: Path):
 
 def test_resolve_targets_handles_glob_pattern(tmp_path: Path):
     """A glob pattern must expand to all matching files."""
-    from hercules.methodology.threshold_runner import resolve_targets as _resolve_targets
+    from tests.metrics.threshold_runner import resolve_targets as _resolve_targets
 
     # Given
     (tmp_path / "x.md").write_text("x")
@@ -395,7 +395,7 @@ def test_resolve_targets_handles_glob_pattern(tmp_path: Path):
 
 def test_resolve_targets_returns_empty_for_no_match(tmp_path: Path):
     """A glob that matches nothing must return an empty list."""
-    from hercules.methodology.threshold_runner import resolve_targets as _resolve_targets
+    from tests.metrics.threshold_runner import resolve_targets as _resolve_targets
 
     # When
     targets = _resolve_targets(tmp_path, "nonexistent/*.md")
@@ -406,7 +406,7 @@ def test_resolve_targets_returns_empty_for_no_match(tmp_path: Path):
 
 def test_resolve_targets_deduplicates_overlapping_patterns(tmp_path: Path):
     """A file matched by multiple patterns must appear only once."""
-    from hercules.methodology.threshold_runner import resolve_targets as _resolve_targets
+    from tests.metrics.threshold_runner import resolve_targets as _resolve_targets
 
     # Given
     (tmp_path / "z.md").write_text("z")
@@ -511,7 +511,7 @@ def test_totals_accumulate_across_multiple_target_files(tmp_path: Path):
 
 def test_resolve_targets_detects_question_mark_glob(tmp_path: Path):
     """A pattern with '?' must be treated as a glob, not a literal path."""
-    from hercules.methodology.threshold_runner import resolve_targets as _resolve_targets
+    from tests.metrics.threshold_runner import resolve_targets as _resolve_targets
 
     (tmp_path / "ab.md").write_text("x")
     (tmp_path / "ac.md").write_text("y")
@@ -522,7 +522,7 @@ def test_resolve_targets_detects_question_mark_glob(tmp_path: Path):
 
 def test_resolve_targets_detects_bracket_glob(tmp_path: Path):
     """A pattern with '[' must be treated as a glob, not a literal path."""
-    from hercules.methodology.threshold_runner import resolve_targets as _resolve_targets
+    from tests.metrics.threshold_runner import resolve_targets as _resolve_targets
 
     (tmp_path / "a1.md").write_text("x")
     (tmp_path / "a2.md").write_text("y")
@@ -533,7 +533,7 @@ def test_resolve_targets_detects_bracket_glob(tmp_path: Path):
 
 def test_resolve_targets_skips_empty_patterns_from_double_comma(tmp_path: Path):
     """An empty pattern (from trailing/double comma) must be skipped, not stop iteration."""
-    from hercules.methodology.threshold_runner import resolve_targets as _resolve_targets
+    from tests.metrics.threshold_runner import resolve_targets as _resolve_targets
 
     (tmp_path / "a.md").write_text("x")
     (tmp_path / "b.md").write_text("y")
@@ -636,7 +636,7 @@ def test_per_file_defaults_false_and_sums_across_files(tmp_path: Path):
 def test_per_file_reports_worst_value_and_flags_near_warn(tmp_path: Path):
     """per_file reports the worst (max) per-file value — not the sum — and flags near_warn off it."""
     # Given
-    from hercules.methodology.token_counter import count_tokens
+    from tests.metrics.token_counter import count_tokens
     big, small = "alpha beta gamma delta epsilon", "x"
     (tmp_path / "big.md").write_text(big)
     (tmp_path / "small.md").write_text(small)

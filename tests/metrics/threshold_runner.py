@@ -7,16 +7,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from hercules.methodology.a2a_grammar import (
+from tests.metrics.a2a_grammar import (
     count_core_entries,
     extract_a2a_core,
     extract_used_statuses,
 )
-from hercules.methodology.markdown_metrics import (
+from tests.metrics.markdown_metrics import (
     count_instructions,
     count_status_table_rows,
 )
-from hercules.methodology.token_counter import count_tokens
+from tests.metrics.token_counter import count_tokens
 
 MetricFn = Callable[[str], int]  # pragma: no mutate
 
