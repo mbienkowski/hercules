@@ -91,6 +91,8 @@ gates come from the project's `code-of-conduct.md`.
 
 Each step runs its own sub-process specified per command. Build runs a full TDD loop per spec
 (scaffold → write failing tests, then frozen → implement → quality gates → cross-check validation).
+Step order and hard guardrails are normatively listed in `protocols/workflow-protocol.md`;
+commands compose its delegation packet (§ packet) for every workflow spawn.
 
 ### INDEX.md format
 

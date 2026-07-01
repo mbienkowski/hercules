@@ -437,22 +437,58 @@ def test_build_retire_advances_current_spec_to_next_pending(read_file):
         "retire must set current_spec to an explicit value (next pending spec, or unset)"
 
 
-def test_build_ship_now_commits_independently_of_build_complete(read_file):
-    """"Ship now" in the per-spec cadence must commit via a path that does not depend on Ship's
-    build_complete precondition — otherwise a user picking "ship each spec" and saying "ship now"
-    after spec 1 of 3 would hit Ship's hard refusal (build_complete is only set true at Build's
-    session-wide close-out, after ALL specs are retired)."""
+def test_build_ship_now_routes_into_spec_scoped_ship(read_file):
+    """"Ship now" in the per-spec cadence routes into Ship's plan flow (default plan presented,
+    refined in rounds, executed on acceptance) as a spec-scoped invocation — never an ad-hoc
+    inline commit, and never dependent on Ship's session-wide build_complete gate (set true only
+    at Build's close-out, after ALL specs are retired)."""
     md = read_file(_BUILD)
     lower = md.lower()
     i_advance = lower.index("**advance.**")
-    i_close = lower.index("## close-out")
-    advance_section = lower[i_advance:i_close]
-    assert "ship now" in advance_section, "build must define the 'ship now' option inside Advance"
-    assert "git commit" in advance_section, \
-        "'ship now' must perform its own git commit, not defer to /hercules:ship"
-    assert "build_complete" not in advance_section, \
-        "'ship now' must not reference/depend on build_complete — that's Ship's session-wide gate, " \
-        "set only after ALL specs are retired, so a per-spec 'ship now' can never satisfy it"
+    i_next = lower.index("**write the checkpoint.**")
+    advance_step = lower[i_advance:i_next]
+    assert "ship now" in advance_step, "build must define the 'ship now' option inside Advance"
+    assert "spec-scoped" in advance_step and "/hercules:ship" in advance_step, \
+        "'ship now' must route into /hercules:ship's spec-scoped plan flow"
+    assert "git add" not in advance_step and "git commit" not in advance_step, \
+        "'ship now' must not perform an inline commit — Ship's plan flow owns the commit"
+    assert "not retired" in advance_step, \
+        "Advance must state a failed spec-scoped ship returns control here, spec not retired"
+    assert "build_complete" not in advance_step, \
+        "'ship now' must not reference/depend on build_complete — that's Ship's session-wide gate"
+
+
+def test_ship_spec_scoped_path_preserves_session_gate(read_file):
+    """Ship's spec-scoped section scopes everything to the current spec while leaving the
+    session-wide contract intact: build_complete stays the close-out gate, no session state is
+    written mid-build, the PR belongs to the close-out ship, and failure routes back to Build."""
+    md = read_file(_SHIP)
+    assert "### Spec-scoped ship" in md, "ship must define the spec-scoped section as a heading"
+    i = md.index("### Spec-scoped ship")
+    section = md[i:md.index("---", i)]
+    assert "Not included — stage if you want" in section, \
+        "spec-scoped staging must surface non-spec changes, never sweep them in"
+    assert "never writes" in section and 'current_phase: "shipped"' in section \
+        and "build_complete" in section and "shipped_commit" in section, \
+        "the section must name every session field a spec-scoped ship never writes"
+    assert "PR step is omitted" in section and "shipped_pr" in section, \
+        "a spec-scoped ship must omit the PR; shipped_pr belongs to the close-out ship"
+    assert "Advance prompt" in section and "not retired" in section, \
+        "a failed spec-scoped commit/push must return control to Build's Advance prompt"
+    assert "residue" in section, \
+        "the section must note the close-out ship commits the residue (retired specs, INDEX)"
+    assert "Local build is not complete" in md, \
+        "the session-wide build_complete refusal must remain for a plain /hercules:ship"
+    assert "spec-scoped ship skips this step" in md, \
+        "Execution's Record step must be marked session-wide-only (spec-scoped skips it)"
+
+
+def test_ship_build_and_diagram_agree_on_spec_scoped(read_file):
+    """The spec-scoped contract is one decision expressed in three places — build.md's Advance,
+    ship.md's section, and the detailed workflow diagram. All three must carry it (lock-step)."""
+    for path in (_BUILD, _SHIP, "docs/workflow/workflow-diagram-detailed.html"):
+        assert "spec-scoped" in read_file(path).lower(), \
+            f"{path} must carry the spec-scoped ship contract (lock-step rule)"
 
 
 def test_build_bash_path_convention_is_single_and_consistent(read_file):

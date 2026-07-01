@@ -50,7 +50,7 @@ Every tier continues through Steps 4–7; the tier sets how many advisors run, n
 
 ## Step 4 — Advisor debate
 
-The advisor count scales with the tier (`CLAUDE.md § Agent scaling`): `trivial` runs none — skip to Step 5; `low` runs a reduced set; `medium` and up run the fuller set. When advisors apply, follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **business-analyst, challenger, simplicity-advocate**; at `low`, 1–2) — choose deliberately different, even opposing, perspectives so they argue, not echo. Productive disagreement beats easy consensus. On the user's go-ahead, run the debate per `protocols/debate-consensus-protocol.md`, scaled to the tier; fold the synthesis into the draft and flag contested points.
+The advisor count scales with the tier (`CLAUDE.md § Agent scaling`): `trivial` runs none — skip to Step 5; `low` runs a reduced set; `medium` and up run the fuller set. When advisors apply, follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **business-analyst, challenger, simplicity-advocate**; at `low`, 1–2) — choose deliberately different, even opposing, perspectives so they argue, not echo. Productive disagreement beats easy consensus. On the user's go-ahead, run the debate per `protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
 
 ## Step 5 — Draft & feedback loop
 

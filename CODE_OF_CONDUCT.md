@@ -27,12 +27,14 @@ itself. How a user *runs* Hercules (the workflow, phases, and artifact conventio
 ### Changing the workflow
 
 The workflow's source of truth is the command files (`plugin/commands/*.md`) and `plugin/CLAUDE.md`;
-its canonical picture is `docs/workflow/workflow-diagram-detailed.html`, which ships with Hercules.
-Keep the two in lock-step:
+its step order and hard guardrails are normatively listed in `plugin/protocols/workflow-protocol.md`
+(phase lists + guardrail registry + delegation packet); its canonical picture is
+`docs/workflow/workflow-diagram-detailed.html`, which ships with Hercules. Keep them in lock-step:
 
 - **Any change to a phase or a sub-phase step — its definition, wording, or order — must be reflected
-  in `docs/workflow/workflow-diagram-detailed.html` in the same change.** The diagram never lags the
-  commands; a workflow edit is not done until the diagram matches.
+  in the protocol's phase list / guardrail registry and in `docs/workflow/workflow-diagram-detailed.html`
+  in the same change.** Neither ever lags the commands; a workflow edit is not done until all three match.
+  A `hook`-class registry row must match a live `plugin/hooks/hooks.json` matcher (CI-verified).
 - If the change is visible at the four-phase level (a phase's purpose or its headline output), also
   update `docs/workflow/workflow-diagram-simplified.svg` and the README.
 - The detailed diagram is HTML on purpose — it changes whenever the workflow does, and HTML is far
@@ -182,6 +184,7 @@ binary and credentials.
 | Agent and skill file hygiene | `tests/agents/test_agents.py`, `tests/skills/test_skills.py` | policy |
 | Command file structure | `tests/commands/test_commands.py` | policy |
 | Frozen-test hook: behaviour, wiring, hygiene | `tests/hooks/test_frozen_tests_hook.py`, `tests/hooks/test_hooks_wiring.py`, `tests/hooks/test_hook_hygiene.py` | unit + policy |
+| Workflow protocol: anchors, packet, registry↔commands, hook wiring | `tests/protocols/test_workflow_protocol.py` | policy |
 
 ### Adding a check
 

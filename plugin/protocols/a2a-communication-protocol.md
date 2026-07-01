@@ -81,7 +81,8 @@ agents skip `CLAUDE.md`. Use all three channels:
 
 1. **Per-call `prompt` injection (mandatory)** — prepend the Agent-Injected Core to the
    delegation message of every sub-agent. This is the **only** channel that reaches built-in
-   Explore/Plan agents, and it lands closest to the task. Always do this.
+   Explore/Plan agents, and it lands closest to the task. Always do this. For workflow spawns,
+   the orchestrator prepends the delegation packet (`workflow-protocol.md#packet`) above the Core.
 2. **`CLAUDE.md` pointer (one line)** — reinforces custom/ad-hoc agents that do read it:
    `Agent-to-agent output follows a2a-communication-protocol.md § Agent-Injected Core.`
    A pointer, not a paste — `CLAUDE.md` text carries less weight and duplication wastes budget.

@@ -44,6 +44,8 @@ _HERCULES_INTERNAL_PATTERNS = [
     re.compile(r"\bhand(?:off_note|ed_off_by)\b"),
     re.compile(r"\bbuild_complete\b"),
     re.compile(r"-spec-\d"),                          # *-spec-NN-* artifact filename pattern
+    re.compile(r"workflow-protocol"),                 # the protocol reaches agents only via the
+                                                      # orchestrator-injected delegation packet
 ]
 
 # The only agent allowed to reference Hercules internals: the orchestrator persona, not a delegate.
