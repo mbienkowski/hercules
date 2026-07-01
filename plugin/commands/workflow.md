@@ -23,7 +23,7 @@ Guided end-to-end delivery: **Discover → Design → Build → Ship**. Runs all
 
 *Purpose: pin the real need, not the first thing you said.*
 
-Run the full `/hercules:discover` flow (Steps 0–6). When all five discovery groups (Goal, Users, Scope, Constraints, Success criteria) are covered, complexity is classified, and the `*-business-requirements.md` draft is approved and saved, pause:
+Run the full `/hercules:discover` flow (Steps 0–7). When all five discovery groups (Goal, Users, Scope, Constraints, Success criteria) are covered, complexity is classified, and the `*-business-requirements.md` draft is approved and saved, pause:
 
 > I think we have a clear picture of what you want to build.
 > Before we move on — is there anything else you'd like to add or change here?
@@ -39,7 +39,7 @@ On "move to Design": announce "📐 Entering the **Design** phase." and continue
 
 *Purpose: turn the requirement into one or more self-contained specs and a delivery sequence.*
 
-Run the full `/hercules:design` flow (Steps 1–8), reading the `*-business-requirements.md` written in Phase 1. When the design is approved, stakeholder review is complete (or skipped), coverage gate passes, and the sub-spec files are saved, pause:
+Run the full `/hercules:design` flow (Steps 1–9), reading the `*-business-requirements.md` written in Phase 1. When the design is approved, stakeholder review is complete (or skipped), coverage gate passes, and the sub-spec files are saved, pause:
 
 > The specs and delivery sequence are solid. Before we move on — any final thoughts or changes here?
 > Once we move to Build, the specs are locked.

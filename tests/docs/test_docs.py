@@ -108,3 +108,50 @@ def test_readme_documents_onboarding_skill(read_file):
         "README must mention the code-of-conduct-generator skill"
     assert "set up this project" in content.lower() or "onboarding" in content.lower(), \
         "README must explain the one-time per-repo onboarding step"
+
+
+def test_readme_discloses_the_enforcement_hooks_honestly(read_file):
+    """The plugin now ships executable hooks, so 'Plugin permissions' must disclose them truthfully:
+    they exist, they run before edits (PreToolUse), they are read-only over ~/.hercules, make no
+    network calls, and fail open. A prior README claimed the plugin had 'no executable code of its
+    own' — this pins that the claim can never silently return alongside shipped hook code."""
+    content = read_file("README.md")
+    low = content.lower()
+    assert "no executable code of its own" not in low, \
+        "README must not claim the plugin has no executable code — it ships plugin/hooks/*.py"
+    assert "hook" in low, "README 'Plugin permissions' must disclose the enforcement hooks"
+    assert "pretooluse" in low, "README must name the PreToolUse hook surface"
+    # The three safety properties a reader relies on before trusting a shipped hook:
+    assert "read-only" in low or "only **read**" in low or "only read" in low, \
+        "README must state the hooks are read-only over ~/.hercules"
+    assert "fail **open**" in low or "fail open" in low, \
+        "README must state the hooks fail open (never block when no active build)"
+    assert "no network" in low or "make no network" in low or "network — none" in low, \
+        "README must state the hooks make no network calls"
+
+
+def test_review_only_agents_carry_no_edit_or_write_tools(repo_root):
+    """Review/architecture agents find and decide; they do not author code. Their tool lists must
+    never carry Edit/Write — a positive, ongoing guard so a future edit can't quietly grant a
+    reviewer write access (the same risk the QA-role test pins for senior-qa-engineer)."""
+    agents = repo_root / "plugin" / "agents"
+    for name in ("cynical-reviewer", "lead-architect"):
+        md = (agents / f"{name}.md").read_text()
+        tools_line = next(ln for ln in md.splitlines() if ln.startswith("tools:"))
+        assert "Edit" not in tools_line and "Write" not in tools_line, (
+            f"{name} must not carry Edit/Write — it reviews/decides, it does not author code "
+            f"(tools line: {tools_line!r})"
+        )
+
+
+def test_diagram_scaffold_and_failing_tests_steps_are_gates(read_file):
+    """The Build phase's Scaffold and Write-the-failing-tests steps are both described as gates in
+    their own st-sub text — they must carry class="step gate" like the other machine-enforced gate
+    steps (Quality gates, Mutation gate, Traceability), not bare class="step"."""
+    html = read_file("docs/workflow/workflow-diagram-detailed.html")
+    assert 'class="step"><span class="st-n">4</span><span class="st-t">Scaffold' not in html, \
+        "Scaffold step must not use the un-classed 'step' form"
+    assert 'class="step gate"><span class="st-n">4</span><span class="st-t">Scaffold' in html, \
+        "Scaffold step (Gate: must compile) must carry the gate CSS class"
+    assert 'class="step gate"><span class="st-n">5</span><span class="st-t">Write the failing tests' in html, \
+        "Write-the-failing-tests step (Gate: compile and fail for the right reason) must carry the gate CSS class"

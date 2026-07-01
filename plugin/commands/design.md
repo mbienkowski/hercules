@@ -43,7 +43,7 @@ Ask only what is needed — only what the Step 3 scan and `*-business-requiremen
 
 ## Step 5 — Advisor debate
 
-Follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **lead-architect, security-expert, senior-qa-engineer**) — choose deliberately different, even opposing, perspectives so they argue, not echo. Productive disagreement beats easy consensus. On the user's go-ahead, run the debate per `protocols/debate-consensus-protocol.md`, scaled to the tier; fold the synthesis into the draft and flag contested points.
+Follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **lead-architect, security-expert, senior-qa-engineer**; see `CLAUDE.md § Agent scaling`). On the user's go-ahead, run the debate per `protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
 
 ## Step 6 — Draft & feedback loop
 
@@ -109,7 +109,7 @@ Existing classes, methods, and modules this spec touches (from a codebase scan).
 Key technical decisions, patterns to follow, constraints from code-of-conduct.md.
 
 ## Test suite
-- **Unit:** [list what to unit-test]
+- **Unit:** [list what to unit-test] — mocking: [what must be mocked, what must never be, and why]
 - **Integration:** [list integration scenarios]
 - **API:** [list API contract tests, if applicable]
 - **E2E:** [list end-to-end scenarios, if applicable]
@@ -126,7 +126,7 @@ into the relevant sections per its role. The template stays generic; the advisor
 
 If the feature is single-track (no meaningful split), emit one spec file (`spec-01`) covering the full scope.
 
-Update `docs/INDEX.md`: set this session's `Status` to `active` if creating the row,
+Update `docs/INDEX.md`: set this session's `Status` to `design` if creating the row,
 or update it in place if the row exists. Write atomically (temp + rename).
 
 Update the active session in the project's state file (`~/.hercules/state/{slug}.json`): set

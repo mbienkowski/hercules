@@ -28,6 +28,13 @@
     "severity": "gate"
   },
   {
+    "name": "workflow-protocol-token-budget",
+    "target": "plugin/protocols/workflow-protocol.md",
+    "metric": "token_count",
+    "op": "<=", "limit": 1000, "warn_at": 950,
+    "severity": "gate"
+  },
+  {
     "name": "discover-command-token-budget",
     "target": "plugin/commands/discover.md",
     "metric": "token_count",

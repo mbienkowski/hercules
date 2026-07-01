@@ -2,7 +2,7 @@
 
 Plan the delivery, then execute the approved specs with TDD and full requirement traceability.
 
-**Plan mode — required.** Build opens in plan mode like every other phase: call `EnterPlanMode`, present the **delivery plan**, and at the **Plan approval** gate — *you approve the phase after reviewing the plan* — call `ExitPlanMode` (`auto`). Execution then runs automatically, one spec at a time, with no further plan-mode prompts.
+**Plan mode — required.** Build opens in plan mode like every other phase: call `EnterPlanMode`, present the **delivery plan**, and at the **Plan approval** gate — *you approve the phase after reviewing the plan* — call `ExitPlanMode` (`auto`). Execution then runs automatically, one spec at a time, with no further plan-mode prompts (a *ship each* "ship now" opens Ship's own plan).
 
 ---
 
@@ -19,13 +19,13 @@ On resume, reconcile against the filesystem: a spec in `delivered_specs` whose f
 
 ### Step 1 — Session discovery
 
-Find sessions ready for delivery — a session has `*-business-requirements.md` and at least one `*-spec-NN-*.md`, none delivered yet.
+Find sessions ready for delivery — a session has `*-business-requirements.md` and at least one `*-spec-NN-*.md` still pending (not yet delivered).
 
 Present a numbered list. Ask which to deliver (number, path, or Enter for most recent). If no sessions are found, tell the user to run `/hercules:design` first.
 
 ### Step 2 — Service paths
 
-Each spec names its service in `## Scope`. If none are named, work in the current directory. Otherwise, for each named service not yet in the registry entry's `repositories` map (`~/.hercules/config.json`), ask for its local path, validate it exists, echo `"Found {service} at {path}"`, and write the confirmed paths to `repositories` (atomically; never into the repo). Bash uses `cd {service-path} && {command}`.
+Each spec names its service in `## Scope`. If none are named, work in the current directory. Otherwise, for each named service not yet in the registry entry's `repositories` map (`~/.hercules/config.json`), ask for its local path, validate it exists, echo `"Found {service} at {path}"`, and write the confirmed paths to `repositories` (atomically; never into the repo).
 
 Check for `code-of-conduct.md` at each service path (and the home repo for single-service). If absent, tell the user agents will infer conventions from existing tests, and that they can say **'generate conduct for {service}'** at any point.
 
@@ -43,13 +43,13 @@ Show the delivery plan for review: each spec, the requirement(s) it satisfies (i
 
 ### Plan approval
 
-This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. On the user's approval, call `ExitPlanMode` (`auto`); execution runs automatically, honouring the approved batching and cadence — no further plan-mode prompts.
+This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. On the user's approval, set `current_phase: "build"` and `current_spec` to the first spec in delivery order in the session's state file (atomic temp + rename), then call `ExitPlanMode` (`auto`); execution runs automatically, honouring the approved batching and cadence.
 
 ---
 
 ## Execution (after Plan approval — automatic)
 
-For each spec in delivery order, run this cycle. Announce progress as `"Spec N of M"`.
+For each spec in delivery order, run this cycle. Announce progress as `"Spec N of M"`. Spawns in this phase carry the delegation packet (`protocols/workflow-protocol.md#packet`).
 
 1. **Read the spec.** Acceptance criteria, implementation guide, `satisfies:` links. Confirm what "done" means before writing a line of code.
 2. **Scaffold.** Create empty classes, method signatures, and interfaces — no logic. Gate: the scaffold must compile before any tests are written.
@@ -58,9 +58,9 @@ For each spec in delivery order, run this cycle. Announce progress as `"Spec N o
 5. **Quality gates.** All tests pass, no regressions; and every quality gate the project's `code-of-conduct.md` defines passes — branch coverage, mutation kill rate, lint/format, type-checks, arch-unit checks — at the thresholds the CoC sets (Hercules carries no numbers of its own). Run the real tools, never a self-report. **Round limit:** at most 3 implementation rounds against the frozen tests; persist the count in `current_spec_round` so a resume can't reset it. Still failing after round 3 → stop, run a root-cause analysis (test defect, design gap, or genuine difficulty?), persist the checkpoint, mark the spec blocked, and hand the **user** the decision: correct the test, re-enter `/hercules:design`, adjust scope, more rounds, or accept with a reason. The agent never edits a frozen test and never auto-advances.
 6. **Mutation gate.** When the CoC requires one, meet its kill-rate threshold. Fix surviving mutants, or annotate an accepted-equivalent with a one-line reason. Runs here, before the spec is retired, so a weak test is strengthened while the spec is still live.
 7. **Traceability.** Each `satisfies:` requirement §section maps to ≥1 **named passing test** — the spec's own acceptance criteria passing is not sufficient; the business requirement must have a test asserting it. Each acceptance criterion maps to a test. Any uncovered requirement → stop, re-enter `/hercules:design` to close the gap.
-8. **Advance.** Honour the cadence approved in plan mode. *Ship each* → pause: `"Spec N of M complete — tests green, traced. Ship now / continue / continue all"`; "ship now" first runs a cross-check of this spec (delivery vs its own spec) and blocks the commit on a regression. *Deliver all* → continue to the next spec without pausing.
-9. **Write the checkpoint.** Append a `build_progress` entry to the session in state: the spec's acceptance criteria + `satisfies:` links (so the retired spec stays verifiable), key decisions, interfaces established, the named tests added, coverage %, mutation %, any accepted-equivalent reason, and constraints later specs must respect.
-10. **Retire the spec.** As the **last** action for this spec, `git rm docs/{session}/{spec-filename}` — code is now the only source of truth. Update the session in state atomically (temp + rename): set `current_spec`, append the filename to `delivered_specs`, drop it from `pending_specs`, reset `current_spec_round`. Multi-service: prefix spec references with `"{service}/"`.
+8. **Advance.** Honour the cadence approved in plan mode. *Ship each* → pause: `"Spec N of M complete — tests green, traced. Ship now / continue / continue all"`; "ship now" cross-checks this spec, blocks on a regression, then runs `/hercules:ship` **spec-scoped** (ship.md § Spec-scoped ship); on failure control returns here and the spec is not retired. *Deliver all* → continue to the next spec without pausing.
+9. **Write the checkpoint.** Append a `build_progress` entry to the session in state: the spec's acceptance criteria + `satisfies:` links, key decisions, interfaces established, the named tests added, coverage %, mutation %, any accepted-equivalent reason, and constraints later specs must respect.
+10. **Retire the spec.** As the **last** action for this spec, `git rm docs/{session}/{spec-filename}` — code is now the only source of truth. Update the session in state atomically (temp + rename): set `current_spec` to the next pending spec (or unset if none remain), append the filename to `delivered_specs`, drop it from `pending_specs`, reset `current_spec_round`. Multi-service: prefix spec references with `"{service}/"`.
 
 For a spec scoped to a service (`## {service}` in the design): announce `"Now working in {service} at {local-path}."`, read `{service-path}/code-of-conduct.md` if present (overrides the home CoC for that spec), and build absolute paths as `{service-path}/{path-from-repo-root}` for every Read/Write/Edit and Bash run — never a bare relative path.
 

@@ -122,9 +122,9 @@
         <div class="seclabel pm">Plan mode</div>
         <div class="step"><span class="st-n">1</span><span class="st-t">Read the requirements<span class="st-sub">Extract every item — this becomes the coverage checklist</span></span></div>
         <div class="step"><span class="st-n">2</span><span class="st-t">Scan the codebase for constraints<span class="st-sub">Code of Conduct, ADRs, the surface this will touch</span></span></div>
-        <div class="step"><span class="st-n">3</span><span class="st-t">Design questions<span class="st-sub">Architecture, data, non-functionals — only what the scan left open</span></span></div>
         <div class="step state"><span class="st-n">&uarr;</span><span class="st-t">Read the tier from state</span></div>
         <div class="anno blue">The tier carries over from Discover. You can override it manually; the workflow never re-scores.</div>
+        <div class="step"><span class="st-n">3</span><span class="st-t">Design questions<span class="st-sub">Architecture, data, non-functionals — only what the scan left open</span></span></div>
         <div class="step cond"><span class="st-n">◆</span><span class="st-t">Advisor debate (all but trivial — scaled by tier)<span class="st-sub">Chosen for the task — e.g. lead architect, security expert, senior QA engineer</span></span></div>
         <div class="step"><span class="st-n">4</span><span class="st-t">Draft the specs and iterate with you<span class="st-sub">Stakeholder nudge (medium and up)</span></span></div>
         <div class="step gate"><span class="st-n">⬤</span><span class="st-t">Implementability check<span class="st-sub">Named files exist or are explicitly new; every requirement link resolves</span></span></div>
@@ -143,6 +143,8 @@
       <div class="body">
         <div class="seclabel pm">Plan mode</div>
         <div class="step cond"><span class="st-n">◆</span><span class="st-t">Resume or start fresh<span class="st-sub">Reads the checkpoint and handoff from state</span></span></div>
+        <div class="step cond"><span class="st-n">◆</span><span class="st-t">Session discovery<span class="st-sub">Pick the session to deliver</span></span></div>
+        <div class="step cond"><span class="st-n">◆</span><span class="st-t">Service paths<span class="st-sub">Confirm each named service's local path</span></span></div>
         <div class="step state"><span class="st-n">1</span><span class="st-t">Read the tier from state</span></div>
         <div class="step"><span class="st-n">2</span><span class="st-t">Present the delivery plan<span class="st-sub">Each spec, the requirement it satisfies, the order, the grouping</span></span></div>
         <div class="anno blue">You can re-batch ("do spec 1 and 2 together"), reorder, or set the cadence — deliver all in one pass, or ship each.</div>
@@ -152,15 +154,15 @@
         <div class="loop">
           <div class="loop-hd">&#8635; Auto-execute — per spec, "Spec N of M"</div>
           <div class="step"><span class="st-n">3</span><span class="st-t">Read the spec and acceptance criteria</span></div>
-          <div class="step"><span class="st-n">4</span><span class="st-t">Scaffold<span class="st-sub">Gate: must compile</span></span></div>
-          <div class="step"><span class="st-n">5</span><span class="st-t">Write the failing tests<span class="st-sub">Gate: compile, and fail for the right reason</span></span></div>
+          <div class="step gate"><span class="st-n">4</span><span class="st-t">Scaffold<span class="st-sub">Gate: must compile</span></span></div>
+          <div class="step gate"><span class="st-n">5</span><span class="st-t">Write the failing tests<span class="st-sub">Gate: compile, and fail for the right reason</span></span></div>
           <div class="anno">&#9873; Tests are frozen — recorded and git-diff-guarded; the agent cannot edit them.</div>
           <div class="step"><span class="st-n">6</span><span class="st-t">Implement<span class="st-sub">Minimum code to green; refactor inline; no test edits</span></span></div>
           <div class="step gate"><span class="st-n">7</span><span class="st-t">Quality gates (per the Code of Conduct)<span class="st-sub">All tests pass; coverage, lint, types, arch-units as the CoC defines</span></span></div>
           <div class="anno">Three rounds, then stop: analyse the root cause, mark it blocked, and you decide.</div>
           <div class="step gate"><span class="st-n">8</span><span class="st-t">Mutation gate (when the CoC requires it)<span class="st-sub">Fix survivors here, while the spec is still live</span></span></div>
-          <div class="step gate"><span class="st-n">9</span><span class="st-t">Traceability<span class="st-sub">Each criterion maps to a named passing test</span></span></div>
-          <div class="step cond"><span class="st-n">◆</span><span class="st-t">Advance (honours the approved cadence)<span class="st-sub">Ship now also cross-checks this spec first</span></span></div>
+          <div class="step gate"><span class="st-n">9</span><span class="st-t">Traceability<span class="st-sub">Every requirement and criterion maps to a named passing test</span></span></div>
+          <div class="step cond"><span class="st-n">◆</span><span class="st-t">Advance (honours the approved cadence)<span class="st-sub">Ship now cross-checks, then runs a spec-scoped Ship plan for just this spec</span></span></div>
           <div class="step state"><span class="st-n">10</span><span class="st-t">Write the checkpoint to state<span class="st-sub">Criteria, decisions, interfaces, tests, coverage, mutation</span></span></div>
           <div class="step write"><span class="st-n">11</span><span class="st-t">Retire the spec (git rm)<span class="st-sub">Code is now the only source of truth</span></span></div>
         </div>
@@ -168,7 +170,7 @@
         <div class="divider"></div>
         <div class="seclabel">After all specs</div>
         <div class="step gate"><span class="st-n">12</span><span class="st-t">Cross-check validation<span class="st-sub">Does the delivery match what we set out to build? Bug or regression = blocker</span></span></div>
-        <div class="anno green">The look-back: checks the delivery against the original requirements and specs.</div>
+        <div class="anno green">The look-back: checks the delivery against the original requirements and the retained build checkpoint, not the retired specs.</div>
         <div class="step"><span class="st-n">13</span><span class="st-t">Capture learnings<span class="st-sub">Every tier</span></span></div>
         <div class="step write"><span class="st-n">14</span><span class="st-t">Close out<span class="st-sub">Offer handoff; mark build complete; point to Ship</span></span></div>
       </div>
@@ -181,7 +183,7 @@
       <div class="phase-hd"><span class="pnum">4</span><span class="pname">Ship</span><span class="ppurpose">Commit &amp; push</span></div>
       <div class="body">
         <div class="seclabel">Entry criteria</div>
-        <div class="step gate"><span class="st-n">&#9632;</span><span class="st-t">Local build complete</span></div>
+        <div class="step gate"><span class="st-n">&#9632;</span><span class="st-t">Local build complete<span class="st-sub">Session-wide; a spec-scoped ship from Build's cadence is the one exemption</span></span></div>
         <div class="step gate"><span class="st-n">&#9632;</span><span class="st-t">A git repo, on a named branch</span></div>
         <div class="step cond"><span class="st-n">◆</span><span class="st-t">Pull request eligible (gh available)</span></div>
 

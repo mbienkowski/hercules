@@ -27,12 +27,14 @@ itself. How a user *runs* Hercules (the workflow, phases, and artifact conventio
 ### Changing the workflow
 
 The workflow's source of truth is the command files (`plugin/commands/*.md`) and `plugin/CLAUDE.md`;
-its canonical picture is `docs/workflow/workflow-diagram-detailed.html`, which ships with Hercules.
-Keep the two in lock-step:
+its step order and hard guardrails are normatively listed in `plugin/protocols/workflow-protocol.md`
+(phase lists + guardrail registry + delegation packet); its canonical picture is
+`docs/workflow/workflow-diagram-detailed.html`, which ships with Hercules. Keep them in lock-step:
 
 - **Any change to a phase or a sub-phase step — its definition, wording, or order — must be reflected
-  in `docs/workflow/workflow-diagram-detailed.html` in the same change.** The diagram never lags the
-  commands; a workflow edit is not done until the diagram matches.
+  in the protocol's phase list / guardrail registry and in `docs/workflow/workflow-diagram-detailed.html`
+  in the same change.** Neither ever lags the commands; a workflow edit is not done until all three match.
+  A `hook`-class registry row must match a live `plugin/hooks/hooks.json` matcher (CI-verified).
 - If the change is visible at the four-phase level (a phase's purpose or its headline output), also
   update `docs/workflow/workflow-diagram-simplified.svg` and the README.
 - The detailed diagram is HTML on purpose — it changes whenever the workflow does, and HTML is far
@@ -43,9 +45,41 @@ Keep the two in lock-step:
 
 - File: `plugin/agents/{name}.md` — lowercase
 - Carries **no hardcoded stack or personal preferences** — project variance lives in each project's `code-of-conduct.md`
+- Carries **no Hercules-internal literals** — no `/hercules:{command}` references, Hercules state-schema
+  field names (`current_spec`, `build_progress`, `tier`), or artifact filename patterns (`*-spec-NN-*.md`).
+  That knowledge belongs in the orchestrating command file, injected into the agent via the delegation
+  prompt at call time (the same pattern `plugin/protocols/a2a-communication-protocol.md` § How to inject
+  uses for the A2A format). Exception: `hercules.md`, the default orchestrator persona, not a delegate.
+  Generic software-delivery vocabulary ("spec," "acceptance criteria," "coverage") is not a violation —
+  only the literal forms above are.
+- **Never describes updating, syncing, or revising a Hercules spec.** A spec is read-only / write-once /
+  delete-once — `git rm`'d on delivery. An agent file that assumes a Hercules spec stays editable is
+  describing behaviour that cannot exist. A generic caller-conditional branch (as `cynical-reviewer`
+  keeps for non-Hercules callers) is fine.
 - Replies follow the A2A `§ Agent-Injected Core` format (see `plugin/protocols/a2a-communication-protocol.md`)
 - Update the agent list in `plugin/CLAUDE.md` after adding
 - The list is pinned by `tests/` — run the suite to confirm no drift
+
+### Hooks (hard gateways)
+
+Hooks are the plugin's only **hard** enforcement — deterministic code the harness runs, which a model
+cannot rationalise past (unlike prose guardrails). They live in `plugin/hooks/`, auto-load via
+`plugin/hooks/hooks.json` (convention path — no `plugin.json` key needed), and ship with the plugin via
+`${CLAUDE_PLUGIN_ROOT}`.
+
+- **Stdlib-only Python, no shebang** — invoked as `python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<name>.py"` so
+  interpreter resolution and portability (incl. Windows) are the harness's job; no `jq`/bash dependency.
+- **Read-only over `~/.hercules`** — a hook must never write state (it would race the model's atomic
+  temp+rename writes). The shared `hercules_state.resolve_session(cwd)` resolves the active session.
+- **Fail-open** — when no active build session resolves (no state, unrelated repo, parse error), a hook
+  allows the action. It blocks only inside a confirmed active build. A guard must never crash a user's edit.
+- **Honest scope (not over-claimed).** The frozen-tests hook (`frozen_tests.py`) hardens against
+  *accidental, lazy, and pressure-tested* deviation by a cooperative model. Its predicate reads
+  model-authored state, so it is **harness-mediated, not tamper-proof** — a model that rewrites its own
+  `~/.hercules` state to self-exempt is a distinct adversarial threat, not closed here. Say "harness-mediated,"
+  never "unbypassable."
+- Every hook ships with executable tests under `tests/hooks/` (feed a `PreToolUse` payload → assert the
+  exit code), plus a wiring test that its `hooks.json` command resolves to a real script.
 
 ### Adding a skill
 
@@ -121,6 +155,14 @@ Hercules holds itself to the bar it enforces on its users: **>= 90% branch cover
 `make test`) and a **>= 90% mutation kill rate** (gated by `make test-mutation`). Both run in CI on
 every PR — practice what we preach.
 
+### Tests assert the present state, not the past
+
+A test that only asserts a string is **absent** encodes a historical fix, not a present-state property —
+CI can't tell a genuinely-guarded invariant from a stale memorial to one past bug. Pair every absence
+check with either (a) a positive companion assertion (the correct replacement is present, or a related
+cross-file invariant still holds) or (b) a named, specific, ongoing risk it guards against. Neither →
+it's cosmetic; find the positive form.
+
 ### End-to-end smoke (manual)
 
 The static suite (`tests/workflow/test_workflow_modes.py`) asserts the workflow commands carry the
@@ -141,6 +183,8 @@ binary and credentials.
 | Instruction and token budget checks | `tests/metrics/test_threshold_runner.py`, `tests/plugin/test_plugin_integrity.py` | unit + data-driven |
 | Agent and skill file hygiene | `tests/agents/test_agents.py`, `tests/skills/test_skills.py` | policy |
 | Command file structure | `tests/commands/test_commands.py` | policy |
+| Frozen-test hook: behaviour, wiring, hygiene | `tests/hooks/test_frozen_tests_hook.py`, `tests/hooks/test_hooks_wiring.py`, `tests/hooks/test_hook_hygiene.py` | unit + policy |
+| Workflow protocol: anchors, packet, registry↔commands, hook wiring | `tests/protocols/test_workflow_protocol.py` | policy |
 
 ### Adding a check
 

@@ -96,26 +96,31 @@ def test_sub_agent_instruction_budget(repo_root, agent_files, _a2a_core_n, _clau
         )
 
 
+def _all_protocols_n(repo_root: Path) -> int:
+    """Instruction blocks across EVERY shipped protocol — a new protocol file must not slip
+    into the orchestrator's context uncounted (they are all loadable during a phase)."""
+    return sum(
+        _count_instructions(p.read_text())
+        for p in sorted((repo_root / "plugin/protocols").glob("*.md"))
+    )
+
+
 def test_orchestrator_instruction_budget(repo_root, _claude_md_n):
     """The main orchestrator context must stay under _ORCHESTRATOR_GATE.
 
-    Includes: CLAUDE.md + heaviest command (build.md) + full a2a protocol
-    + debate protocol.  Skills are excluded — they load one-at-a-time.
+    Includes: CLAUDE.md + heaviest command (build.md) + ALL protocols (a2a, debate,
+    workflow — any of them can be in context during a phase).  Skills are excluded —
+    they load one-at-a-time.
     """
-    a2a_n   = _count_instructions(
-        (repo_root / "plugin/protocols/a2a-communication-protocol.md").read_text()
-    )
-    debate_n = _count_instructions(
-        (repo_root / "plugin/protocols/debate-consensus-protocol.md").read_text()
-    )
+    protocols_n = _all_protocols_n(repo_root)
     # Worst-case command = build.md (most instructions of all four commands)
     build_n = _count_instructions((repo_root / "plugin/commands/build.md").read_text())
 
-    total = _claude_md_n + build_n + a2a_n + debate_n
+    total = _claude_md_n + build_n + protocols_n
     assert total <= _ORCHESTRATOR_GATE, (
         f"Main orchestrator context: {total} instruction blocks "
         f"(CLAUDE.md:{_claude_md_n} + build.md:{build_n} "
-        f"+ a2a:{a2a_n} + debate:{debate_n}) "
+        f"+ protocols:{protocols_n}) "
         f"— gate is {_ORCHESTRATOR_GATE}. "
         f"Trim a protocol or the build command."
     )
@@ -137,13 +142,7 @@ def test_no_command_exceeds_orchestrator_contribution(repo_root, command_files, 
 
     Ensures a future heavy command can't silently blow the budget.
     """
-    a2a_n    = _count_instructions(
-        (repo_root / "plugin/protocols/a2a-communication-protocol.md").read_text()
-    )
-    debate_n = _count_instructions(
-        (repo_root / "plugin/protocols/debate-consensus-protocol.md").read_text()
-    )
-    base = _claude_md_n + a2a_n + debate_n
+    base = _claude_md_n + _all_protocols_n(repo_root)
 
     for cmd_file in command_files:
         cmd_n = _count_instructions(cmd_file.read_text())

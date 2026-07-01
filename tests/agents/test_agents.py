@@ -30,6 +30,28 @@ _STACK_LITERAL_PATTERNS = [
     re.compile(r"@anthropic-ai"),
 ]
 
+# Hercules-internal literals a reusable specialist agent must never hardcode — that knowledge belongs
+# in the orchestrating command file, injected via the delegation prompt at call time.
+_HERCULES_INTERNAL_PATTERNS = [
+    re.compile(r"/hercules:"),                       # command references
+    re.compile(r"\bbuild_progress\b"),
+    re.compile(r"\bcurrent_spec(?:_round)?\b"),
+    re.compile(r"\bpending_specs\b"),
+    re.compile(r"\bdelivered_specs\b"),
+    re.compile(r"\bcross_check_dispositions\b"),
+    re.compile(r"\bfrozen_test_files\b"),
+    re.compile(r"\bconstraints_for_later_specs\b"),
+    re.compile(r"\bhand(?:off_note|ed_off_by)\b"),
+    re.compile(r"\bbuild_complete\b"),
+    re.compile(r"-spec-\d"),                          # *-spec-NN-* artifact filename pattern
+    re.compile(r"workflow-protocol"),                 # the protocol reaches agents only via the
+                                                      # orchestrator-injected delegation packet
+]
+
+# The only agent allowed to reference Hercules internals: the orchestrator persona, not a delegate.
+# Pinned explicitly (not implicit) so the exemption list can't rot silently as fields are added.
+_HERCULES_LITERAL_EXEMPT = {"hercules"}
+
 def test_all_specialist_agents_are_present(repo_root):
     """Every listed agent must have a corresponding file in agents/, and vice versa."""
     # Given
@@ -108,6 +130,59 @@ def test_agents_carry_no_framework_assumptions(repo_root, agent_files):
     )
 
 
+def test_specialist_agents_carry_no_hercules_internal_literals(agent_files):
+    """Reusable specialist agents must hardcode no Hercules-internal literals (`/hercules:` commands,
+    state-schema field names, or `*-spec-NN-*` artifact patterns). That knowledge belongs in the
+    orchestrating command file and is injected via the delegation prompt. Only `hercules.md` (the
+    orchestrator persona, not a delegate) is exempt. Positive, forward-looking invariant: it catches
+    any future agent that regresses this without needing a new fix-specific test."""
+    # Given
+    violations = []
+
+    # When
+    for path in agent_files:
+        if path.stem in _HERCULES_LITERAL_EXEMPT:
+            continue
+        md = path.read_text()
+        for pattern in _HERCULES_INTERNAL_PATTERNS:
+            hit = pattern.search(md)
+            if hit:
+                violations.append(f"{path.name}: matched {hit.group()!r}")
+
+    # Then
+    assert not violations, (
+        "Specialist agents carry Hercules-internal literals — move them to the delegating command's "
+        "prompt:\n" + "\n".join(f"  {v}" for v in violations)
+    )
+
+
+def test_qa_owns_scenarios_and_engineers_write_the_tests(repo_root):
+    """The QA/engineer split must be coherent: QA proposes scenarios and never writes code, so its
+    tool list carries no Edit/Write; the engineers author the tests from QA's scenarios. Positive
+    assertions of the role model (not a bare absence check) — QA's redesigned role depends on it never
+    gaining write access, so the tool-list check names that specific, ongoing risk."""
+    # Given
+    agents = repo_root / "plugin" / "agents"
+    qa = (agents / "senior-qa-engineer.md").read_text()
+    backend = (agents / "backend-engineer.md").read_text()
+    frontend = (agents / "frontend-engineer.md").read_text()
+
+    # When
+    tools_line = next(ln for ln in qa.splitlines() if ln.startswith("tools:"))
+
+    # Then — QA never writes test code
+    assert "Edit" not in tools_line and "Write" not in tools_line, (
+        f"senior-qa-engineer must not carry Edit/Write — its role is to propose scenarios, not write "
+        f"tests (tools line: {tools_line!r})"
+    )
+    assert "Never writes test code" in qa, \
+        "senior-qa-engineer description must state QA never writes test code"
+    # And the engineers author the tests from QA's scenarios (the positive companion)
+    for name, body in (("backend-engineer", backend), ("frontend-engineer", frontend)):
+        assert "Write them yourself" in body, \
+            f"{name} must state the engineer authors the failing tests (following QA's scenarios)"
+
+
 def test_senior_qa_engineer_documents_bdd_for_frontend_scope(repo_root):
     """senior-qa-engineer must mention BDD/Gherkin and e2e tooling for frontend features."""
     # Given
@@ -118,6 +193,19 @@ def test_senior_qa_engineer_documents_bdd_for_frontend_scope(repo_root):
         "senior-qa-engineer must mention BDD or Gherkin for frontend scope"
     assert "Cypress" in md or "Playwright" in md, \
         "senior-qa-engineer must name an e2e test tool for frontend scenarios"
+
+
+def test_cynical_reviewer_spec_sync_is_caller_agnostic(read_file):
+    """cynical-reviewer's mandatory spec-sync must be a reusable, caller-agnostic clause: when no
+    editable live spec exists it *reports the disposition back to the caller* rather than naming any
+    one caller's internal store. This is a positive assertion of the generic behaviour; the systemic
+    no-literals scan separately guarantees no Hercules-internal literal leaks back in."""
+    md = read_file("plugin/agents/cynical-reviewer.md")
+    lower = md.lower()
+    assert "spec-sync (mandatory last step)" in lower, \
+        "cynical-reviewer must keep the mandatory spec-sync step"
+    assert "report the disposition back to the caller" in lower, \
+        "spec-sync must report the disposition back to the caller when no editable spec exists"
 
 
 def test_hercules_agent_has_first_run_detection(read_file):

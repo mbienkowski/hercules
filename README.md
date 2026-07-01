@@ -41,6 +41,7 @@ Then, three steps:
 ```
 /plugin marketplace add mbienkowski/hercules
 /plugin install hercules@mbienkowski
+/reload-plugins
 ```
 
 `hercules@mbienkowski` is `plugin@marketplace` (the plugin named `hercules`, from `mbienkowski`'s
@@ -238,8 +239,8 @@ under-prepared on a large one.
 
 1. **Discover — WHAT** (the heaviest phase) — pins the real need, who benefits, what's in/out of
    scope, and what "done" means. Output: a permanent `*-business-requirements.md`, in plain business
-   language. On a large feature, Discover may span multiple sessions; the draft is saved and picked up
-   where you left off.
+   language. On a large feature, Discover's draft loop can run across several conversation turns
+   before you approve; each pass regenerates the complete draft from your latest feedback.
 2. **Design — HOW** — turns requirements into one or more self-contained **specs**, challenged by
    specialist advisors before any code. Output: `*-spec-NN-*.md` (temporary).
 3. **Build — MAKE** — opens with a delivery plan you approve (which specs, in what order, grouped
@@ -267,14 +268,15 @@ delivered in code, they're deleted, because the code, its tests, and git history
 
 Only **trivial** skips the advisory board; every other tier runs it, scaled to the number above. A
 change touching **auth, secrets, money, data migration, deletion, production config, or concurrency**
-is floored at `high` regardless of how small the diff looks. You see the score and can override it; a
-single substantiated dissent escalates the tier.
+is floored at `high` regardless of how small the diff looks. You see the score and can override it;
+advisor dissent surfaces as input for you to weigh, never an automatic re-score.
 
-**Quality has numbers, not adjectives.** Build gates on the **branch-coverage** and **mutation-kill**
-thresholds your project's `code-of-conduct.md` sets — the generator suggests **≥90%** for both as a
-default, and you can change them. Mutation testing checks that your tests actually catch bugs, and a
-requirement ships only when a **named test** asserts it. These are mandatory steps, not best-practices
-you skip under pressure.
+**Quality has numbers, not adjectives.** Build gates on the **branch-coverage** threshold your
+project's `code-of-conduct.md` sets, and on a **mutation-kill** threshold when the CoC defines one —
+the generator suggests **≥90%** for both as a default, and you can change them. Mutation testing
+checks that your tests actually catch bugs, and a requirement ships only when a **named test** asserts
+it. Branch coverage and traceability are always enforced; the mutation gate runs whenever the CoC sets
+a kill-rate threshold — none of this is a best-practice you skip under pressure once it applies.
 
 ---
 
@@ -359,7 +361,8 @@ agents, and skills, plus how to run the tests.
    `mbienkowski`, so `/plugin install hercules@mbienkowski` then resolves to **your checkout**. If
    you've already added the public marketplace under that same name, remove it first
    (`/plugin marketplace remove mbienkowski`) so the name isn't ambiguous — otherwise you'd test the
-   released version, not your changes. `git checkout` the branch you want to test.
+   released version, not your changes. `git checkout` the branch you want to test, then run
+   `/reload-plugins` to apply.
 4. Run the suite: `pip install -e ".[dev]" && make test`
 5. Open a PR — CI runs the full suite plus mutation testing and validates the plugin package. Commit
    messages follow Conventional Commits (`feat:`/`fix:`/`feat!:`), which drive the version on release.
@@ -378,18 +381,24 @@ All `.md` filenames must be **lowercase** — macOS is case-insensitive but Linu
 
 ## Plugin permissions
 
-Hercules is a set of Markdown files — commands, agents, and skills — interpreted by Claude Code.
-It has no executable code of its own. What it can do is exactly what Claude Code can do in your session:
+Hercules is mostly Markdown — commands, agents, and skills — interpreted by Claude Code, plus a small
+set of local enforcement **hooks** (`plugin/hooks/*.py`, dependency-free standard-library Python). What
+it can do is exactly what Claude Code can do in your session:
 
 - **Project files** — reads your project files to understand context; writes to `docs/` (or wherever
   `code-of-conduct.md` points). Nothing is written outside directories Claude Code already has access to.
 - **`~/.hercules/`** — full read/write/create access to this directory. It holds a registry
   (`config.json`) and per-project delivery-state files (`state/*.json`): local filesystem paths and
-  delivery progress only (no credentials, no tokens, no telemetry, no code snippets).
-- **Shell** — only during Build, when tests need to run. Claude Code executes the command; Hercules
-  issues no shell commands independently.
+  delivery progress only (no credentials, no tokens, no telemetry, no code snippets). The enforcement
+  hooks only **read** this directory.
+- **Hooks** — Hercules ships local `PreToolUse` hooks that Claude Code runs on your machine before an
+  edit. Today one guard blocks edits to a spec's frozen test files during Build (so acceptance criteria
+  can't be silently weakened). Hooks are read-only over `~/.hercules/`, make no network calls, and
+  fail **open** (they never block an edit when no active Hercules build is in progress).
+- **Shell** — during Build, when tests need to run (Claude Code executes the command; Hercules issues no
+  shell commands independently), and the hooks above, which the harness invokes as `python3` on edits.
 - **Network** — none. All model calls go through your existing Claude Code session and API key.
-  Hercules makes no direct API calls and opens no separate network channel.
+  Hercules makes no direct API calls and opens no separate network channel — hooks included.
 
 You can audit the full plugin source in the `plugin/` directory of this repository.
 
