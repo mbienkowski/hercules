@@ -80,18 +80,50 @@ def test_allows_non_mutating_tool(tmp_path):
     assert main(_payload(project, "tests/test_login.py", tool="Read"), home=tmp_path) == 0
 
 
-def test_blocks_multiedit_targeting_a_frozen_file(tmp_path):
+def test_blocks_real_multiedit_shape_on_frozen_file(tmp_path):
+    """Real MultiEdit carries ONE top-level file_path shared by all edits."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     payload = json.dumps({
         "tool_name": "MultiEdit",
-        "tool_input": {"edits": [
-            {"file_path": str(project / "src/login.py")},
-            {"file_path": str(project / "tests/test_login.py")},
-        ]},
+        "tool_input": {
+            "file_path": str(project / "tests/test_login.py"),
+            "edits": [{"old_string": "assert True", "new_string": "assert 1"}],
+        },
         "cwd": str(project),
     })
     assert main(payload, home=tmp_path) == 2
+
+
+def test_blocks_notebook_edit_to_a_frozen_notebook(tmp_path):
+    project = tmp_path / "proj"
+    _setup(tmp_path, project, frozen=("tests/test_flow.ipynb",))
+    payload = json.dumps({
+        "tool_name": "NotebookEdit",
+        "tool_input": {"notebook_path": str(project / "tests/test_flow.ipynb")},
+        "cwd": str(project),
+    })
+    assert main(payload, home=tmp_path) == 2
+
+
+def test_nested_project_roots_resolve_to_the_deepest(tmp_path):
+    """A monorepo project and an inner service project both active: an edit inside the inner tree
+    resolves to the INNER session, so its frozen test is caught (no first-match leak)."""
+    outer = tmp_path / "mono"
+    inner = outer / "svc"
+    _setup(tmp_path, outer, slug="outer", frozen=("tests/a.py",))
+    hh = tmp_path / ".hercules"
+    cfg = json.loads((hh / "config.json").read_text())
+    cfg["projects"]["inner"] = {"directory": str(inner), "state_file": "inner.json"}
+    (hh / "config.json").write_text(json.dumps(cfg))
+    (hh / "state" / "inner.json").write_text(json.dumps({
+        "active_session": "s",
+        "sessions": {"s": {"current_phase": "build", "current_spec": "spec-b",
+                            "current_spec_round": 1, "frozen_test_files": ["tests/b.py"]}},
+    }))
+    (inner / "tests").mkdir(parents=True, exist_ok=True)
+    (inner / "tests/b.py").write_text("def test_b():\n    assert True\n")
+    assert main(_payload(inner, inner / "tests/b.py", cwd=inner), home=tmp_path) == 2
 
 
 def test_multi_service_frozen_path_is_matched(tmp_path):
@@ -133,3 +165,29 @@ def test_never_crashes_on_malformed_state(tmp_path):
 
 def test_empty_stdin_allows(tmp_path):
     assert main("", home=tmp_path) == 0
+
+
+def test_main_fails_open_on_malformed_stdin(tmp_path):
+    assert main("this is not json {", home=tmp_path) == 0
+
+
+def test_allows_when_frozen_list_is_empty(tmp_path):
+    project = tmp_path / "proj"
+    _setup(tmp_path, project, frozen=())
+    assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 0
+
+
+def test_decide_fails_open_if_resolver_raises(tmp_path, monkeypatch):
+    """Last-resort guard: even if the resolver blows up, never block a user's edit."""
+    import frozen_tests as ft
+
+    def _boom(*_a, **_k):
+        raise RuntimeError("resolver exploded")
+
+    monkeypatch.setattr(ft, "resolve_session", _boom)
+    payload = json.dumps({
+        "tool_name": "Edit",
+        "tool_input": {"file_path": "/x/tests/test_login.py"},
+        "cwd": "/x",
+    })
+    assert ft.main(payload, home=tmp_path) == 0

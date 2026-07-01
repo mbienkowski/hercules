@@ -34,6 +34,17 @@ def test_frozen_tests_guard_matches_the_mutating_tools(hooks):
         assert re.search(rf"\b{tool}\b", joined), f"the frozen-tests guard must match {tool}"
 
 
+def test_every_hook_script_has_a_test():
+    """Every shipped `plugin/hooks/*.py` must be exercised by a test under `tests/hooks/` — the CoC
+    invariant 'every shipped artifact has an owning test', enforced for hook code specifically."""
+    scripts = {p.stem for p in (_PLUGIN / "hooks").glob("*.py")}
+    tests_src = " ".join(
+        p.read_text() for p in Path(__file__).resolve().parent.glob("test_*.py")
+    )
+    missing = sorted(s for s in scripts if s not in tests_src)
+    assert not missing, f"hook scripts with no owning test under tests/hooks/: {missing}"
+
+
 def test_every_hook_command_script_exists(hooks):
     for event in hooks["hooks"].values():
         for entry in event:

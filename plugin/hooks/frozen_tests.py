@@ -24,15 +24,20 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from hercules_state import canon, frozen_candidates, resolve_session  # noqa: E402
 
-_MUTATING_TOOLS = {"Edit", "MultiEdit", "Write"}
+_MUTATING_TOOLS = {"Edit", "MultiEdit", "Write", "NotebookEdit"}
 
 
 def _target_paths(tool_input):
-    """Every file path a mutating tool would touch (Edit/Write `file_path`; MultiEdit `edits[]`)."""
+    """Every file path a mutating tool would touch.
+
+    Edit/Write/MultiEdit use a single top-level `file_path` (MultiEdit's `edits[]` share it);
+    NotebookEdit uses `notebook_path`. Also tolerate a per-edit `file_path` defensively.
+    """
     paths = []
     if isinstance(tool_input, dict):
-        if tool_input.get("file_path"):
-            paths.append(tool_input["file_path"])
+        for key in ("file_path", "notebook_path"):
+            if tool_input.get(key):
+                paths.append(tool_input[key])
         for edit in tool_input.get("edits") or []:
             if isinstance(edit, dict) and edit.get("file_path"):
                 paths.append(edit["file_path"])

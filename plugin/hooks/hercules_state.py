@@ -46,22 +46,32 @@ def resolve_session(cwd, home=None):
         return None, []
 
     cwd_c = canon(cwd)
+    # Collect every project whose tree contains cwd, then pick the most specific — the deepest
+    # matching root, preferring an active build. Registered roots can nest (a monorepo project
+    # plus an inner service project / repositories.* path); a first-match would resolve the wrong
+    # session and let an inner frozen edit through.
+    candidates = []  # (matched_root_len, is_build, session, roots)
     for slug, entry in projects.items():
         try:
             raw_roots = [entry.get("directory")] + list((entry.get("repositories") or {}).values())
             roots = [canon(r) for r in raw_roots if r]
-            # cwd must sit inside one of this project's roots (exact or a subdirectory),
-            # so a hook firing in an unrelated repo is a pure passthrough.
-            if not any(cwd_c == r or cwd_c.startswith(r + os.sep) for r in roots):
-                continue
+            matched = [r for r in roots if cwd_c == r or cwd_c.startswith(r + os.sep)]
+            if not matched:
+                continue  # unrelated repo → pure passthrough
             state_file = entry.get("state_file") or f"{slug}.json"
             state = json.loads((_hercules_home(home) / "state" / state_file).read_text())
             session = (state.get("sessions") or {}).get(state.get("active_session"))
-            if session:
-                return session, roots
+            if not session:
+                continue
+            is_build = 1 if session.get("current_phase") == "build" else 0
+            candidates.append((max(len(r) for r in matched), is_build, session, roots))
         except Exception:
             continue
-    return None, []
+    if not candidates:
+        return None, []
+    candidates.sort(key=lambda c: (c[0], c[1]), reverse=True)  # deepest root, then active build
+    _, _, session, roots = candidates[0]
+    return session, roots
 
 
 def frozen_candidates(entry, roots) -> set:

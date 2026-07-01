@@ -108,6 +108,8 @@ def test_design_step_produces_a_complete_technical_artifact(read_file):
     assert "n-1" in lower, "design command must document the n-1 collapse"
     assert "-spec-" in md, "design command must emit numbered sub-spec files (no separate design.md)"
     assert "design.md" not in md, "design command must not produce a *-design.md artifact"
+    assert ("mocking:" in lower or "what must be mocked" in lower), \
+        "design Test-suite template must carry the mocking guidance the engineers follow (QA owns the WHAT)"
     assert "stakeholders approved" in md, \
         "design must include the 'stakeholders approved' trigger phrase"
     assert "skip stakeholder review" in lower, \
@@ -491,7 +493,12 @@ def test_index_md_schema_is_defined_in_claude_md(read_file):
     """CLAUDE.md must define the INDEX.md column schema so all commands write consistent rows."""
     md = read_file("plugin/CLAUDE.md")
     assert "Status" in md and "Tier" in md, "CLAUDE.md must define Status and Tier columns"
-    assert "delivered" in md.lower(), "CLAUDE.md must list 'delivered' as a valid Status value"
+    # Pin the declared Status set on its actual declaration line so a command can't write a
+    # status (discover/design) that CLAUDE.md later drops without failing here.
+    status_line = next((ln for ln in md.splitlines() if "Status values" in ln), "")
+    assert status_line, "CLAUDE.md must declare the INDEX 'Status values' set"
+    for status in ("discover", "design", "build", "delivered", "abandoned"):
+        assert status in status_line, f"CLAUDE.md 'Status values' must include '{status}'"
 
 
 def test_context_tracks_spec_progress(read_file):

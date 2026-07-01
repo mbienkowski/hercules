@@ -181,6 +181,7 @@ binary and credentials.
 | Instruction and token budget checks | `tests/metrics/test_threshold_runner.py`, `tests/plugin/test_plugin_integrity.py` | unit + data-driven |
 | Agent and skill file hygiene | `tests/agents/test_agents.py`, `tests/skills/test_skills.py` | policy |
 | Command file structure | `tests/commands/test_commands.py` | policy |
+| Frozen-test hook: behaviour, wiring, hygiene | `tests/hooks/test_frozen_tests_hook.py`, `tests/hooks/test_hooks_wiring.py`, `tests/hooks/test_hook_hygiene.py` | unit + policy |
 
 ### Adding a check
 

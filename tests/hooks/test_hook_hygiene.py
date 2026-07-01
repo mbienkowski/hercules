@@ -65,6 +65,41 @@ def test_hook_opens_no_network_channel(script: Path):
     assert not offenders, f"{script.name} imports network module(s) {offenders}"
 
 
+_WRITE_ATTRS = {
+    "replace", "rename", "remove", "unlink", "mkdir", "makedirs", "rmdir", "removedirs",
+    "write_text", "write_bytes", "symlink", "chmod", "truncate", "touch",
+}
+
+
+def _open_modes(call: ast.Call):
+    """Yield the mode string of an `open(...)` call, positional or keyword."""
+    if len(call.args) >= 2 and isinstance(call.args[1], ast.Constant):
+        yield str(call.args[1].value)
+    for kw in call.keywords:
+        if kw.arg == "mode" and isinstance(kw.value, ast.Constant):
+            yield str(kw.value.value)
+
+
+@pytest.mark.parametrize("script", _HOOK_SCRIPTS, ids=lambda p: p.name)
+def test_hook_never_writes_the_filesystem(script: Path):
+    """A hook must be read-only — writing `~/.hercules` would race the model's atomic
+    temp+rename state writes. Statically reject write-mode `open(...)` and os/pathlib write calls."""
+    tree = ast.parse(script.read_text())
+    offenders = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            fn = node.func
+            if isinstance(fn, ast.Name) and fn.id == "open":
+                for mode in _open_modes(node):
+                    if any(c in mode for c in ("w", "a", "x", "+")):
+                        offenders.append(f"open(mode={mode!r})")
+            elif isinstance(fn, ast.Attribute) and fn.attr in _WRITE_ATTRS:
+                offenders.append(f"{fn.attr}()")
+    if "import shutil" in script.read_text():
+        offenders.append("import shutil")
+    assert not offenders, f"{script.name} performs filesystem writes {offenders}; hooks are read-only"
+
+
 def test_hook_modules_import_without_side_effects():
     """Importing a hook module must not read state, hit the filesystem, or fail — the guard logic
     only runs when called, so import must be inert."""
