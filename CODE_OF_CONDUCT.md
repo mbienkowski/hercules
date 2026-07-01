@@ -58,6 +58,27 @@ Keep the two in lock-step:
 - Update the agent list in `plugin/CLAUDE.md` after adding
 - The list is pinned by `tests/` — run the suite to confirm no drift
 
+### Hooks (hard gateways)
+
+Hooks are the plugin's only **hard** enforcement — deterministic code the harness runs, which a model
+cannot rationalise past (unlike prose guardrails). They live in `plugin/hooks/`, auto-load via
+`plugin/hooks/hooks.json` (convention path — no `plugin.json` key needed), and ship with the plugin via
+`${CLAUDE_PLUGIN_ROOT}`.
+
+- **Stdlib-only Python, no shebang** — invoked as `python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<name>.py"` so
+  interpreter resolution and portability (incl. Windows) are the harness's job; no `jq`/bash dependency.
+- **Read-only over `~/.hercules`** — a hook must never write state (it would race the model's atomic
+  temp+rename writes). The shared `hercules_state.resolve_session(cwd)` resolves the active session.
+- **Fail-open** — when no active build session resolves (no state, unrelated repo, parse error), a hook
+  allows the action. It blocks only inside a confirmed active build. A guard must never crash a user's edit.
+- **Honest scope (not over-claimed).** The frozen-tests hook (`frozen_tests.py`) hardens against
+  *accidental, lazy, and pressure-tested* deviation by a cooperative model. Its predicate reads
+  model-authored state, so it is **harness-mediated, not tamper-proof** — a model that rewrites its own
+  `~/.hercules` state to self-exempt is a distinct adversarial threat, not closed here. Say "harness-mediated,"
+  never "unbypassable."
+- Every hook ships with executable tests under `tests/hooks/` (feed a `PreToolUse` payload → assert the
+  exit code), plus a wiring test that its `hooks.json` command resolves to a real script.
+
 ### Adding a skill
 
 - Directory: `plugin/skills/{name}/SKILL.md`
