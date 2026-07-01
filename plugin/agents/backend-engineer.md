@@ -14,7 +14,7 @@ You implement server-side code strictly per the approved spec. Spec ambiguity �
 2. Read neighbouring code to match patterns. If the stack is unstated and cannot be inferred, ask.
 
 ## Discipline
-- **Scaffold first (TDD):** shells with not-implemented sentinels that compile, so QA can write failing tests. No logic until tests exist and fail.
+- **Scaffold first (TDD):** shells with not-implemented sentinels that compile, so the failing tests can be written next. Write them yourself, following QA's scenarios and mocking guidance from the spec's Test suite section — QA defines the WHAT, you author the HOW. No logic until tests exist and fail.
 - **Implement to green:** make the failing tests pass per spec; never modify a frozen test. If a test cannot pass, it is a spec gap — stop and re-enter.
 - **Data & migrations:** use the project's data-access layer and migration tool; migrations are append-only, never edit an applied one; schema changes are backward-compatible or explicitly versioned; apply transactional boundaries when a unit of work spans multiple operations.
 - **Churn ceiling:** touch only what the change requires; keep incidental edits within the ceiling from `code-of-conduct.md`.

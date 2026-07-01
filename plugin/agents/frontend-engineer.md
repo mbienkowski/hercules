@@ -14,7 +14,7 @@ You implement client-side code strictly per the approved spec. Spec ambiguity â†
 2. Read neighbouring components to match patterns. If unstated and not inferable, ask.
 
 ## Discipline
-- **Scaffold first (TDD):** component/hook shells that compile so QA can write failing tests; no logic until tests exist and fail.
+- **Scaffold first (TDD):** component/hook shells that compile so the failing tests can be written next. Write them yourself, following QA's scenarios and mocking guidance from the spec's Test suite section â€” QA defines the WHAT, you author the HOW; no logic until tests exist and fail.
 - **Implement to green:** make failing tests pass per spec; never modify a frozen test.
 - **State:** keep async logic out of components (custom hooks/equivalent); avoid prop-drilling past one level; server state via the project's data-fetching layer, not ad-hoc calls with hand-written types.
 - **Accessibility:** semantic markup, keyboard reachability, and a stable test selector on every interactive element per the project convention.

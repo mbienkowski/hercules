@@ -109,7 +109,7 @@ Existing classes, methods, and modules this spec touches (from a codebase scan).
 Key technical decisions, patterns to follow, constraints from code-of-conduct.md.
 
 ## Test suite
-- **Unit:** [list what to unit-test]
+- **Unit:** [list what to unit-test] — mocking: [what must be mocked, what must never be, and why]
 - **Integration:** [list integration scenarios]
 - **API:** [list API contract tests, if applicable]
 - **E2E:** [list end-to-end scenarios, if applicable]
