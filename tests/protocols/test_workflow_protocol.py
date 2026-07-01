@@ -136,6 +136,11 @@ def test_every_hook_class_row_maps_to_a_live_hook(repo_root, read_file):
     rows = _registry_rows(_section(read_file(_PROTOCOL), "registry"))
     hook_rows = [r for r in rows if r[-1] == "hook"]
     assert hook_rows, "the registry must carry at least one hook-class (harness-enforced) row"
+    for r in hook_rows:
+        assert "PreToolUse" in " ".join(r), (
+            f"{r[0]} claims class=hook but its rule text names no PreToolUse mechanism — "
+            "a hook claim must say what the harness actually blocks"
+        )
 
     hooks = json.loads((repo_root / "plugin" / "hooks" / "hooks.json").read_text())
     pre = hooks["hooks"]["PreToolUse"]
@@ -210,9 +215,12 @@ def test_protocol_and_build_md_agree_on_step_order(read_file):
     design = read_file("plugin/commands/design.md").casefold()
     diagram = read_file("docs/workflow/workflow-diagram-detailed.html").casefold()
     proto_design = _section(protocol, "phase-design").casefold()
+    tier_re = re.compile(r"read (?:the )?tier")
     for text, name in ((proto_design, "protocol {#phase-design}"), (design, "design.md"),
                        (diagram, "detailed diagram")):
-        assert text.index("read t") < text.index("design questions"), (
+        m = tier_re.search(text)
+        assert m, f"{name} must carry a read-the-tier step"
+        assert m.start() < text.index("design questions"), (
             f"{name} must read the tier before the design questions"
         )
 
