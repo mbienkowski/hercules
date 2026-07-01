@@ -108,7 +108,7 @@ repo, atomically (temp + rename): the registry entry (`directory`, `docs_root`, 
 `repositories`) and the state file's session (`active_session`, `current_phase` `"discover"`, the
 `tier` + `tier_rationale` from Step 3, `last_updated`). Preserve other entries/sessions.
 
-Append a new row to `docs/INDEX.md` (create if absent) with `tier`, `active` status,
+Append a new row to `docs/INDEX.md` (create if absent) with `tier`, `discover` status,
 and a one-line goal summary.
 
 Show the saved path. Then say: "The requirements are locked. Ready for **Design**? Run `/hercules:design` — we'll shape the solution and delivery sequence there."

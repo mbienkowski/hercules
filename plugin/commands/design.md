@@ -126,7 +126,7 @@ into the relevant sections per its role. The template stays generic; the advisor
 
 If the feature is single-track (no meaningful split), emit one spec file (`spec-01`) covering the full scope.
 
-Update `docs/INDEX.md`: set this session's `Status` to `active` if creating the row,
+Update `docs/INDEX.md`: set this session's `Status` to `design` if creating the row,
 or update it in place if the row exists. Write atomically (temp + rename).
 
 Update the active session in the project's state file (`~/.hercules/state/{slug}.json`): set

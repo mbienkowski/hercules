@@ -41,6 +41,7 @@ Then, three steps:
 ```
 /plugin marketplace add mbienkowski/hercules
 /plugin install hercules@mbienkowski
+/reload-plugins
 ```
 
 `hercules@mbienkowski` is `plugin@marketplace` (the plugin named `hercules`, from `mbienkowski`'s
@@ -360,7 +361,8 @@ agents, and skills, plus how to run the tests.
    `mbienkowski`, so `/plugin install hercules@mbienkowski` then resolves to **your checkout**. If
    you've already added the public marketplace under that same name, remove it first
    (`/plugin marketplace remove mbienkowski`) so the name isn't ambiguous — otherwise you'd test the
-   released version, not your changes. `git checkout` the branch you want to test.
+   released version, not your changes. `git checkout` the branch you want to test, then run
+   `/reload-plugins` to apply.
 4. Run the suite: `pip install -e ".[dev]" && make test`
 5. Open a PR — CI runs the full suite plus mutation testing and validates the plugin package. Commit
    messages follow Conventional Commits (`feat:`/`fix:`/`feat!:`), which drive the version on release.

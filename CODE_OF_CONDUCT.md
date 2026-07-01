@@ -43,6 +43,17 @@ Keep the two in lock-step:
 
 - File: `plugin/agents/{name}.md` — lowercase
 - Carries **no hardcoded stack or personal preferences** — project variance lives in each project's `code-of-conduct.md`
+- Carries **no Hercules-internal literals** — no `/hercules:{command}` references, Hercules state-schema
+  field names (`current_spec`, `build_progress`, `tier`), or artifact filename patterns (`*-spec-NN-*.md`).
+  That knowledge belongs in the orchestrating command file, injected into the agent via the delegation
+  prompt at call time (the same pattern `plugin/protocols/a2a-communication-protocol.md` § How to inject
+  uses for the A2A format). Exception: `hercules.md`, the default orchestrator persona, not a delegate.
+  Generic software-delivery vocabulary ("spec," "acceptance criteria," "coverage") is not a violation —
+  only the literal forms above are.
+- **Never describes updating, syncing, or revising a Hercules spec.** A spec is read-only / write-once /
+  delete-once — `git rm`'d on delivery. An agent file that assumes a Hercules spec stays editable is
+  describing behaviour that cannot exist. A generic caller-conditional branch (as `cynical-reviewer`
+  keeps for non-Hercules callers) is fine.
 - Replies follow the A2A `§ Agent-Injected Core` format (see `plugin/protocols/a2a-communication-protocol.md`)
 - Update the agent list in `plugin/CLAUDE.md` after adding
 - The list is pinned by `tests/` — run the suite to confirm no drift
@@ -120,6 +131,14 @@ python -m pytest tests/ --cov=tests.metrics --cov-branch --cov-report=term-missi
 Hercules holds itself to the bar it enforces on its users: **>= 90% branch coverage** (gated by
 `make test`) and a **>= 90% mutation kill rate** (gated by `make test-mutation`). Both run in CI on
 every PR — practice what we preach.
+
+### Tests assert the present state, not the past
+
+A test that only asserts a string is **absent** encodes a historical fix, not a present-state property —
+CI can't tell a genuinely-guarded invariant from a stale memorial to one past bug. Pair every absence
+check with either (a) a positive companion assertion (the correct replacement is present, or a related
+cross-file invariant still holds) or (b) a named, specific, ongoing risk it guards against. Neither →
+it's cosmetic; find the positive form.
 
 ### End-to-end smoke (manual)
 

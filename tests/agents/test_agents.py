@@ -120,17 +120,17 @@ def test_senior_qa_engineer_documents_bdd_for_frontend_scope(repo_root):
         "senior-qa-engineer must name an e2e test tool for frontend scenarios"
 
 
-def test_cynical_reviewer_spec_sync_names_a_fallback_target(read_file):
-    """cynical-reviewer's mandatory spec-sync step must name a fallback write target for when no
-    live spec file exists (e.g. Hercules Build's cross-check, which runs after every spec is
-    git rm'd) — otherwise its own 'mandatory last step' has nothing to act on at its sole
-    in-repo call site."""
+def test_cynical_reviewer_spec_sync_is_caller_agnostic(read_file):
+    """cynical-reviewer's mandatory spec-sync must be a reusable, caller-agnostic clause: when no
+    editable live spec exists it *reports the disposition back to the caller* rather than naming any
+    one caller's internal store. This is a positive assertion of the generic behaviour; the systemic
+    no-literals scan separately guarantees no Hercules-internal literal leaks back in."""
     md = read_file("plugin/agents/cynical-reviewer.md")
     lower = md.lower()
     assert "spec-sync (mandatory last step)" in lower, \
         "cynical-reviewer must keep the mandatory spec-sync step"
-    assert "build_progress" in md, \
-        "cynical-reviewer must name build_progress as the write target when no live spec file exists"
+    assert "report the disposition back to the caller" in lower, \
+        "spec-sync must report the disposition back to the caller when no editable spec exists"
 
 
 def test_hercules_agent_has_first_run_detection(read_file):
