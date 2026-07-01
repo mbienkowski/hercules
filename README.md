@@ -381,18 +381,24 @@ All `.md` filenames must be **lowercase** — macOS is case-insensitive but Linu
 
 ## Plugin permissions
 
-Hercules is a set of Markdown files — commands, agents, and skills — interpreted by Claude Code.
-It has no executable code of its own. What it can do is exactly what Claude Code can do in your session:
+Hercules is mostly Markdown — commands, agents, and skills — interpreted by Claude Code, plus a small
+set of local enforcement **hooks** (`plugin/hooks/*.py`, dependency-free standard-library Python). What
+it can do is exactly what Claude Code can do in your session:
 
 - **Project files** — reads your project files to understand context; writes to `docs/` (or wherever
   `code-of-conduct.md` points). Nothing is written outside directories Claude Code already has access to.
 - **`~/.hercules/`** — full read/write/create access to this directory. It holds a registry
   (`config.json`) and per-project delivery-state files (`state/*.json`): local filesystem paths and
-  delivery progress only (no credentials, no tokens, no telemetry, no code snippets).
-- **Shell** — only during Build, when tests need to run. Claude Code executes the command; Hercules
-  issues no shell commands independently.
+  delivery progress only (no credentials, no tokens, no telemetry, no code snippets). The enforcement
+  hooks only **read** this directory.
+- **Hooks** — Hercules ships local `PreToolUse` hooks that Claude Code runs on your machine before an
+  edit. Today one guard blocks edits to a spec's frozen test files during Build (so acceptance criteria
+  can't be silently weakened). Hooks are read-only over `~/.hercules/`, make no network calls, and
+  fail **open** (they never block an edit when no active Hercules build is in progress).
+- **Shell** — during Build, when tests need to run (Claude Code executes the command; Hercules issues no
+  shell commands independently), and the hooks above, which the harness invokes as `python3` on edits.
 - **Network** — none. All model calls go through your existing Claude Code session and API key.
-  Hercules makes no direct API calls and opens no separate network channel.
+  Hercules makes no direct API calls and opens no separate network channel — hooks included.
 
 You can audit the full plugin source in the `plugin/` directory of this repository.
 
