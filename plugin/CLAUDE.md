@@ -121,7 +121,7 @@ All writes are atomic (temp + rename) and touch only the current project's regis
 session's object — never other entries, never the top-level `schema_version` (each file owns its own).
 
 ```json
-// ~/.hercules/config.json
+// Example — illustrative values, not real state: ~/.hercules/config.json
 {
   "schema_version": 1,
   "projects": {
@@ -136,7 +136,9 @@ session's object — never other entries, never the top-level `schema_version` (
 ```
 
 ```json
-// ~/.hercules/state/user-auth-platform.json
+// Example — illustrative values showing every field at once; real state omits fields that
+// don't apply (e.g. frozen_override exists only while a grant is live, shipped_commit only
+// after Ship): ~/.hercules/state/user-auth-platform.json
 {
   "schema_version": 1,
   "active_session": "2026-06-22-user-auth",

@@ -599,6 +599,12 @@ def test_claude_md_documents_home_config_state_contract(read_file):
         "CLAUDE.md must document the user-granted frozen_override session field"
     assert "frozen_hook" in md, \
         "CLAUDE.md must document the per-project frozen_hook opt-out"
+    # The JSON fragments show every field at once — an impossible combination in real state.
+    # Both fences must say so, or an agent may treat the sample as a template to reproduce.
+    assert md.count("// Example — illustrative values") >= 2, \
+        "every CLAUDE.md JSON fragment must be annotated as an illustrative example"
+    assert "real state omits fields that" in md, \
+        "the state example must say real state omits fields that don't apply"
 
 
 def test_claude_md_defines_development_principles(read_file):
