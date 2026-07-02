@@ -63,7 +63,7 @@ def resolve_session(cwd, home=None):
             session = (state.get("sessions") or {}).get(state.get("active_session"))
             if not session:
                 continue
-            is_build = 1 if session.get("current_phase") == "build" else 0
+            is_build = session.get("current_phase") == "build"
             candidates.append((max(len(r) for r in matched), is_build, session, roots))
         except Exception:
             continue

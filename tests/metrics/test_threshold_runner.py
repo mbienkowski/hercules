@@ -732,3 +732,40 @@ def test_compare_value_unknown_op_error_starts_with_unknown():
     """compare_value error string must start with 'unknown op' (rejects XX-prefixed mutations)."""
     _, err = compare_value(1, "??", 1)
     assert err.startswith("unknown op")
+
+
+def test_threshold_check_annotations_are_well_formed():
+    """The dataclass annotations are lazily evaluated (PEP 563) — resolve them explicitly so a
+    malformed annotation (e.g. `int & None`) fails here instead of silently never evaluating."""
+    import typing
+
+    hints = typing.get_type_hints(ThresholdCheck)
+    assert hints["warn_at"] == typing.Optional[int]
+    assert hints["limit"] is int
+
+
+def test_passing_per_file_message_carries_no_offenders_suffix(tmp_path: Path):
+    """A passing per-file check reports exactly the check summary — no offenders tail."""
+    (tmp_path / "a.md").write_text("- one bullet\n")
+    check = ThresholdCheck(name="pf", target="a.md", metric="instruction_count",
+                           op="<=", limit=10, severity="gate", per_file=True)
+    (result,) = run_threshold_checks(tmp_path, [check])
+    assert result.passed is True
+    assert result.message == "pf: per-file instruction_count(a.md) want <= 10"
+
+
+def test_summed_check_message_states_value_and_want(tmp_path: Path):
+    """The summed-check message is the exact `name: metric(target)=N, want op limit` shape —
+    it is what CI prints on failure, so its format is a contract."""
+    (tmp_path / "a.md").write_text("- one\n- two\n- three\n")
+    check = ThresholdCheck(name="summed", target="a.md", metric="instruction_count",
+                           op="<=", limit=2, severity="gate")
+    (result,) = run_threshold_checks(tmp_path, [check])
+    assert result.passed is False
+    assert result.message == "summed: instruction_count(a.md)=3, want <= 2"
+
+
+def test_plain_path_containing_x_is_not_treated_as_a_glob(tmp_path: Path):
+    """Only *, ?, and [ mark a target as a glob — ordinary letters never do. A plain missing
+    path resolves to itself (the caller reports it); a glob would silently resolve to []."""
+    assert resolve_targets(tmp_path, "Xnope.md") == [tmp_path / "Xnope.md"]

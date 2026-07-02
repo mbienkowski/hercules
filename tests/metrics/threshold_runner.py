@@ -141,8 +141,7 @@ def run_threshold_checks(
             worst = 0
             for path in targets:
                 value = fn(path.read_text())
-                if value > worst:
-                    worst = value
+                worst = max(worst, value)
                 ok, err = compare_value(value, check.op, check.limit)
                 if err:
                     raise ValueError(f"check {check.name!r}: {err}")
