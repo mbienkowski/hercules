@@ -118,7 +118,7 @@ Key technical decisions, patterns to follow, constraints from code-of-conduct.md
 Given / When / Then for each deliverable.
 
 ## Deletion note
-Delete this file via `git rm` once its feature is delivered in code. Code is the source of truth after delivery.
+Delete this file via `git rm` once its feature is delivered in code (a keep-specs code-of-conduct refreshes it instead). Code is the source of truth after delivery.
 ```
 
 The spec's depth is filled in by whichever specialist advisors ran in Step 5 — each contributing

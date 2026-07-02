@@ -233,3 +233,14 @@ def test_readme_documents_keeping_specs(read_file):
     readme = read_file("README.md")
     assert "keep the specs" in readme.lower(), \
         "README must document the keep-the-specs code-of-conduct override"
+
+
+def test_coc_agent_rule_spec_lifecycle_admits_keep_specs(read_file):
+    """The 'adding an agent' rule states a spec is delete-once — under a keep-specs
+    code-of-conduct a delivered spec is refreshed at retire instead, so the contributor rule
+    must carry the same carve-out or it forbids behaviour the plugin itself performs."""
+    coc = read_file("CODE_OF_CONDUCT.md")
+    rule = coc[coc.index("delete-once"):]
+    rule = rule[:rule.index("- Replies follow")]
+    assert "keep-specs" in rule or "keep_specs" in rule, \
+        "the delete-once rule must acknowledge the keep-specs retire mode (orchestrator-only)"

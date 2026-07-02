@@ -53,8 +53,9 @@ its step order and hard guardrails are normatively listed in `plugin/protocols/w
   Generic software-delivery vocabulary ("spec," "acceptance criteria," "coverage") is not a violation —
   only the literal forms above are.
 - **Never describes updating, syncing, or revising a Hercules spec.** A spec is read-only / write-once /
-  delete-once — `git rm`'d on delivery. An agent file that assumes a Hercules spec stays editable is
-  describing behaviour that cannot exist. A generic caller-conditional branch (as `cynical-reviewer`
+  delete-once — `git rm`'d on delivery (a keep-specs code-of-conduct instead has the orchestrator refresh
+  it once, at retire — still never a delegate). An agent file that assumes a Hercules spec stays editable
+  is describing behaviour that cannot exist. A generic caller-conditional branch (as `cynical-reviewer`
   keeps for non-Hercules callers) is fine.
 - Replies follow the A2A `§ Agent-Injected Core` format (see `plugin/protocols/a2a-communication-protocol.md`)
 - Update the agent list in `plugin/CLAUDE.md` after adding

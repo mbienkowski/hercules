@@ -15,7 +15,7 @@ Resolve the **artifact root** (`docs_root`, default `docs/`; `CLAUDE.md § Artif
 
 On 'start fresh': clear `current_spec`, `current_spec_round`, `frozen_test_files`, `frozen_override`, `delivered_specs`, and `pending_specs`, then proceed. On 'resume': after Step 1, skip to the spec matching `current_spec`.
 
-On resume, reconcile against the filesystem: a spec in `delivered_specs` whose file still exists was interrupted before its delete — `git rm` it now; `pending_specs` drives remaining work; drop `frozen_test_files` entries with no file on disk. If the registry entry is missing but a state file exists, rebuild it. No entry or no `"build"` session → proceed silently.
+On resume, reconcile against the filesystem: a spec in `delivered_specs` whose file still exists was interrupted before its delete — `git rm` it now (skip under `keep_specs: true`; kept specs remain by design); `pending_specs` drives remaining work; drop `frozen_test_files` entries with no file on disk. If the registry entry is missing but a state file exists, rebuild it. No entry or no `"build"` session → proceed silently.
 
 ### Step 1 — Session discovery
 
@@ -66,7 +66,7 @@ For a spec scoped to a service (named in its `## Scope`): announce `"Now working
 
 ## Cross-check validation (after all specs)
 
-Spawn `hercules:cynical-reviewer` (Spec Sync) to cross-check the whole delivery — *does what we built match what we set out to build?* Specs are retired, so it reads each spec's `build_progress` checkpoint + the permanent `*-business-requirements.md`, not the deleted files. Per spec: an intentional improvement is documented; a scope reduction is marked deferred; a bug or regression is a **blocker**. Then requirement traceability & drift, with evidence: every requirement maps to a delivered spec and a named passing test (`✓ [requirement] → evidence` / `✗ [requirement] → NOT COVERED`); and the reverse — shipped behaviour with no originating requirement is scope drift, surfaced for a disposition (amend `*-business-requirements.md`, or annotate deliberate/trivial). Drift on a high-risk surface (auth, secrets, money, migration, deletion, prod-config, concurrency) **blocks** until requirement-backed. Depth scales to tier: trivial/low light; medium+ full; high/critical add the domain-expert.
+Spawn `hercules:cynical-reviewer` (Spec Sync) to cross-check the whole delivery — *does what we built match what we set out to build?* Specs are retired, so it reads each spec's `build_progress` checkpoint + the permanent `*-business-requirements.md`, not the spec files. Per spec: an intentional improvement is documented; a scope reduction is marked deferred; a bug or regression is a **blocker**. Then requirement traceability & drift, with evidence: every requirement maps to a delivered spec and a named passing test (`✓ [requirement] → evidence` / `✗ [requirement] → NOT COVERED`); and the reverse — shipped behaviour with no originating requirement is scope drift, surfaced for a disposition (amend `*-business-requirements.md`, or annotate deliberate/trivial). Drift on a high-risk surface (auth, secrets, money, migration, deletion, prod-config, concurrency) **blocks** until requirement-backed. Depth scales to tier: trivial/low light; medium+ full; high/critical add the domain-expert.
 
 Any undelivered spec or uncovered requirement → do not close out; the user resolves or defers with a reason.
 

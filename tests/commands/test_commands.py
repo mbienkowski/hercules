@@ -840,6 +840,17 @@ def test_resume_reconciles_frozen_test_files(read_file):
         "resume reconcile must drop frozen_test_files entries with no file on disk"
 
 
+def test_resume_reconcile_does_not_delete_kept_specs(read_file):
+    """Under keep_specs: true delivered spec files stay on disk by design — Step 0's
+    'delivered spec whose file still exists → git rm it now' reconcile would delete every
+    kept spec on every resume. The clause must carry a keep_specs carve-out."""
+    md = read_file(_BUILD)
+    reconcile = md[md.index("On resume, reconcile"):md.index("### Step 1")]
+    assert "git rm" in reconcile, "reconcile still finishes an interrupted delete by default"
+    assert "keep_specs" in reconcile, \
+        "reconcile must skip the git rm when keep_specs keeps delivered specs on disk"
+
+
 def test_handoff_note_is_readable_after_close_out(read_file):
     """Close-out writes the handoff alongside current_spec: null, but Build Step 0 shows it only
     when current_spec IS set — Ship (the successor's next command) must surface it."""
@@ -880,3 +891,35 @@ def test_claude_md_documents_keep_specs(read_file):
     principles = md[md.index("## Development principles"):md.index("## Persona")]
     assert "keep" in principles.lower() and "code-of-conduct" in principles.lower(), \
         "principle 3 must state the CoC can keep specs (refreshed at delivery)"
+
+
+def test_spec_template_deletion_note_acknowledges_keep_override(read_file):
+    """The template's Deletion note is embedded in every generated spec — a kept spec carrying
+    an unconditional 'Delete this file' instruction contradicts the keep_specs lifecycle for
+    its whole life. The note must acknowledge the code-of-conduct keep override."""
+    md = read_file(_DESIGN)
+    note = md[md.index("## Deletion note"):]
+    note = note[:note.index("```")]
+    assert "git rm" in note, "deletion must remain the template's stated default"
+    assert "code-of-conduct" in note, \
+        "the note must say a code-of-conduct keep directive overrides the delete"
+
+
+def test_claude_md_principle_8_survives_keep_specs(read_file):
+    """Principle 8's close-out gate must be phrased for both retire modes: 'deleted only after
+    delivery is proven' is false under keep_specs, where a proven spec is refreshed, not deleted."""
+    md = read_file("plugin/CLAUDE.md")
+    principles = md[md.index("## Development principles"):md.index("## Persona")]
+    p8 = next(line for line in principles.splitlines() if line.startswith("8."))
+    assert "retired" in p8, \
+        "principle 8 must gate on retire (covers delete and keep-refresh), not delete alone"
+
+
+def test_cross_check_reads_checkpoints_regardless_of_retire_mode(read_file):
+    """The cross-check's rationale ('reads checkpoints, not the deleted files') must not assume
+    deletion — under keep_specs the files exist; checkpoints stay canonical either way."""
+    md = read_file(_BUILD)
+    section = md[md.index("## Cross-check validation"):md.index("## Capture learnings")]
+    assert "build_progress" in section, "cross-check must read the build_progress checkpoints"
+    assert "deleted files" not in section, \
+        "the rationale must not claim the spec files were deleted (keep_specs keeps them)"

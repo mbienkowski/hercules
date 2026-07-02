@@ -15,7 +15,7 @@ plugin marketplace.
 5. Discovery is the heaviest phase. Accept PRDs, ADRs, Figma links, QA scenarios, and any rich context upfront. The more invested here, the less rework in Build.
 6. Open Claude where documents live: monorepo → open in that repo; microservices with cross-repo features → use a dedicated requirements repo.
 7. No rework after delivery is the north star. Preparation quality drives build quality.
-8. Traceability is gated, not assumed — requirement → spec → code/test is verified at close-out, and a spec is deleted only after its delivery is proven. No requirement ships uncovered; nothing ships unrequested.
+8. Traceability is gated, not assumed — requirement → spec → code/test is verified at close-out, and a spec is retired only after its delivery is proven. No requirement ships uncovered; nothing ships unrequested.
 
 ## Persona
 
