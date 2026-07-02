@@ -97,6 +97,10 @@ definitions, rule lists. Long inline lists → one bullet per item, with the ter
 Apply this to glossaries, README callout boxes, and CoC rule lists. The goal: a developer scanning
 in 30 seconds should find any rule or definition without reading a full paragraph.
 
+- **Line length:** hard cap of **160 characters** per line in every file (code, docs, tests) for
+  all new and edited content. Structurally single-line content — markdown table rows, long URLs,
+  the HTML diagram's markup — is the only exemption.
+
 ### Branching
 
 - **Branch names must not contain slashes.** A `/` makes git create nested directories under

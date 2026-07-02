@@ -42,11 +42,19 @@ def test_readme_documents_non_interactive_team_install(read_file):
 
 
 def test_readme_has_no_misleading_auto_update_claim(read_file):
-    """Updates are manual (/plugin marketplace update); the README must not claim auto-update."""
+    """Auto-update exists but is OFF by default for third-party marketplaces — the README must
+    document the manual procedure (per-plugin update + reload) and present auto-update only as
+    the opt-in it is, never as an unconditional given."""
     content = read_file("README.md")
     assert "keeps the plugin updated" not in content.lower(), \
-        "README must not claim Claude Code auto-updates the plugin — updates are manual"
-    assert "/plugin marketplace update" in content, "README must document the manual update command"
+        "README must not present auto-update as unconditional — it is opt-in per marketplace"
+    assert "/plugin update" in content, "README must document the per-plugin update command"
+    assert "/plugin marketplace update" in content, \
+        "README must document the marketplace-wide update command"
+    assert "/reload-plugins" in content, \
+        "README must tell users to /reload-plugins so an update actually applies"
+    assert "auto-update" in content.lower() and "opt-in" in content.lower(), \
+        "README must document the opt-in per-marketplace auto-update path"
 
 
 

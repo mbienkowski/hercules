@@ -13,10 +13,15 @@ Its heroic, **spec-first** workflow — **Discover → Design → Build → Ship
 
 **Who it's for:**
 
-- **Solo developers** — move fast without accumulating requirements debt.
-- **Engineers** — who want their AI to follow a disciplined process.
-- **Non-developers (QA, product)** — turn messy notes into clear, reviewable requirements.
-- **Teams** — every feature traceable from requirement to merged code.
+- **Non-developers - Product & QA** — turn messy notes into clear, reviewable requirements;
+  acceptance criteria are written in plain business language you can sign off; nothing is
+  built until you approve the plan.
+- **Solo developers** — move fast without accumulating requirements debt; a built-in advisory
+  board challenges your design before any code; coverage and mutation gates hold the quality
+  bar when there's no reviewer around.
+- **Teams** — every feature traceable from requirement to merged code; built-in handoff notes
+  and checkpoints let anyone pick up mid-build; one shared standard from your
+  `code-of-conduct.md`, enforced identically for everyone.
 
 > **New to the terms?**
 > - **Plugin:** an add-on you install into Claude Code.
@@ -83,8 +88,9 @@ local) so everyone gets Hercules on clone:
 **If you want to pin installation to a specific version**, add a `ref` to a release tag (a commit
 SHA also works) for reproducible installs across every machine and in CI — omit it (as above) and
 the install tracks the default branch, which drifts. When scopes conflict, the more-specific one
-wins (local over project over user). Updates are manual (`/plugin marketplace update mbienkowski`),
-so a pinned `ref` only moves when you bump it.
+wins (local over project over user). Updates land only when the marketplace refreshes (manual
+`/plugin marketplace update mbienkowski`, or per-marketplace auto-update if you enable it), and a
+pinned `ref` only moves when you bump it.
 
 Use the **project** scope to standardize a whole repo; consider an org fork + a pinned version for
 governance. This file merges with any existing Claude Code settings — it does not replace them.
@@ -320,14 +326,21 @@ Hercules makes it easier to do that well.
 
 ## Updating
 
-Updates are **manual** — Claude Code does not auto-update plugins. Pull the latest when you want to:
+Update Hercules directly by name, then apply it — no restart needed:
 
 ```
-/plugin marketplace update mbienkowski
+/plugin update hercules@mbienkowski
+/reload-plugins
 ```
 
-(`mbienkowski` is the marketplace source name — the same source you registered in step 1.
-This refreshes all plugins from it.) You can pin or roll back through Claude Code's plugin manager.
+Claude Code compares the released version and skips if you're already current. To refresh
+everything from this marketplace at once, use `/plugin marketplace update mbienkowski` instead
+(`mbienkowski` is the marketplace source name from step 1).
+
+Prefer it hands-off? Auto-update is **opt-in** per marketplace: `/plugin` → **Marketplaces** →
+select `mbienkowski` → **Enable auto-update** — it then refreshes at startup and prompts for
+`/reload-plugins` when something changed. To see the installed version, open `/plugin` →
+**Installed** and select the plugin. You can pin or roll back through Claude Code's plugin manager.
 
 ---
 
