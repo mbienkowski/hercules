@@ -735,13 +735,18 @@ def test_compare_value_unknown_op_error_starts_with_unknown():
 
 
 def test_threshold_check_annotations_are_well_formed():
-    """The dataclass annotations are lazily evaluated (PEP 563) — resolve them explicitly so a
-    malformed annotation (e.g. `int & None`) fails here instead of silently never evaluating."""
+    """The dataclass annotations are lazily evaluated (PEP 563), so a malformed annotation
+    (e.g. `int & None`) would never fail on its own. Pin the source annotations (version-safe:
+    PEP 604 unions cannot be *evaluated* on Python 3.9, the project floor), and resolve them
+    for real on 3.10+."""
+    import sys
     import typing
 
-    hints = typing.get_type_hints(ThresholdCheck)
-    assert hints["warn_at"] == typing.Optional[int]
-    assert hints["limit"] is int
+    assert ThresholdCheck.__annotations__["warn_at"] == "int | None"
+    assert ThresholdCheck.__annotations__["limit"] == "int"
+    if sys.version_info >= (3, 10):
+        hints = typing.get_type_hints(ThresholdCheck)
+        assert hints["warn_at"] == typing.Optional[int]
 
 
 def test_passing_per_file_message_carries_no_offenders_suffix(tmp_path: Path):
