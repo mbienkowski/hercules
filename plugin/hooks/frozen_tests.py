@@ -6,13 +6,13 @@ tool call; exit 0 allows it.
 
 Enforcement scope (honest): this hardens the frozen-test guarantee against accidental,
 lazy, and pressure-tested deviation by a cooperative model. It reads model-authored state,
-so it is harness-*mediated*, not tamper-proof against a model that rewrites its own state.
+so it is runtime-*mediated*, not tamper-proof against a model that rewrites its own state.
 
 Fail policy: fail OPEN (allow) whenever no active build session resolves — a fresh repo, a
 non-Hercules repo, Hercules's own development, or any parse error — so the hook never bricks
 an unrelated edit. It only blocks when a confirmed active build owns the target as a frozen
 test. Invoked as `python3 "${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py"` (no shebang, so
-interpreter resolution is the harness's PATH lookup — portable to Windows).
+interpreter resolution is Claude Code's PATH lookup — portable to Windows).
 """
 
 from __future__ import annotations

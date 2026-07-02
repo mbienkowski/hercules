@@ -130,16 +130,16 @@ def test_guardrail_registry_rows_are_well_formed(read_file):
 
 
 def test_every_hook_class_row_maps_to_a_live_hook(repo_root, read_file):
-    """A `hook`-class registry row claims harness enforcement — the strongest claim in the file.
+    """A `hook`-class registry row claims runtime enforcement — the strongest claim in the file.
     Each one must map to a live PreToolUse wiring (matcher covering Edit) whose script exists,
     and at least one such row ships (the frozen-tests flagship)."""
     rows = _registry_rows(_section(read_file(_PROTOCOL), "registry"))
     hook_rows = [r for r in rows if r[-1] == "hook"]
-    assert hook_rows, "the registry must carry at least one hook-class (harness-enforced) row"
+    assert hook_rows, "the registry must carry at least one hook-class (runtime-enforced) row"
     for r in hook_rows:
         assert "PreToolUse" in " ".join(r), (
             f"{r[0]} claims class=hook but its rule text names no PreToolUse mechanism — "
-            "a hook claim must say what the harness actually blocks"
+            "a hook claim must say what Claude Code actually blocks"
         )
 
     hooks = json.loads((repo_root / "plugin" / "hooks" / "hooks.json").read_text())

@@ -396,7 +396,7 @@ it can do is exactly what Claude Code can do in your session:
   can't be silently weakened). Hooks are read-only over `~/.hercules/`, make no network calls, and
   fail **open** (they never block an edit when no active Hercules build is in progress).
 - **Shell** — during Build, when tests need to run (Claude Code executes the command; Hercules issues no
-  shell commands independently), and the hooks above, which the harness invokes as `python3` on edits.
+  shell commands independently), and the hooks above, which Claude Code invokes as `python3` on edits.
 - **Network** — none. All model calls go through your existing Claude Code session and API key.
   Hercules makes no direct API calls and opens no separate network channel — hooks included.
 

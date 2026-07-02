@@ -32,7 +32,7 @@ preconditions (GATE; G6) → stage set → commit message → push target → dr
 
 ## Guardrail registry {#registry}
 
-Class: hook = harness-enforced; executable = deterministic; state-checkable = state read;
+Class: hook = runtime-enforced; executable = deterministic; state-checkable = state read;
 prompt-only = discipline.
 
 | ID | Phase · step | Scope | Rule | Class |

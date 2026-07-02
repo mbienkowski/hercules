@@ -1,6 +1,6 @@
 """The workflow's phase/mode orchestration is explicit and human-first (Effort 2, AC7/AC8a).
 
-Static gates only: the harness's internal permission-mode state cannot be inspected from the plugin,
+Static gates only: Claude Code's internal permission-mode state cannot be inspected from the plugin,
 so we assert the *directives* the commands must carry (construction). The effect (artifacts actually
 written per phase) is an opt-in manual/e2e smoke documented in CODE_OF_CONDUCT.md.
 """
