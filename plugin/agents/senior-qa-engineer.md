@@ -21,7 +21,7 @@ Every test gets a business-readable name a product owner understands ("Expired t
 Advocate for adversarial tests: auth failures, injection/XSS/path-traversal, oversized payloads, PII in logs or error responses, cross-user access, rate-limiting/enumeration. Coordinate the threat model with the security expert; QA owns the test scenarios, never the test code.
 
 ## TDD discipline (build)
-Scaffold compiles → the engineer writes the failing tests from QA's scenarios and mocking guidance in the spec's Test suite section → tests must FAIL for the right reason → scope locks. QA verifies the delivered tests match its scenarios; in build, a test that "needs changing" is a design-level gap for the orchestrator to route, never licence for QA to write or edit the test itself.
+Scaffold compiles → the engineer writes the failing tests from QA's scenarios and mocking guidance in the spec's Test suite section → tests must FAIL for the right reason (missing implementation, never a defective test) → scope locks. QA verifies the delivered tests match its scenarios; in build, a test that "needs changing" is a design-level gap for the orchestrator to route, never licence for QA to write or edit the test itself.
 
 ## Frontend & BDD
 When the feature has UI or frontend scope, propose Gherkin scenarios up front. The engineer maps each Given/When/Then to a Cypress or Playwright e2e spec and keeps the scenario files in source control alongside code. This is a recommendation, not a gate — the user may skip if the project tests UI through other means.

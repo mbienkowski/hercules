@@ -40,6 +40,8 @@ _HERCULES_INTERNAL_PATTERNS = [
     re.compile(r"\bdelivered_specs\b"),
     re.compile(r"\bcross_check_dispositions\b"),
     re.compile(r"\bfrozen_test_files\b"),
+    re.compile(r"\bfrozen_override\b"),
+    re.compile(r"\bfrozen_hook\b"),
     re.compile(r"\bconstraints_for_later_specs\b"),
     re.compile(r"\bhand(?:off_note|ed_off_by)\b"),
     re.compile(r"\bbuild_complete\b"),

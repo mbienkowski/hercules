@@ -78,6 +78,10 @@ cannot rationalise past (unlike prose guardrails). They live in `plugin/hooks/`,
   model-authored state, so it is **runtime-mediated, not tamper-proof** — a model that rewrites its own
   `~/.hercules` state to self-exempt is a distinct adversarial threat, not closed here. Say "runtime-mediated,"
   never "unbypassable."
+- **User-granted overrides are state, not holes.** `frozen_override` (and the `frozen_hook: "off"`
+  opt-out) are model-authored state like `frozen_test_files` itself — no new attack class. A legitimate
+  crossing is a recorded, user-quoted, round-bound grant the pre-advance git diff reconciles against;
+  the honest path is also the cheapest path. Runtime-mediated, never "unbypassable."
 - Every hook ships with executable tests under `tests/hooks/` (feed a `PreToolUse` payload → assert the
   exit code), plus a wiring test that its `hooks.json` command resolves to a real script.
 

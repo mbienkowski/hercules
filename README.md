@@ -250,7 +250,8 @@ under-prepared on a large one.
 2. **Design — HOW** — turns requirements into one or more self-contained **specs**, challenged by
    specialist advisors before any code. Output: `*-spec-NN-*.md` (temporary).
 3. **Build — MAKE** — opens with a delivery plan you approve (which specs, in what order, grouped
-   how), then delivers each spec test-first: scaffold, write the failing tests (frozen once written),
+   how), then delivers each spec test-first: scaffold, write real tests of the requirements — red only
+   until the logic exists (frozen once written; unblock any test just by asking),
    implement, and pass the quality gates your `code-of-conduct.md` defines. A cross-check then confirms
    the delivery matches the requirements. Output: code + tests. The specs are deleted once delivered in code (`git rm`).
 4. **Ship — COMMIT** — after Build completes and you've reviewed the diff, drafts a commit
@@ -406,8 +407,10 @@ it can do is exactly what Claude Code can do in your session:
   hooks only **read** this directory.
 - **Hooks** — Hercules ships local `PreToolUse` hooks that Claude Code runs on your machine before an
   edit. Today one guard blocks edits to a spec's frozen test files during Build (so acceptance criteria
-  can't be silently weakened). Hooks are read-only over `~/.hercules/`, make no network calls, and
-  fail **open** (they never block an edit when no active Hercules build is in progress).
+  can't be silently weakened). You stay in charge: just ask and a named test is unblocked in the same
+  turn (a round-bound, user-granted override), and a per-project opt-out (`frozen_hook: "off"`) switches
+  to prompt-only discipline entirely. Hooks are read-only over `~/.hercules/`, make no network calls,
+  and fail **open** (they never block an edit when no active Hercules build is in progress).
 - **Shell** — during Build, when tests need to run (Claude Code executes the command; Hercules issues no
   shell commands independently), and the hooks above, which Claude Code invokes as `python3` on edits.
 - **Network** — none. All model calls go through your existing Claude Code session and API key.

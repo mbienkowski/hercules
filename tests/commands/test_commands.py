@@ -595,6 +595,10 @@ def test_claude_md_documents_home_config_state_contract(read_file):
     assert "projects" in md, "CLAUDE.md must document the projects map"
     assert "directory" in md, "each project entry must carry a directory field"
     assert "repositories" in md, "CLAUDE.md must document the repositories (repo list) map"
+    assert "frozen_override" in md, \
+        "CLAUDE.md must document the user-granted frozen_override session field"
+    assert "frozen_hook" in md, \
+        "CLAUDE.md must document the per-project frozen_hook opt-out"
 
 
 def test_claude_md_defines_development_principles(read_file):
@@ -702,12 +706,21 @@ def test_build_delivery_plan_allows_batching(read_file):
 
 
 def test_build_freezes_and_diff_guards_tests(read_file):
-    """Tests are frozen after they're written and machine-enforced with a git diff guard."""
+    """Tests are frozen after they're written and machine-enforced with a git diff guard —
+    and the freeze is announced with its exits, so the user is never surprised or stuck."""
     md = read_file(_BUILD)
     lower = md.lower()
     assert "frozen_test_files" in md, "build must record the frozen test files to state"
     assert "git diff" in lower, "build must git-diff-guard the frozen tests (machine-enforced)"
     assert "frozen" in lower, "build must state the tests are frozen"
+    assert "announce the freeze" in lower and "bullets" in lower, \
+        "build must announce the freeze verbosely, with the unblock options as bullets"
+    assert "frozen_override" in md, \
+        "build must offer the same-turn, user-granted frozen_override exit"
+    assert "the same turn" in lower or "this turn" in lower, \
+        "the freeze announcement must state the unblock happens in the same conversation turn"
+    assert 'frozen_hook: "off"' in md, \
+        "build must name the per-project opt-out (prompt-only discipline)"
 
 
 def test_build_round_limit_persisted_with_user_decision(read_file):

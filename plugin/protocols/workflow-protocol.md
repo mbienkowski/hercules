@@ -37,12 +37,12 @@ prompt-only = discipline.
 
 | ID | Phase · step | Scope | Rule | Class |
 |---|---|---|---|---|
-| G1 | build · write-failing-tests | span → retire spec | Frozen tests are never edited during implementation (a PreToolUse hook blocks it; a pre-advance git diff backstops); only exit: the round-limit user decision. | hook |
+| G1 | build · write-failing-tests | span → retire spec | Frozen tests are never edited during implementation (a PreToolUse hook blocks it; a pre-advance git diff backstops); exits: an explicit round-bound user grant (frozen_override) or the project opt-out. | hook |
 | G2 | build · quality-gates | step | At most 3 implementation rounds per spec, persisted; after round 3 the user decides. | state-checkable |
 | G3 | build · scaffold | span → implement | Scaffold compiles first; tests fail because implementation is missing; then logic. | prompt-only |
 | G4 | build · traceability | step | Each satisfies-linked requirement and acceptance criterion maps to a named passing test before retire. | prompt-only |
 | G5 | build · cross-check | step | Improvement documented, reduction deferred, bug or regression is a Blocker; high-risk drift blocks. | prompt-only |
-| G6 | ship · preconditions | phase | Session Ship gates on build_complete; a spec-scoped ship skips only that gate, stages only the spec's files, omits the PR, and writes no session field (current_phase, build_complete, shipped_commit, shipped_pr). | state-checkable |
+| G6 | ship · preconditions | phase | Session Ship gates on build_complete; a spec-scoped ship skips only that gate, stages only the spec's files, omits the PR, and writes no session field. | state-checkable |
 | G7 | all · tier | phase | Tier scored once in Discover; never re-scored; only the user changes it. | state-checkable |
 
 ## Delegation packet {#packet}

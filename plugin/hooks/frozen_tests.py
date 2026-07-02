@@ -50,9 +50,40 @@ def _reason(path, session) -> str:
     return (
         f"Hercules: {path} is a frozen test for {spec} (build round {rnd}/3). "
         "Frozen tests are not edited during implementation — the guarantee is that acceptance "
-        "criteria can't be weakened to force a pass. To change it legitimately: finish the round "
-        'limit and choose "correct the test" to re-enter /hercules:design, or say "start fresh".'
+        "criteria can't be weakened to force a pass. To change it legitimately: on the user's "
+        "explicit instruction record a round-bound frozen_override (their words quoted) and "
+        'retry in the same turn; or finish the round limit and choose "correct the test" to '
+        're-enter /hercules:design, or say "start fresh". A per-project opt-out exists: '
+        'frozen_hook: "off" in the registry entry.'
     )
+
+
+def _override_allows(session, roots, target_canon) -> bool:
+    """True iff an explicit user-granted `frozen_override` covers this path right now.
+
+    The override is spec- and round-bound and fails CLOSED: anything malformed, stale,
+    or mistyped leaves the block standing. Parsed inside its own guard so a bad override
+    can never disarm the wider frozen check.
+    """
+    try:
+        ov = session.get("frozen_override")
+        if not isinstance(ov, dict):
+            return False
+        rnd = ov.get("round")
+        if not isinstance(rnd, int) or rnd != session.get("current_spec_round"):
+            return False
+        if ov.get("spec") != session.get("current_spec"):
+            return False
+        files = ov.get("files")
+        if not isinstance(files, list):
+            return False
+        allowed = set()
+        for f in files:
+            if isinstance(f, str) and f:
+                allowed |= frozen_candidates(f, roots)
+        return target_canon in allowed
+    except Exception:
+        return False
 
 
 def decide(payload, home=None):
@@ -60,9 +91,11 @@ def decide(payload, home=None):
     try:
         if not isinstance(payload, dict) or payload.get("tool_name") not in _MUTATING_TOOLS:
             return 0, ""
-        session, roots = resolve_session(payload.get("cwd") or os.getcwd(), home=home)
+        session, roots, project = resolve_session(payload.get("cwd") or os.getcwd(), home=home)
         if not session or session.get("current_phase") != "build":
             return 0, ""  # fail-open: nothing active to protect
+        if (project or {}).get("frozen_hook") == "off":
+            return 0, ""  # per-project opt-out: the user chose prompt-only TDD discipline
         frozen = session.get("frozen_test_files") or []
         if not frozen:
             return 0, ""
@@ -70,7 +103,8 @@ def decide(payload, home=None):
         for entry in frozen:
             frozen_set |= frozen_candidates(entry, roots)
         for path in _target_paths(payload.get("tool_input")):
-            if canon(path) in frozen_set:
+            target = canon(path)
+            if target in frozen_set and not _override_allows(session, roots, target):
                 return 2, _reason(path, session)
         return 0, ""
     except Exception:

@@ -148,6 +148,12 @@ session's object — never other entries, never the top-level `schema_version` (
       "current_spec": "2026-06-22-user-auth-spec-02-login.md",
       "current_spec_round": 1,
       "frozen_test_files": ["tests/auth/test_login.py"],
+      "frozen_override": {
+        "files": ["tests/auth/test_login.py"],
+        "spec": "2026-06-22-user-auth-spec-02-login.md",
+        "round": 1,
+        "reason": "user: 'expected status is 201, not 200 — fix the test'"
+      },
       "delivered_specs": ["2026-06-22-user-auth-spec-01-schema.md"],
       "pending_specs": ["2026-06-22-user-auth-spec-03-refresh.md"],
       "build_progress": [
@@ -174,9 +180,9 @@ session's object — never other entries, never the top-level `schema_version` (
 }
 ```
 
-Registry entry: `directory` — the project's local path (the launch / artifact-root host); the match key. `docs_root` — the resolved artifact root (default `"docs"`; a code-of-conduct.md directive may set a directory or a separate-repo local path). `state_file` — the per-project state filename under `~/.hercules/state/` (derived from the slug; stored so lookup never re-derives). `repositories` — additional service names → machine-local paths for cross-repo features; persists across features.
+Registry entry: `directory` — the project's local path (the launch / artifact-root host); the match key. `docs_root` — the resolved artifact root (default `"docs"`; a code-of-conduct.md directive may set a directory or a separate-repo local path). `state_file` — the per-project state filename under `~/.hercules/state/` (derived from the slug; stored so lookup never re-derives). `repositories` — additional service names → machine-local paths for cross-repo features; persists across features. `frozen_hook` — set to `"off"` on the user's instruction to disable the frozen-tests hook for this project (prompt-only TDD discipline); omit otherwise.
 
-Session object (in the state file): `tier` + `tier_rationale` — scored once in Discover, read by Design and Build; never re-scored by Hercules (a manual user override is the only change). `current_spec` — the spec filename in progress. `current_spec_round` — the 1–3 implementation-round counter, persisted so a resume can't reset it. `frozen_test_files` — the current spec's test files, `git diff`-guarded so a frozen test cannot be silently edited. `delivered_specs` / `pending_specs` — spec filenames delivered / remaining in order (omit when empty). `build_progress` — per-spec checkpoint (criteria, satisfies, decisions, interfaces, tests, coverage, mutation, cross-spec constraints) written at retire; the durable record the cross-check reads after specs are deleted. `handed_off_by` / `handoff_note` — written only at explicit handoff (Build close-out). `build_complete` — written `true` by Build close-out; read by Ship as its precondition; reset to `false` by Ship after a successful commit. `shipped_commit` / `shipped_pr` — written by Ship; omitted when not yet shipped / not applicable.
+Session object (in the state file): `tier` + `tier_rationale` — scored once in Discover, read by Design and Build; never re-scored by Hercules (a manual user override is the only change). `current_spec` — the spec filename in progress. `current_spec_round` — the 1–3 implementation-round counter, persisted so a resume can't reset it. `frozen_test_files` — the current spec's test files, `git diff`-guarded so a frozen test cannot be silently edited. `frozen_override` — a user-granted exception the frozen-tests hook honours: files + spec + round + the user's quoted instruction; written only on the user's explicit grant, cleared once the corrected test re-passes the write-tests gate; a stale spec or round never validates. Omit when no grant is live. `delivered_specs` / `pending_specs` — spec filenames delivered / remaining in order (omit when empty). `build_progress` — per-spec checkpoint (criteria, satisfies, decisions, interfaces, tests, coverage, mutation, cross-spec constraints) written at retire; the durable record the cross-check reads after specs are deleted. `handed_off_by` / `handoff_note` — written only at explicit handoff (Build close-out). `build_complete` — written `true` by Build close-out; read by Ship as its precondition; reset to `false` by Ship after a successful commit. `shipped_commit` / `shipped_pr` — written by Ship; omitted when not yet shipped / not applicable.
 
 ## Agent scaling
 

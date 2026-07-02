@@ -155,8 +155,8 @@
           <div class="loop-hd">&#8635; Auto-execute — per spec, "Spec N of M"</div>
           <div class="step"><span class="st-n">3</span><span class="st-t">Read the spec and acceptance criteria</span></div>
           <div class="step gate"><span class="st-n">4</span><span class="st-t">Scaffold<span class="st-sub">Gate: must compile</span></span></div>
-          <div class="step gate"><span class="st-n">5</span><span class="st-t">Write the failing tests<span class="st-sub">Gate: compile, and fail for the right reason</span></span></div>
-          <div class="anno">&#9873; Tests are frozen — recorded and git-diff-guarded; the agent cannot edit them.</div>
+          <div class="step gate"><span class="st-n">5</span><span class="st-t">Write the failing tests<span class="st-sub">Real tests of the requirements — gate: compile, and fail only because the logic doesn't exist yet</span></span></div>
+          <div class="anno">&#9873; Tests are frozen — recorded and guarded; ask and the agent unblocks a named test in-turn (user-granted override); a per-project opt-out exists.</div>
           <div class="step"><span class="st-n">6</span><span class="st-t">Implement<span class="st-sub">Minimum code to green; refactor inline; no test edits</span></span></div>
           <div class="step gate"><span class="st-n">7</span><span class="st-t">Quality gates (per the Code of Conduct)<span class="st-sub">All tests pass; coverage, lint, types, arch-units as the CoC defines</span></span></div>
           <div class="anno">Three rounds, then stop: analyse the root cause, mark it blocked, and you decide.</div>

@@ -32,18 +32,19 @@ def _hercules_home(home=None) -> Path:
 
 
 def resolve_session(cwd, home=None):
-    """Return `(session, roots)` for the active project whose tree contains `cwd`.
+    """Return `(session, roots, entry)` for the active project whose tree contains `cwd`.
 
     `session` is the active session dict from the state file; `roots` is the list of
     canonical project roots (the project `directory` plus every `repositories.*` path,
-    so multi-service builds resolve). Returns `(None, [])` when nothing active resolves
-    — which the guards treat as fail-open. Never raises.
+    so multi-service builds resolve); `entry` is the project's registry entry (carrying
+    per-project settings such as the `frozen_hook` opt-out). Returns `(None, [], None)`
+    when nothing active resolves — which the guards treat as fail-open. Never raises.
     """
     try:
         config = json.loads((_hercules_home(home) / "config.json").read_text())
         projects = config.get("projects", {}) or {}
     except Exception:
-        return None, []
+        return None, [], None
 
     cwd_c = canon(cwd)
     # Collect every project whose tree contains cwd, then pick the most specific — the deepest
@@ -64,14 +65,14 @@ def resolve_session(cwd, home=None):
             if not session:
                 continue
             is_build = session.get("current_phase") == "build"
-            candidates.append((max(len(r) for r in matched), is_build, session, roots))
+            candidates.append((max(len(r) for r in matched), is_build, session, roots, entry))
         except Exception:
             continue
     if not candidates:
-        return None, []
+        return None, [], None
     candidates.sort(key=lambda c: (c[0], c[1]), reverse=True)  # deepest root, then active build
-    _, _, session, roots = candidates[0]
-    return session, roots
+    _, _, session, roots, entry = candidates[0]
+    return session, roots, entry
 
 
 def frozen_candidates(entry, roots) -> set:
