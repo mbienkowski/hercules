@@ -21,7 +21,7 @@
     "metric": "core_token_count",
     "op": "<=",
     "limit": 1050,
-    "warn_at": 900,
+    "warn_at": 1000,
     "severity": "gate"
   },
   {
@@ -30,7 +30,7 @@
     "metric": "token_count",
     "op": "<=",
     "limit": 1100,
-    "warn_at": 900,
+    "warn_at": 1060,
     "severity": "gate"
   },
   {
@@ -57,7 +57,7 @@
     "metric": "token_count",
     "op": "<=",
     "limit": 2000,
-    "warn_at": 1970,
+    "warn_at": 1980,
     "severity": "gate"
   },
   {
@@ -75,7 +75,7 @@
     "metric": "token_count",
     "op": "<=",
     "limit": 1800,
-    "warn_at": 1600,
+    "warn_at": 1780,
     "severity": "gate"
   },
   {
@@ -84,7 +84,7 @@
     "metric": "token_count",
     "op": "<=",
     "limit": 2000,
-    "warn_at": 1700,
+    "warn_at": 1900,
     "severity": "gate"
   },
   {

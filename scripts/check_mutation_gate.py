@@ -23,10 +23,21 @@ def _count(status: str) -> int:
 
 
 def main(count_fn=_count) -> int:
-    killed   = count_fn("killed")
-    survived = count_fn("survived")
-    timeout  = count_fn("timeout")
-    total    = killed + survived + timeout
+    killed     = count_fn("killed")
+    survived   = count_fn("survived")
+    timeout    = count_fn("timeout")
+    untested   = count_fn("untested")
+    suspicious = count_fn("suspicious")
+    total      = killed + survived + timeout
+
+    if untested or suspicious:
+        # A kill rate over a partial or nondeterministic run is a green gate over
+        # data that never existed — fail loudly instead of computing it.
+        print(
+            f"ERROR: run incomplete — {untested} untested, {suspicious} suspicious mutants",
+            file=sys.stderr,
+        )
+        return 1
 
     if total == 0:
         print("ERROR: No mutants generated — check paths_to_mutate config", file=sys.stderr)

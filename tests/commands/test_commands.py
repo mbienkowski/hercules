@@ -189,18 +189,19 @@ def test_command_steps_use_integer_numbering(read_file):
 
 
 def test_workflow_command_runs_all_phases_in_sequence(read_file):
-    """The workflow command must orchestrate all phases with guided transitions."""
-    # Given
+    """The workflow command must orchestrate all phases with guided transitions — anchored
+    on the phase section headings, so a body swap cannot hide behind a summary-line
+    mention of the phase names."""
     md = read_file(_WORKFLOW)
+    heads = [md.index(f"## Phase {n} — {name}") for n, name in
+             ((1, "Discover"), (2, "Design"), (3, "Build"), (4, "Ship"))]
+    assert heads == sorted(heads), "the phase sections must appear in workflow order"
     lower = md.lower()
-
-    # When / Then
-    for phase in ["discover", "design", "build", "ship"]:
-        assert phase in lower, f"workflow must reference the {phase} phase"
     assert "move to" in lower, "workflow must use 'move to [phase]' transition prompts"
     assert "plan mode" in lower, "workflow must enforce plan mode"
     assert "not yet" in lower, "workflow must offer 'not yet' to stay in the current phase"
     assert "move to ship" in lower, "workflow must gate the Build→Ship transition on the user"
+
 
 
 def test_dates_in_commands_use_iso_hyphen_format(read_file):
@@ -460,12 +461,13 @@ def test_build_ship_now_routes_into_spec_scoped_ship(read_file):
 
 def test_ship_spec_scoped_path_preserves_session_gate(read_file):
     """Ship's spec-scoped section scopes everything to the current spec while leaving the
-    session-wide contract intact: build_complete stays the close-out gate, no session state is
-    written mid-build, the PR belongs to the close-out ship, and failure routes back to Build."""
+    session-wide contract intact. Window anchored heading-to-heading — the old '---'
+    terminator silently extended over following sections when a rule moved."""
     md = read_file(_SHIP)
     assert "### Spec-scoped ship" in md, "ship must define the spec-scoped section as a heading"
     i = md.index("### Spec-scoped ship")
-    section = md[i:md.index("---", i)]
+    j = md.find("\n## ", i)
+    section = md[i:j if j != -1 else len(md)]
     assert "Not included — stage if you want" in section, \
         "spec-scoped staging must surface non-spec changes, never sweep them in"
     assert "never writes" in section and 'current_phase: "shipped"' in section \
@@ -481,6 +483,7 @@ def test_ship_spec_scoped_path_preserves_session_gate(read_file):
         "the session-wide build_complete refusal must remain for a plain /hercules:ship"
     assert "spec-scoped ship skips this step" in md, \
         "Execution's Record step must be marked session-wide-only (spec-scoped skips it)"
+
 
 
 def test_ship_build_and_diagram_agree_on_spec_scoped(read_file):
@@ -566,11 +569,14 @@ def test_commands_reference_artifact_root_resolution_rule(read_file):
 
 
 def test_build_offers_handoff_prompt(read_file):
-    """Build Step 6 must offer to record a handoff note in the home-config entry."""
+    """Build's close-out must OFFER to record a handoff — pinned to the prompt sentence in
+    the Close-out section; Step 0's read-side surfacing of handoff_note must not satisfy
+    the write-side feature."""
     md = read_file(_BUILD)
-    lower = md.lower()
-    assert "taking over" in lower or "handoff" in lower, \
-        "build Step 6 must prompt for handoff recording before close-out"
+    closeout = md[md.index("## Close-out"):]
+    assert "anyone taking over" in closeout.lower(), \
+        "the close-out must ask the handoff question, not merely read old notes"
+
 
 
 def test_no_command_or_readme_references_removed_context_file(read_file):
@@ -633,11 +639,15 @@ def test_design_produces_sub_specs_with_delivery_order(read_file):
 
 
 def test_discover_step0_nudges_code_of_conduct(read_file):
-    """discover Step 0 must surface code-of-conduct as a quality lever and offer to generate it."""
-    md = read_file("plugin/commands/discover.md").lower()
-    assert "code-of-conduct" in md
-    assert "generate" in md
-    assert "quality" in md
+    """discover Step 0 must surface code-of-conduct as a quality lever AND offer to
+    generate it — pinned to the generator skill name inside Step 0 ('generate' alone
+    matched the plan-mode boilerplate's 'regenerate')."""
+    md = read_file(_DISCOVER)
+    step0 = md[md.index("## Step 0"):md.index("## Step 1")]
+    assert "code-of-conduct-generator" in step0, \
+        "Step 0 must offer the generator skill by name"
+    assert "quality" in step0.lower(), "Step 0 must frame the CoC as a quality lever"
+
 
 
 def test_ship_step_defines_its_execution_contract(read_file):
@@ -718,14 +728,15 @@ def test_ship_pr_creation_is_conditional_on_gh(read_file):
 
 
 def test_build_opens_with_delivery_plan(read_file):
-    """Build opens in plan mode and presents a delivery plan (specs, their requirements, order,
-    grouping) gated on Plan approval before any code is written."""
-    lower = read_file(_BUILD).lower()
-    assert "delivery plan" in lower, "build must present a delivery plan in plan mode"
-    assert "satisfies" in lower, "the delivery plan must show which requirement each spec satisfies"
-    assert lower.index("delivery plan") < lower.index("plan approval"), \
-        "the delivery plan is presented before Plan approval"
-    assert lower.index("plan approval") < lower.index("auto-execute") if "auto-execute" in lower else True
+    """Build presents its delivery plan BEFORE Plan approval — anchored on the section
+    headings (both tokens' first occurrences used to sit in the same preamble sentence,
+    so reordering the sections stayed green)."""
+    md = read_file(_BUILD)
+    assert "satisfies" in md.lower(), \
+        "the delivery plan must show which requirement each spec satisfies"
+    assert md.index("### Step 4 — Present the delivery plan") < md.index("### Plan approval"), \
+        "the delivery plan section must precede the Plan-approval gate"
+
 
 
 def test_build_delivery_plan_allows_batching(read_file):
@@ -946,8 +957,8 @@ def test_ship_clean_tree_recovers_a_committed_but_unrecorded_ship(read_file):
     stranding the session (build_complete true, shipped_commit unset) forever. The
     clean-tree branch must detect and finish the interrupted ship."""
     ship = read_file(_SHIP)
-    clean = ship[ship.index("working tree is clean"):]
-    clean = clean[:clean.index("\n\n")]
+    proposal = _section(ship, "## Plan proposal", "\n## ", label=_SHIP)
+    clean = _section(proposal, "working tree is clean", "\n\n", label=_SHIP)
     assert "build_complete" in clean, \
         "the clean-tree branch must check for an interrupted, unrecorded ship"
     assert "step" in clean.lower(), "recovery must resume the remaining execution steps"
@@ -1146,3 +1157,126 @@ def test_discover_step7_preserves_existing_registry_keys(read_file):
         "Step 7 must not unconditionally blank the repositories map"
     assert "preserv" in step7, \
         "Step 7 must preserve existing registry keys (repositories, frozen_hook, keep_specs)"
+
+
+# ---------------------------------------------------------------------------
+# Round-2 promise→pin map: writer-side contracts and git-safety discipline.
+# Each was a promise with no owning test — a refactor could drop it silently.
+# ---------------------------------------------------------------------------
+
+from tests.conftest import section as _section
+
+
+def test_build_closeout_writes_the_ship_gate(read_file):
+    """Ship's precondition reads build_complete (pinned) — but nothing pinned the WRITER.
+    Drop the close-out write and every ship refuses forever with the suite green."""
+    closeout = _section(read_file(_BUILD), "## Close-out", label=_BUILD)
+    assert "`build_complete: true`" in closeout, "close-out must write the ship gate"
+    assert "`current_spec: null`" in closeout, "close-out must clear the current spec"
+
+
+def test_ship_stages_per_file_never_bulk(read_file):
+    """git add -A would sweep unapproved working-tree files into the user-approved
+    commit — the exact failure the 'Not included' plan line exists to prevent."""
+    step1 = _section(read_file(_SHIP), "**1. Stage.**", "**2. Commit.**", label=_SHIP)
+    assert "`git add <file>` per approved file" in step1
+    assert "never `git add -A` or `git add .`" in step1
+
+
+def test_build_checkpoint_carries_cross_check_fields(read_file):
+    """The checkpoint is the ONLY record the cross-check reads after specs retire —
+    dropping a field quietly blinds post-retire traceability."""
+    step9 = _section(read_file(_BUILD), "9. **Write the checkpoint.**",
+                     "10. **Retire the spec.**", label=_BUILD)
+    for token in ("satisfies:", "named tests", "coverage", "mutation", "constraints"):
+        assert token in step9, f"checkpoint field lost: {token!r}"
+
+
+def test_build_reconcile_rebuilds_missing_registry(read_file):
+    """A torn two-file write (registry lost, state intact) must not strand a
+    half-delivered feature behind 'no sessions found'."""
+    reconcile = _section(read_file(_BUILD), "On resume, reconcile", "### Step 1", label=_BUILD)
+    assert "rebuild" in reconcile and "registry" in reconcile
+
+
+def test_start_fresh_clear_list_is_complete(read_file):
+    """Dropping current_spec_round from the clear list inherits round 3 (instant stop);
+    dropping frozen_test_files keeps the hook armed on abandoned tests."""
+    fresh = _section(read_file(_BUILD), "On 'start fresh':", "On resume, reconcile", label=_BUILD)
+    for field in ("`current_spec`", "`current_spec_round`", "`frozen_test_files`",
+                  "`frozen_override`", "`pending_specs`", "`build_progress`"):
+        assert field in fresh, f"'start fresh' must clear {field}"
+
+
+def test_retire_removes_the_round_counter(read_file):
+    """CLAUDE.md promises 'removed at retire'; without it the NEXT spec starts at the
+    previous spec's round — tripping the 3-round stop early and mis-binding overrides."""
+    retire = _section(read_file(_BUILD), "10. **Retire the spec.**", "For a spec scoped",
+                      label=_BUILD)
+    assert "remove `current_spec_round`" in retire
+    assert "clear `frozen_test_files` and `frozen_override`" in retire
+
+
+def test_ship_refuses_detached_head_and_non_repo(read_file):
+    """Shipping onto a detached HEAD records a SHA no branch points at — orphaned on the
+    next checkout. Nothing pinned either git-safety stop."""
+    precondition = _section(read_file(_SHIP), "## Precondition check", "## Plan proposal",
+                            label=_SHIP)
+    assert "detached" in precondition.lower(), "ship must refuse a detached HEAD"
+    assert "not a git repository" in precondition, "ship must stop outside a git repo"
+
+
+def test_ship_commit_message_contract_details(read_file):
+    """Scope stripping, the 72-char cap, and the BREAKING CHANGE proposal are user-facing
+    output contracts — losing them yields feat(2026-06-28-user-auth): and silent breaking
+    changes in history."""
+    msg = _section(read_file(_SHIP), "**Commit message.**", "**Push target.**", label=_SHIP)
+    assert "strip the date prefix" in msg
+    assert "72" in msg
+    assert "BREAKING CHANGE" in msg
+
+
+def test_build_red_gate_demands_right_reason_failures(read_file):
+    """The TDD red phase degrades to fake-red (import errors counted as failures) if the
+    compile gate or right-reason clause is dropped — pinned only in the diagram before."""
+    build = read_file(_BUILD)
+    step2 = _section(build, "2. **Scaffold.**", "3. **Write failing tests.**", label=_BUILD)
+    assert "compile" in step2, "the scaffold gate must demand compilation before tests"
+    step3 = _section(build, "3. **Write failing tests.**", "4. **Implement.**", label=_BUILD)
+    assert "fails for the right reason" in step3
+    assert "forced failure" in step3
+    assert "`current_spec_round: 1`" in step3, \
+        "the freeze must literally initialize the round counter (mentions are not writes)"
+
+
+def test_design_write_gate_sentence_is_pinned(read_file):
+    """Design's actual write gate — deleting it left the suite green because 'approved'
+    matched 'stakeholders approved' and 'do not' matched 'do not re-score'."""
+    approval = _section(read_file(_DESIGN), "## Step 8 — Plan approval", "## Step 9",
+                        label=_DESIGN)
+    assert "**Do not write the specs until the user approves.**" in approval
+
+
+def test_state_fields_documented_and_written_stay_in_sync(read_file):
+    """Bidirectional schema guard: every field CLAUDE.md documents is used by some
+    command, and every snake_case state field the commands reference is documented —
+    the next invented (or dropped) field must fail here instead of drifting."""
+    md = read_file("plugin/CLAUDE.md")
+    session_prose = _section(md, "Session object (in the state file):", "\n\n")
+    registry_prose = _section(md, "Registry entry:", "\n\n")
+    prose = session_prose + registry_prose
+    # snake_case only — a loose pattern drags in backticked value literals (`false`);
+    # the two single-word fields are named explicitly so they stay guarded.
+    documented = set(re.findall(r"`([a-z]+(?:_[a-z]+)+)`", prose))
+    documented |= {f for f in ("tier", "cadence") if f"`{f}`" in prose}
+    commands = "".join(read_file(f) for f in _ALL_COMMANDS)
+    orphan_docs = {f for f in documented if f"`{f}`" not in commands}
+    # file-level keys live in the JSON example, not the field prose; commands may
+    # legitimately reference them without per-field prose:
+    allowed_file_level = {"active_session", "schema_version"}
+    assert not orphan_docs, \
+        f"documented in CLAUDE.md but referenced by no command: {sorted(orphan_docs)}"
+    referenced = {t for t in re.findall(r"`([a-z]+(?:_[a-z]+)+)`", commands)}
+    undocumented = referenced - documented - allowed_file_level
+    assert not undocumented, \
+        f"state-shaped fields referenced by commands but undocumented: {sorted(undocumented)}"

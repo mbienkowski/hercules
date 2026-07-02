@@ -32,7 +32,10 @@ _SKILL_GATE        = 20  # per individual skill invocation
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _count_instructions(text: str) -> int:
+def _count_instruction_blocks(text: str) -> int:
+    # Deliberately DIFFERENT semantics from tests/metrics/markdown_metrics.count_instructions:
+    # this budget counts numbered items inside fences and bold labels too, because a fenced
+    # example still costs the runtime agent attention. Keep the names distinct.
     """Count discrete instruction units in *text*."""
     lines = text.splitlines()
     count = 0
@@ -69,12 +72,12 @@ def _a2a_core_n(repo_root: Path) -> int:
     """Instruction count of the Agent-Injected Core section only (what sub-agents receive)."""
     a2a = (repo_root / "plugin/protocols/a2a-communication-protocol.md").read_text()
     core = _extract_section(a2a, "## Agent-Injected Core", "## Orchestrator Section")
-    return _count_instructions(core)
+    return _count_instruction_blocks(core)
 
 
 @pytest.fixture(scope="module")
 def _claude_md_n(repo_root: Path) -> int:
-    return _count_instructions((repo_root / "plugin/CLAUDE.md").read_text())
+    return _count_instruction_blocks((repo_root / "plugin/CLAUDE.md").read_text())
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
@@ -86,7 +89,7 @@ def test_sub_agent_instruction_budget(repo_root, agent_files, _a2a_core_n, _clau
     (prepended to every delegation prompt) + plugin/CLAUDE.md.
     """
     for agent_file in agent_files:
-        agent_n = _count_instructions(agent_file.read_text())
+        agent_n = _count_instruction_blocks(agent_file.read_text())
         total = agent_n + _a2a_core_n + _claude_md_n
         assert total <= _SUB_AGENT_GATE, (
             f"{agent_file.name}: {total} instruction blocks in sub-agent context "
@@ -100,7 +103,7 @@ def _all_protocols_n(repo_root: Path) -> int:
     """Instruction blocks across EVERY shipped protocol — a new protocol file must not slip
     into the orchestrator's context uncounted (they are all loadable during a phase)."""
     return sum(
-        _count_instructions(p.read_text())
+        _count_instruction_blocks(p.read_text())
         for p in sorted((repo_root / "plugin/protocols").glob("*.md"))
     )
 
@@ -114,7 +117,7 @@ def test_orchestrator_instruction_budget(repo_root, _claude_md_n):
     """
     protocols_n = _all_protocols_n(repo_root)
     # Worst-case command = build.md (most instructions of all four commands)
-    build_n = _count_instructions((repo_root / "plugin/commands/build.md").read_text())
+    build_n = _count_instruction_blocks((repo_root / "plugin/commands/build.md").read_text())
 
     total = _claude_md_n + build_n + protocols_n
     assert total <= _ORCHESTRATOR_GATE, (
@@ -129,7 +132,7 @@ def test_orchestrator_instruction_budget(repo_root, _claude_md_n):
 def test_skill_instruction_budget(skill_files):
     """Each skill loaded during a Build session must stay under _SKILL_GATE."""
     for skill_file in skill_files:
-        n = _count_instructions(skill_file.read_text())
+        n = _count_instruction_blocks(skill_file.read_text())
         assert n <= _SKILL_GATE, (
             f"{skill_file.parent.name}/SKILL.md: {n} instruction blocks "
             f"— gate is {_SKILL_GATE}. Trim or split the skill."
@@ -145,7 +148,7 @@ def test_no_command_exceeds_orchestrator_contribution(repo_root, command_files, 
     base = _claude_md_n + _all_protocols_n(repo_root)
 
     for cmd_file in command_files:
-        cmd_n = _count_instructions(cmd_file.read_text())
+        cmd_n = _count_instruction_blocks(cmd_file.read_text())
         total = base + cmd_n
         assert total <= _ORCHESTRATOR_GATE, (
             f"{cmd_file.name}: orchestrator total {total} blocks with this command "

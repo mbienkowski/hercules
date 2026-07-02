@@ -108,18 +108,14 @@ def frozen_candidates(entry, roots) -> set:
     """Canonical paths a (usually repo-relative) frozen-test entry could denote.
 
     `frozen_test_files` are stored repo-relative (e.g. `tests/auth/test_login.py`); the tool
-    sends an absolute `file_path`. Resolve the entry against every project root and keep every
-    candidate that exists on disk (handles multi-service repos where the same relative path may
-    live under a `repositories.*` root). If none exist, EVERY root stays guarded — matching
-    under *any* root counts as frozen, the fail-closed direction for the flagship guard.
-    Junk entries (non-string, empty) resolve to nothing rather than poisoning the caller's
-    whole frozen set.
+    sends an absolute `file_path`. The entry is guarded under EVERY project root — whether or
+    not a file exists there yet — so a multi-service repo can't dodge the freeze by writing
+    the same relative path under a `repositories.*` root: matching under *any* root counts as
+    frozen, the fail-closed direction for the flagship guard. Junk entries (non-string, empty)
+    resolve to nothing rather than poisoning the caller's whole frozen set.
     """
     if not isinstance(entry, str) or not entry:
         return set()
     if os.path.isabs(entry):
         return {canon(entry)}
-    existing = {canon(os.path.join(root, entry)) for root in roots if os.path.exists(os.path.join(root, entry))}
-    if existing:
-        return existing
     return {canon(os.path.join(root, entry)) for root in roots} or {canon(entry)}

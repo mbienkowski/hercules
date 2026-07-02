@@ -55,18 +55,18 @@ def test_build_opens_in_plan_mode_then_executes(read_file):
 
 
 def test_workflow_chains_phases_in_order_with_approval_gates(read_file):
-    """Workflow must present Discover→Design→Build→Ship in order, each gated on the user."""
-    lower = read_file(_WORKFLOW).lower()
-    assert lower.index("discover") < lower.index("design") < lower.index("build"), \
-        "workflow must present the four phases in order"
-    assert "move to design" in lower and "move to build" in lower, \
-        "workflow must gate each phase transition on the user"
-    assert lower.index("move to design") < lower.index("move to build"), \
-        "the Design gate must precede the Build gate"
-    assert lower.index("build") < lower.index("ship"), \
-        "workflow must present ship after build"
-    assert "move to ship" in lower, \
-        "workflow must gate the Build→Ship transition on the user"
+    """Workflow must present Discover→Design→Build→Ship in order, each gated on the user.
+    Anchored on the phase headings — a summary-line mention must never satisfy the order
+    check while the actual phase sections are swapped."""
+    md = read_file(_WORKFLOW)
+    heads = [md.index(f"## Phase {n} — {name}") for n, name in
+             ((1, "Discover"), (2, "Design"), (3, "Build"), (4, "Ship"))]
+    assert heads == sorted(heads), "the four phase sections must appear in workflow order"
+    lower = md.lower()
+    for gate in ("move to design", "move to build", "move to ship"):
+        assert gate in lower, f"workflow must gate each transition on the user ({gate!r})"
+    assert (lower.index("move to design") < lower.index("move to build")
+            < lower.index("move to ship")), "the transition gates must appear in phase order"
 
 
 def test_advisor_loop_is_human_first(read_file):
@@ -92,36 +92,36 @@ def test_complexity_scored_once_read_forward(read_file):
 
 
 def test_ship_requires_plan_mode(read_file):
-    """Ship must enter plan mode to draft its commit plan before executing."""
-    lower = read_file(_SHIP).lower()
-    assert "plan mode" in lower, \
-        "ship must enter plan mode to propose the commit plan for user review"
-    assert "enterplanmode" in lower or "plan mode" in lower, \
-        "ship must call EnterPlanMode to draft its commit plan"
-    assert "approved" in lower, \
+    """Ship must actually call EnterPlanMode — 'plan mode' prose alone satisfied the old
+    disjunction while every EnterPlanMode call was removed."""
+    md = read_file(_SHIP)
+    assert "EnterPlanMode" in md, "ship must call EnterPlanMode to draft its commit plan"
+    assert "approved" in md.lower(), \
         "ship must gate execution on user approval of the commit plan"
 
 
 def test_ship_requires_build_complete_before_proceeding(read_file):
-    """Ship must gate on build_complete: true in hercules-config before entering plan mode."""
+    """Ship must refuse when build_complete is not true — pinned to the refusal sentence
+    inside the precondition section ('complete' being a substring of 'build_complete'
+    made the old any()-check a tautology)."""
     md = read_file(_SHIP)
-    lower = md.lower()
-    assert "build_complete" in md, \
+    precondition = md[:md.index("## Plan proposal")]
+    assert "build_complete" in precondition, \
         "ship must read build_complete from the per-project state as its precondition"
-    assert any(w in lower for w in ["refuse", "do not", "block", "first", "complete"]), \
-        "ship must state what happens when build_complete is not true"
+    assert "Local build is not complete. Finish `/hercules:build` first." in precondition, \
+        "the refusal sentence IS the gate — it must live in the precondition section"
 
 
 def test_exit_plan_mode_uses_auto_mode(read_file):
-    """Every plan-mode exit requests `auto` (not accept-edits), so execution runs smoothly after the
-    single Plan approval gate. The planning→execution transition is auto where it matters."""
+    """Every plan-mode exit requests `auto` — pinned as the literal call form, because a
+    bare "auto" substring is satisfied by "automatically" while the mode argument is
+    silently dropped."""
     for f in (_DISCOVER, _DESIGN, _BUILD, _SHIP, _WORKFLOW,
               "plugin/skills/code-of-conduct-generator/SKILL.md"):
         text = read_file(f)
-        lower = text.lower()
-        assert "exitplanmode" in lower, f"{f} must call ExitPlanMode"
-        assert "auto" in lower, f"{f} must request `auto` mode on ExitPlanMode"
-        assert "accept-edits" not in lower, f"{f} must not use accept-edits"
+        assert re.search(r"ExitPlanMode`?\s*\(`auto`\)", text), \
+            f"{f} must call ExitPlanMode with the literal (`auto`) mode argument"
+        assert "accept-edits" not in text.lower(), f"{f} must not use accept-edits"
 
 
 def test_all_phases_use_uniform_plan_approval_gate(read_file):

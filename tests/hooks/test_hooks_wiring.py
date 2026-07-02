@@ -30,7 +30,7 @@ def test_hooks_json_is_valid_and_declares_pretooluse(hooks):
 def test_frozen_tests_guard_matches_the_mutating_tools(hooks):
     matchers = [entry.get("matcher", "") for entry in hooks["hooks"]["PreToolUse"]]
     joined = " ".join(matchers)
-    for tool in ("Edit", "Write"):
+    for tool in ("Edit", "MultiEdit", "Write", "NotebookEdit"):
         assert re.search(rf"\b{tool}\b", joined), f"the frozen-tests guard must match {tool}"
 
 
