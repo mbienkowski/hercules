@@ -98,3 +98,11 @@ def test_injected_agent_core_has_not_been_accidentally_changed(repo_root):
     assert core == want, (
         "Injected Core changed vs golden. If intentional, update tests/testdata/core.golden."
     )
+
+
+def test_round3_reinvoke_threshold_excludes_resolved_votes(read_file):
+    """4/5 is 'Resolved' and 'all ≥4/5 closes the round' — Round 3 must re-invoke only
+    unresolved (≤3/5) agents, or every resolved voter gets re-spawned at extra cost."""
+    for rel in (_A2A_PROTOCOL, _DEBATE_PROTOCOL):
+        assert "≤4/5" not in read_file(rel), \
+            f"{rel}: R3 re-invoke threshold contradicts the ≥4/5 resolution rule — use ≤3/5"

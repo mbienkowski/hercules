@@ -108,3 +108,24 @@ def test_hook_modules_import_without_side_effects():
     import frozen_tests  # noqa: F401
     # Importing again is idempotent and cheap.
     assert hasattr(frozen_tests, "main") and hasattr(hercules_state, "resolve_session")
+
+
+def test_pragma_no_mutate_only_on_static_strings(repo_root):
+    """A pragma is a hole in the mutation gate — it may silence only behaviourally-equivalent
+    mutants: static message strings, type aliases, replace-decode codec args. Any pragma on a
+    line without a string literal or type alias is suppressing real logic and must go."""
+    import itertools
+    scoped = itertools.chain(
+        (repo_root / "plugin" / "hooks").glob("*.py"),
+        (repo_root / "tests" / "metrics").glob("*.py"),
+    )
+    for path in scoped:
+        if path.name.startswith("test_"):
+            continue
+        for i, line in enumerate(path.read_text().splitlines(), 1):
+            if "pragma: no mutate" in line:
+                assert ('"' in line or "'" in line or "Callable" in line
+                        or "equivalent" in line), (
+                    f"{path.name}:{i} pragma on a non-string line without a documented-"
+                    "equivalence justification — write a killing test instead"
+                )

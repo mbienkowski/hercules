@@ -1,13 +1,13 @@
 ---
 name: learnings
-description: Reconcile a reusable, project-scoped learning at ship time, and read relevant ones back during refinement. Use in the deliver pillar (write the learning) and in refinement (read prior learnings for the task's domain). Keeps a useful store, not a write-only log.
+description: Reconcile a reusable, project-scoped learning at Build close-out, and read relevant ones back in Discover. Use in the deliver pillar (write the learning) and in refinement (read prior learnings for the task's domain). Keeps a useful store, not a write-only log.
 ---
 
 # Learnings
 
 Accumulate decisions, patterns, and anti-patterns that make the next task better — a reconciled store keyed by stable id, never an append-only log.
 
-## Write (ship time)
+## Write (Build close-out)
 - **Reconcile, never blind-append:** match the candidate against existing entries by key; on a hit, update in place rather than stacking a near-duplicate.
 - **Contradiction → newest-wins supersession:** the new learning replaces the one it contradicts; git history carries the "we changed our mind", so the live store states only what is currently true.
 - **Stale → retire:** a learning contradicted by what shipped is deleted or superseded, not annotated with history.

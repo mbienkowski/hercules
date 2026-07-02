@@ -27,7 +27,7 @@ Run the full `/hercules:discover` flow (Steps 0–7). When all five discovery gr
 
 > I think we have a clear picture of what you want to build.
 > Before we move on — is there anything else you'd like to add or change here?
-> This is the right moment: once we move to Design, the requirements are locked.
+> This is the right moment — after this, requirement changes need a fresh Discover pass.
 >
 > Say **"move to Design"** or **"not yet"** to keep going here.
 
@@ -42,7 +42,7 @@ On "move to Design": announce "📐 Entering the **Design** phase." and continue
 Run the full `/hercules:design` flow (Steps 1–9), reading the `*-business-requirements.md` written in Phase 1. When the design is approved, stakeholder review is complete (or skipped), coverage gate passes, and the sub-spec files are saved, pause:
 
 > The specs and delivery sequence are solid. Before we move on — any final thoughts or changes here?
-> Once we move to Build, the specs are locked.
+> After this, spec changes go through `/hercules:design` again.
 >
 > Say **"move to Build"** or **"not yet"** to keep going here.
 

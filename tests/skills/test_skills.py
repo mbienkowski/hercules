@@ -219,11 +219,13 @@ def test_code_of_conduct_generator_defines_required_sections(repo_root):
 
 
 def test_code_of_conduct_generator_detects_file_naming_convention(repo_root):
-    """code-of-conduct-generator must infer the filename casing from the repo before proposing a name."""
+    """The generator writes the ONE filename every command and agent reads — always the
+    lowercase `code-of-conduct.md`; a casing-detection rule would produce a file nobody reads."""
     md = (repo_root / _COC_GENERATOR).read_text()
-    lower = md.lower()
-    assert "uppercase" in lower or "lowercase" in lower or "casing" in lower, \
-        "code-of-conduct-generator must detect repo file-naming convention before writing"
+    assert "Always `code-of-conduct.md`" in md, \
+        "the generator must always write code-of-conduct.md — the only name consumers read"
+    assert "uppercase stems" not in md, \
+        "no casing detection: an uppercase output filename would be ignored by every consumer"
 
 
 def test_code_of_conduct_generator_handles_existing_coc_safely(repo_root):
@@ -238,3 +240,22 @@ def test_code_of_conduct_generator_handles_existing_coc_safely(repo_root):
         "code-of-conduct-generator must perform gap analysis when re-running against an existing CoC"
     assert "addition" in lower or "append" in lower or "insert" in lower, \
         "code-of-conduct-generator must describe the additions-only update strategy"
+
+
+def test_coc_generator_output_filename_is_one_the_plugin_reads(read_file):
+    """Every command and agent reads the literal `code-of-conduct.md`; the generator must never
+    propose an uppercase output filename no consumer looks for."""
+    skill = read_file("plugin/skills/code-of-conduct-generator/SKILL.md")
+    assert "→ `CODE_OF_CONDUCT.md`" not in skill, \
+        "generator must never PROPOSE an uppercase output filename — no consumer reads it"
+    assert "Always `code-of-conduct.md`" in skill, \
+        "the output filename rule must be the lowercase name every consumer reads"
+
+
+def test_learnings_skill_names_the_phase_that_invokes_it(read_file):
+    """build.md invokes learnings at Build close-out (every tier); a 'ship time' trigger routes
+    the model to Ship — which never invokes it and runs prompt-free — so nothing gets written."""
+    skill = read_file("plugin/skills/learnings/SKILL.md")
+    if "ship time" in skill.lower():
+        assert "learnings" in read_file("plugin/commands/ship.md"), \
+            "learnings anchors to 'ship time' but only Build invokes it — rephrase the trigger"

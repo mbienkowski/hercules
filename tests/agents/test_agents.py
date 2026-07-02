@@ -263,3 +263,31 @@ def test_advisor_list_matches_plugin_settings(repo_root):
         f"  In settings.json only: {sorted(set(manifest) - set(_ADVISOR_AGENTS))}\n"
         f"  In _ADVISOR_AGENTS only: {sorted(set(_ADVISOR_AGENTS) - set(manifest))}"
     )
+
+
+def test_engineers_defer_unpassable_test_verdict_to_the_caller(repo_root):
+    """G2 gives the user the decision (3 rounds, root-cause, menu); an engineer agent must
+    report an unpassable test to its caller, never self-declare a spec gap and abort."""
+    for name in ("backend-engineer", "frontend-engineer"):
+        md = (repo_root / "plugin" / "agents" / f"{name}.md").read_text()
+        assert "stop and re-enter" not in md, \
+            f"{name} must not unilaterally exit the TDD loop — report the blocker to the caller"
+
+
+def test_cynical_reviewer_spec_sync_is_report_only(read_file):
+    """The role expectation is 'report dispositions to the caller'; an 'update the spec' branch
+    can fire on a live spec during ship-each cross-checks, mutating a frozen artifact."""
+    md = read_file("plugin/agents/cynical-reviewer.md")
+    assert "update the spec" not in md.lower(), \
+        "cynical-reviewer must report dispositions, never update a spec"
+
+
+def test_first_run_gate_keys_on_something_the_recommended_setup_writes(read_file):
+    """hercules.md gates onboarding on a registry entry, but its recommended setup step
+    (code-of-conduct-generator) never writes one — the welcome block would re-trigger forever.
+    The gate must also stand down when the CoC the setup DOES write is present."""
+    persona = read_file("plugin/agents/hercules.md")
+    generator = read_file("plugin/skills/code-of-conduct-generator/SKILL.md")
+    if "config.json" in persona:
+        assert "config.json" in generator or "code-of-conduct.md` is present" in persona, \
+            "the first-run gate re-triggers after setup — key it on the CoC file too"

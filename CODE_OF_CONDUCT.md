@@ -163,6 +163,14 @@ Hercules holds itself to the bar it enforces on its users: **>= 90% branch cover
 `make test`) and a **>= 90% mutation kill rate** (gated by `make test-mutation`). Both run in CI on
 every PR — practice what we preach.
 
+### Mutation pragmas are for static strings only
+
+`# pragma: no mutate` is a hole in the mutation gate — every use must be defensible. Allowed only
+on lines whose mutants are all behaviourally equivalent: static user-facing message strings, type
+aliases, and codec arguments where every mutation still fails open. Never on a branch, comparison,
+or return value — those get a killing test instead. Enforced by
+`tests/hooks/test_hook_hygiene.py::test_pragma_no_mutate_only_on_static_strings`.
+
 ### Tests assert the present state, not the past
 
 A test that only asserts a string is **absent** encodes a historical fix, not a present-state property —

@@ -53,7 +53,7 @@ A2A Communication Protocol  (every agent-to-agent reply; any multi-agent workflo
    or generic praise is invalid. An unresolved vote ends your role; orchestrator escalates.
 7. Debate: classify complexity first — trivial=skip; low=R1 only; medium=R1+R2;
    high=R1+R2+R3; critical=R1+R2+R3+fresh-eyes(mandatory). R1 blind/parallel →
-   R2 cross-examine (all see R1; Agreement: N/5) → R3 re-invoke ≤4/5 agents only.
+   R2 cross-examine (all see R1; Agreement: N/5) → R3 re-invoke ≤3/5 agents only.
    Max 3 rounds, then synthesise. Fresh-eyes: new agents, no R1/R2 history.
 Example (review):   [QA] Blocker | auth_handler:42 lets an unauthenticated request reach the admin handler, exposing user data. | Gate the handler behind a session check.
 Example (non-eval): [RESEARCH] Info | Postgres 16 ships logical-replication failover, relevant to the HA requirement. | none

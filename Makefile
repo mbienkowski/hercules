@@ -8,5 +8,5 @@ test:
 
 test-mutation:
 	mutmut run || true
-	mutmut results
+	mutmut results | tee mutmut-results.txt
 	python scripts/check_mutation_gate.py

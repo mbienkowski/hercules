@@ -63,7 +63,7 @@ Re-invoke all agents in a single message, each receiving all Round 1 findings. E
 
 Skip for `complexity:low` (Round 1 is its only round) and `complexity:medium` (Round 2 is its final round).
 
-Re-invoke only agents who stated ≤4/5 after Round 2. Synthesise after Round 3 regardless
+Re-invoke only agents who stated ≤3/5 after Round 2. Synthesise after Round 3 regardless
 of remaining agreement level.
 
 ## Fresh-eyes panel

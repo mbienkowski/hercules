@@ -7,7 +7,7 @@ name = "hercules"
 version = "1.2.0"
 description = "Hercules — Claude Code plugin with AI-assisted delivery methodology enforcement"
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "AGPL-3.0" }
 requires-python = ">=3.9"
 dependencies = []
 

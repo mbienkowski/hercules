@@ -112,8 +112,11 @@ def decide(payload, home=None):
 
 
 def main(stdin_text=None, home=None) -> int:
-    raw = stdin_text if stdin_text is not None else sys.stdin.read()
     try:
+        if stdin_text is not None:
+            raw = stdin_text
+        else:
+            raw = sys.stdin.buffer.read().decode("utf-8", "replace")  # pragma: no mutate
         payload = json.loads(raw) if raw and raw.strip() else {}
     except Exception:
         return 0
@@ -123,5 +126,7 @@ def main(stdin_text=None, home=None) -> int:
     return code
 
 
-if __name__ == "__main__":
+# pragma: no mutate — the guard's only mutant sys.exits pytest at collection (exit 0),
+# which mutmut misreads as survived; the import-side-effect and end-to-end tests cover it.
+if __name__ == "__main__":  # pragma: no mutate
     sys.exit(main())

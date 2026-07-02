@@ -9,7 +9,7 @@ The code-of-conduct is the highest-leverage file: every agent reads it. Tell the
 
 ## Method
 
-**1. Filename.** Scan existing files for casing — uppercase stems → `CODE_OF_CONDUCT.md`; lowercase → `code-of-conduct.md`; ambiguous → propose `CODE_OF_CONDUCT.md`. Confirm before writing anything.
+**1. Filename.** Always `code-of-conduct.md` — the one name every command and agent reads (a repo's contributor `CODE_OF_CONDUCT.md`, if any, is a different document). Confirm before writing anything.
 
 **2. Existing CoC check.** File found → read in full; switch to **update mode** below. No file → new-file flow.
 

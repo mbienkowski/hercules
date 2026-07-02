@@ -163,3 +163,73 @@ def test_diagram_scaffold_and_failing_tests_steps_are_gates(read_file):
         "Scaffold step (Gate: must compile) must carry the gate CSS class"
     assert 'class="step gate"><span class="st-n">5</span><span class="st-t">Write the failing tests' in html, \
         "Write-the-failing-tests step (Gate: compile and fail for the right reason) must carry the gate CSS class"
+
+
+def test_requirements_section_discloses_hook_python_runtime(read_file):
+    """hooks.json runs python3 on the user's machine on every edit — the Requirements section
+    must not call Python contributor-only, and the intro must not deny extra executables."""
+    assert "python3" in read_file("plugin/hooks/hooks.json")
+    readme = read_file("README.md")
+    start = readme.index("## Requirements")
+    section = readme[start:readme.index("## ", start + 3)]
+    assert "only for contributing" not in section.lower(), \
+        "hooks need python3 at runtime — Requirements must say so (and that they fail open without it)"
+    assert "you don't need any extra executables" not in readme.lower(), \
+        "python3 is an extra executable the hooks use"
+
+
+def test_readme_does_not_overstate_single_approval(read_file):
+    """Phases ask clarifying questions (tier confirm, advisor consent, service paths, ship-each)
+    before the gate — the honest claim is one authorizing GATE, not one prompt."""
+    assert "One approval per phase; nothing happens before it" not in read_file("README.md")
+
+
+def test_worked_example_shows_the_complexity_gate(read_file):
+    """Password reset is an auth surface floored at high — the example dialogue must show the
+    mandatory tier confirmation instead of jumping question → draft → approved."""
+    readme = read_file("README.md")
+    example = readme[readme.index("### What that looks like"):readme.index("## Where your delivery docs live")]
+    assert "complexity" in example.lower(), "the example omits the tier confirmation step"
+
+
+def test_readme_coverage_enforcement_is_conditioned_on_coc(read_file):
+    """Hercules carries no thresholds of its own — coverage gates only when the CoC sets one;
+    only traceability is unconditional."""
+    assert "Branch coverage and traceability are always enforced" not in read_file("README.md")
+
+
+def test_uninstall_section_mentions_hercules_home_cleanup(read_file):
+    """~/.hercules (project paths + delivery state) survives /plugin uninstall — disclose it."""
+    readme = read_file("README.md")
+    start = readme.index("## Uninstalling")
+    assert ".hercules" in readme[start:readme.index("## ", start + 3)]
+
+
+def test_readme_discloses_index_and_learnings_artifacts(read_file):
+    """Commands write docs/INDEX.md and docs/learnings.md into the user's repo — say so."""
+    readme = read_file("README.md")
+    assert "INDEX.md" in readme and "learnings" in readme.lower()
+
+
+def test_readme_advisor_consent_is_consistent(read_file):
+    """The board is a recommendation the user approves ('never automatic') — no sentence may
+    claim non-trivial tiers run it unconditionally."""
+    assert "every other tier runs it" not in read_file("README.md")
+
+
+def test_license_is_single_sourced(repo_root, read_file):
+    """pyproject and the plugin manifest must declare the same license as LICENSE ships."""
+    import json as _json
+    py = read_file("pyproject.toml")
+    plugin = _json.loads((repo_root / "plugin" / ".claude-plugin" / "plugin.json").read_text())
+    lic = plugin.get("license", "")
+    assert lic and lic.split("-")[0] in py, \
+        f"pyproject license must match plugin.json's {lic!r}"
+
+
+def test_readme_documents_keeping_specs(read_file):
+    """Teams with an existing spec practice must learn they can keep delivered specs via a
+    code-of-conduct.md directive instead of the default delete-on-delivery."""
+    readme = read_file("README.md")
+    assert "keep the specs" in readme.lower(), \
+        "README must document the keep-the-specs code-of-conduct override"

@@ -607,3 +607,122 @@ def test_decide_fails_open_if_resolver_raises(tmp_path, monkeypatch):
         "cwd": "/x",
     })
     assert ft.main(payload, home=tmp_path) == 0
+
+
+def test_paused_build_session_stays_guarded_when_active_session_moves_on(tmp_path):
+    """Discover for feature B flips active_session; feature A's build (frozen files, phase
+    'build') must STILL block edits to its frozen tests — the guard must not hinge on the
+    single active_session pointer (multi-session is an advertised flow)."""
+    project = tmp_path / "proj"
+    _setup(tmp_path, project)
+    hh = tmp_path / ".hercules"
+    state = json.loads((hh / "state" / "proj.json").read_text())
+    state["sessions"]["s2"] = {"current_phase": "discover", "tier": "low"}
+    state["sessions"]["junk"] = "not-a-dict"
+    state["active_session"] = "s2"
+    (hh / "state" / "proj.json").write_text(json.dumps(state))
+    assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
+
+
+def test_deeper_non_build_project_cannot_shadow_an_outer_active_build(tmp_path):
+    """A registry entry for an inner directory (idle, phase discover) must not shadow the
+    outer project's ACTIVE BUILD that froze a file inside that inner tree — a build session
+    outranks a non-build one regardless of registry depth."""
+    outer = tmp_path / "mono"
+    inner = outer / "svc"
+    _setup(tmp_path, outer, slug="outer", frozen=("svc/tests/test_x.py",))
+    hh = tmp_path / ".hercules"
+    cfg = json.loads((hh / "config.json").read_text())
+    cfg["projects"]["inner"] = {"directory": str(inner), "state_file": "inner.json"}
+    (hh / "config.json").write_text(json.dumps(cfg))
+    (hh / "state" / "inner.json").write_text(json.dumps({
+        "active_session": "s", "sessions": {"s": {"current_phase": "discover", "tier": "low"}}}))
+    assert main(_payload(inner, inner / "tests/test_x.py", cwd=inner), home=tmp_path) == 2
+
+
+def test_state_file_pointer_cannot_escape_the_state_dir(tmp_path):
+    """A state_file value like ../../evil.json must be ignored (fail-open), never read —
+    the documented read scope is ~/.hercules only."""
+    project = tmp_path / "proj"
+    _setup(tmp_path, project)
+    hh = tmp_path / ".hercules"
+    evil = tmp_path / "evil.json"
+    evil.write_text((hh / "state" / "proj.json").read_text())
+    cfg = json.loads((hh / "config.json").read_text())
+    cfg["projects"]["proj"]["state_file"] = "../../evil.json"
+    (hh / "config.json").write_text(json.dumps(cfg))
+    (hh / "state" / "proj.json").unlink()
+    assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 0
+
+
+def test_undecodable_stdin_fails_open_without_a_traceback(tmp_path):
+    """Invalid UTF-8 on stdin must exit 0 with no traceback — 'never raises' includes the read."""
+    import subprocess
+
+    project = tmp_path / "proj"
+    _setup(tmp_path, project)
+    env = {**os.environ, "HOME": str(tmp_path), "PYTHONIOENCODING": "utf-8"}
+    run = subprocess.run(
+        [sys.executable, str(_HOOKS_DIR / "frozen_tests.py")],
+        input=b"\xff\xfe{bad", capture_output=True, env=env,
+    )
+    assert run.returncode == 0
+    assert b"Traceback" not in run.stderr
+
+
+def test_escaping_pointer_skips_only_that_project(tmp_path):
+    """One project with a traversal state_file must be skipped, not end the registry scan —
+    a later matching project with a live build still blocks."""
+    project = tmp_path / "proj"
+    _setup(tmp_path, project)
+    hh = tmp_path / ".hercules"
+    cfg = json.loads((hh / "config.json").read_text())
+    cfg["projects"] = {
+        "evil": {"directory": str(project), "state_file": "../../evil.json"},
+        **cfg["projects"],
+    }
+    (hh / "config.json").write_text(json.dumps(cfg))
+    assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
+
+
+def test_active_build_session_outranks_other_build_sessions(tmp_path):
+    """With two build sessions in one file, the ACTIVE one is authoritative — the fallback scan
+    is only for when the active session is not building. An edit frozen only in the non-active
+    build session is allowed; the active session's own frozen file still blocks."""
+    project = tmp_path / "proj"
+    _setup(tmp_path, project, frozen=("tests/test_a.py",))
+    hh = tmp_path / ".hercules"
+    state = json.loads((hh / "state" / "proj.json").read_text())
+    other = {"current_phase": "build", "current_spec": "spec-09-other.md",
+             "current_spec_round": 1, "frozen_test_files": ["tests/test_b.py"]}
+    state["sessions"] = {"s0": other, "s1": state["sessions"]["s1"]}  # non-active build FIRST
+    (hh / "state" / "proj.json").write_text(json.dumps(state))
+    (project / "tests" / "test_b.py").write_text("def test_b():\n    assert True\n")
+    assert main(_payload(project, "tests/test_b.py"), home=tmp_path) == 0
+    assert main(_payload(project, "tests/test_a.py"), home=tmp_path) == 2
+
+
+def test_fallback_scan_survives_junk_sessions_listed_first(tmp_path):
+    """When the active session is gone and a junk (non-dict) session precedes the paused build
+    in the file, the fallback must skip the junk and still find the build session."""
+    project = tmp_path / "proj"
+    _setup(tmp_path, project)
+    hh = tmp_path / ".hercules"
+    state = json.loads((hh / "state" / "proj.json").read_text())
+    state["sessions"] = {"junk": "not-a-dict", "s1": state["sessions"]["s1"]}
+    state["active_session"] = "gone"
+    (hh / "state" / "proj.json").write_text(json.dumps(state))
+    assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
+
+
+def test_importing_the_hook_module_has_no_side_effects(tmp_path):
+    """Importing frozen_tests must never run main() — the __main__ guard is load-bearing:
+    a module-level sys.exit would abort any tool that imports the hook for reuse."""
+    import subprocess
+
+    run = subprocess.run(
+        [sys.executable, "-c", "import frozen_tests; print('IMPORT_OK')"],
+        cwd=str(_HOOKS_DIR), input="", capture_output=True, text=True,
+    )
+    assert run.returncode == 0
+    assert "IMPORT_OK" in run.stdout, "import must reach the end of the probe — no exit in between"

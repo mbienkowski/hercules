@@ -7,7 +7,10 @@ plugin marketplace.
 
 1. The package, command, and product name is `hercules` everywhere.
 2. `*-business-requirements.md` files are permanent business documents — committed forever, never deleted, updated whenever requirements change or a bug reveals a missing scope or flow. Written in business language only; they never name classes, code, or implementation detail (that lives in specs and code).
-3. Spec files (`*-spec-NN-*.md`) are temporary technical documents — deleted via `git rm` once delivered in code (during Build). Code is the single source of truth post-delivery.
+3. Spec files (`*-spec-NN-*.md`) are temporary technical documents — deleted via `git rm` once
+   delivered in code (during Build). Code is the single source of truth post-delivery. Projects that
+   prefer permanent specs say so in their `code-of-conduct.md` (cached as `keep_specs`); kept specs
+   are refreshed at delivery to match what shipped.
 4. Every feature runs all phases (Discover → Design → Build → Ship) and produces the same artifacts. Complexity scoring sets the advisor count only (trivial runs none), never which phases run.
 5. Discovery is the heaviest phase. Accept PRDs, ADRs, Figma links, QA scenarios, and any rich context upfront. The more invested here, the less rework in Build.
 6. Open Claude where documents live: monorepo → open in that repo; microservices with cross-repo features → use a dedicated requirements repo.
@@ -92,7 +95,9 @@ gates come from the project's `code-of-conduct.md`.
 Each step runs its own sub-process specified per command. Build runs a full TDD loop per spec
 (scaffold → write failing tests, then frozen → implement → quality gates → cross-check validation).
 Step order and hard guardrails are normatively listed in `protocols/workflow-protocol.md`;
-commands compose its delegation packet (§ packet) for every workflow spawn.
+commands compose its delegation packet (§ packet) for every workflow spawn. If anything breaks
+or two instructions conflict, fall back to the safest action consistent with that protocol —
+never improvise outside it — and tell the user what happened.
 
 ### INDEX.md format
 
@@ -101,7 +106,7 @@ commands compose its delegation packet (§ packet) for every workflow spawn.
 | 2026-06-22 | 2026-06-22-user-auth | high    | build     | JWT auth for API gateway  |
 | 2026-06-15 | 2026-06-15-payments  | medium  | delivered | Stripe checkout flow      |
 
-Status values: `discover` | `design` | `build` | `delivered` | `abandoned`
+Status values: `discover` | `design` | `build` | `delivered` | `abandoned` (`abandoned` is set manually by the user)
 Tier values: `trivial` | `low` | `medium` | `high` | `critical`
 
 ### Machine-local state (`~/.hercules/`)
@@ -182,9 +187,9 @@ session's object — never other entries, never the top-level `schema_version` (
 }
 ```
 
-Registry entry: `directory` — the project's local path (the launch / artifact-root host); the match key. `docs_root` — the resolved artifact root (default `"docs"`; a code-of-conduct.md directive may set a directory or a separate-repo local path). `state_file` — the per-project state filename under `~/.hercules/state/` (derived from the slug; stored so lookup never re-derives). `repositories` — additional service names → machine-local paths for cross-repo features; persists across features. `frozen_hook` — set to `"off"` on the user's instruction to disable the frozen-tests hook for this project (prompt-only TDD discipline); omit otherwise.
+Registry entry: `directory` — the project's local path (the launch / artifact-root host); the match key. `docs_root` — the resolved artifact root (default `"docs"`; a code-of-conduct.md directive may set a directory or a separate-repo local path). `state_file` — the per-project state filename under `~/.hercules/state/` (derived from the slug; stored so lookup never re-derives). `repositories` — additional service names → machine-local paths for cross-repo features; persists across features. `frozen_hook` — set to `"off"` on the user's instruction to disable the frozen-tests hook for this project (prompt-only TDD discipline); omit otherwise. `keep_specs` — `true` when the project's `code-of-conduct.md` directs keeping delivered specs (retire refreshes them instead of deleting); omit otherwise.
 
-Session object (in the state file): `tier` + `tier_rationale` — scored once in Discover, read by Design and Build; never re-scored by Hercules (a manual user override is the only change). `current_spec` — the spec filename in progress. `current_spec_round` — the 1–3 implementation-round counter, persisted so a resume can't reset it. `frozen_test_files` — the current spec's test files, `git diff`-guarded so a frozen test cannot be silently edited. `frozen_override` — a user-granted exception the frozen-tests hook honours: files + spec + round + the user's quoted instruction; written only on the user's explicit grant, cleared once the corrected test re-passes the write-tests gate; a stale spec or round never validates. Omit when no grant is live. `delivered_specs` / `pending_specs` — spec filenames delivered / remaining in order (omit when empty). `build_progress` — per-spec checkpoint (criteria, satisfies, decisions, interfaces, tests, coverage, mutation, cross-spec constraints) written at retire; the durable record the cross-check reads after specs are deleted. `handed_off_by` / `handoff_note` — written only at explicit handoff (Build close-out). `build_complete` — written `true` by Build close-out; read by Ship as its precondition; reset to `false` by Ship after a successful commit. `shipped_commit` / `shipped_pr` — written by Ship; omitted when not yet shipped / not applicable.
+Session object (in the state file): `current_phase` — the phase backbone (`"discover"` → `"design"` → `"build"` → `"shipped"`); the hooks arm only on `"build"`, so a stale value silently disarms or over-arms the guard. `tier` + `tier_rationale` — scored once in Discover, read by Design and Build; never re-scored by Hercules (a manual user override is the only change). `current_spec` — the spec filename in progress. `current_spec_round` — the 1–3 implementation-round counter, persisted so a resume can't reset it. `frozen_test_files` — the current spec's test files, `git diff`-guarded so a frozen test cannot be silently edited. `frozen_override` — a user-granted exception the frozen-tests hook honours: files + spec + round + the user's quoted instruction; written only on the user's explicit grant, cleared once the corrected test re-passes the write-tests gate; a stale spec or round never validates. Omit when no grant is live. `delivered_specs` / `pending_specs` — spec filenames delivered / remaining in order (omit when empty). `build_progress` — per-spec checkpoint (criteria, satisfies, decisions, interfaces, tests, coverage, mutation, cross-spec constraints) written at retire; the durable record the cross-check reads after specs are deleted. `handed_off_by` / `handoff_note` — written only at explicit handoff (Build close-out). `build_complete` — written `true` by Build close-out; read by Ship as its precondition; reset to `false` by Ship after a successful commit. `shipped_commit` / `shipped_pr` — written by Ship; omitted when not yet shipped / not applicable.
 
 ## Agent scaling
 

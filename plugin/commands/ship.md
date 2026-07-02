@@ -16,6 +16,8 @@ If the session's `build_complete` is not `true`: refuse — "Local build is not 
 
 If `current_phase` is `"shipped"` and `shipped_commit` is set: report the SHA and stop.
 
+Surface any `handed_off_by` / `handoff_note` from the session — the successor sees the note here.
+
 Verify the working directory is a git repository (`git status` returning "not a git repository" → stop with a clear error). Detect a detached HEAD (`git symbolic-ref --quiet HEAD` failing) → refuse until the user is on a named branch.
 
 Check PR eligibility silently (never blocks Ship): verify origin URL contains `github.com`; `gh --version` succeeds; `gh auth status` exits 0; `gh pr list --head {current-branch} --state open --json url` returns empty (eligible) or an existing PR URL (capture as `_existing_pr`, propose showing it, record as `shipped_pr`). Any failure → omit PR from plan.
@@ -30,7 +32,7 @@ When Build's *ship-each* cadence invokes Ship mid-build ("ship now"), skip only 
 
 Run `git status --short` and `git diff --stat HEAD`. If the working tree is clean, tell the user and exit.
 
-**Staged set.** Default: all modified and new tracked files from the session, plus `docs/{session}/INDEX.md` if modified. For multi-repo sessions, collect across all repos in the `repositories` map. Surface other modified files as "Not included — stage if you want".
+**Staged set.** Default: all modified and new tracked files from the session, plus `docs/INDEX.md` if modified. For multi-repo sessions, collect across all repos in the `repositories` map. Surface other modified files as "Not included — stage if you want".
 
 **Commit message.** Read `*-business-requirements.md`. Build a Conventional Commits message:
 - **type** — `feat` for new capability; `fix` for correcting behaviour. Show one-sentence rationale.
@@ -47,7 +49,7 @@ Run `git status --short` and `git diff --stat HEAD`. If the working tree is clea
 
 ### Files to stage
   + src/auth/jwt.py                              (new)
-  + docs/2026-06-28-user-auth/INDEX.md           (modified)
+  + docs/INDEX.md                                (modified)
 
   Not included (stage if you want): • README.md
 

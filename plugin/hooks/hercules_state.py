@@ -60,8 +60,19 @@ def resolve_session(cwd, home=None):
             if not matched:
                 continue  # unrelated repo → pure passthrough
             state_file = entry.get("state_file") or f"{slug}.json"
+            if os.path.basename(state_file) != state_file:
+                continue  # a pointer escaping ~/.hercules/state is never followed
             state = json.loads((_hercules_home(home) / "state" / state_file).read_text())
-            session = (state.get("sessions") or {}).get(state.get("active_session"))
+            sessions = state.get("sessions") or {}
+            session = sessions.get(state.get("active_session"))
+            if not isinstance(session, dict) or session.get("current_phase") != "build":
+                # the active session moved on (e.g. a new Discover); a paused build in the
+                # same project keeps its guard — fall back to any build session in the file
+                session = next(
+                    (s for s in sessions.values()
+                     if isinstance(s, dict) and s.get("current_phase") == "build"),
+                    session if isinstance(session, dict) else None,
+                )
             if not session:
                 continue
             is_build = session.get("current_phase") == "build"
@@ -70,7 +81,7 @@ def resolve_session(cwd, home=None):
             continue
     if not candidates:
         return None, [], None
-    candidates.sort(key=lambda c: (c[0], c[1]), reverse=True)  # deepest root, then active build
+    candidates.sort(key=lambda c: (c[1], c[0]), reverse=True)  # active build first, then deepest
     _, _, session, roots, entry = candidates[0]
     return session, roots, entry
 

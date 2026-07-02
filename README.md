@@ -37,7 +37,7 @@ Its heroic, **spec-first** workflow — **Discover → Design → Build → Ship
 
 **Prerequisite:** Hercules runs *inside* [Claude Code](https://code.claude.com) — install Claude Code first.
 
-You don't need any extra executables to run this plugin.
+The plugin needs no extra packages — its enforcement hooks run on your system `python3` (see Requirements).
 
 Then, three steps:
 
@@ -147,7 +147,8 @@ short slug; `NN` = the spec number):
 | `/hercules:ship` | Ship — **COMMIT** | Commit the delivered work | a conventional commit + optional push + optional PR |
 
 Each feature is its own workflow run — start a new one any time with `/hercules:workflow` and a feature
-description. Your `docs/` folder accumulates business-requirements files over time; specs are temporary
+description. Your `docs/` folder accumulates business-requirements files, a session digest (`docs/INDEX.md`), and
+reusable lessons (`docs/learnings.md`) over time; specs are temporary
 and deleted once the feature is delivered in code (during Build, when code becomes the source of truth). Multiple features
 can be in-flight simultaneously — each gets its own spec files with unique sequential numbers.
 
@@ -192,8 +193,9 @@ Every phase works the same way: Hercules presents a plan and waits for your appr
 anything. Discover and Design draft a document and write it to `docs/` on approval — you can revisit
 it any time. Build presents a delivery plan — which specs, in what order, grouped how — and on
 approval delivers them test-first (you choose to ship each spec as it lands, or deliver all in one
-pass). Ship drafts the commit plan and, on approval, commits and pushes. One approval per phase;
-nothing happens before it. That's the whole loop. Repeat for every feature.
+pass). Ship drafts the commit plan and, on approval, commits and pushes. One Plan-approval gate per
+phase authorizes every write and execution; clarifying questions can come before it. That's the whole
+loop. Repeat for every feature.
 
 ### What that looks like
 
@@ -204,6 +206,9 @@ Hercules:  A few gaps before I write this up:
            • token lifetime?
            • is email delivery in scope, or assumed?
 You:       Any user with a registered email; 30-minute token; email delivery is out of scope.
+Hercules:  Classifying this as **complexity:high** — it touches the auth surface (floored at high).
+           Agree, or override?
+You:       Agree.
 Hercules:  Here's the draft (business language, no code). Review it, then say `approved`:
 ```
 ```markdown
@@ -261,6 +266,9 @@ under-prepared on a large one.
 **Two documents, two lifecycles.** Business-requirements are **long-lived** — committed forever, in
 business language, the shareable record of what a feature is *for*. Specs are **per-development** — once
 delivered in code, they're deleted, because the code, its tests, and git history become the source of truth.
+Prefer permanent specs (your company already runs on them)? Put it in your `code-of-conduct.md` — e.g.
+*"Always keep the specs, never delete them"* — and delivered specs are kept and refreshed at delivery
+instead of deleted.
 
 **Complexity scoring (so depth isn't guesswork).** In Discover, Hercules scores the feature on
 *effort* and *blast-radius* (how many users or systems a bug could harm) and takes the higher of the two.
@@ -273,7 +281,7 @@ delivered in code, they're deleted, because the code, its tests, and git history
 | high | auth, payments, migration | data at risk, deletion, prod config | 2–4 |
 | critical | multi-service migration | user data, security primitives, money | 3–6 |
 
-Only **trivial** skips the advisory board; every other tier runs it, scaled to the number above. A
+Only **trivial** skips the advisory board; every other tier recommends it (you consent or skip), scaled to the number above. A
 change touching **auth, secrets, money, data migration, deletion, production config, or concurrency**
 is floored at `high` regardless of how small the diff looks. You see the score and can override it;
 advisor dissent surfaces as input for you to weigh, never an automatic re-score.
@@ -282,7 +290,7 @@ advisor dissent surfaces as input for you to weigh, never an automatic re-score.
 project's `code-of-conduct.md` sets, and on a **mutation-kill** threshold when the CoC defines one —
 the generator suggests **≥90%** for both as a default, and you can change them. Mutation testing
 checks that your tests actually catch bugs, and a requirement ships only when a **named test** asserts
-it. Branch coverage and traceability are always enforced; the mutation gate runs whenever the CoC sets
+it. Traceability is always enforced; branch coverage gates when your CoC sets a threshold, and the mutation gate runs whenever the CoC sets
 a kill-rate threshold — none of this is a best-practice you skip under pressure once it applies.
 
 ---
@@ -347,7 +355,8 @@ select `mbienkowski` → **Enable auto-update** — it then refreshes at startup
 
 ## Uninstalling
 
-To remove the plugin and its marketplace entry:
+To remove the plugin and its marketplace entry (your delivery state survives in `~/.hercules/` —
+delete that folder too for a full removal):
 
 ```
 /plugin uninstall hercules@mbienkowski
@@ -359,7 +368,9 @@ To remove the plugin and its marketplace entry:
 ## Requirements
 
 - **Claude Code** — the plugin runs entirely inside it.
-- **Python ≥ 3.9** — only for contributing (running the tests). The plugin itself needs no Python.
+- **Python 3 (≥ 3.9) on your PATH as `python3`** — the enforcement hooks run through it (no packages
+  needed). Without it the hooks fail open: everything works, but the frozen-test guard becomes
+  prompt-only. Contributing (running the test suite) needs the dev extras too.
 
 ---
 

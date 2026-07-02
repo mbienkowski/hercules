@@ -7,6 +7,8 @@ written per phase) is an opt-in manual/e2e smoke documented in CODE_OF_CONDUCT.m
 
 from __future__ import annotations
 
+import re
+
 _DISCOVER = "plugin/commands/discover.md"
 _DESIGN = "plugin/commands/design.md"
 _BUILD = "plugin/commands/build.md"
@@ -143,3 +145,62 @@ def test_design_validates_before_plan_approval(read_file):
         "design order must be validation gates (Step 7) → Plan approval (Step 8) → write specs (Step 9)"
     assert i7 < lower.index("implementability check") < i8, \
         "the implementability check must sit in the Step 7 validation gates, before Plan approval"
+
+
+def test_discover_persists_tier_only_at_the_output_step(read_file):
+    """Discover's Step 3 confirms the tier but must not write machine state mid-plan-mode:
+    plan mode blocks writes, and the session slug doesn't exist until Step 7 — an early write
+    either fails or creates an orphan session keyed differently than Step 7's init. The tier
+    is recorded in-conversation and persisted by the Step 7 session-init write."""
+    md = read_file(_DISCOVER)
+    step3 = md[md.index("## Step 3"):md.index("## Step 4")]
+    assert "~/.hercules/state" not in step3, \
+        "Step 3 must not write the state file — plan mode is active and no session slug exists yet"
+    step7 = md[md.index("## Step 7"):]
+    assert "tier" in step7 and "~/.hercules/" in step7, \
+        "Step 7's session-init write must persist the Step 3 tier"
+
+
+def test_build_closeout_points_to_ship_without_running_it(read_file):
+    """Build's close-out hands control back: the user reviews the diff, then runs Ship —
+    workflow.md gates the transition on 'move to Ship' and the README promises a review pause.
+    An auto-run close-out contradicts both and bounces the user into a commit plan unasked."""
+    md = read_file(_BUILD)
+    closeout = md[md.lower().index("## close-out"):]
+    assert not re.search(r"Then run `/hercules:ship`", closeout), \
+        "close-out must point to Ship, never invoke it — the user reviews the diff first"
+    assert "/hercules:ship" in closeout, "close-out must still point forward to Ship"
+    assert "review" in closeout.lower() and "ready" in closeout.lower(), \
+        "close-out must hand the user the review-then-ship decision"
+
+
+def test_every_nonterminal_index_status_has_a_writer(repo_root):
+    """CLAUDE.md's INDEX Status set depicts workflow-written values — each must actually be
+    written by some command, or the INDEX silently lies for a whole phase (e.g. a multi-day
+    Build whose row still says 'design'). 'abandoned' is user-manual."""
+    commands = [p.read_text() for p in (repo_root / "plugin" / "commands").glob("*.md")]
+    for status in ("discover", "design", "build", "delivered"):
+        assert any(
+            "INDEX.md" in para and f"`{status}`" in para
+            for text in commands
+            for para in text.split("\n\n")
+        ), f"no command writes INDEX status `{status}` — CLAUDE.md documents it as a live value"
+
+
+def test_lock_language_is_consistent_between_wrapper_and_phases(read_file):
+    """discover.md/design.md declare the artifact locked at its save; workflow.md must not
+    tell the user it locks later ('once we move to X') — that invites post-lock edit requests
+    no command defines a path for. Changes after the save go through the sanctioned re-runs."""
+    wf = read_file(_WORKFLOW)
+    assert not re.search(r"once (?:we|you) move to \w+, the (?:requirements|specs) are locked", wf), \
+        "workflow.md must not promise a later lock — artifacts lock at their phase's save"
+    assert re.search(r"fresh Discover pass|through `/hercules:design`", wf), \
+        "workflow.md must state the sanctioned change path after a phase's save"
+
+
+def test_orchestrator_has_a_protocol_aligned_fallback_rule(read_file):
+    """When something breaks mid-workflow, the orchestrator must fall back to the safest action
+    consistent with the workflow protocol and tell the user — never improvise outside it."""
+    md = read_file(_CLAUDE)
+    assert "fall back to the safest action" in md and "never improvise" in md, \
+        "CLAUDE.md must carry the protocol-aligned fallback rule"

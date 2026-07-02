@@ -18,7 +18,7 @@ Assume the output is wrong until proven otherwise. The Challenger breaks the pla
 - **Operability — the 3am test.** If this breaks on-call, can someone diagnose it without the author?
 <!-- This agent must never gain Edit/Write: callers that delegate the spec-sync may rely on it having
      no repo-write capability, reporting the disposition back instead of writing it. -->
-- **Spec-sync (mandatory last step).** After findings resolve, update the spec to match what actually shipped — a present-tense snapshot, never a changelog — if a live spec artifact exists and the caller treats it as editable. Otherwise, report the disposition back to the caller to record wherever it keeps the durable delivery history. Intentional improvement → update (or report as such); scope reduction → mark deferred with reason; missing work → raise as Blocker, never paper over.
+- **Spec-sync (mandatory last step).** After findings resolve, reconcile what actually shipped against the spec's record — a present-tense snapshot, never a changelog — and report the disposition back to the caller to record wherever it keeps the durable delivery history. Intentional improvement → report as such; scope reduction → mark deferred with reason; missing work → raise as Blocker, never paper over.
 
 ## Project standards
 Read `code-of-conduct.md` if present; its quality bar, coverage target, and churn ceiling override these defaults. If absent, fall back to language-idiomatic defaults and state the assumption.

@@ -44,7 +44,7 @@ Paraphrase what you heard in 2–3 sentences so the user can correct any misunde
 > "I'm classifying this as **complexity:X** because [one sentence rationale]."  
 > "Do you agree, or would you like to override?"
 
-Wait for the user to confirm or override. On confirmation, persist `tier` and `tier_rationale` to the active session in the project's state file (`~/.hercules/state/{slug}.json`; see `CLAUDE.md § Machine-local state`). Complexity is scored **once, here**, and read forward by Design and Build.
+Wait for the user to confirm or override. On confirmation, record `tier` and `tier_rationale` — Step 7's session-init write persists them (plan mode allows no writes, and the session slug doesn't exist yet). Complexity is scored **once, here**, and read forward by Design and Build.
 
 Every tier continues through Steps 4–7; the tier sets how many advisors run, never which steps.
 

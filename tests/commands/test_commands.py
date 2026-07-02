@@ -661,6 +661,32 @@ def test_ship_step_defines_its_execution_contract(read_file):
     assert "shipped_commit" in md, "ship must record the commit SHA in hercules-config"
 
 
+def test_ship_stages_the_index_at_the_artifact_root(read_file):
+    """Every INDEX.md writer uses docs/INDEX.md (one table for all sessions — CLAUDE.md §
+    INDEX.md format). Ship's default staged set must look there too: a per-session
+    docs/{session}/INDEX.md path matches nothing on disk, so Build's just-written 'delivered'
+    status silently falls out of the close-out commit the user approves."""
+    md = read_file(_SHIP)
+    assert "docs/{session}/INDEX.md" not in md, \
+        "ship must not stage a per-session INDEX path — the INDEX lives at the artifact root"
+    assert not re.search(r"docs/\d{4}-\d{2}-\d{2}-[\w-]+/INDEX\.md", md), \
+        "ship's plan example must not show a dated per-session INDEX path"
+    assert "docs/INDEX.md" in md, "ship's staged set must include the artifact-root docs/INDEX.md"
+
+
+def test_build_references_only_real_spec_sections(read_file):
+    """Design produces specs (no separate design file) and a spec's service lives in its
+    ## Scope section. Build must not send agents hunting for a '## {service}' heading 'in the
+    design' or a 'linked design section' — neither exists, so a multi-service build would
+    stall or silently fall back to the home repo."""
+    md = read_file(_BUILD)
+    assert "in the design)" not in md and "linked design section" not in md, \
+        "build must reference the spec's real sections, not a non-existent design artifact"
+    i = md.index("For a spec scoped to a service")
+    assert "## Scope" in md[i:i + 200], \
+        "build's service-scoping rule must point at the spec's ## Scope section"
+
+
 def test_ship_does_not_write_docs_artifacts(read_file):
     """Ship produces git history — it must not write any new docs/ artifact."""
     md = read_file(_SHIP)
@@ -786,3 +812,71 @@ def test_config_registry_is_rebuildable_from_state(read_file):
     assert "regenerable index" in md, "CLAUDE.md must describe the registry as a regenerable index"
     assert "rebuilt from" in md or "source of truth" in md, \
         "CLAUDE.md must state the state files are the source of truth (registry rebuildable)"
+
+
+def test_freeze_ends_at_spec_retire(read_file):
+    """G1 scopes the freeze 'span → retire spec' — retire must clear frozen_test_files, or a
+    user who never ships stays hook-blocked on delivered tests forever (phase stays 'build')."""
+    lower = read_file(_BUILD).lower()
+    retire = lower[lower.index("10. **retire the spec.**"):lower.index("for a spec scoped")]
+    assert "frozen_test_files" in retire, "retire must end the freeze (clear frozen_test_files)"
+
+
+def test_start_fresh_clears_frozen_override(read_file):
+    """'start fresh' resets spec+round to the values a stale grant was minted against, so the
+    hook's spec+round expiry cannot catch it — the clear list must include frozen_override."""
+    md = read_file(_BUILD)
+    fresh = md[md.index("On 'start fresh':"):md.index("On resume, reconcile")]
+    assert "frozen_override" in fresh, "'start fresh' must clear frozen_override too"
+
+
+def test_resume_reconciles_frozen_test_files(read_file):
+    """A recorded frozen file with nothing on disk deadlocks a resume (the hook fail-closes on
+    non-existent frozen paths, blocking the Write that would recreate it) — Step 0's reconcile
+    must drop such entries."""
+    md = read_file(_BUILD)
+    reconcile = md[md.index("On resume, reconcile"):md.index("### Step 1")]
+    assert "frozen_test_files" in reconcile, \
+        "resume reconcile must drop frozen_test_files entries with no file on disk"
+
+
+def test_handoff_note_is_readable_after_close_out(read_file):
+    """Close-out writes the handoff alongside current_spec: null, but Build Step 0 shows it only
+    when current_spec IS set — Ship (the successor's next command) must surface it."""
+    ship = read_file(_SHIP)
+    assert "handoff_note" in ship or "handed_off_by" in ship, \
+        "a close-out handoff must be surfaced somewhere a successor actually looks"
+
+
+def test_claude_md_documents_current_phase_semantics(read_file):
+    """Both hooks arm/disarm on current_phase — the session-field prose must document it and
+    its full value set like every other field."""
+    md = read_file("plugin/CLAUDE.md")
+    prose = md[md.index("Session object (in the state file):"):]
+    assert "`current_phase`" in prose, "session prose must document current_phase"
+    for v in ('"discover"', '"design"', '"build"', '"shipped"'):
+        assert v in prose, f"current_phase value set must enumerate {v}"
+
+
+def test_retire_honors_a_keep_specs_coc_override(read_file):
+    """Companies with their own spec practice can keep delivered specs: a code-of-conduct.md
+    directive (cached as keep_specs in the registry) switches retire from git rm to
+    keep-and-refresh (a present-tense update to match what shipped). Deletion stays default."""
+    md = read_file(_BUILD)
+    lower = md.lower()
+    retire = lower[lower.index("10. **retire the spec.**"):lower.index("for a spec scoped")]
+    assert "git rm" in retire, "deletion must remain the default retire behaviour"
+    assert "keep_specs" in retire, "retire must honour the keep_specs override"
+    assert "match what shipped" in retire, \
+        "kept specs must be refreshed to a present-tense snapshot of what shipped"
+    assert "keep_specs" in lower[lower.index("### step 2"):lower.index("### step 3")], \
+        "Step 2's CoC check must cache the keep-specs directive into the registry entry"
+
+
+def test_claude_md_documents_keep_specs(read_file):
+    """The registry prose must document keep_specs, and principle 3 must carry the carve-out."""
+    md = read_file("plugin/CLAUDE.md")
+    assert "keep_specs" in md, "CLAUDE.md must document the keep_specs registry field"
+    principles = md[md.index("## Development principles"):md.index("## Persona")]
+    assert "keep" in principles.lower() and "code-of-conduct" in principles.lower(), \
+        "principle 3 must state the CoC can keep specs (refreshed at delivery)"
