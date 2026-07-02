@@ -1,10 +1,10 @@
-"""Read-only resolver for the active Hercules build session.
+"""Read-only resolver for active Hercules build sessions.
 
 Reads `~/.hercules/config.json` (the registry) and `~/.hercules/state/{slug}.json`
-(the delivery state) to answer: for this working directory, is there an active build
-session, and what are its frozen test files? Never writes; never raises.
+(the delivery state) to answer: for this working directory, which build sessions are
+active, and what are their frozen test files? Never writes; never raises.
 
-Used by the PreToolUse hooks under `plugin/hooks/` and by their tests (which pass an
+Used by the PreToolUse hook under `plugin/hooks/` and by its tests (which pass an
 explicit `home` so they can point at a throwaway state tree).
 """
 
@@ -12,19 +12,25 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 
 
 def canon(p) -> str:
-    """Canonicalise a path for comparison: expand ~, resolve symlinks/.., normcase.
+    """Canonicalise a path for comparison: expand ~, resolve symlinks/.., fold case.
 
-    Falls back to a normcase of the raw string if the filesystem resolution fails, so a
+    Folds case on macOS (default APFS is case-insensitive, so differently-cased paths
+    are the same file — folding is the fail-closed direction) and on Windows (via
+    normcase). Falls back to the raw string if filesystem resolution fails, so a
     comparison never throws.
     """
     try:
-        return os.path.normcase(os.path.realpath(os.path.expanduser(str(p))))
+        resolved = os.path.realpath(os.path.expanduser(str(p)))
     except Exception:
-        return os.path.normcase(str(p))
+        resolved = str(p)
+    if sys.platform == "darwin":
+        return resolved.lower()
+    return os.path.normcase(resolved)
 
 
 def _hercules_home(home=None) -> Path:
@@ -32,26 +38,40 @@ def _hercules_home(home=None) -> Path:
 
 
 def resolve_session(cwd, home=None):
-    """Return `(session, roots, entry)` for the active project whose tree contains `cwd`.
+    """Return `(session, roots, entry)` for the most authoritative matching context.
 
-    `session` is the active session dict from the state file; `roots` is the list of
-    canonical project roots (the project `directory` plus every `repositories.*` path,
-    so multi-service builds resolve); `entry` is the project's registry entry (carrying
-    per-project settings such as the `frozen_hook` opt-out). Returns `(None, [], None)`
-    when nothing active resolves — which the guards treat as fail-open. Never raises.
+    Kept for attribution — block reasons name this session's spec — and for callers
+    that want a single primary context. `resolve_build_contexts` is the guard's source
+    of truth: EVERY matching build session, not just the winner. Returns
+    `(None, [], None)` when nothing resolves — the fail-open direction.
+    """
+    contexts = resolve_build_contexts(cwd, home=home)
+    if not contexts:
+        return None, [], None
+    return contexts[0]
+
+
+def resolve_build_contexts(cwd, home=None):
+    """Return `[(session, roots, entry), ...]` for every registry project containing `cwd`.
+
+    Ordered most-authoritative first: build sessions before non-build, deeper (more
+    specific) roots before shallower, a state file's active session before its paused
+    ones. Registered roots can nest (a monorepo project plus an inner service project),
+    several slugs can share one directory, and one state file can hold several build
+    sessions — a single-winner resolution would silently drop the losers' frozen-test
+    guards, so every build session rides along. When nothing is building, the deepest
+    project's active session (if any) is returned alone so callers can see the phase.
+    Never raises.
     """
     try:
         config = json.loads((_hercules_home(home) / "config.json").read_text())
         projects = config.get("projects", {}) or {}
     except Exception:
-        return None, [], None
+        return []
 
     cwd_c = canon(cwd)
-    # Collect every project whose tree contains cwd, then pick the most specific — the deepest
-    # matching root, preferring an active build. Registered roots can nest (a monorepo project
-    # plus an inner service project / repositories.* path); a first-match would resolve the wrong
-    # session and let an inner frozen edit through.
-    candidates = []  # (matched_root_len, is_build, session, roots)
+    build_rows = []     # (depth, rank, session, roots, entry); rank 0 = active session
+    fallback_rows = []  # non-build active sessions, kept for phase visibility
     for slug, entry in projects.items():
         try:
             raw_roots = [entry.get("directory")] + list((entry.get("repositories") or {}).values())
@@ -64,26 +84,29 @@ def resolve_session(cwd, home=None):
                 continue  # a pointer escaping ~/.hercules/state is never followed
             state = json.loads((_hercules_home(home) / "state" / state_file).read_text())
             sessions = state.get("sessions") or {}
-            session = sessions.get(state.get("active_session"))
-            if not isinstance(session, dict) or session.get("current_phase") != "build":
-                # the active session moved on (e.g. a new Discover); a paused build in the
-                # same project keeps its guard — fall back to any build session in the file
-                session = next(
-                    (s for s in sessions.values()
-                     if isinstance(s, dict) and s.get("current_phase") == "build"),
-                    session if isinstance(session, dict) else None,
-                )
-            if not session:
-                continue
-            is_build = session.get("current_phase") == "build"
-            candidates.append((max(len(r) for r in matched), is_build, session, roots, entry))
+            depth = max(len(r) for r in matched)
+            active = sessions.get(state.get("active_session"))
+            found_build = False
+            rank = 0
+            if isinstance(active, dict) and active.get("current_phase") == "build":
+                build_rows.append((depth, 0, active, roots, entry))
+                found_build = True
+            for s in sessions.values():
+                if s is active:
+                    continue
+                if isinstance(s, dict) and s.get("current_phase") == "build":
+                    rank += 1
+                    build_rows.append((depth, -rank, s, roots, entry))
+                    found_build = True
+            if not found_build and isinstance(active, dict):
+                fallback_rows.append((depth, 0, active, roots, entry))
         except Exception:
             continue
-    if not candidates:
-        return None, [], None
-    candidates.sort(key=lambda c: (c[1], c[0]), reverse=True)  # active build first, then deepest
-    _, _, session, roots, entry = candidates[0]
-    return session, roots, entry
+    build_rows.sort(key=lambda r: (r[0], r[1]), reverse=True)  # deepest, then active-first
+    if build_rows:
+        return [(s, r, e) for _, _, s, r, e in build_rows]
+    fallback_rows.sort(key=lambda r: r[0], reverse=True)
+    return [(s, r, e) for _, _, s, r, e in fallback_rows[:1]]
 
 
 def frozen_candidates(entry, roots) -> set:
@@ -92,12 +115,16 @@ def frozen_candidates(entry, roots) -> set:
     `frozen_test_files` are stored repo-relative (e.g. `tests/auth/test_login.py`); the tool
     sends an absolute `file_path`. Resolve the entry against every project root and keep every
     candidate that exists on disk (handles multi-service repos where the same relative path may
-    live under a `repositories.*` root). If none exist, fall back to the first root — matching
+    live under a `repositories.*` root). If none exist, EVERY root stays guarded — matching
     under *any* root counts as frozen, the fail-closed direction for the flagship guard.
+    Junk entries (non-string, empty) resolve to nothing rather than poisoning the caller's
+    whole frozen set.
     """
+    if not isinstance(entry, str) or not entry:
+        return set()
     if os.path.isabs(entry):
         return {canon(entry)}
     existing = {canon(os.path.join(root, entry)) for root in roots if os.path.exists(os.path.join(root, entry))}
     if existing:
         return existing
-    return {canon(os.path.join(roots[0], entry))} if roots else {canon(entry)}
+    return {canon(os.path.join(root, entry)) for root in roots} or {canon(entry)}

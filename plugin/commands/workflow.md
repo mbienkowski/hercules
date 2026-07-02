@@ -1,6 +1,11 @@
+---
+description: Guided end-to-end delivery — all four Hercules phases in one flow
+disable-model-invocation: true
+---
+
 # /hercules:workflow
 
-Guided end-to-end delivery: all four phases in one flow.
+Guided end-to-end delivery: all four phases in one flow. Plugin files cited here (`CLAUDE.md §…`, `protocols/…`) live in the plugin, not this repo — read them under `${CLAUDE_SKILL_DIR}/..`.
 
 **Plan mode — required across all four phases.** Open each phase with `EnterPlanMode`; present a full inline proposal; at the **Plan approval** gate, on the user's "approved", call `ExitPlanMode` (`auto`) — the phase then writes or executes without further prompts — then `EnterPlanMode` for the next phase. Iterate freely; write only on approval. Never patch sections — always regenerate the complete draft.
 

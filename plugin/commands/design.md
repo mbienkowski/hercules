@@ -1,6 +1,11 @@
+---
+description: Design phase — turn a business requirement into numbered technical specs
+disable-model-invocation: true
+---
+
 # /hercules:design
 
-Turn a business requirement into numbered technical specs ready for Build.
+Turn a business requirement into numbered technical specs ready for Build. Plugin files cited here (`CLAUDE.md §…`, `protocols/…`) live in the plugin, not this repo — read them under `${CLAUDE_SKILL_DIR}/..`.
 
 **Plan mode — required.** Call `EnterPlanMode` at the start. Every draft is a full inline proposal; iterate freely; always regenerate the complete draft — never patch sections. At the **Plan approval** gate, on the user's approval, call `ExitPlanMode` (`auto`), then write.
 

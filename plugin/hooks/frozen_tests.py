@@ -1,8 +1,8 @@
 """PreToolUse hook: block edits to frozen test files during an active Hercules build.
 
-Wired by `plugin/hooks/hooks.json` on `Edit|MultiEdit|Write`. Reads the PreToolUse
-payload as JSON on stdin. Exit 2 (with a plain-language reason on stderr) hard-blocks the
-tool call; exit 0 allows it.
+Wired by `plugin/hooks/hooks.json` on `Edit|MultiEdit|Write|NotebookEdit`. Reads the
+PreToolUse payload as JSON on stdin. Exit 2 (with a plain-language reason on stderr)
+hard-blocks the tool call; exit 0 allows it.
 
 Enforcement scope (honest): this hardens the frozen-test guarantee against accidental,
 lazy, and pressure-tested deviation by a cooperative model. It reads model-authored state,
@@ -11,8 +11,10 @@ so it is runtime-*mediated*, not tamper-proof against a model that rewrites its 
 Fail policy: fail OPEN (allow) whenever no active build session resolves — a fresh repo, a
 non-Hercules repo, Hercules's own development, or any parse error — so the hook never bricks
 an unrelated edit. It only blocks when a confirmed active build owns the target as a frozen
-test. Invoked as `python3 "${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py"` (no shebang, so
-interpreter resolution is Claude Code's PATH lookup — portable to Windows).
+test. Invoked as `python3 "${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py"` (no shebang;
+interpreter resolution is Claude Code's PATH lookup). Where `python3` is not on PATH —
+e.g. stock Windows — the command fails, Claude Code proceeds, and the guard is absent by
+the fail-open policy rather than broken.
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from hercules_state import canon, frozen_candidates, resolve_session  # noqa: E402
+from hercules_state import canon, frozen_candidates, resolve_build_contexts  # noqa: E402
 
 _MUTATING_TOOLS = {"Edit", "MultiEdit", "Write", "NotebookEdit"}
 
@@ -72,6 +74,8 @@ def _override_allows(session, roots, target_canon) -> bool:
         rnd = ov.get("round")
         if not isinstance(rnd, int) or rnd != session.get("current_spec_round"):
             return False
+        if not (isinstance(ov.get("reason"), str) and ov["reason"].strip()):
+            return False  # the quoted user grant is part of the contract, not decoration
         if ov.get("spec") != session.get("current_spec"):
             return False
         files = ov.get("files")
@@ -91,21 +95,31 @@ def decide(payload, home=None):
     try:
         if not isinstance(payload, dict) or payload.get("tool_name") not in _MUTATING_TOOLS:
             return 0, ""
-        session, roots, project = resolve_session(payload.get("cwd") or os.getcwd(), home=home)
-        if not session or session.get("current_phase") != "build":
+        cwd = payload.get("cwd") or os.getcwd()
+        # EVERY matching build session keeps its guard (nested projects, shared
+        # directories, paused builds) — a single-winner pick would fail the rest open.
+        contexts = [
+            (session, roots, project)
+            for session, roots, project in resolve_build_contexts(cwd, home=home)
+            if session.get("current_phase") == "build"
+            and (project or {}).get("frozen_hook") != "off"
+            and session.get("frozen_test_files")
+        ]
+        if not contexts:
             return 0, ""  # fail-open: nothing active to protect
-        if (project or {}).get("frozen_hook") == "off":
-            return 0, ""  # per-project opt-out: the user chose prompt-only TDD discipline
-        frozen = session.get("frozen_test_files") or []
-        if not frozen:
-            return 0, ""
-        frozen_set = set()
-        for entry in frozen:
-            frozen_set |= frozen_candidates(entry, roots)
+        targets = []
         for path in _target_paths(payload.get("tool_input")):
-            target = canon(path)
-            if target in frozen_set and not _override_allows(session, roots, target):
-                return 2, _reason(path, session)
+            p = str(path)
+            if not os.path.isabs(p):
+                p = os.path.join(cwd, p)  # the payload's cwd, never the hook process's
+            targets.append((path, canon(p)))
+        for session, roots, project in contexts:
+            frozen_set = set()
+            for frozen_entry in session.get("frozen_test_files") or []:
+                frozen_set |= frozen_candidates(frozen_entry, roots)
+            for raw, target in targets:
+                if target in frozen_set and not _override_allows(session, roots, target):
+                    return 2, _reason(raw, session)
         return 0, ""
     except Exception:
         return 0, ""

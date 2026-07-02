@@ -1,15 +1,20 @@
+---
+description: Discover phase — turn a rough idea into a clear, approved business requirement
+disable-model-invocation: true
+---
+
 # /hercules:discover
 
-Turn a rough idea into a clear, approved business requirement — the foundation every other phase builds on.
+Turn a rough idea into a clear, approved business requirement — the foundation every other phase builds on. Plugin files cited here (`CLAUDE.md §…`, `protocols/…`) live in the plugin, not this repo — read them under `${CLAUDE_SKILL_DIR}/..`.
 
 **Plan mode — required.** Call `EnterPlanMode` at the start. Every draft is a full inline proposal. Iterate freely; always regenerate the complete draft — never patch sections; never skip steps. At the **Plan approval** gate, on the user's approval, call `ExitPlanMode` (`auto`), then write.
 
 ## Step 0 — Artifact location & prior context
 
 Resolve the **artifact root** per `CLAUDE.md § Artifact root resolution`: a `code-of-conduct.md`
-directive wins (same-repo directory → use it; separate repo → ask its local path once, cache it),
-else default to `docs/`. Record it as `docs_root` in the project's registry entry (`~/.hercules/config.json`; see `CLAUDE.md
-§ Machine-local state`). All paths below are relative to that root (shown as `docs/`).
+directive wins (same-repo directory → use it; separate repo → ask its local path once), else
+default to `docs/`. Note it as `docs_root` now — Step 7's session-init write persists it to the
+registry entry (plan mode allows no writes). All paths below are relative to that root (shown as `docs/`).
 
 Read `docs/INDEX.md` if present — one-line digest of recent sessions. Read `docs/learnings.md` if
 present — surface entries matching the opening idea (key-match on topic); no-op if absent.
@@ -104,9 +109,11 @@ File structure:
 **Business language only** — committed and read by stakeholders. No class/method names, code, or file paths; implementation detail belongs in the spec. Design references hold visual-artifact links (Figma, wireframes), never implementation detail.
 
 Write the session-init state under `~/.hercules/` (see `CLAUDE.md § Machine-local state`), never the
-repo, atomically (temp + rename): the registry entry (`directory`, `docs_root`, `state_file`, empty
-`repositories`) and the state file's session (`active_session`, `current_phase` `"discover"`, the
-`tier` + `tier_rationale` from Step 3, `last_updated`). Preserve other entries/sessions.
+repo, atomically (temp + rename): create the registry entry if missing (`directory`, `docs_root`,
+`state_file`) — on an existing entry update only those keys, preserving `repositories`,
+`frozen_hook`, `keep_specs`, and anything else — and write the state file's session
+(`active_session`, `current_phase` `"discover"`, the `tier` + `tier_rationale` from Step 3,
+`last_updated`). Preserve other entries/sessions.
 
 Append a new row to `docs/INDEX.md` (create if absent) with `tier`, `discover` status,
 and a one-line goal summary.

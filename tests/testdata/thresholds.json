@@ -56,8 +56,8 @@
     "target": "plugin/commands/design.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 1900,
-    "warn_at": 1850,
+    "limit": 2000,
+    "warn_at": 1970,
     "severity": "gate"
   },
   {
@@ -65,8 +65,8 @@
     "target": "plugin/commands/build.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 2600,
-    "warn_at": 2520,
+    "limit": 2900,
+    "warn_at": 2860,
     "severity": "gate"
   },
   {

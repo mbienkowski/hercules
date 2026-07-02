@@ -370,7 +370,9 @@ delete that folder too for a full removal):
 - **Claude Code** — the plugin runs entirely inside it.
 - **Python 3 (≥ 3.9) on your PATH as `python3`** — the enforcement hooks run through it (no packages
   needed). Without it the hooks fail open: everything works, but the frozen-test guard becomes
-  prompt-only. Contributing (running the test suite) needs the dev extras too.
+  prompt-only. Note for Windows: python.org installs ship `python`/`py`, not `python3`, so the guard
+  stays prompt-only there unless a `python3` alias exists (the Microsoft Store install provides one).
+  Contributing (running the test suite) needs the dev extras too.
 
 ---
 
@@ -420,8 +422,10 @@ it can do is exactly what Claude Code can do in your session:
   edit. Today one guard blocks edits to a spec's frozen test files during Build (so acceptance criteria
   can't be silently weakened). You stay in charge: just ask and a named test is unblocked in the same
   turn (a round-bound, user-granted override), and a per-project opt-out (`frozen_hook: "off"`) switches
-  to prompt-only discipline entirely. Hooks are read-only over `~/.hercules/`, make no network calls,
-  and fail **open** (they never block an edit when no active Hercules build is in progress).
+  to prompt-only discipline entirely. The hook watches Claude Code's editing tools; shell-side edits are
+  caught by Build's pre-advance `git diff` backstop instead. Hooks are read-only over `~/.hercules/`,
+  make no network calls, and fail **open** (they never block an edit when no active Hercules build is
+  in progress).
 - **Shell** — during Build, when tests need to run (Claude Code executes the command; Hercules issues no
   shell commands independently), and the hooks above, which Claude Code invokes as `python3` on edits.
 - **Network** — none. All model calls go through your existing Claude Code session and API key.

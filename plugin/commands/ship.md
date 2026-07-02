@@ -1,6 +1,11 @@
+---
+description: Ship phase — review the commit plan, then stage, commit, and push the delivered work
+disable-model-invocation: true
+---
+
 # /hercules:ship
 
-Stage, commit, and optionally push the delivered work.
+Stage, commit, and optionally push the delivered work. Plugin files cited here (`CLAUDE.md §…`, `protocols/…`) live in the plugin, not this repo — read them under `${CLAUDE_SKILL_DIR}/..`.
 
 **Plan mode — required.** Call `EnterPlanMode`; present a complete Ship plan; at the **Plan approval** gate — *you approve the phase after reviewing the plan* — when the user says **"approved"** or clicks **Accept**, call `ExitPlanMode` (`auto`), then execute all steps automatically — no further questions.
 
@@ -12,15 +17,15 @@ Commit wizard — step 4 of the Hercules workflow. Proposes which files to stage
 
 Read the project's registry entry in `~/.hercules/config.json` and the active session in its state file `~/.hercules/state/{slug}.json` (see `CLAUDE.md § Machine-local state`).
 
-If the session's `build_complete` is not `true`: refuse — "Local build is not complete. Finish `/hercules:build` first." — and stop (a spec-scoped invocation is the one exemption — see below).
+If `current_phase` is `"shipped"` and `shipped_commit` is set: report the SHA (and, when the eligibility check below passes and `shipped_pr` is unset, offer step 5's PR) — then stop.
 
-If `current_phase` is `"shipped"` and `shipped_commit` is set: report the SHA and stop.
+If the session's `build_complete` is not `true`: refuse — "Local build is not complete. Finish `/hercules:build` first." — and stop (a spec-scoped invocation is the one exemption — see below).
 
 Surface any `handed_off_by` / `handoff_note` from the session — the successor sees the note here.
 
 Verify the working directory is a git repository (`git status` returning "not a git repository" → stop with a clear error). Detect a detached HEAD (`git symbolic-ref --quiet HEAD` failing) → refuse until the user is on a named branch.
 
-Check PR eligibility silently (never blocks Ship): verify origin URL contains `github.com`; `gh --version` succeeds; `gh auth status` exits 0; `gh pr list --head {current-branch} --state open --json url` returns empty (eligible) or an existing PR URL (capture as `_existing_pr`, propose showing it, record as `shipped_pr`). Any failure → omit PR from plan.
+Check PR eligibility silently (never blocks Ship): verify origin URL contains `github.com`; `gh --version` succeeds; `gh auth status` exits 0; `gh pr list --head {current-branch} --state open --json url` returns empty (eligible) or an existing PR URL (capture as `_existing_pr` for the plan — conversation-local; `shipped_pr` is written only by steps 4–5). Any failure → omit PR from plan.
 
 ### Spec-scoped ship (from Build's cadence)
 
@@ -30,7 +35,7 @@ When Build's *ship-each* cadence invokes Ship mid-build ("ship now"), skip only 
 
 ## Plan proposal (inside plan mode)
 
-Run `git status --short` and `git diff --stat HEAD`. If the working tree is clean, tell the user and exit.
+Run `git status --short` and `git diff --stat HEAD`. If the working tree is clean, check for an interrupted ship first: `build_complete: true` with a HEAD commit matching this session's scope means step 2 landed but Record never ran — confirm with the user, then finish at Execution step 3 (push, if wanted) and step 4. Otherwise tell the user the tree is clean and exit.
 
 **Staged set.** Default: all modified and new tracked files from the session, plus `docs/INDEX.md` if modified. For multi-repo sessions, collect across all repos in the `repositories` map. Surface other modified files as "Not included — stage if you want".
 

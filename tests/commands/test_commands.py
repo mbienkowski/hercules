@@ -923,3 +923,226 @@ def test_cross_check_reads_checkpoints_regardless_of_retire_mode(read_file):
     assert "build_progress" in section, "cross-check must read the build_progress checkpoints"
     assert "deleted files" not in section, \
         "the rationale must not claim the spec files were deleted (keep_specs keeps them)"
+
+
+# ---------------------------------------------------------------------------
+# Round-1 board findings: execution reality of the command prose.
+# Each test pins a fix for a defect with a concrete first-run failure scenario.
+# ---------------------------------------------------------------------------
+
+
+def test_ship_reports_already_shipped_before_build_complete_refusal(read_file):
+    """After a successful ship, build_complete is false and current_phase is 'shipped' —
+    a re-run must say 'shipped at SHA', not 'finish /hercules:build first'. The shipped
+    check must therefore run before the build_complete refusal."""
+    ship = read_file(_SHIP)
+    assert ship.index('`current_phase` is `"shipped"`') < ship.index("Local build is not complete"), \
+        "the already-shipped report must precede the build_complete refusal"
+
+
+def test_ship_clean_tree_recovers_a_committed_but_unrecorded_ship(read_file):
+    """Ship can be interrupted between commit (step 2) and Record (step 4); the documented
+    recovery is re-running /hercules:ship — but a clean tree then exits before Record,
+    stranding the session (build_complete true, shipped_commit unset) forever. The
+    clean-tree branch must detect and finish the interrupted ship."""
+    ship = read_file(_SHIP)
+    clean = ship[ship.index("working tree is clean"):]
+    clean = clean[:clean.index("\n\n")]
+    assert "build_complete" in clean, \
+        "the clean-tree branch must check for an interrupted, unrecorded ship"
+    assert "step" in clean.lower(), "recovery must resume the remaining execution steps"
+
+
+def test_ship_precondition_never_writes_shipped_pr(read_file):
+    """shipped_pr is documented as 'written by Ship' after a real ship; the silent
+    eligibility probe runs before any approval and must keep its finding
+    conversation-local, not persist it to state."""
+    ship = read_file(_SHIP)
+    precondition = ship[:ship.index("## Plan proposal")]
+    assert "record as `shipped_pr`" not in precondition, \
+        "the precondition probe must not write shipped_pr before anything shipped"
+    assert "_existing_pr" in precondition, "the probe still captures the URL for the plan"
+
+
+def test_build_plan_approval_exits_plan_mode_before_writing(read_file):
+    """Plan mode blocks writes; every other phase orders 'ExitPlanMode, then write'.
+    Build's approval paragraph must call ExitPlanMode before the state and INDEX writes."""
+    build = read_file(_BUILD)
+    para = build[build.index("### Plan approval"):build.index("## Execution")]
+    assert para.index("ExitPlanMode") < para.index("current_phase"), \
+        "state writes must come after ExitPlanMode, outside plan mode"
+
+
+def test_build_persists_the_approved_cadence(read_file):
+    """'Honour the cadence approved in plan mode' (step 8) is impossible after a resume
+    unless the cadence was persisted at approval; the schema must document it."""
+    build = read_file(_BUILD)
+    para = build[build.index("### Plan approval"):build.index("## Execution")]
+    assert "cadence" in para, "Plan approval must persist the approved cadence to state"
+    md = read_file("plugin/CLAUDE.md")
+    prose = md[md.index("Session object (in the state file):"):]
+    assert "`cadence`" in prose, "CLAUDE.md session prose must document the cadence field"
+
+
+def test_build_resume_goes_through_plan_approval(read_file):
+    """The resume path must still exit plan mode via the Plan-approval gate — jumping
+    straight to execution leaves the agent in read-only plan mode with every Write
+    refused."""
+    build = read_file(_BUILD)
+    resume = build[build.index("On 'start fresh':"):build.index("On resume, reconcile")]
+    assert "Plan approval" in resume, \
+        "resume must pass the Plan-approval gate (which calls ExitPlanMode) before executing"
+
+
+def test_retire_handles_never_committed_spec_files(read_file):
+    """Nothing in the workflow commits spec files before Build retires them (Ship runs
+    after), so `git rm` alone exits 128 on the first vanilla run. Retire and the resume
+    reconcile must fall back to a plain delete for untracked files."""
+    build = read_file(_BUILD)
+    retire = build[build.index("10. **Retire the spec.**"):build.index("For a spec scoped")]
+    assert "if tracked" in retire or "never committed" in retire or "untracked" in retire, \
+        "retire must handle a spec file that was never committed (git rm would error)"
+    reconcile = build[build.index("On resume, reconcile"):build.index("### Step 1")]
+    assert "if tracked" in reconcile or "untracked" in reconcile or "plain delete" in reconcile, \
+        "the reconcile's finish-the-delete must handle untracked spec files too"
+
+
+def test_session_discovery_is_state_driven_first(read_file):
+    """Under keep_specs delivered spec files stay on disk forever — a pure filesystem
+    scan would list finished sessions as deliverable. Pending must be defined by state
+    (pending_specs / not in delivered_specs), with the disk scan as the no-state
+    fallback."""
+    build = read_file(_BUILD)
+    step1 = build[build.index("### Step 1"):build.index("### Step 2")]
+    assert "pending_specs" in step1 or "delivered_specs" in step1, \
+        "Step 1's definition of pending must consult state, not file existence alone"
+
+
+def test_start_fresh_clears_build_progress(read_file):
+    """'start fresh' abandons the prior attempt; stale build_progress checkpoints would
+    poison the cross-check, which reads them as the durable delivery record."""
+    build = read_file(_BUILD)
+    fresh = build[build.index("On 'start fresh':"):build.index("On resume, reconcile")]
+    assert "build_progress" in fresh, "'start fresh' must clear build_progress too"
+
+
+def test_start_fresh_keeps_delivered_specs_under_keep_specs(read_file):
+    """With keep_specs the delivered files remain on disk; clearing delivered_specs on
+    'start fresh' would make Build re-deliver already-shipped specs."""
+    build = read_file(_BUILD)
+    fresh = build[build.index("On 'start fresh':"):build.index("On resume, reconcile")]
+    assert "keep_specs" in fresh, \
+        "'start fresh' must keep delivered_specs when keep_specs retains the files"
+
+
+def test_reconcile_finishes_an_interrupted_retire(read_file):
+    """Interruption after step 9 (checkpoint written) but before step 10's state write
+    leaves a delivered spec in pending_specs; a naive resume re-runs the whole cycle and
+    step 3's must-fail gate can never pass against existing code. The reconcile must
+    detect the checkpoint and finish step 10's state updates instead."""
+    build = read_file(_BUILD)
+    reconcile = build[build.index("On resume, reconcile"):build.index("### Step 1")]
+    assert "build_progress" in reconcile and "step 10" in reconcile, \
+        "reconcile must finish retire for a checkpointed spec still listed as pending"
+
+
+def test_freeze_initializes_the_round_counter(read_file):
+    """The hook's override check demands round equality against current_spec_round, but
+    nothing wrote the counter before step 5 — the same-turn grant path dead-ends in
+    rounds 1 frames. The step-3 freeze must set current_spec_round: 1 atomically."""
+    build = read_file(_BUILD)
+    step3 = build[build.index("3. **Write failing tests.**"):build.index("4. **Implement.**")]
+    assert "current_spec_round" in step3, \
+        "the freeze write must initialize current_spec_round so overrides can bind to it"
+
+
+def test_correction_gate_expects_green(read_file):
+    """A corrected test (e.g. now expecting 404) goes green against existing code — the
+    old instruction to 're-pass the step-3 gate' (which demands red) could never be
+    satisfied. The correction gate must accept green as the pass condition."""
+    build = read_file(_BUILD)
+    step5 = build[build.index("5. **Quality gates.**"):build.index("6. **Mutation gate.**")]
+    assert "re-pass the step-3 gate" not in step5, \
+        "the correction path must not demand the failing-test gate against corrected tests"
+    assert "green" in step5.lower(), \
+        "the correction gate must state that green against existing code is the pass"
+    md = read_file("plugin/CLAUDE.md")
+    assert "re-passes the write-tests gate" not in md, \
+        "CLAUDE.md's override clearing must match the corrected-test gate"
+
+
+def test_frozen_override_is_cleared_at_advance_and_retire(read_file):
+    """The step-3 same-turn grant path has no clearer — the grant stays live for the rest
+    of the round, wider than the single quoted instruction. The pre-advance diff gate and
+    step 10's atomic write must both clear it."""
+    build = read_file(_BUILD)
+    retire = build[build.index("10. **Retire the spec.**"):build.index("For a spec scoped")]
+    assert "frozen_override" in retire, "retire must clear any lingering frozen_override"
+
+
+def test_backstop_wording_is_honest(read_file):
+    """The pre-advance git diff is executed by the same model it polices — calling it
+    'Enforced, not promised' overclaims. The hook enforces; the diff backstops."""
+    build = read_file(_BUILD)
+    assert "Enforced, not promised" not in build, \
+        "prompt-side checks must not be presented as enforcement"
+    assert "git diff" in build, "the pre-advance diff backstop itself must stay"
+
+
+def test_step0_surfaces_handoff_for_closed_out_sessions(read_file):
+    """Close-out writes the handoff together with current_spec: null — a Step 0 display
+    gated on current_spec being set can never show it. The handoff must be surfaced
+    whenever present."""
+    build = read_file(_BUILD)
+    step0 = build[build.index("### Step 0"):build.index("### Step 1")]
+    handoff_at = step0.index("handed_off_by")
+    gate_at = step0.index("`current_spec` is set")
+    assert handoff_at < gate_at, \
+        "the handoff display must not hide behind the current_spec resume gate"
+
+
+def test_commands_declare_frontmatter(read_file):
+    """Commands without frontmatter fall back to first-paragraph descriptions and are
+    auto-invocable by the model mid-task — a four-phase wizard (or a commit wizard)
+    must only ever start on an explicit /hercules:* invocation."""
+    for rel in (_DISCOVER, _DESIGN, _BUILD, _SHIP, _WORKFLOW):
+        md = read_file(rel)
+        assert md.startswith("---\n"), f"{rel} must open with YAML frontmatter"
+        head = md[:md.index("\n---", 3)]
+        assert "description:" in head, f"{rel} frontmatter must carry a description"
+        assert "disable-model-invocation: true" in head, \
+            f"{rel} must not be auto-invocable mid-task"
+
+
+def test_commands_resolve_plugin_files_via_skill_dir(read_file):
+    """Plugin CLAUDE.md and protocols/ are NOT loaded into consumer sessions (per the
+    plugins reference: 'A CLAUDE.md file at the plugin root is not loaded as project
+    context') and relative paths resolve against the consumer's repo. Every command that
+    cites them must anchor the references to ${CLAUDE_SKILL_DIR} so they resolve at
+    runtime."""
+    for rel in (_DISCOVER, _DESIGN, _BUILD, _SHIP, _WORKFLOW):
+        md = read_file(rel)
+        if "CLAUDE.md §" in md or "protocols/" in md:
+            assert "${CLAUDE_SKILL_DIR}" in md, \
+                f"{rel} cites plugin files but never says where they live at runtime"
+
+
+def test_discover_step0_defers_registry_write(read_file):
+    """Step 0 runs inside plan mode (no writes) — recording docs_root there contradicts
+    the same file's own Step 3 workaround. The write must be deferred to Step 7."""
+    discover = read_file(_DISCOVER)
+    step0 = discover[discover.index("## Step 0"):discover.index("## Step 1")]
+    assert "Step 7" in step0, \
+        "Step 0 must note docs_root now and let Step 7's session-init write persist it"
+
+
+def test_discover_step7_preserves_existing_registry_keys(read_file):
+    """Feature 2's Discover rewriting the registry entry with 'empty repositories' wipes
+    repositories/frozen_hook/keep_specs — fields documented to persist across features.
+    The write must create-or-update, preserving unknown keys."""
+    discover = read_file(_DISCOVER)
+    step7 = discover[discover.index("## Step 7"):]
+    assert "empty\n`repositories`" not in step7 and "empty `repositories`" not in step7, \
+        "Step 7 must not unconditionally blank the repositories map"
+    assert "preserv" in step7, \
+        "Step 7 must preserve existing registry keys (repositories, frozen_hook, keep_specs)"

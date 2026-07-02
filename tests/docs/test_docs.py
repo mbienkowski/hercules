@@ -244,3 +244,25 @@ def test_coc_agent_rule_spec_lifecycle_admits_keep_specs(read_file):
     rule = rule[:rule.index("- Replies follow")]
     assert "keep-specs" in rule or "keep_specs" in rule, \
         "the delete-once rule must acknowledge the keep-specs retire mode (orchestrator-only)"
+
+
+def test_requirements_disclose_the_windows_python3_gap(read_file):
+    """Stock Windows ships python/py, not python3 — there the guard silently never arms
+    (fail-open). A README that claims python3 portability without the caveat oversells
+    the flagship guard to Windows users."""
+    readme = read_file("README.md")
+    req = readme[readme.index("**Python 3"):]
+    req = req[:req.index("\n\n")]
+    assert "Windows" in req, \
+        "the python3 requirement must name the Windows gap (python/py, no python3 alias)"
+
+
+def test_hooks_disclosure_scopes_the_guard_to_editing_tools(read_file):
+    """The hook matches Claude Code's editing tools; a shell edit (sed -i) bypasses it and
+    is caught by Build's pre-advance git diff instead. Saying the criteria 'can't be
+    silently weakened' without that split overstates the hook."""
+    readme = read_file("README.md")
+    hooks = readme[readme.index("**Hooks**"):]
+    hooks = hooks[:hooks.index("- **Shell**")]
+    assert "git diff" in hooks or "diff backstop" in hooks, \
+        "the disclosure must name the git-diff backstop that covers shell-side edits"

@@ -249,7 +249,7 @@ def test_decide_allow_paths_return_an_empty_reason(tmp_path, monkeypatch):
     def _boom(*_a, **_k):
         raise RuntimeError("resolver exploded")
 
-    monkeypatch.setattr(ft, "resolve_session", _boom)
+    monkeypatch.setattr(ft, "resolve_build_contexts", _boom)
     assert ft.decide(frozen, home=tmp_path) == (0, "")                    # exception path
 
 
@@ -600,7 +600,7 @@ def test_decide_fails_open_if_resolver_raises(tmp_path, monkeypatch):
     def _boom(*_a, **_k):
         raise RuntimeError("resolver exploded")
 
-    monkeypatch.setattr(ft, "resolve_session", _boom)
+    monkeypatch.setattr(ft, "resolve_build_contexts", _boom)
     payload = json.dumps({
         "tool_name": "Edit",
         "tool_input": {"file_path": "/x/tests/test_login.py"},
@@ -685,10 +685,10 @@ def test_escaping_pointer_skips_only_that_project(tmp_path):
     assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
 
 
-def test_active_build_session_outranks_other_build_sessions(tmp_path):
-    """With two build sessions in one file, the ACTIVE one is authoritative — the fallback scan
-    is only for when the active session is not building. An edit frozen only in the non-active
-    build session is allowed; the active session's own frozen file still blocks."""
+def test_all_build_sessions_keep_their_guards(tmp_path, capsys):
+    """With two build sessions in one file, BOTH freezes hold — a paused build's frozen
+    tests are still frozen deliverables of a pending spec. The ACTIVE session stays
+    authoritative for attribution: its own frozen file is blocked under its spec's name."""
     project = tmp_path / "proj"
     _setup(tmp_path, project, frozen=("tests/test_a.py",))
     hh = tmp_path / ".hercules"
@@ -698,8 +698,11 @@ def test_active_build_session_outranks_other_build_sessions(tmp_path):
     state["sessions"] = {"s0": other, "s1": state["sessions"]["s1"]}  # non-active build FIRST
     (hh / "state" / "proj.json").write_text(json.dumps(state))
     (project / "tests" / "test_b.py").write_text("def test_b():\n    assert True\n")
-    assert main(_payload(project, "tests/test_b.py"), home=tmp_path) == 0
+    assert main(_payload(project, "tests/test_b.py"), home=tmp_path) == 2
+    capsys.readouterr()
     assert main(_payload(project, "tests/test_a.py"), home=tmp_path) == 2
+    assert "spec-02-login.md" in capsys.readouterr().err, \
+        "the active session's own frozen file is attributed to the active spec"
 
 
 def test_fallback_scan_survives_junk_sessions_listed_first(tmp_path):
@@ -726,3 +729,137 @@ def test_importing_the_hook_module_has_no_side_effects(tmp_path):
     )
     assert run.returncode == 0
     assert "IMPORT_OK" in run.stdout, "import must reach the end of the probe — no exit in between"
+
+# ---------------------------------------------------------------------------
+# Multi-context guards — every matching build session keeps its freeze.
+# Probe-driven: nested projects, same-directory projects, paused builds,
+# malformed entries, missing-file multi-root fallback, relative targets.
+# ---------------------------------------------------------------------------
+
+
+def _add_project(home: Path, project: Path, slug: str, *, frozen, repositories=None,
+                 create=True):
+    """Merge one more single-build-session project into an existing registry tree."""
+    hh = home / ".hercules"
+    (hh / "state").mkdir(parents=True, exist_ok=True)
+    cfg_path = hh / "config.json"
+    config = (json.loads(cfg_path.read_text()) if cfg_path.exists()
+              else {"schema_version": 1, "projects": {}})
+    entry = {"directory": str(project), "docs_root": "docs", "state_file": f"{slug}.json"}
+    if repositories:
+        entry["repositories"] = {k: str(v) for k, v in repositories.items()}
+    config["projects"][slug] = entry
+    cfg_path.write_text(json.dumps(config))
+    session = {"current_phase": "build", "current_spec": f"spec-{slug}.md",
+               "current_spec_round": 1, "frozen_test_files": list(frozen)}
+    (hh / "state" / f"{slug}.json").write_text(
+        json.dumps({"schema_version": 1, "active_session": "s1", "sessions": {"s1": session}}))
+    if create:
+        for f in frozen:
+            p = project / f
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text("def test_x():\n    assert True\n")
+
+
+def test_nested_projects_in_build_are_both_guarded(tmp_path):
+    """A monorepo project and an inner service project can both be mid-build; the outer
+    build's frozen file living inside the inner tree must stay guarded even when cwd
+    resolves to the inner project — the guard unions all matching build sessions."""
+    mono = tmp_path / "mono"
+    svc = mono / "svc"
+    _add_project(tmp_path, mono, "mono", frozen=["svc/tests/test_x.py"])
+    _add_project(tmp_path, svc, "svc", frozen=["tests/test_y.py"])
+    assert main(_payload(svc, "tests/test_y.py"), home=tmp_path) == 2
+    assert main(_payload(svc, str(svc / "tests" / "test_x.py"), cwd=svc), home=tmp_path) == 2
+
+
+def test_two_projects_sharing_a_directory_are_both_guarded(tmp_path):
+    """Two registry entries can point at the same directory (e.g. re-registered under a
+    second slug); the one dict order disfavours must not fail open."""
+    project = tmp_path / "proj"
+    _add_project(tmp_path, project, "alpha", frozen=["tests/test_a.py"])
+    _add_project(tmp_path, project, "beta", frozen=["tests/test_b.py"])
+    assert main(_payload(project, "tests/test_a.py"), home=tmp_path) == 2
+    assert main(_payload(project, "tests/test_b.py"), home=tmp_path) == 2
+
+
+def test_one_malformed_frozen_entry_does_not_disarm_the_rest(tmp_path):
+    """Junk elements in frozen_test_files (int, empty, None) are skipped per-item — they
+    must never explode the frozen-set computation and fail the valid entries open."""
+    project = tmp_path / "proj"
+    _setup(tmp_path, project)
+    hh = tmp_path / ".hercules"
+    state = json.loads((hh / "state" / "proj.json").read_text())
+    state["sessions"]["s1"]["frozen_test_files"] = ["tests/test_login.py", 123, "", None]
+    (hh / "state" / "proj.json").write_text(json.dumps(state))
+    assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
+
+
+def test_missing_frozen_file_is_guarded_under_every_root(tmp_path):
+    """A frozen file with nothing on disk (deleted mid-build, or not yet created) must be
+    guarded against creation under EVERY project root, not only the first — otherwise a
+    Write under a repositories.* root recreates it unchecked."""
+    project = tmp_path / "proj"
+    svc = tmp_path / "svc-auth"
+    svc.mkdir()
+    _setup(tmp_path, project, frozen=("tests/test_token.py",),
+           repositories={"svc-auth": svc}, create=False)
+    assert main(_payload(project, "tests/test_token.py", tool="Write"), home=tmp_path) == 2
+    assert main(_payload(project, str(svc / "tests" / "test_token.py"), tool="Write"),
+                home=tmp_path) == 2
+
+
+def test_paused_builds_are_both_guarded_regardless_of_order(tmp_path):
+    """Active session in discover, TWO paused builds in the file: both paused builds'
+    frozen files stay guarded — not whichever one JSON key order happens to yield."""
+    project = tmp_path / "proj"
+    _setup(tmp_path, project, frozen=("tests/test_a.py",))
+    hh = tmp_path / ".hercules"
+    state = json.loads((hh / "state" / "proj.json").read_text())
+    b_b = {"current_phase": "build", "current_spec": "spec-09.md", "current_spec_round": 1,
+           "frozen_test_files": ["tests/test_b.py"]}
+    state["sessions"] = {"bA": state["sessions"]["s1"], "bB": b_b,
+                         "d": {"current_phase": "discover"}}
+    state["active_session"] = "d"
+    (hh / "state" / "proj.json").write_text(json.dumps(state))
+    (project / "tests" / "test_b.py").write_text("def test_b():\n    assert True\n")
+    assert main(_payload(project, "tests/test_a.py"), home=tmp_path) == 2
+    assert main(_payload(project, "tests/test_b.py"), home=tmp_path) == 2
+
+
+def test_relative_target_path_resolves_against_payload_cwd(tmp_path, monkeypatch):
+    """A relative tool_input path is resolved against the payload's cwd, not wherever the
+    hook process happens to run — Claude Code owns the payload cwd; the process cwd is
+    an accident of spawning."""
+    project = tmp_path / "proj"
+    _setup(tmp_path, project)
+    monkeypatch.chdir(tmp_path)  # process cwd deliberately NOT the project
+    payload = json.dumps({"tool_name": "Edit",
+                          "tool_input": {"file_path": "tests/test_login.py"},
+                          "cwd": str(project)})
+    assert main(payload, home=tmp_path) == 2
+
+
+def test_override_without_the_quoted_grant_fails_closed(tmp_path):
+    """The override contract is files + spec + round + the user's quoted words; an override
+    missing or blanking the quoted grant is malformed and must not unblock."""
+    project = tmp_path / "proj"
+    _setup(tmp_path, project)
+    for bad in ({"files": ["tests/test_login.py"], "spec": "spec-02-login.md", "round": 1},
+                {"files": ["tests/test_login.py"], "spec": "spec-02-login.md", "round": 1,
+                 "reason": ""},
+                {"files": ["tests/test_login.py"], "spec": "spec-02-login.md", "round": 1,
+                 "reason": "   "}):
+        _grant(tmp_path, files=[], extra=bad)
+        assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2, bad
+
+
+def test_canon_case_folds_on_macos_only(monkeypatch):
+    """Default macOS APFS is case-insensitive: Test_Login.py IS test_login.py on disk, so
+    canon must compare them equal on darwin (fail-closed) — and must not fold elsewhere."""
+    import hercules_state as hs
+
+    monkeypatch.setattr(hs.sys, "platform", "darwin")
+    assert hs.canon("/Foo/Test_Login.py") == hs.canon("/foo/test_login.py")
+    monkeypatch.setattr(hs.sys, "platform", "linux")
+    assert hs.canon("/Foo/Test_Login.py") != hs.canon("/foo/test_login.py")
