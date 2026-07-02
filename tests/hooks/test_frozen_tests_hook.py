@@ -863,3 +863,117 @@ def test_canon_case_folds_on_macos_only(monkeypatch):
     assert hs.canon("/Foo/Test_Login.py") == hs.canon("/foo/test_login.py")
     monkeypatch.setattr(hs.sys, "platform", "linux")
     assert hs.canon("/Foo/Test_Login.py") != hs.canon("/foo/test_login.py")
+
+
+# ---------------------------------------------------------------------------
+# Direct resolver units — ordering, shapes, and fallbacks are contracts, not
+# implementation detail: attribution (whose spec a block names) rides on them.
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_session_returns_the_single_context_and_exact_shape(tmp_path):
+    import hercules_state as hs
+
+    project = tmp_path / "proj"
+    _setup(tmp_path, project)
+    session, roots, entry = hs.resolve_session(str(project), home=tmp_path)
+    assert session["current_spec"] == "spec-02-login.md"
+    assert canonical_in(roots, project)
+    assert entry["state_file"] == "proj.json"
+
+
+def canonical_in(roots, project):
+    import hercules_state as hs
+    return hs.canon(project) in roots
+
+
+def test_resolve_session_fail_open_shape_when_nothing_matches(tmp_path):
+    """(None, [], None) — exactly; a different falsy shape would crash callers that unpack."""
+    import hercules_state as hs
+
+    (tmp_path / "empty").mkdir()
+    assert hs.resolve_session(str(tmp_path / "empty"), home=tmp_path) == (None, [], None)
+
+
+def test_resolve_session_surfaces_a_non_build_phase(tmp_path):
+    """Callers must be able to SEE a non-build phase (decide() fail-opens on it) — the
+    fallback context is a single row carrying the active session."""
+    import hercules_state as hs
+
+    project = tmp_path / "proj"
+    _setup(tmp_path, project, phase="design")
+    contexts = hs.resolve_build_contexts(str(project), home=tmp_path)
+    assert len(contexts) == 1, "exactly one phase-visibility fallback row"
+    assert contexts[0][0]["current_phase"] == "design"
+
+
+def test_deepest_non_build_project_wins_the_fallback(tmp_path):
+    """Two nested projects, neither building: the fallback context must be the inner
+    (deepest) project's active session, and only that one."""
+    import hercules_state as hs
+
+    outer = tmp_path / "mono"
+    inner = outer / "svc"
+    _add_project(tmp_path, outer, "outer", frozen=[])
+    _add_project(tmp_path, inner, "inner", frozen=[])
+    for slug, spec in (("outer", "outer-spec"), ("inner", "inner-spec")):
+        p = tmp_path / ".hercules" / "state" / f"{slug}.json"
+        state = json.loads(p.read_text())
+        state["sessions"]["s1"]["current_phase"] = "design"
+        state["sessions"]["s1"]["current_spec"] = spec
+        p.write_text(json.dumps(state))
+    contexts = hs.resolve_build_contexts(str(inner), home=tmp_path)
+    assert len(contexts) == 1
+    assert contexts[0][0]["current_spec"] == "inner-spec"
+
+
+def test_nested_build_contexts_order_deepest_first(tmp_path):
+    """Attribution contract: contexts[0] (what resolve_session returns, what a block
+    reason names) is the deepest build project when cwd sits inside it."""
+    import hercules_state as hs
+
+    outer = tmp_path / "mono"
+    inner = outer / "svc"
+    _add_project(tmp_path, outer, "mono", frozen=["svc/tests/test_x.py"])
+    _add_project(tmp_path, inner, "svc", frozen=["tests/test_y.py"])
+    contexts = hs.resolve_build_contexts(str(inner), home=tmp_path)
+    assert [c[0]["current_spec"] for c in contexts] == ["spec-svc.md", "spec-mono.md"]
+
+
+def test_contested_frozen_file_is_attributed_to_the_active_spec(tmp_path, capsys):
+    """When the active AND a paused build both freeze the same file, the block stands
+    either way — but the reason must name the ACTIVE session's spec (the one the user is
+    working in), not whichever session the file order yields."""
+    project = tmp_path / "proj"
+    _setup(tmp_path, project, frozen=("tests/test_shared.py",))
+    hh = tmp_path / ".hercules"
+    state = json.loads((hh / "state" / "proj.json").read_text())
+    paused = {"current_phase": "build", "current_spec": "spec-99-paused.md",
+              "current_spec_round": 2, "frozen_test_files": ["tests/test_shared.py"]}
+    # paused FIRST in file order — attribution must still follow active_session
+    state["sessions"] = {"p": paused, "s1": state["sessions"]["s1"]}
+    (hh / "state" / "proj.json").write_text(json.dumps(state))
+    assert main(_payload(project, "tests/test_shared.py"), home=tmp_path) == 2
+    err = capsys.readouterr().err
+    assert "spec-02-login.md" in err, "the active session owns the attribution"
+    assert "spec-99-paused.md" not in err
+
+
+def test_canon_never_raises_on_unresolvable_input(tmp_path):
+    """canon must fall back to the raw string when filesystem resolution fails (e.g. a
+    null byte) — a raising canon would take the whole guard down with it."""
+    import hercules_state as hs
+
+    out = hs.canon("tests/\x00bad")
+    assert isinstance(out, str) and "bad" in out
+
+
+def test_override_files_must_be_a_list(tmp_path):
+    """A string (or any non-list) files value is malformed — iterating a string would
+    'allow' per-character garbage; the guard must fail closed instead."""
+    project = tmp_path / "proj"
+    _setup(tmp_path, project)
+    _grant(tmp_path, files=[], extra={"files": "tests/test_login.py",
+                                      "spec": "spec-02-login.md", "round": 1,
+                                      "reason": "user: 'fix it'"})
+    assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2

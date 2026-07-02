@@ -83,8 +83,7 @@ def _override_allows(session, roots, target_canon) -> bool:
             return False
         allowed = set()
         for f in files:
-            if isinstance(f, str) and f:
-                allowed |= frozen_candidates(f, roots)
+            allowed |= frozen_candidates(f, roots)  # junk entries resolve to nothing
         return target_canon in allowed
     except Exception:
         return False

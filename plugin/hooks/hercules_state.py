@@ -70,7 +70,7 @@ def resolve_build_contexts(cwd, home=None):
         return []
 
     cwd_c = canon(cwd)
-    build_rows = []     # (depth, rank, session, roots, entry); rank 0 = active session
+    build_rows = []     # (depth, session, roots, entry); appended active-first per project
     fallback_rows = []  # non-build active sessions, kept for phase visibility
     for slug, entry in projects.items():
         try:
@@ -86,27 +86,22 @@ def resolve_build_contexts(cwd, home=None):
             sessions = state.get("sessions") or {}
             depth = max(len(r) for r in matched)
             active = sessions.get(state.get("active_session"))
-            found_build = False
-            rank = 0
-            if isinstance(active, dict) and active.get("current_phase") == "build":
-                build_rows.append((depth, 0, active, roots, entry))
-                found_build = True
-            for s in sessions.values():
-                if s is active:
-                    continue
-                if isinstance(s, dict) and s.get("current_phase") == "build":
-                    rank += 1
-                    build_rows.append((depth, -rank, s, roots, entry))
-                    found_build = True
-            if not found_build and isinstance(active, dict):
-                fallback_rows.append((depth, 0, active, roots, entry))
+            builds = [active] if isinstance(active, dict) and active.get("current_phase") == "build" else []
+            builds += [s for s in sessions.values()
+                       if s is not active and isinstance(s, dict) and s.get("current_phase") == "build"]
+            if builds:
+                build_rows += [(depth, s, roots, entry) for s in builds]
+            elif isinstance(active, dict):
+                fallback_rows.append((depth, active, roots, entry))
         except Exception:
             continue
-    build_rows.sort(key=lambda r: (r[0], r[1]), reverse=True)  # deepest, then active-first
+    # Stable sort: deepest project first; within a project the insertion order stands
+    # (active session first, then paused builds in file order).
+    build_rows.sort(key=lambda r: r[0], reverse=True)
     if build_rows:
-        return [(s, r, e) for _, _, s, r, e in build_rows]
+        return [(s, r, e) for _, s, r, e in build_rows]
     fallback_rows.sort(key=lambda r: r[0], reverse=True)
-    return [(s, r, e) for _, _, s, r, e in fallback_rows[:1]]
+    return [(s, r, e) for _, s, r, e in fallback_rows[:1]]
 
 
 def frozen_candidates(entry, roots) -> set:
