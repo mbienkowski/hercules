@@ -61,22 +61,29 @@ def test_blocks_edit_to_frozen_test_during_build(tmp_path, capsys):
     assert code == 2
     err = capsys.readouterr().err
     # The stderr reason is the model's ONLY feedback channel on a block — pin its full shape:
-    # who blocked, which file, which spec and round, why, and both sanctioned exits.
+    # who blocked, which file, which spec and round, why, and the sanctioned exits. The exits
+    # must agree with build.md's round-limit menu and carry the FULL override contract
+    # (files + spec + round + quoted words) — a partial recipe loops into the same block.
     assert err.startswith("Hercules: "), "the reason must identify Hercules as the blocker"
     assert str(project / "tests/test_login.py") in err, "the reason must name the blocked file"
     assert "spec-02-login.md" in err, "the reason must name the owning spec"
-    assert "(build round 1/3). Frozen tests are not edited during implementation" in err
-    assert "acceptance criteria can't be weakened to force a pass" in err
+    assert "(build round 1/3). Tests stay frozen during implementation" in err
+    assert "acceptance criteria can't drift to force a pass" in err
     assert (
-        "on the user's explicit instruction record a round-bound frozen_override "
-        "(their words quoted) and retry in the same turn" in err
-    ), "the reason must lead with the same-turn, user-granted exit"
+        "record frozen_override in the session state with all four fields — files (this "
+        "path), spec, current round, and the user's words quoted — then retry in the same turn"
+        in err
+    ), "the same-turn exit must carry the complete override contract its validator demands"
     assert (
-        'finish the round limit and choose "correct the test" to re-enter /hercules:design, '
-        'or say "start fresh"' in err
-    ), "the reason must spell out the round-limit exits verbatim"
-    assert err.rstrip("\n").endswith('frozen_hook: "off" in the registry entry.'), \
-        "the reason must close by naming the per-project opt-out, verbatim"
+        "round-limit stop (correct the test, rework the design, adjust scope, more rounds, "
+        "or accept with a reason)" in err
+    ), "the round-limit exits must match build.md's five-option menu exactly"
+    assert err.rstrip("\n").endswith('frozen_hook: "off" in its registry.'), \
+        "the reason must close by naming the per-project opt-out"
+    assert "start fresh" not in err, \
+        "'start fresh' is a destructive resume-time reset, not a routine unblock — no phantom exits"
+    assert "correct the test\" to re-enter" not in err, \
+        "correct-the-test (stay in Build) must not be fused with the design re-entry exit"
 
 
 def test_allows_edit_to_non_frozen_file(tmp_path):
@@ -215,7 +222,8 @@ def test_blocks_per_edit_file_path_shape(tmp_path):
 
 def test_reason_falls_back_when_spec_fields_missing(tmp_path, capsys):
     """A build session without current_spec/current_spec_round still blocks, with readable
-    fallbacks in the reason ('the current spec', round '?')."""
+    fallbacks in the reason ('the current spec'; the round displays as 1 — a literal '?/3'
+    in a red error box screenshots as a bug)."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     hh = tmp_path / ".hercules"
@@ -226,7 +234,7 @@ def test_reason_falls_back_when_spec_fields_missing(tmp_path, capsys):
     assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
     err = capsys.readouterr().err
     # Boundary-anchored: the fallback must sit exactly where the spec name would ("for {spec} (")
-    assert "is a frozen test for the current spec (build round ?/3)" in err
+    assert "is a frozen test for the current spec (build round 1/3)" in err
 
 
 def test_decide_allow_paths_return_an_empty_reason(tmp_path, monkeypatch):

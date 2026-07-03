@@ -48,15 +48,16 @@ def _target_paths(tool_input):
 
 def _reason(path, session) -> str:
     spec = session.get("current_spec") or "the current spec"
-    rnd = session.get("current_spec_round", "?")
+    rnd = session.get("current_spec_round") or 1
     return (
         f"Hercules: {path} is a frozen test for {spec} (build round {rnd}/3). "
-        "Frozen tests are not edited during implementation — the guarantee is that acceptance "
-        "criteria can't be weakened to force a pass. To change it legitimately: on the user's "
-        "explicit instruction record a round-bound frozen_override (their words quoted) and "
-        'retry in the same turn; or finish the round limit and choose "correct the test" to '
-        're-enter /hercules:design, or say "start fresh". A per-project opt-out exists: '
-        'frozen_hook: "off" in the registry entry.'
+        "Tests stay frozen during implementation so acceptance criteria can't drift to force "
+        "a pass. To change this one: if the user asked for this exact change, record "
+        "frozen_override in the session state with all four fields — files (this path), spec, "
+        "current round, and the user's words quoted — then retry in the same turn; or finish "
+        "the round and decide at the round-limit stop (correct the test, rework the design, "
+        "adjust scope, more rounds, or accept with a reason). To turn this guard off for the "
+        'whole project, ask and Hercules records frozen_hook: "off" in its registry.'
     )
 
 

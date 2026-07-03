@@ -46,7 +46,7 @@ Ask 2–3 follow-ups within a group if the answer is thin. Move on only when the
 ## Step 3 — Paraphrase, classify complexity & confirm
 
 Paraphrase what you heard in 2–3 sentences so the user can correct any misunderstanding before scoring. Then state:
-> "I'm classifying this as **complexity:X** because [one sentence rationale]."  
+> "I'm classifying this as **{tier} complexity** because [one sentence rationale]."  
 > "Do you agree, or would you like to override?"
 
 Wait for the user to confirm or override. On confirmation, record `tier` and `tier_rationale` — Step 7's session-init write persists them (plan mode allows no writes, and the session slug doesn't exist yet). Complexity is scored **once, here**, and read forward by Design and Build.

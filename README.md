@@ -2,10 +2,7 @@
 
 Half god, half man — strong enough to wrestle a lion, patient enough to sit through your kickoff meeting.
 
-With the strength of ten men — or more — Hercules helps you slay your Hydras, your Nemean Lions,
-or, more realistically, the vague and ambiguous requirements that derail real work.
-
-Its heroic, **spec-first** workflow — **Discover → Design → Build → Ship** — gets what you're building shipped fast and reliably, without the rework.
+**Hercules is a Claude Code plugin** that enforces a **spec-first** workflow — **Discover → Design → Build → Ship** — so what you're building ships fast and reliably, without the rework.
 
 ![How Hercules works](docs/workflow/workflow-diagram-simplified.svg)
 
@@ -100,32 +97,6 @@ governance. This file merges with any existing Claude Code settings — it does 
 | Just want the plugin (most people) | **Marketplace** — the steps above |
 | A whole team / CI | **`settings.json`** (`extraKnownMarketplaces` + `enabledPlugins`) |
 
-### For maintainers — testing a branch before release
-
-To test a branch without installing from the public marketplace, add a temporary marketplace entry
-pointing at your branch. Put this in `~/.claude-priv/settings.json` (or `~/.claude/settings.local.json`)
-so it stays off-project and out of git:
-
-```json
-{
-  "extraKnownMarketplaces": {
-    "hercules-dev": {
-      "source": {
-        "source": "github",
-        "repo": "mbienkowski/hercules",
-        "ref": "your-feature-branch"
-      }
-    }
-  },
-  "enabledPlugins": { "hercules@hercules-dev": true }
-}
-```
-
-`ref` accepts a branch name, tag, or commit SHA. Omit it to use the repo's default branch.
-
-Then restart Claude Code (the settings are read at startup). The plugin resolves from that branch.
-When you're done, remove the entry and restart again to go back to the released version.
-
 ---
 
 ## Quickstart
@@ -176,7 +147,7 @@ not just contributor etiquette.
 > **A focused setup now compounds into smoother delivery on every future feature.** No corrections
 > mid-build, no agents guessing at your testing bar. The structure is permanent; the payoff repeats.
 
-The result is a `CODE_OF_CONDUCT.md` with up to six sections — Architecture (including design
+The result is a `code-of-conduct.md` with up to six sections — Architecture (including design
 patterns and why they're used), Development, Testing, Quality Gates, API, and Delivery. Bullet
 points only, no prose to skim past.
 
@@ -206,11 +177,16 @@ Hercules:  A few gaps before I write this up:
            • token lifetime?
            • is email delivery in scope, or assumed?
 You:       Any user with a registered email; 30-minute token; email delivery is out of scope.
-Hercules:  Classifying this as **complexity:high** — it touches the auth surface (floored at high).
+Hercules:  Classifying this as **high complexity** — it touches the auth surface (floored at high).
            Agree, or override?
 You:       Agree.
+Hercules:  High complexity recommends advisors — business-analyst, security-expert, challenger.
+           Run them?
+You:       Yes.
 Hercules:  Here's the draft (business language, no code). Review it, then say `approved`:
 ```
+*(Condensed — Discover actually walks goal, users, scope, constraints, and success criteria one
+topic at a time, and the advisor debate runs before the draft.)*
 ```markdown
 # Business Requirements: password-reset
 ## Goal
@@ -245,7 +221,7 @@ tokens, or telemetry). Nothing about where your repos live is written into the d
 
 Every feature runs the **same four phases** — the process is constant; what scales is the **number of
 advisors**. Hercules brings strength in proportion to the task: a typo runs no advisor debate; a
-payment migration convenes the full council. Right-sized effort, never overkill on a small change nor
+payment migration convenes the full council. The effort is sized to the change: never overkill on a small one nor
 under-prepared on a large one.
 
 1. **Discover — WHAT** (the heaviest phase) — pins the real need, who benefits, what's in/out of
@@ -299,13 +275,13 @@ a kill-rate threshold — none of this is a best-practice you skip under pressur
 
 **Ambiguous requirements are not fast. They're time borrowed against rework.**
 
-Ask why a feature took far longer than estimated — the answer is almost always something
+Ask why a feature took far longer than estimated. The answer is almost always something
 that wasn't nailed down at the start. Hercules is front-heavy on purpose: the time invested in
 Discover and Design pays back in less rework, fewer misbuilt features, and code that does what
 was actually needed. The work that feels slow upfront is the work that doesn't come back as fixes
 later.
 
-- **Works for one or for ten.** Clear requirements are not a team-size question — they're a "do
+- **Works for one or for ten.** Clear requirements are not a team-size question. They're a "do
   you want to do this twice?" question. A solo developer under deadline pressure benefits from
   Discover as much as a team of ten.
 - **Structured speed, not slow and careful.** Move fast, use AI to amplify your pace, but move
@@ -317,18 +293,18 @@ later.
   number of advisors (a trivial task runs none). Not because ceremony is the goal, but because
   even a one-line change in production code has a business reason. That reason belongs in
   `business-requirements.md` so six months from now anyone reading the history knows *why*
-  something changed — not just what. The trivial path is fast — fewer advisors, same traceability.
+  something changed, not just what. The trivial path is fast: fewer advisors, same traceability.
 - **Human in the loop, by design.** The human decides what is needed. Hercules ensures that
-  decision is captured, challenged, and executed faithfully — with tests, traceability, and a
+  decision is captured, challenged, and executed faithfully, with tests, traceability, and a
   clean git record. If you want an AI that acts without asking, this is the wrong tool. If you
   want an AI that amplifies your judgment and delivers exactly what you intended, this is it.
 - **When not to use it.** Validating a throwaway idea? Building a proof-of-concept you'll
-  discard? Skip the ceremony — it's overhead you don't need yet. Come back when you're building
+  discard? Skip the ceremony; it's overhead you don't need yet. Come back when you're building
   for production: code that will be maintained, extended, or handed to someone else. That's when
   clear requirements stop being optional.
 
 Bring discipline and it amplifies it. Rush the process and Hercules will faithfully build what
-you described — which may not be what you needed. **You own the quality of what you build;**
+you described, which may not be what you needed. **You own the quality of what you build;**
 Hercules makes it easier to do that well.
 
 ---
@@ -372,7 +348,6 @@ delete that folder too for a full removal):
   needed). Without it the hooks fail open: everything works, but the frozen-test guard becomes
   prompt-only. Note for Windows: python.org installs ship `python`/`py`, not `python3`, so the guard
   stays prompt-only there unless a `python3` alias exists (the Microsoft Store install provides one).
-  Contributing (running the test suite) needs the dev extras too.
 
 ---
 
@@ -390,7 +365,7 @@ agents, and skills, plus how to run the tests.
    (`/plugin marketplace remove mbienkowski`) so the name isn't ambiguous — otherwise you'd test the
    released version, not your changes. `git checkout` the branch you want to test, then run
    `/reload-plugins` to apply.
-4. Run the suite: `pip install -e ".[dev]" && make test`
+4. Run the suite: `pip install -e ".[dev]" && make test` (the dev extras carry pytest and mutmut)
 5. Open a PR — CI runs the full suite plus mutation testing and validates the plugin package. Commit
    messages follow Conventional Commits (`feat:`/`fix:`/`feat!:`), which drive the version on release.
 
@@ -403,6 +378,33 @@ pip install -e ".[dev]"   # installs test dependencies (pytest, mutmut) — need
 ```
 
 All `.md` filenames must be **lowercase** — macOS is case-insensitive but Linux is not.
+
+### For maintainers — testing a branch before release
+
+To test a branch without installing from the public marketplace, add a temporary marketplace entry
+pointing at your branch. Put this in `~/.claude-priv/settings.json` (or `~/.claude/settings.local.json`)
+so it stays off-project and out of git:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "hercules-dev": {
+      "source": {
+        "source": "github",
+        "repo": "mbienkowski/hercules",
+        "ref": "your-feature-branch"
+      }
+    }
+  },
+  "enabledPlugins": { "hercules@hercules-dev": true }
+}
+```
+
+`ref` accepts a branch name, tag, or commit SHA. Omit it to use the repo's default branch.
+
+Then restart Claude Code (the settings are read at startup). The plugin resolves from that branch.
+When you're done, remove the entry and restart again to go back to the released version.
+
 
 ---
 
@@ -448,9 +450,6 @@ complexity and adds none for trivial work).
   consensus round, so agreement has to be earned, not echoed. Advisors are briefed with deliberately
   opposing agendas (e.g. a Cynical Reviewer vs. a Simplicity Advocate), because good decisions come
   from tension.
-- **Multi-agent systems can still echo each other.** In 2,500+ simulations, agents conformed to the
-  majority in up to 83% of cases — driven by numbers, not reasoning. Opposing agendas are the
-  structural fix, not just a nice-to-have.
 - **One agent can only follow so many instructions.** At 150 instructions the best model followed ~96%;
   at 500, ~68.9% — the drop is non-linear and invisible (no error, no warning)
   ([arxiv.org/html/2507.11538v1](https://arxiv.org/html/2507.11538v1)). Splitting work across focused
@@ -462,7 +461,14 @@ complexity and adds none for trivial work).
 - **The debate costs fewer tokens than reworking a missed spec.** A requirement gap that slips into
   Build means restated requirements, revised specs, re-run tests, and a second review cycle — far
   more costly than the advisor debate that would have caught it upfront. The A2A communication
-  protocol keeps advisor messages structured and low-noise, bounding the per-debate cost. The debate
-  is the cheap path; rework is the expensive one.
+  protocol keeps advisor messages structured and low-noise, bounding the per-debate cost.
 
 You stay in control: advisors are a recommendation you approve, never automatic.
+
+---
+
+## License
+
+[AGPL-3.0](LICENSE). The license covers the plugin itself — its commands, agents, and hooks.
+Using Hercules to build your software does not extend AGPL to your code: your requirements,
+specs, and shipped code are yours, under whatever license you choose.

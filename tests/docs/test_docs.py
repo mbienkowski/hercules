@@ -266,3 +266,21 @@ def test_hooks_disclosure_scopes_the_guard_to_editing_tools(read_file):
     hooks = hooks[:hooks.index("- **Shell**")]
     assert "git diff" in hooks or "diff backstop" in hooks, \
         "the disclosure must name the git-diff backstop that covers shell-side edits"
+
+
+def test_readme_generator_output_filename_is_lowercase(read_file):
+    """The README lectures on the CODE_OF_CONDUCT.md-vs-code-of-conduct.md distinction and
+    the generator skill hard-rules lowercase — the README's own description of the
+    generator's output must not contradict both."""
+    readme = read_file("README.md")
+    assert "a `CODE_OF_CONDUCT.md` with" not in readme, \
+        "the generator produces the lowercase per-project file, not this repo's CoC"
+    assert "a `code-of-conduct.md` with" in readme
+
+
+def test_readme_first_screen_names_the_category(read_file):
+    """A skimming engineer's first question is 'what IS this' — the words 'Claude Code
+    plugin' must appear in the first ~10 lines, before any mythology."""
+    head = "\n".join(read_file("README.md").splitlines()[:10])
+    assert "Claude Code plugin" in head, \
+        "the first screen must name the product category before the jokes"

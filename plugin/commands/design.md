@@ -20,8 +20,8 @@ List sessions that have a `*-business-requirements.md` but no specs yet:
 
 ```
 Found sessions ready for design:
-  1. docs/2026-06-14-user-auth/   (*-business-requirements.md ✓, specs ✗)
-  2. docs/2026-06-10-payments/    (*-business-requirements.md ✓, specs ✗)
+  1. docs/2026-06-14-user-auth/   (requirements written, no specs yet)
+  2. docs/2026-06-10-payments/    (requirements written, no specs yet)
 
 Which feature do you want to design? (number, path, or press Enter for the most recent)
 ```
@@ -78,7 +78,7 @@ Requirements coverage:
 
 Sub-spec ownership — every requirement must map to at least one spec via that spec's `satisfies:` header. A requirement owned by no spec is a ✗ — it would never get built. Block the write until every requirement has an owning spec.
 
-Note on n-1 — `*-business-requirements.md` is both the validation source and the only prior artifact (n-1); one read suffices (the dual-source check becomes meaningful only if a separate sequencing artifact is added later).
+Note on n-1 — `*-business-requirements.md` is both the validation source and the only prior artifact (n-1); one read suffices.
 
 If any requirement is uncovered or partially covered, do not write the specs. Ask whether to extend the specs to cover them, or mark them explicitly out of scope (with a reason). Only proceed to Plan approval once every requirement is covered (with a quote) and owned by a spec, or explicitly out of scope.
 
