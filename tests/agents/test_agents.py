@@ -98,8 +98,13 @@ def test_each_agent_file_has_the_required_structure_and_fields(repo_root, agent_
         assert m.group(1) == name, (
             f"{path.name} frontmatter name={m.group(1)!r} must match filename {name!r}"
         )
-        for field in ["description:", "model:"]:
-            assert field in md, f"{path.name} frontmatter missing {field!r}"
+        assert "description:" in md, f"{path.name} frontmatter missing 'description:'"
+        # Delegates pin a model as cost control (sonnet/haiku for advisors). The default
+        # persona is the exception BY DESIGN: it runs every session, so it inherits the
+        # user's configured model — a plugin silently pinning the priciest model on all
+        # sessions is a trust breaker (see README § Plugin permissions, Models bullet).
+        if name != "hercules":
+            assert "model:" in md, f"{path.name} frontmatter missing 'model:'"
 
         assert "code-of-conduct.md" in md, (
             f"{path.name} must instruct the agent to read code-of-conduct.md"
@@ -289,7 +294,7 @@ def test_first_run_gate_keys_on_something_the_recommended_setup_writes(read_file
     persona = read_file("plugin/agents/hercules.md")
     generator = read_file("plugin/skills/code-of-conduct-generator/SKILL.md")
     if "config.json" in persona:
-        assert "config.json" in generator or "code-of-conduct.md` is present" in persona, \
+        assert "config.json" in generator or "setup already ran" in persona, \
             "the first-run gate re-triggers after setup — key it on the CoC file too"
 
 

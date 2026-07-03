@@ -70,6 +70,9 @@ def test_blocks_edit_to_frozen_test_during_build(tmp_path, capsys):
     assert "(build round 1/3). Tests stay frozen during implementation" in err
     assert "acceptance criteria can't drift to force a pass" in err
     assert (
+        'User: saying "change this test' in err
+    ), "the human gets one plain sentence before any agent plumbing — users read hook errors too"
+    assert (
         "record frozen_override in the session state with all four fields — files (this "
         "path), spec, current round, and the user's words quoted — then retry in the same turn"
         in err
@@ -78,7 +81,7 @@ def test_blocks_edit_to_frozen_test_during_build(tmp_path, capsys):
         "round-limit stop (correct the test, rework the design, adjust scope, more rounds, "
         "or accept with a reason)" in err
     ), "the round-limit exits must match build.md's five-option menu exactly"
-    assert err.rstrip("\n").endswith('frozen_hook: "off" in its registry.'), \
+    assert err.rstrip("\n").endswith('frozen_hook: "off" in the registry.'), \
         "the reason must close by naming the per-project opt-out"
     assert "start fresh" not in err, \
         "'start fresh' is a destructive resume-time reset, not a routine unblock — no phantom exits"

@@ -106,7 +106,9 @@ never improvise outside it — and tell the user what happened.
 | 2026-06-22 | 2026-06-22-user-auth | high    | build     | JWT auth for API gateway  |
 | 2026-06-15 | 2026-06-15-payments  | medium  | delivered | Stripe checkout flow      |
 
-Status values: `discover` | `design` | `build` | `delivered` | `abandoned` (`abandoned` is set manually by the user)
+Status values: `discover` | `design` | `build` | `delivered` | `abandoned`. On the user's
+"abandon this session": set the row's Status to `abandoned`, remove the session from the state
+file (atomic temp + rename), and leave every `docs/` artifact in place — the docs stay theirs.
 Tier values: `trivial` | `low` | `medium` | `high` | `critical`
 
 ### Machine-local state (`~/.hercules/`)

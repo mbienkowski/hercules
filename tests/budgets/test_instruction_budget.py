@@ -11,8 +11,9 @@ typically contains 2–4 atomic directives.  Empirically that gives:
   sub-agent heuristic ≈ 20  →  ~50 atomic directives
   orchestrator realistic ≈ 43 →  ~110 atomic directives
 
-Gates are set relative to the "150 hard / 120 ideal" per-agent ceiling the user
-specified, scaled to the heuristic:  150 / 3 ≈ 50, 120 / 3 ≈ 40.
+Gates are set relative to the ~150-directive per-agent adherence ceiling, scaled to the
+heuristic (÷3) — and the delegate gate reserves the 30–40 directives the project
+code-of-conduct spends on top of shipped content: (150 − 40) / 3 ≈ 35.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ import pytest
 # ── Thresholds ────────────────────────────────────────────────────────────────
 # Heuristic instruction blocks (1 block ≈ 2–4 atomic directives).
 # Gate = user's atomic ceiling ÷ 3 (conservative), rounded up to nearest 5.
-_SUB_AGENT_GATE   = 50   # agent .md + a2a injected core + CLAUDE.md
+_SUB_AGENT_GATE   = 35   # agent .md + delegation packet + a2a injected core (CoC reserved)
 _ORCHESTRATOR_GATE = 55  # CLAUDE.md + heaviest command + both protocols (no skills)
 _SKILL_GATE        = 20  # per individual skill invocation
 

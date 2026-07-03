@@ -1283,3 +1283,12 @@ def test_state_fields_documented_and_written_stay_in_sync(read_file):
     undocumented = referenced - documented - allowed_file_level
     assert not undocumented, \
         f"state-shaped fields referenced by commands but undocumented: {sorted(undocumented)}"
+
+
+def test_discover_batches_groups_for_plainly_small_ideas(read_file):
+    """Five one-per-turn question groups for a small fix is the drop-out moment for solo
+    devs — a plainly small idea gets all five groups in one message (depth scales, the
+    groups stay; note: the tier isn't scored until Step 3, so this keys on the idea)."""
+    discover = read_file(_DISCOVER)
+    step2 = _section(discover, "## Step 2", "## Step 3", label=_DISCOVER)
+    assert "one message" in step2, "small ideas must get the five groups batched"

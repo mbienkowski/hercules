@@ -32,7 +32,7 @@ Gap analysis: missing items, conflicts (CoC says X, code does Y — surface as q
 - **Architecture:** directory layout · package strategy · primary pattern + enforcement · design patterns (name, problem, location) · module boundaries · dependency direction · DI/IoC approach · cross-cutting concerns
 - **Development:** naming conventions · comment policy · error handling strategy · logging standards · null/Optional handling · async model · immutability · config management
 - **Testing:** framework(s) · naming convention · structure (G/W/T vs. AAA) · BDD/Gherkin (scan `.feature` files; document runner, else omit) · mocking policy (per layer) · unit/integration/e2e/API scope · file locations · test data · isolation · performance tests
-- **Quality Gates:** branch coverage threshold (suggest ≥90%) · mutation kill rate (suggest ≥90%) · arch-unit checks · linter + config · formatter + config · static analysis tools · pre-commit hooks · CI gates · security/dependency scanning
+- **Quality Gates:** branch coverage threshold (suggest ≥90%) · mutation kill rate (suggest ≥90% when a mutation tool exists in the repo; else omit) · arch-unit checks · linter + config · formatter + config · static analysis tools · pre-commit hooks · CI gates · security/dependency scanning
 - **API** *(omit section if no public API):* style · versioning · schema approach · docs format · backward-compat policy · error format · auth
 - **Delivery:** branch model · commit format · PR requirements · merge strategy · release process · rollback · migration policy
 
@@ -40,9 +40,17 @@ Gap analysis: missing items, conflicts (CoC says X, code does Y — surface as q
 
 5–6 `##` sections (`## API` conditional on public API). **Each section opens with 1–3 sentences explaining WHY these standards exist** — the constraint or lesson behind them. Then bullet points only; no prose in bullets; no intro or closing outside sections.
 
-**Directive budget.** Every agent reads this whole file on top of its own instructions — aim for **30–40** bullets; up to **50** for a large or polyglot repo; **never exceed 70**. Near the band, merge near-duplicates and cut what the code makes obvious; report the final count.
+**Directive budget.** Every agent reads this whole file on top of its own instructions — aim for
+**30–40** directives (one bullet = one directive; the section-opening WHY sentences don't count);
+up to **50** for a large or polyglot repo; **70 is the hard ceiling**. Past 40 the delegate total
+crosses the ~150-directive adherence line — 50–70 trades adherence for coverage; say so when
+reporting the count. Near the band, merge near-duplicates and cut what the code makes obvious
+(new-file flow only — in update mode existing bullets are never cut or merged; surface the
+overage as a question).
 
-**Never add Hercules attribution, AI mention, or generator reference to the output file.** It reads as a human-authored standards document.
+**Never add Hercules attribution, AI mention, or generator reference to the output file** — it
+reads as a human-authored standards document; note the generator's role in the commit message
+instead.
 
 ## Corner cases
 

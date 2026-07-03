@@ -82,7 +82,8 @@ A behaviour change is done when the old meaning is extinct, not when the new one
   test fails if any of the three drifts
 - Run the suite to confirm no drift
 - **Instruction load is a budget.** Say whose context new content lands in. A delegate's total
-  stays under ~150 directives: own file + packet + A2A core (~100) + the project CoC (30–40).
+  stays under ~150 directives: own file + packet + A2A core (~100) + the project CoC (30–40; a
+  big-repo CoC at 50–70 spends this same headroom — the generator says so when it happens).
   Always-loaded content spends everyone's headroom.
 
 ### Hooks (hard gateways)
@@ -132,7 +133,7 @@ in 30 seconds should find any rule or definition without reading a full paragrap
 
 - **Line length:** hard cap of **160 characters** per line in every file (code, docs, tests) for
   all new and edited content. Structurally single-line content — markdown table rows, long URLs,
-  the HTML diagram's markup — is the only exemption.
+  the HTML diagram's markup, YAML frontmatter values — is the only exemption.
 
 ### Failure moments
 

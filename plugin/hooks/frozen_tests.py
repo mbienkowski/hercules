@@ -52,12 +52,13 @@ def _reason(path, session) -> str:
     return (
         f"Hercules: {path} is a frozen test for {spec} (build round {rnd}/3). "
         "Tests stay frozen during implementation so acceptance criteria can't drift to force "
-        "a pass. To change this one: if the user asked for this exact change, record "
-        "frozen_override in the session state with all four fields — files (this path), spec, "
-        "current round, and the user's words quoted — then retry in the same turn; or finish "
-        "the round and decide at the round-limit stop (correct the test, rework the design, "
-        "adjust scope, more rounds, or accept with a reason). To turn this guard off for the "
-        'whole project, ask and Hercules records frozen_hook: "off" in its registry.'
+        'a pass. User: saying "change this test — <why>" unblocks it this turn; or ask to turn '
+        "the guard off for this project. Agent: on that instruction, record frozen_override in "
+        "the session state with all four fields — files (this path), spec, current round, and "
+        "the user's words quoted — then retry in the same turn; or finish the round and decide "
+        "at the round-limit stop (correct the test, rework the design, adjust scope, more "
+        'rounds, or accept with a reason). Project-wide opt-out: frozen_hook: "off" in the '
+        "registry."
     )
 
 

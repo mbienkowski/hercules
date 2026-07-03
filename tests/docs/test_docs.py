@@ -319,11 +319,11 @@ def test_coc_documents_the_prose_pin_convention(read_file):
 
 
 def test_readme_explains_the_coc_directive_budget(read_file):
-    """README says every agent reads the CoC — it must also say that budget is finite
-    (30–40 directives sweet spot) so users don't paste an 80-bullet org standard."""
+    """README says every agent reads the CoC — it must state the budget as the sentence
+    that IS the feature (bare '30'/'40' substrings matched token lifetimes elsewhere)."""
     readme = read_file("README.md")
-    assert "30" in readme and "40" in readme and "directive" in readme.lower(), \
-        "README must state the CoC directive budget where it praises the CoC"
+    assert "the generator aims for **30–40 directives**" in readme
+    assert "70 is the hard ceiling" in readme
 
 
 def test_coc_carries_the_execution_walk_and_semantic_extinction_rules(read_file):
@@ -369,3 +369,49 @@ def test_coc_agent_rules_carry_the_instruction_budget(read_file):
     coc = read_file("CODE_OF_CONDUCT.md")
     agent = coc[coc.index("### Adding an agent"):coc.index("### Hooks")]
     assert "Instruction load is a budget" in agent and "150" in agent
+
+
+def test_first_run_gate_never_intercepts_unrelated_work(read_file):
+    """The persona is the default agent for EVERY session — an onboarding block that fires
+    on any turn in an un-set-up repo hijacks unrelated work and contradicts the README's
+    'Optional'. It must apply only to Hercules-directed requests."""
+    agent = read_file("plugin/agents/hercules.md")
+    gate = agent[agent.index("**First-run onboarding.**"):]
+    assert "unrelated" in gate, "the gate must promise never to intercept unrelated work"
+    assert "/hercules:" in gate, "the gate must scope itself to Hercules-directed requests"
+
+
+def test_persona_inherits_the_session_model(read_file):
+    """A plugin silently pinning every session to the most expensive model is a trust
+    breaker — the persona inherits whatever model the user configured."""
+    agent = read_file("plugin/agents/hercules.md")
+    head = agent[:agent.index("\n---", 3)]
+    assert "model:" not in head, "the default persona must not pin a model"
+
+
+def test_readme_citation_doi_is_the_real_paper(read_file):
+    """The one load-bearing citation must resolve — a 404 on LinkedIn day flips the whole
+    evidence section from rigor to decoration."""
+    readme = read_file("README.md")
+    assert "science.aec8352" in readme, "cite Cheng et al., Science 2026 (aec8352)"
+    assert "adp9289" not in readme, "the old DOI resolves to nothing"
+
+
+def test_uninstall_lists_repo_side_artifacts(read_file):
+    """Uninstalling only mentions ~/.hercules — but the generator wrote code-of-conduct.md
+    and an @-line into the user's CLAUDE.md, which keep steering sessions after uninstall."""
+    readme = read_file("README.md")
+    section = readme[readme.index("## Uninstalling"):]
+    section = section[:section.index("\n## ") if "\n## " in section else len(section)]
+    assert "code-of-conduct.md" in section and "CLAUDE.md" in section, \
+        "uninstall must name the repo-side artifacts the user may want to remove or keep"
+
+
+def test_abandoning_a_session_has_a_documented_path(read_file):
+    """Every other exit is stated at its friction point; abandoning a half-built feature
+    had no user-facing path at all. CLAUDE.md must define the mechanics and the README
+    must surface the phrase."""
+    md = read_file("plugin/CLAUDE.md")
+    assert "abandon" in md.lower() and "clear" in md.lower()
+    readme = read_file("README.md")
+    assert "abandon" in readme.lower(), "the README must tell users they can bail out"

@@ -6,7 +6,8 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
 
 ![How Hercules works](docs/workflow/workflow-diagram-simplified.svg)
 
-*For more details, look into the [detailed diagram](https://htmlpreview.github.io/?https://github.com/mbienkowski/hercules/blob/main/docs/workflow/workflow-diagram-detailed.html).*
+*For more details, look into the [detailed diagram](https://htmlpreview.github.io/?https://github.com/mbienkowski/hercules/blob/main/docs/workflow/workflow-diagram-detailed.html)
+(or open `docs/workflow/workflow-diagram-detailed.html` from a clone if the preview proxy is slow).*
 
 **Who it's for:**
 
@@ -121,7 +122,9 @@ Each feature is its own workflow run — start a new one any time with `/hercule
 description. Your `docs/` folder accumulates business-requirements files, a session digest (`docs/INDEX.md`), and
 reusable lessons (`docs/learnings.md`) over time; specs are temporary
 and deleted once the feature is delivered in code (during Build, when code becomes the source of truth). Multiple features
-can be in-flight simultaneously — each gets its own spec files with unique sequential numbers.
+can be in-flight simultaneously — each gets its own spec files with unique sequential numbers. To
+abandon one mid-flight, say **"abandon this session"** — its INDEX row is marked abandoned and its
+state cleared; your docs stay yours.
 
 ---
 
@@ -139,8 +142,8 @@ not just contributor etiquette.
 
 Keep it lean: every agent reads the whole file on top of its own instructions, and models follow
 fewer instructions reliably as the total grows — the generator aims for **30–40 directives**
-(up to 50 for a big repo, never past 70). A focused CoC is followed; an 80-bullet org standard is
-skimmed.
+(up to 50 for a big repo; 70 is the hard ceiling). A focused CoC is followed; an 80-bullet org
+standard is skimmed.
 
 **What it does in three steps:**
 
@@ -201,6 +204,8 @@ Registered users with a verified email address.
 ## Scope
 In: request a reset, receive a one-time link, set a new password.
 Out: the email-delivery service itself (already exists).
+## Constraints
+Reset tokens are single-use and expire after 30 minutes; email delivery uses the existing service.
 ## Success criteria
 A reset link works once, expires after 30 minutes, and never reveals whether an email is registered.
 ```
@@ -337,7 +342,10 @@ select `mbienkowski` → **Enable auto-update** — it then refreshes at startup
 ## Uninstalling
 
 To remove the plugin and its marketplace entry (your delivery state survives in `~/.hercules/` —
-delete that folder too for a full removal):
+delete that folder too for a full removal). In repos where you ran the onboarding, two files are
+yours to keep or remove: `code-of-conduct.md` and the `@./code-of-conduct.md` line it added to your
+`CLAUDE.md` — both keep steering plain Claude sessions until removed. Everything under `docs/`
+(requirements, INDEX, learnings) is your content and stays.
 
 ```
 /plugin uninstall hercules@mbienkowski
@@ -435,6 +443,9 @@ it can do is exactly what Claude Code can do in your session:
   in progress).
 - **Shell** — during Build, when tests need to run (Claude Code executes the command; Hercules issues no
   shell commands independently), and the hooks above, which Claude Code invokes as `python3` on edits.
+- **Models** — the Hercules persona runs on whatever model your session is configured to use; some
+  advisor agents pin smaller models (`sonnet`, `haiku`) to keep debates cheap. Nothing pins a larger
+  model than yours.
 - **Network** — none. All model calls go through your existing Claude Code session and API key.
   Hercules makes no direct API calls and opens no separate network channel — hooks included.
 
@@ -448,9 +459,9 @@ A single model in a single pass has predictable failure modes. Specialist adviso
 Hercules always **asks before running them** (they cost tokens and time, so it scales them to
 complexity and adds none for trivial work).
 
-- **Agents echo each other, and models are sycophantic.** Research shows AI is 49% more likely than
-  humans to affirm users even when it knows the right answer, and agrees with wrong answers 51% of the
-  time ([Science 2026](https://www.science.org/doi/10.1126/science.adp9289)). The *structural* counter
+- **Agents echo each other, and models are sycophantic.** Research shows AI models affirm users'
+  actions about 50% more often than humans do — even for actions human consensus disapproves of
+  ([Cheng et al., Science 2026](https://www.science.org/doi/10.1126/science.aec8352)). The *structural* counter
   is a **blind round**: each advisor forms its position independently, before seeing the others — then a
   consensus round, so agreement has to be earned, not echoed. Advisors are briefed with deliberately
   opposing agendas (e.g. a Cynical Reviewer vs. a Simplicity Advocate), because good decisions come

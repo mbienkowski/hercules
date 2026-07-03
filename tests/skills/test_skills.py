@@ -262,22 +262,29 @@ def test_learnings_skill_names_the_phase_that_invokes_it(read_file):
 
 
 def test_generator_states_the_directive_budget(read_file):
-    """Every agent reads the whole project CoC on top of its ~100-directive base load,
-    and instruction-following degrades measurably past ~150 total — the generator must
-    aim for 30–40 directives, allow up to 50 for big repos, and never exceed 70."""
+    """The bands must be the literal rule sentences, the ceiling must reconcile with the
+    ~150 adherence line (100 base + 70 = 170 — the trade must be admitted), and the
+    cut/merge advice must not contradict update mode's additions-only law."""
     skill = read_file("plugin/skills/code-of-conduct-generator/SKILL.md")
-    assert "30" in skill and "40" in skill, "the generator must state the 30–40 sweet spot"
-    assert "50" in skill, "…the conditional ceiling for big repos"
-    assert "70" in skill, "…and the hard never-exceed line"
+    assert "aim for\n**30–40** directives" in skill or "aim for **30–40** directives" in skill
+    assert "up to **50**" in skill
+    assert "**70 is the hard ceiling**" in skill
+    assert "one bullet = one directive" in skill, "the counting unit must be defined"
+    assert "adherence" in skill, \
+        "past-40 must admit the trade against the ~150 adherence line, not hide it"
+    assert "update mode" in skill and "never cut or merged" in skill, \
+        "the cut/merge advice must carve out update mode (additions only)"
+    assert "mutation tool exists" in skill or "mutation tool is present" in skill, \
+        "never suggest a mutation gate for a repo with no mutation tooling"
 
 
 def test_learnings_store_has_an_entry_budget_and_eviction_criterion(read_file):
-    """Discover reads the whole store, so it is instruction load like the CoC: the skill
-    must cap it (20–30 entries, 40 hard max) and say HOW to choose what stays —
-    universality and importance, a live document, not an archive."""
+    """Discover reads the whole store, so it is instruction load like the CoC: the cap
+    must be the literal rule sentence and eviction criterion-driven."""
     skill = read_file("plugin/skills/learnings/SKILL.md")
-    assert "20" in skill and "30" in skill and "40" in skill, \
-        "the store must carry the 20–30 target and the 40 hard ceiling"
+    assert "keep **20–30** entries" in skill
+    assert "**40 is the hard ceiling**" in skill
     low = skill.lower()
     assert "universal" in low and "importan" in low, \
         "eviction must be criterion-driven: keep by universality and importance"
+

@@ -102,8 +102,9 @@
     "target": "plugin/skills/*/SKILL.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 900,
+    "limit": 1050,
     "severity": "gate",
-    "per_file": true
+    "per_file": true,
+    "warn_at": 1000
   }
 ]

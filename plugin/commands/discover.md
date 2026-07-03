@@ -33,7 +33,8 @@ If no documents: ask — > What do you want to build? Wait for the answer before
 
 ## Step 2 — Discovery (one group per turn)
 
-One group per turn; wait for the answer before the next group.
+One group per turn; wait for the answer before the next group. Plainly small idea (a fix, a
+tweak)? Ask all five groups in one message instead — depth scales, the groups stay.
 
 **Group A — Goal & problem:** problem solved; who benefits and how  
 **Group B — Users:** who uses this; current workflow without it  
