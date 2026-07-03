@@ -269,3 +269,15 @@ def test_generator_states_the_directive_budget(read_file):
     assert "30" in skill and "40" in skill, "the generator must state the 30–40 sweet spot"
     assert "50" in skill, "…the conditional ceiling for big repos"
     assert "70" in skill, "…and the hard never-exceed line"
+
+
+def test_learnings_store_has_an_entry_budget_and_eviction_criterion(read_file):
+    """Discover reads the whole store, so it is instruction load like the CoC: the skill
+    must cap it (20–30 entries, 40 hard max) and say HOW to choose what stays —
+    universality and importance, a live document, not an archive."""
+    skill = read_file("plugin/skills/learnings/SKILL.md")
+    assert "20" in skill and "30" in skill and "40" in skill, \
+        "the store must carry the 20–30 target and the 40 hard ceiling"
+    low = skill.lower()
+    assert "universal" in low and "importan" in low, \
+        "eviction must be criterion-driven: keep by universality and importance"
