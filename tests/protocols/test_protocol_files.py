@@ -101,8 +101,29 @@ def test_injected_agent_core_has_not_been_accidentally_changed(repo_root):
 
 
 def test_round3_reinvoke_threshold_excludes_resolved_votes(read_file):
-    """4/5 is 'Resolved' and 'all ≥4/5 closes the round' — Round 3 must re-invoke only
-    unresolved (≤3/5) agents, or every resolved voter gets re-spawned at extra cost."""
+    """Only ≤3/5 votes re-trigger a round: a 4/5 is now a reservation carried to the user (not
+    resolved) but is still not re-invoked, and a 5/5 is resolved — so re-spawning anyone above
+    ≤3/5 wastes a round. The threshold must read ≤3/5, never ≤4/5."""
     for rel in (_A2A_PROTOCOL, _DEBATE_PROTOCOL):
         assert "≤4/5" not in read_file(rel), \
-            f"{rel}: R3 re-invoke threshold contradicts the ≥4/5 resolution rule — use ≤3/5"
+            f"{rel}: R3 re-invoke threshold must stay ≤3/5 — a 4/5 reservation escalates, it is not re-debated"
+
+
+def test_debate_resolves_only_at_full_consensus_else_escalates(read_file):
+    """Strict end-state: a debate resolves ONLY at unanimous 5/5. A 4/5 reservation or residual
+    ≤3/5 dissent that survives the tier's round cap is not resolved — it is put to the user as a
+    decision (accept as-is / another angle / override), never auto-applied."""
+    # Given the debate protocol
+    md = read_file(_DEBATE_PROTOCOL)
+    lower = md.lower()
+    # Then only 5/5 resolves; 4/5 is a reservation carried to the user, not 'Resolved'
+    assert "| 5 | full agreement | resolved" in lower, "5/5 must remain the resolved row"
+    assert "reservation — carried to the user's decision, not resolved" in lower, \
+        "4/5 must be a reservation escalated to the user, not auto-resolved"
+    # And the close rule is full-consensus-or-cap, not ≥4/5
+    assert "closes at full 5/5" in lower, "a round must close at full 5/5 (or the tier cap), not ≥4/5"
+    # And Synthesis escalates the residue as an explicit user decision, never auto-applying
+    assert "resolves only at full 5/5" in lower, "Synthesis must state the 5/5-only resolve rule"
+    assert "accept as-is" in lower and "another angle" in lower and "override" in lower, \
+        "the user's decision must offer accept-as-is / another-angle / override"
+    assert "never auto-applied" in lower, "a contested or reserved finding is never auto-applied"

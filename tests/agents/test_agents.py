@@ -2,8 +2,12 @@
 
 import json
 import re
+from pathlib import Path
 
 import pytest
+
+# Module-level list so tests can parametrize over each agent file (one cell per file).
+_AGENT_PATHS = sorted((Path(__file__).resolve().parents[2] / "plugin" / "agents").glob("*.md"))
 
 
 _ADVISOR_AGENTS = [
@@ -84,37 +88,24 @@ def test_all_agents_are_listed_in_the_project_documentation(repo_root):
     assert not missing, f"Advisors not documented in CLAUDE.md: {missing}"
 
 
-def test_each_agent_file_has_the_required_structure_and_fields(repo_root, agent_files):
-    """Every agent must declare frontmatter name/description/model and wire the A2A contract."""
-    # Given / When / Then
-    for path in agent_files:
-        md = path.read_text()
-        name = path.stem
-
-        assert md.startswith("---"), f"{path.name} must open with YAML frontmatter"
-
-        m = _AGENT_NAME_RE.search(md)
-        assert m is not None, f"{path.name} frontmatter missing `name:`"
-        assert m.group(1) == name, (
-            f"{path.name} frontmatter name={m.group(1)!r} must match filename {name!r}"
-        )
-        assert "description:" in md, f"{path.name} frontmatter missing 'description:'"
-        # Delegates pin a model as cost control (sonnet/haiku for advisors). The default
-        # persona is the exception BY DESIGN: it runs every session, so it inherits the
-        # user's configured model — a plugin silently pinning the priciest model on all
-        # sessions is a trust breaker (see README § Plugin permissions, Models bullet).
-        if name != "hercules":
-            assert "model:" in md, f"{path.name} frontmatter missing 'model:'"
-
-        assert "code-of-conduct.md" in md, (
-            f"{path.name} must instruct the agent to read code-of-conduct.md"
-        )
-        assert "a2a-communication-protocol.md" in md, (
-            f"{path.name} must point to the A2A protocol"
-        )
-        assert "STATUS | CONTENT | ACTION" in md, (
-            f"{path.name} must state the A2A reply shape [TAG] STATUS | CONTENT | ACTION"
-        )
+@pytest.mark.parametrize("path", _AGENT_PATHS, ids=lambda p: p.stem)
+def test_each_agent_file_has_the_required_structure_and_fields(path):
+    """Every agent file declares frontmatter name/description/model and wires the A2A contract.
+    (Delegates pin a model for cost control; `hercules` is exempt BY DESIGN — it runs every
+    session and inherits the user's configured model. See README § Plugin permissions.)"""
+    md = path.read_text()
+    name = path.stem
+    assert md.startswith("---"), f"{path.name} must open with YAML frontmatter"
+    m = _AGENT_NAME_RE.search(md)
+    assert m is not None, f"{path.name} frontmatter missing `name:`"
+    assert m.group(1) == name, f"{path.name} frontmatter name={m.group(1)!r} must match filename {name!r}"
+    assert "description:" in md, f"{path.name} frontmatter missing 'description:'"
+    if name != "hercules":
+        assert "model:" in md, f"{path.name} frontmatter missing 'model:'"
+    assert "code-of-conduct.md" in md, f"{path.name} must instruct the agent to read code-of-conduct.md"
+    assert "a2a-communication-protocol.md" in md, f"{path.name} must point to the A2A protocol"
+    assert "STATUS | CONTENT | ACTION" in md, \
+        f"{path.name} must state the A2A reply shape [TAG] STATUS | CONTENT | ACTION"
 
 
 def test_agents_carry_no_framework_assumptions(repo_root, agent_files):
@@ -137,57 +128,36 @@ def test_agents_carry_no_framework_assumptions(repo_root, agent_files):
     )
 
 
-def test_specialist_agents_carry_no_hercules_internal_literals(agent_files):
-    """Reusable specialist agents must hardcode no Hercules-internal literals (`/hercules:` commands,
-    state-schema field names, or `*-spec-NN-*` artifact patterns). That knowledge belongs in the
-    orchestrating command file and is injected via the delegation prompt. Only `hercules.md` (the
-    orchestrator persona, not a delegate) is exempt. Positive, forward-looking invariant: it catches
-    any future agent that regresses this without needing a new fix-specific test."""
-    # Given
-    violations = []
-
-    # When
-    for path in agent_files:
-        if path.stem in _HERCULES_LITERAL_EXEMPT:
-            continue
-        md = path.read_text()
-        for pattern in _HERCULES_INTERNAL_PATTERNS:
-            hit = pattern.search(md)
-            if hit:
-                violations.append(f"{path.name}: matched {hit.group()!r}")
-
-    # Then
-    assert not violations, (
-        "Specialist agents carry Hercules-internal literals — move them to the delegating command's "
-        "prompt:\n" + "\n".join(f"  {v}" for v in violations)
-    )
+@pytest.mark.parametrize("path", _AGENT_PATHS, ids=lambda p: p.stem)
+def test_specialist_agent_carries_no_hercules_internal_literals(path):
+    """A reusable specialist agent must hardcode no Hercules-internal literals (`/hercules:` commands,
+    state-schema field names, `*-spec-NN-*` patterns) — that knowledge is injected via the delegation
+    prompt. Only `hercules.md` (the orchestrator persona) is exempt."""
+    if path.stem in _HERCULES_LITERAL_EXEMPT:
+        pytest.skip("the orchestrator persona is not a reusable delegate")
+    md = path.read_text()
+    hits = [m.group() for pat in _HERCULES_INTERNAL_PATTERNS if (m := pat.search(md))]
+    assert not hits, \
+        f"{path.name} carries Hercules-internal literals {hits} — move them to the delegating command prompt"
 
 
-def test_qa_owns_scenarios_and_engineers_write_the_tests(repo_root):
-    """The QA/engineer split must be coherent: QA proposes scenarios and never writes code, so its
-    tool list carries no Edit/Write; the engineers author the tests from QA's scenarios. Positive
-    assertions of the role model (not a bare absence check) — QA's redesigned role depends on it never
-    gaining write access, so the tool-list check names that specific, ongoing risk."""
-    # Given
-    agents = repo_root / "plugin" / "agents"
-    qa = (agents / "senior-qa-engineer.md").read_text()
-    backend = (agents / "backend-engineer.md").read_text()
-    frontend = (agents / "frontend-engineer.md").read_text()
-
-    # When
+def test_qa_never_writes_test_code(repo_root):
+    """QA proposes scenarios and never writes code — its tool list must carry no Edit/Write, and its
+    description must say so (a specific, ongoing risk, not a bare absence check)."""
+    qa = (repo_root / "plugin" / "agents" / "senior-qa-engineer.md").read_text()
     tools_line = next(ln for ln in qa.splitlines() if ln.startswith("tools:"))
-
-    # Then — QA never writes test code
-    assert "Edit" not in tools_line and "Write" not in tools_line, (
-        f"senior-qa-engineer must not carry Edit/Write — its role is to propose scenarios, not write "
-        f"tests (tools line: {tools_line!r})"
-    )
+    assert "Edit" not in tools_line and "Write" not in tools_line, \
+        f"senior-qa-engineer must not carry Edit/Write — it proposes scenarios (tools line: {tools_line!r})"
     assert "Never writes test code" in qa, \
         "senior-qa-engineer description must state QA never writes test code"
-    # And the engineers author the tests from QA's scenarios (the positive companion)
-    for name, body in (("backend-engineer", backend), ("frontend-engineer", frontend)):
-        assert "Write them yourself" in body, \
-            f"{name} must state the engineer authors the failing tests (following QA's scenarios)"
+
+
+@pytest.mark.parametrize("name", ["backend-engineer", "frontend-engineer"])
+def test_engineer_authors_the_failing_tests(repo_root, name):
+    """The engineers author the failing tests from QA's scenarios (positive companion to the QA rule)."""
+    body = (repo_root / "plugin" / "agents" / f"{name}.md").read_text()
+    assert "Write them yourself" in body, \
+        f"{name} must state the engineer authors the failing tests (following QA's scenarios)"
 
 
 def test_senior_qa_engineer_documents_bdd_for_frontend_scope(repo_root):
@@ -237,26 +207,15 @@ def test_hercules_agent_has_ambiguity_elimination(read_file):
 
 
 def test_plugin_declares_default_agent_with_persona(repo_root):
-    """plugin/settings.json must declare a default agent whose file carries the Hercules persona.
-
-    This is what keeps a marketplace-installed user in-character: a plugin does not auto-inject a
-    root CLAUDE.md, so the persona must ride on the default agent.
-    """
-    # Given
+    """plugin/settings.json must declare a default agent whose file carries the Hercules persona —
+    a plugin injects no root CLAUDE.md, so the persona rides on the default agent."""
     settings = json.loads((repo_root / "plugin" / "settings.json").read_text())
-
-    # When
     agent_name = settings.get("agent")
-
-    # Then
     assert agent_name, "plugin/settings.json must declare a default 'agent'"
     agent_file = repo_root / "plugin" / "agents" / f"{agent_name}.md"
-    assert agent_file.is_file(), (
-        f"default agent {agent_name!r} has no file at plugin/agents/{agent_name}.md"
-    )
-    assert "You are **Hercules**" in agent_file.read_text(), (
+    assert agent_file.is_file(), f"default agent {agent_name!r} has no file at plugin/agents/{agent_name}.md"
+    assert "You are **Hercules**" in agent_file.read_text(), \
         "the default agent must carry the Hercules persona marker"
-    )
 
 
 def test_advisor_list_matches_plugin_settings(repo_root):

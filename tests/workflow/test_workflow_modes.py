@@ -9,11 +9,14 @@ from __future__ import annotations
 
 import re
 
-_DISCOVER = "plugin/commands/discover.md"
-_DESIGN = "plugin/commands/design.md"
-_BUILD = "plugin/commands/build.md"
-_WORKFLOW = "plugin/commands/workflow.md"
-_SHIP = "plugin/commands/ship.md"
+from tests.conftest import (  # shared so a command rename updates one place, not two modules
+    BUILD as _BUILD,
+    DESIGN as _DESIGN,
+    DISCOVER as _DISCOVER,
+    SHIP as _SHIP,
+    WORKFLOW as _WORKFLOW,
+)
+
 _CLAUDE = "plugin/CLAUDE.md"
 
 

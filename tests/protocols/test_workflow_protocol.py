@@ -65,13 +65,11 @@ def test_protocol_declares_required_sections_with_explicit_anchors(read_file):
     assert not missing, f"workflow-protocol.md is missing explicit anchors: {sorted(missing)}"
 
 
-def test_protocol_anchor_references_resolve_and_protocol_is_wired(repo_root, read_file):
+def test_protocol_anchor_references_all_resolve(repo_root, read_file):
     """Every `workflow-protocol.md#X` reference in the shipped plugin + the CoC resolves to a
-    declared anchor, and the protocol is actually wired: every spawning command composes the
-    delegation packet, and the a2a injection rules name it."""
+    declared anchor."""
     anchors = _declared_anchors(read_file(_PROTOCOL))
     ref_re = re.compile(r"workflow-protocol\.md#([a-z0-9-]+)")
-
     targets = [str(p.relative_to(repo_root)) for p in (repo_root / "plugin").rglob("*.md")]
     targets.append("CODE_OF_CONDUCT.md")
     refs = {}
@@ -81,13 +79,18 @@ def test_protocol_anchor_references_resolve_and_protocol_is_wired(repo_root, rea
     unresolved = {a: files for a, files in refs.items() if a not in anchors}
     assert not unresolved, f"references to undeclared protocol anchors: {unresolved}"
 
-    for rel in _SPAWNING_COMMANDS:
-        assert "workflow-protocol.md#packet" in read_file(rel), (
-            f"{rel} must compose the delegation packet (workflow-protocol.md#packet) at its spawns"
-        )
-    assert "workflow-protocol.md#packet" in read_file(
-        "plugin/protocols/a2a-communication-protocol.md"
-    ), "a2a § How to inject must name the delegation packet wrapping the Core"
+
+@pytest.mark.parametrize("rel", _SPAWNING_COMMANDS)
+def test_spawning_command_composes_the_delegation_packet(read_file, rel):
+    """Every spawning command composes the delegation packet (workflow-protocol.md#packet) at its spawns."""
+    assert "workflow-protocol.md#packet" in read_file(rel), \
+        f"{rel} must compose the delegation packet (workflow-protocol.md#packet) at its spawns"
+
+
+def test_a2a_injection_names_the_delegation_packet(read_file):
+    """The a2a § How to inject must name the delegation packet wrapping the Core."""
+    assert "workflow-protocol.md#packet" in read_file("plugin/protocols/a2a-communication-protocol.md"), \
+        "a2a § How to inject must name the delegation packet wrapping the Core"
 
 
 def test_delegation_packet_keeps_its_field_order(read_file):
@@ -129,33 +132,41 @@ def test_guardrail_registry_rows_are_well_formed(read_file):
         )
 
 
-def test_every_hook_class_row_maps_to_a_live_hook(repo_root, read_file):
-    """A `hook`-class registry row claims runtime enforcement — the strongest claim in the file.
-    Each one must map to a live PreToolUse wiring (matcher covering Edit) whose script exists,
-    and at least one such row ships (the frozen-tests flagship)."""
-    rows = _registry_rows(_section(read_file(_PROTOCOL), "registry"))
-    hook_rows = [r for r in rows if r[-1] == "hook"]
-    assert hook_rows, "the registry must carry at least one hook-class (runtime-enforced) row"
-    for r in hook_rows:
-        assert "PreToolUse" in " ".join(r), (
-            f"{r[0]} claims class=hook but its rule text names no PreToolUse mechanism — "
-            "a hook claim must say what Claude Code actually blocks"
-        )
-
-    hooks = json.loads((repo_root / "plugin" / "hooks" / "hooks.json").read_text())
-    pre = hooks["hooks"]["PreToolUse"]
+def _hook_wiring(repo_root, read_file):
+    """(hook-class registry rows, PreToolUse matchers, wired commands) — shared by the hook tests."""
+    hook_rows = [r for r in _registry_rows(_section(read_file(_PROTOCOL), "registry")) if r[-1] == "hook"]
+    pre = json.loads((repo_root / "plugin" / "hooks" / "hooks.json").read_text())["hooks"]["PreToolUse"]
     matchers = [entry["matcher"] for entry in pre]
     commands = [h["command"] for entry in pre for h in entry["hooks"]]
+    return hook_rows, matchers, commands
+
+
+def test_hook_class_rows_claim_pretooluse_enforcement(repo_root, read_file):
+    """A hook-class registry row claims the strongest thing in the file — runtime enforcement — so at
+    least one ships and each must name the PreToolUse mechanism Claude Code actually blocks."""
+    hook_rows, _m, _c = _hook_wiring(repo_root, read_file)
+    assert hook_rows, "the registry must carry at least one hook-class (runtime-enforced) row"
+    for r in hook_rows:
+        assert "PreToolUse" in " ".join(r), \
+            f"{r[0]} claims class=hook but its rule text names no PreToolUse mechanism"
+
+
+def test_wired_hook_scripts_exist_and_edit_is_matched(repo_root, read_file):
+    """Every wired PreToolUse hook script exists on disk, and Edit is matched (the frozen guard)."""
+    _hr, matchers, commands = _hook_wiring(repo_root, read_file)
     assert any("Edit" in m for m in matchers), "PreToolUse must match Edit for the frozen guard"
     for cmd in commands:
         script = cmd.split("${CLAUDE_PLUGIN_ROOT}/")[-1].strip('"')
         assert (repo_root / "plugin" / script).is_file(), f"hook script missing: {script}"
 
-    g1 = next((r for r in hook_rows if "frozen" in " ".join(r).casefold()), None)
-    assert g1, "the hook-class row must be the frozen-tests guard"
-    assert any("frozen_tests.py" in c for c in commands), (
+
+def test_frozen_tests_guard_row_is_wired(repo_root, read_file):
+    """The hook-class row is the frozen-tests guard, and hooks.json wires its script."""
+    hook_rows, _m, commands = _hook_wiring(repo_root, read_file)
+    assert next((r for r in hook_rows if "frozen" in " ".join(r).casefold()), None), \
+        "the hook-class row must be the frozen-tests guard"
+    assert any("frozen_tests.py" in c for c in commands), \
         "hooks.json must wire the frozen_tests.py script the registry row claims"
-    )
 
 
 # Bidirectional drift anchors: the token must appear in the registry ROW text AND in the
@@ -185,44 +196,48 @@ def test_registry_rules_anchor_bidirectionally(read_file, gid, token, command):
     )
 
 
-def test_protocol_and_build_md_agree_on_step_order(read_file):
-    """Ordered-subsequence agreement: the Build inner loop runs in the same order in the
-    protocol's {#phase-build} chain and build.md's ## Execution section; and Design reads the
-    tier before its design questions in the protocol, design.md, AND the detailed diagram."""
-    protocol = read_file(_PROTOCOL)
-    build = read_file("plugin/commands/build.md").casefold()
-
-    proto_slice = _section(protocol, "phase-build").casefold()
-    build_slice = build[build.index("## execution"):]
-
-    proto_tokens = [r"scaffold", r"write failing tests", r"\bimplement\b", r"quality gates",
-                    r"mutation gate", r"traceability", r"\badvance\b", r"checkpoint",
-                    r"retire spec", r"cross-check"]
-    build_tokens = [r"\*\*scaffold\.\*\*", r"\*\*write failing tests\.\*\*",
-                    r"\*\*implement\.\*\*", r"\*\*quality gates\.\*\*",
-                    r"\*\*mutation gate\.\*\*", r"\*\*traceability\.\*\*", r"\*\*advance\.\*\*",
-                    r"\*\*write the checkpoint\.\*\*", r"\*\*retire the spec\.\*\*",
+_PROTO_BUILD_TOKENS = [r"scaffold", r"write failing tests", r"\bimplement\b", r"quality gates",
+                       r"mutation gate", r"traceability", r"\badvance\b", r"checkpoint",
+                       r"retire spec", r"cross-check"]
+_BUILD_MD_TOKENS = [r"\*\*scaffold\.\*\*", r"\*\*write failing tests\.\*\*", r"\*\*implement\.\*\*",
+                    r"\*\*quality gates\.\*\*", r"\*\*mutation gate\.\*\*", r"\*\*traceability\.\*\*",
+                    r"\*\*advance\.\*\*", r"\*\*write the checkpoint\.\*\*", r"\*\*retire the spec\.\*\*",
                     r"## cross-check validation"]
-    for slice_, tokens, name in ((proto_slice, proto_tokens, "protocol {#phase-build}"),
-                                 (build_slice, build_tokens, "build.md ## Execution")):
-        idxs = []
-        for tok in tokens:
-            m = re.search(tok, slice_)
-            assert m, f"{name} must contain step token {tok!r}"
-            idxs.append(m.start())
-        assert idxs == sorted(idxs), f"{name} steps out of order: {list(zip(tokens, idxs))}"
 
-    design = read_file("plugin/commands/design.md").casefold()
-    diagram = read_file("docs/workflow/workflow-diagram-detailed.html").casefold()
-    proto_design = _section(protocol, "phase-design").casefold()
-    tier_re = re.compile(r"read (?:the )?tier")
-    for text, name in ((proto_design, "protocol {#phase-design}"), (design, "design.md"),
-                       (diagram, "detailed diagram")):
-        m = tier_re.search(text)
-        assert m, f"{name} must carry a read-the-tier step"
-        assert m.start() < text.index("design questions"), (
-            f"{name} must read the tier before the design questions"
-        )
+
+def _assert_tokens_in_order(text, tokens, name):
+    """Each token appears, and their positions form an increasing (ordered) subsequence."""
+    idxs = []
+    for tok in tokens:
+        m = re.search(tok, text)
+        assert m, f"{name} must contain step token {tok!r}"
+        idxs.append(m.start())
+    assert idxs == sorted(idxs), f"{name} steps out of order: {list(zip(tokens, idxs))}"
+
+
+def test_build_inner_loop_runs_in_order_in_the_protocol(read_file):
+    """The Build inner loop runs in order in the protocol's {#phase-build} chain."""
+    proto = _section(read_file(_PROTOCOL), "phase-build").casefold()
+    _assert_tokens_in_order(proto, _PROTO_BUILD_TOKENS, "protocol {#phase-build}")
+
+
+def test_build_inner_loop_runs_in_the_same_order_in_build_md(read_file):
+    """build.md's ## Execution section runs the Build inner loop in the same order as the protocol."""
+    build = read_file("plugin/commands/build.md").casefold()
+    _assert_tokens_in_order(build[build.index("## execution"):], _BUILD_MD_TOKENS, "build.md ## Execution")
+
+
+@pytest.mark.parametrize("source", ["protocol", "design.md", "diagram"])
+def test_design_reads_the_tier_before_its_questions(read_file, source):
+    """Design reads the tier before its design questions in the protocol, design.md, AND the diagram."""
+    text = {
+        "protocol": _section(read_file(_PROTOCOL), "phase-design"),
+        "design.md": read_file("plugin/commands/design.md"),
+        "diagram": read_file("docs/workflow/workflow-diagram-detailed.html"),
+    }[source].casefold()
+    m = re.search(r"read (?:the )?tier", text)
+    assert m, f"{source} must carry a read-the-tier step"
+    assert m.start() < text.index("design questions"), f"{source} must read the tier before the design questions"
 
 
 def test_packet_labels_live_in_the_packet_not_the_golden_core(repo_root, read_file):

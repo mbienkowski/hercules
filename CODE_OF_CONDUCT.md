@@ -107,7 +107,7 @@ cannot rationalise past (unlike prose guardrails). They live in `plugin/hooks/`,
 - **User-granted overrides are state, not holes.** `frozen_override` (and the `frozen_hook: "off"`
   opt-out) are model-authored state like `frozen_test_files` itself — no new attack class. A legitimate
   crossing is a recorded, user-quoted, round-bound grant the pre-advance git diff reconciles against;
-  the honest path is also the cheapest path. Runtime-mediated, never "unbypassable."
+  the honest path is also the cheapest path.
 - Every hook ships with executable tests under `tests/hooks/` (feed a `PreToolUse` payload → assert the
   exit code), plus a wiring test that its `hooks.json` command resolves to a real script.
 
@@ -182,8 +182,6 @@ Bad → good:
 
 - ✗ "Mutation moved into the loop. Today's per-tier table is inverted; now it is flat."
   → ✓ "The mutation gate runs per spec, before retire, at the threshold the code-of-conduct sets."
-- ✗ "⚑ New mechanism versus today" / "This reverses the earlier decision."
-  → ✓ Describe the mechanism as it is.
 - ✗ "Complexity is no longer re-scored in every phase."
   → ✓ "Complexity is scored once in Discover and read forward."
 
@@ -232,26 +230,12 @@ it's cosmetic; find the positive form.
 
 ### End-to-end smoke (manual)
 
-The static suite (`tests/workflow/test_workflow_modes.py`) asserts the workflow commands carry the
-right phase/mode directives, but Claude Code's permission-mode state can't be inspected from the
-plugin. To verify the *effect* — that Discover → Design → Build → Ship actually produces its artifacts — run
-the workflow by hand against a throwaway repo (install the plugin from a local-path marketplace, then
-drive `/hercules:workflow`) and confirm a `*-business-requirements.md`, then `*-spec-NN-*.md`, then
-code + tests appear in order, followed by a committed git record. This is a release-time manual check, not a CI gate — it needs a Claude
-binary and credentials.
-
-### What's covered
-
-| Area | Where | Kind |
-|------|-------|------|
-| Marketplace + plugin manifests, default-agent persona, no-AGENT_TEAMS guard | `tests/plugin/test_plugin_integrity.py`, `tests/agents/test_agents.py` | unit + policy |
-| Docs match the marketplace reality; version single-sourced | `tests/docs/test_docs.py` | policy |
-| A2A protocol grammar and status vocabulary | `tests/metrics/test_a2a_grammar.py`, `tests/protocols/test_protocol_files.py` | unit + policy |
-| Instruction and token budget checks | `tests/metrics/test_threshold_runner.py`, `tests/plugin/test_plugin_integrity.py` | unit + data-driven |
-| Agent and skill file hygiene | `tests/agents/test_agents.py`, `tests/skills/test_skills.py` | policy |
-| Command file structure | `tests/commands/test_commands.py` | policy |
-| Frozen-test hook: behaviour, wiring, hygiene | `tests/hooks/test_frozen_tests_hook.py`, `tests/hooks/test_hooks_wiring.py`, `tests/hooks/test_hook_hygiene.py` | unit + policy |
-| Workflow protocol: anchors, packet, registry↔commands, hook wiring | `tests/protocols/test_workflow_protocol.py` | policy |
+`tests/workflow/test_workflow_modes.py` asserts the workflow commands carry the right phase/mode
+directives, but Claude Code's permission-mode state can't be inspected from the plugin. To verify the
+*effect* — that Discover → Design → Build → Ship actually produces its artifacts — drive
+`/hercules:workflow` by hand against a throwaway repo and confirm `*-business-requirements.md`, then
+`*-spec-NN-*.md`, then code + tests, then a committed git record appear in order. Release-time manual
+check, not a CI gate (it needs a Claude binary and credentials).
 
 ### Adding a check
 
@@ -310,14 +294,9 @@ caches it under the same variable).
 
 ### Golden files
 
-The injected A2A Core is pinned byte-for-byte in `tests/testdata/core.golden`. After an
-intentional edit to the Core block, re-bless it:
-
-```bash
-cp plugin/protocols/a2a-communication-protocol.md /tmp/a2a.md  # then extract and overwrite core.golden
-```
-
-Or let the failing test tell you the expected value and paste it in.
+The injected A2A Core is pinned byte-for-byte in `tests/testdata/core.golden`. After an intentional
+edit to the Core block, re-bless it: extract the Core and overwrite `core.golden`, or let the failing
+test tell you the expected value and paste it in.
 
 All methodology checks are gates, not warnings. A failing gate means the change violates a
 contract — fix the contract or the gate, not the test.

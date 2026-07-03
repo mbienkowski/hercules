@@ -2,8 +2,14 @@
 
 import json
 import re
+from pathlib import Path
 
 import pytest
+
+_PLUGIN = Path(__file__).resolve().parents[2] / "plugin"
+# Module-level lists so tests can parametrize over each file (one cell per file).
+_SKILL_PATHS = sorted(_PLUGIN.glob("skills/*/SKILL.md"))
+_DOC_FILES = sorted(_PLUGIN.glob("commands/*.md")) + _SKILL_PATHS + sorted(_PLUGIN.glob("agents/*.md"))
 
 
 _SKILL_LIST = [
@@ -49,40 +55,25 @@ def test_all_five_skills_are_present(repo_root):
     )
 
 
-def test_each_skill_file_declares_its_purpose_and_preconditions(repo_root, skill_files):
-    """Every skill must declare its use-case and active skills must define a precondition stop clause."""
-    # Given / When / Then
-    for path in skill_files:
-        md = path.read_text()
-        lower = md.lower()
-        name = path.parent.name
-
-        assert md.startswith("---"), f"{path.parent.name}/SKILL.md must open with YAML frontmatter"
-
-        m = _SKILL_NAME_RE.search(md)
-        assert m is not None, f"{path.parent.name}/SKILL.md frontmatter missing `name:`"
-        assert m.group(1) == name, (
-            f"{path.parent.name}/SKILL.md frontmatter name={m.group(1)!r} must match directory {name!r}"
-        )
-        assert "description:" in md, f"{path.parent.name}/SKILL.md frontmatter missing `description:`"
-
-        desc_m = re.search(r"(?m)^description:\s*(.+)$", md)
-        assert desc_m, f"{path.parent.name}/SKILL.md frontmatter missing a description value"
-        desc = desc_m.group(1).lower()
-        assert any(t in desc for t in ("use ", "use in", "use on", "use when", "use to")), (
-            f"{path.parent.name}/SKILL.md description must state WHEN to use the skill"
-        )
-        assert "code-of-conduct.md" in md, (
-            f"{path.parent.name}/SKILL.md must reference code-of-conduct.md"
-        )
-
-        if name in _ACTIVE_SKILLS:
-            assert "precondition" in lower, (
-                f"{path.parent.name}/SKILL.md (active skill) must declare a Preconditions clause"
-            )
-            assert re.search(r"\bstop\b", lower), (
-                f"{path.parent.name}/SKILL.md (active skill) must hard-stop on precondition miss"
-            )
+@pytest.mark.parametrize("path", _SKILL_PATHS, ids=lambda p: p.parent.name)
+def test_each_skill_file_declares_its_purpose_and_preconditions(path):
+    """Every skill declares its use-case; active skills also define a precondition hard-stop clause."""
+    md = path.read_text()
+    lower = md.lower()
+    name = path.parent.name
+    assert md.startswith("---"), f"{name}/SKILL.md must open with YAML frontmatter"
+    m = _SKILL_NAME_RE.search(md)
+    assert m is not None, f"{name}/SKILL.md frontmatter missing `name:`"
+    assert m.group(1) == name, f"{name}/SKILL.md frontmatter name={m.group(1)!r} must match directory {name!r}"
+    assert "description:" in md, f"{name}/SKILL.md frontmatter missing `description:`"
+    desc_m = re.search(r"(?m)^description:\s*(.+)$", md)
+    assert desc_m, f"{name}/SKILL.md frontmatter missing a description value"
+    assert any(t in desc_m.group(1).lower() for t in ("use ", "use in", "use on", "use when", "use to")), \
+        f"{name}/SKILL.md description must state WHEN to use the skill"
+    assert "code-of-conduct.md" in md, f"{name}/SKILL.md must reference code-of-conduct.md"
+    if name in _ACTIVE_SKILLS:
+        assert "precondition" in lower, f"{name}/SKILL.md (active skill) must declare a Preconditions clause"
+        assert re.search(r"\bstop\b", lower), f"{name}/SKILL.md (active skill) must hard-stop on precondition miss"
 
 
 def test_skills_carry_no_framework_assumptions(repo_root, skill_files):
@@ -104,28 +95,13 @@ def test_skills_carry_no_framework_assumptions(repo_root, skill_files):
     )
 
 
-def test_hercules_commands_use_double_dash_prefix(repo_root, command_files, skill_files, agent_files):
-    """All plugin docs must use 'hercules --<subcommand>', never the bare form.
-
-    The bare form is forwarded to claude as a prompt instead of running natively.
-    This test walks commands/, skills/, AND agents/ so none can drift.
-    """
-    # Given
-    all_files = list(command_files) + list(skill_files) + list(agent_files)
-    violations = []
-
-    # When
-    for path in all_files:
-        md = path.read_text()
-        hit = _BARE_SUBCOMMAND_RE.search(md)
-        if hit:
-            violations.append(f"{path.relative_to(repo_root)}: {hit.group()!r}")
-
-    # Then
-    assert not violations, (
-        "Files using bare subcommand form (should be 'hercules --<name>'):\n"
-        + "\n".join(f"  {v}" for v in violations)
-    )
+@pytest.mark.parametrize("path", _DOC_FILES, ids=lambda p: p.stem)
+def test_plugin_doc_uses_double_dash_subcommand_prefix(path):
+    """All plugin docs (commands/, skills/, agents/) must use 'hercules --<subcommand>', never the
+    bare form — the bare form is forwarded to claude as a prompt instead of running natively."""
+    hit = _BARE_SUBCOMMAND_RE.search(path.read_text())
+    assert hit is None, \
+        f"{path.name} uses the bare subcommand form {hit.group()!r} — write 'hercules --<name>'"
 
 
 

@@ -51,6 +51,38 @@ def resolve_session(cwd, home=None):
     return contexts[0]
 
 
+def _project_rows(slug, entry, cwd_c, home):
+    """Rows one registry project contributes for `cwd_c`, as `(build_rows, fallback_rows)`.
+
+    Each row is `(depth, session, roots, entry)`. `build_rows` holds every build session,
+    active first then paused builds in file order; `fallback_rows` holds the active session
+    alone, and only when nothing is building, so callers can still see the phase. Both are
+    empty when the project doesn't contain `cwd_c` or its state pointer escapes
+    `~/.hercules/state`. May raise (unreadable/invalid state) — the caller treats that as
+    "no rows", the fail-open direction.
+    """
+    raw_roots = [entry.get("directory")] + list((entry.get("repositories") or {}).values())
+    roots = [canon(r) for r in raw_roots if r]
+    matched = [r for r in roots if cwd_c == r or cwd_c.startswith(r + os.sep)]
+    if not matched:
+        return [], []  # unrelated repo → pure passthrough
+    state_file = entry.get("state_file") or f"{slug}.json"
+    if os.path.basename(state_file) != state_file:
+        return [], []  # a pointer escaping ~/.hercules/state is never followed
+    state = json.loads((_hercules_home(home) / "state" / state_file).read_text())
+    sessions = state.get("sessions") or {}
+    depth = max(len(r) for r in matched)
+    active = sessions.get(state.get("active_session"))
+    builds = [active] if isinstance(active, dict) and active.get("current_phase") == "build" else []
+    builds += [s for s in sessions.values()
+               if s is not active and isinstance(s, dict) and s.get("current_phase") == "build"]
+    if builds:
+        return [(depth, s, roots, entry) for s in builds], []
+    if isinstance(active, dict):
+        return [], [(depth, active, roots, entry)]
+    return [], []
+
+
 def resolve_build_contexts(cwd, home=None):
     """Return `[(session, roots, entry), ...]` for every registry project containing `cwd`.
 
@@ -74,27 +106,11 @@ def resolve_build_contexts(cwd, home=None):
     fallback_rows = []  # non-build active sessions, kept for phase visibility
     for slug, entry in projects.items():
         try:
-            raw_roots = [entry.get("directory")] + list((entry.get("repositories") or {}).values())
-            roots = [canon(r) for r in raw_roots if r]
-            matched = [r for r in roots if cwd_c == r or cwd_c.startswith(r + os.sep)]
-            if not matched:
-                continue  # unrelated repo → pure passthrough
-            state_file = entry.get("state_file") or f"{slug}.json"
-            if os.path.basename(state_file) != state_file:
-                continue  # a pointer escaping ~/.hercules/state is never followed
-            state = json.loads((_hercules_home(home) / "state" / state_file).read_text())
-            sessions = state.get("sessions") or {}
-            depth = max(len(r) for r in matched)
-            active = sessions.get(state.get("active_session"))
-            builds = [active] if isinstance(active, dict) and active.get("current_phase") == "build" else []
-            builds += [s for s in sessions.values()
-                       if s is not active and isinstance(s, dict) and s.get("current_phase") == "build"]
-            if builds:
-                build_rows += [(depth, s, roots, entry) for s in builds]
-            elif isinstance(active, dict):
-                fallback_rows.append((depth, active, roots, entry))
+            builds, fallback = _project_rows(slug, entry, cwd_c, home)
         except Exception:
-            continue
+            continue  # this project's state is unreadable → skip it, guard the rest
+        build_rows += builds
+        fallback_rows += fallback
     # Stable sort: deepest project first; within a project the insertion order stands
     # (active session first, then paused builds in file order).
     build_rows.sort(key=lambda r: r[0], reverse=True)

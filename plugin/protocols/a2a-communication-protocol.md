@@ -107,7 +107,7 @@ agents skip `CLAUDE.md`. Use all three channels:
 | N | Meaning | Effect |
 |---|---------|--------|
 | 5 | Full agreement | resolved |
-| 4 | Agree, minor reservation | resolved (reservation carried to synthesis) |
+| 4 | Agree, minor reservation | reservation → user's decision (not auto-resolved) |
 | 3 | Neutral | another round |
 | 0–2 | Disagree → strong conflict | another round; if it persists past the cap → open question for the user |
 

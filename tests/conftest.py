@@ -10,6 +10,15 @@ from pathlib import Path
 
 import pytest
 
+# Delivery command file paths — shared so a rename updates one place, not two test modules
+# (test_commands.py and test_workflow_modes.py both need them).
+DISCOVER = "plugin/commands/discover.md"
+DESIGN = "plugin/commands/design.md"
+BUILD = "plugin/commands/build.md"
+WORKFLOW = "plugin/commands/workflow.md"
+SHIP = "plugin/commands/ship.md"
+ALL_COMMANDS = [DISCOVER, DESIGN, BUILD, WORKFLOW, SHIP]
+
 
 @pytest.fixture(scope="session")
 def repo_root() -> Path:

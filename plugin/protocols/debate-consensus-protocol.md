@@ -28,15 +28,15 @@ An agent signals its position after each round via `Agreement: N/5` (A2A rule 6)
 | N | Meaning | Effect |
 |---|---------|--------|
 | 5 | Full agreement | Resolved — no further action needed |
-| 4 | Agree with minor reservation | Resolved — reservation carried to Synthesis |
+| 4 | Agree with minor reservation | Reservation — carried to the user's decision, not resolved |
 | 3 | Neutral / uncertain | Another round triggered (within the complexity cap) |
 | 0–2 | Disagree / strong objection | Another round triggered; if unresolved after cap → open question |
 
-A debate round closes when all agents reach ≥4/5 or the complexity cap is hit.
+A debate round closes at full 5/5, or when the tier's round cap is hit.
 
 ## Hard limits
 
-- Maximum 3 rounds. Synthesis happens after Round 3 regardless of remaining disagreement.
+- Maximum 3 rounds. Synthesis (or escalation) happens after the tier's round cap is hit, regardless of remaining disagreement.
 - All rounds use A2A format throughout. No narrative prose between entry lines.
 - Ad-hoc debates (user-triggered outside a structured gate): same limits apply.
 
@@ -78,6 +78,7 @@ contradictions surface as open questions.
 
 ## Synthesis
 
-Compile findings from all rounds into a single consolidated list. Any finding with explicit
-disagreement after the final round is flagged as contested and presented to the user
-verbatim as an open question. Never auto-apply a contested fix.
+Compile findings from all rounds into a single consolidated list. A debate resolves only at full 5/5
+consensus; anything less that survives the round cap — a 4/5 reservation or residual ≤3/5 dissent — is
+put to the user as a decision (accept as-is / another angle / override), never auto-applied. Any
+contested finding is presented to the user verbatim as an open question.
