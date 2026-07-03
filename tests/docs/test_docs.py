@@ -324,3 +324,48 @@ def test_readme_explains_the_coc_directive_budget(read_file):
     readme = read_file("README.md")
     assert "30" in readme and "40" in readme and "directive" in readme.lower(), \
         "README must state the CoC directive budget where it praises the CoC"
+
+
+def test_coc_carries_the_execution_walk_and_semantic_extinction_rules(read_file):
+    """Two rules distilled from this branch's worst bugs: instructions that couldn't
+    execute as written (git rm on uncommitted files, plan-mode writes, unsatisfiable
+    gates), and semantic changes that left old meanings alive on other surfaces."""
+    coc = read_file("CODE_OF_CONDUCT.md")
+    walk = coc[coc.index("### The execution walk"):coc.index("### Changing what something means")]
+    assert "plan mode blocks" in walk and "git rm" in walk and "resume" in walk
+    meaning = coc[coc.index("### Changing what something means"):coc.index("### Adding an agent")]
+    assert "extinct" in meaning and "concept" in meaning
+
+
+def test_coc_carries_the_failure_moments_rule(read_file):
+    """Stops and blocks are product surfaces: scripted messages, real exits only,
+    one canonical description per mechanism, recipes that satisfy their validators."""
+    coc = read_file("CODE_OF_CONDUCT.md")
+    fm = coc[coc.index("### Failure moments"):coc.index("### Branching")]
+    assert "scripted" in fm and "canonical" in fm and "its own validator" in fm
+
+
+def test_coc_invariants_demand_red_first_and_both_contract_ends(read_file):
+    """A test first seen green has proven nothing (red-first at birth, red-possible for
+    life); a cross-file contract needs both its writer and its reader pinned."""
+    from tests.conftest import section
+    coc = read_file("CODE_OF_CONDUCT.md")
+    inv = section(coc, "### Invariants", "\n## ", label="CODE_OF_CONDUCT.md")
+    assert "Red first" in inv and "born failing" in inv and "right reason" in inv
+    assert "both ends" in inv and "reader-only" in inv.lower()
+
+
+def test_coc_treats_surviving_mutants_as_verdicts(read_file):
+    """A survivor is a missing test or a better design — never something a pragma
+    silences."""
+    coc = read_file("CODE_OF_CONDUCT.md")
+    testing = coc[coc.index("## Testing"):]
+    assert "verdict" in testing, "the surviving-mutant rule must live in Testing"
+
+
+def test_coc_agent_rules_carry_the_instruction_budget(read_file):
+    """New content must state whose context it lands in; a delegate's total stays under
+    ~150 directives — always-loaded content spends everyone's headroom."""
+    coc = read_file("CODE_OF_CONDUCT.md")
+    agent = coc[coc.index("### Adding an agent"):coc.index("### Hooks")]
+    assert "Instruction load is a budget" in agent and "150" in agent

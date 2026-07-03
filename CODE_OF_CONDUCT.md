@@ -41,6 +41,25 @@ its step order and hard guardrails are normatively listed in `plugin/protocols/w
   easier to keep in sync than a hand-built SVG. Keep it self-contained (no external assets) and
   present-state (see § Documentation style).
 
+### The execution walk
+
+Commands are executed, not read. Before merging a command change, walk it step-by-step as the
+runtime agent:
+
+- Does the data each step reads exist yet? Is the tool allowed in this mode (plan mode blocks
+  writes)? Can the shell command succeed on a fresh repo (`git rm` fails on uncommitted files)?
+- Walk interruptions: a crash at any step boundary must leave a state the resume path recovers.
+- A gate must be satisfiable by what it gates — a "must fail" gate can't judge a corrected test
+  that is rightly green.
+
+### Changing what something means
+
+A behaviour change is done when the old meaning is extinct, not when the new one is written:
+
+- First list every surface stating the old meaning: commands, `plugin/CLAUDE.md`, emitted
+  templates, agents, hook messages, README, diagrams.
+- Grep the **concept**, not the string — old meanings hide in paraphrase.
+
 ### Adding an agent
 
 - File: `plugin/agents/{name}.md` — lowercase
@@ -62,6 +81,9 @@ its step order and hard guardrails are normatively listed in `plugin/protocols/w
   array in `plugin/settings.json`, and `_ADVISOR_AGENTS` in `tests/agents/test_agents.py` — a sync
   test fails if any of the three drifts
 - Run the suite to confirm no drift
+- **Instruction load is a budget.** Say whose context new content lands in. A delegate's total
+  stays under ~150 directives: own file + packet + A2A core (~100) + the project CoC (30–40).
+  Always-loaded content spends everyone's headroom.
 
 ### Hooks (hard gateways)
 
@@ -112,6 +134,17 @@ in 30 seconds should find any rule or definition without reading a full paragrap
   all new and edited content. Structurally single-line content — markdown table rows, long URLs,
   the HTML diagram's markup — is the only exemption.
 
+### Failure moments
+
+Users judge the product at its stops, not its happy path:
+
+- Every stop, refusal, or block gets a scripted message with the next action — no bare problem
+  statements, no internal field names as the remedy.
+- Name only exits that exist; a recipe must satisfy its own validator (code checks four fields →
+  the message names four).
+- A mechanism described on several surfaces has ONE canonical list; every echo matches verbatim,
+  pinned in lock-step.
+
 ### Branching
 
 - **Branch names must not contain slashes.** A `/` makes git create nested directories under
@@ -127,6 +160,13 @@ These rules are enforced by `tests/` — a change that breaks one fails CI:
   ships only with a test that fails when it is missing or malformed.
 - **The plugin version is single-sourced.** `pyproject.toml` and `plugin/.claude-plugin/plugin.json`
   must carry the same version; CI fails on drift.
+- **Red first, red possible forever.** A new test is born failing: write it before the feature or
+  fix, watch it fail for the right reason, then make it pass — a test first seen green has proven
+  nothing. And it must stay able to fail: anchor to a heading, pin the sentence that IS the
+  feature, try the breaking edit once. `"auto" in lower` stays green on "automatically" — that's
+  decoration, not a test.
+- **Pin both ends of a cross-file contract.** Writer and reader, or one sync test — a reader-only
+  pin stays green while the deleted writer bricks the product.
 
 ---
 
@@ -169,6 +209,9 @@ python -m pytest tests/ --cov=tests.metrics --cov-branch --cov-report=term-missi
 Hercules holds itself to the bar it enforces on its users: **>= 90% branch coverage** (gated by
 `make test`) and a **>= 90% mutation kill rate** (gated by `make test-mutation`). Both run in CI on
 every PR — practice what we preach.
+
+- **A surviving mutant is a verdict:** a missing test (write it) or better behaviour than the code
+  (adopt it). Never a pragma to make it go away.
 
 ### Mutation pragmas are for static strings only
 
