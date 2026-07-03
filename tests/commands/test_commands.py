@@ -1039,11 +1039,14 @@ def test_start_fresh_clears_build_progress(read_file):
 
 def test_start_fresh_keeps_delivered_specs_under_keep_specs(read_file):
     """With keep_specs the delivered files remain on disk; clearing delivered_specs on
-    'start fresh' would make Build re-deliver already-shipped specs."""
+    'start fresh' would make Build re-deliver already-shipped specs — and the cross-check
+    reads delivered specs' build_progress checkpoints, so those must survive with them."""
     build = read_file(_BUILD)
-    fresh = build[build.index("On 'start fresh':"):build.index("On resume, reconcile")]
+    fresh = _section(build, "On 'start fresh':", "On resume, reconcile", label=_BUILD)
     assert "keep_specs" in fresh, \
         "'start fresh' must keep delivered_specs when keep_specs retains the files"
+    assert "checkpoint" in fresh, \
+        "kept delivered specs must keep their build_progress checkpoints (the cross-check's record)"
 
 
 def test_reconcile_finishes_an_interrupted_retire(read_file):

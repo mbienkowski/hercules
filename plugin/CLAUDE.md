@@ -93,7 +93,7 @@ gates come from the project's `code-of-conduct.md`.
 | 4. Ship      | `/hercules:ship`      | git diff (staged changes)                    | a commit + optional push + optional PR            |
 
 Each step runs its own sub-process specified per command. Build runs a full TDD loop per spec
-(scaffold → write failing tests, then frozen → implement → quality gates → cross-check validation).
+(scaffold → write failing tests, then frozen → implement → quality gates), then one cross-check validation after all specs.
 Step order and hard guardrails are normatively listed in `protocols/workflow-protocol.md`;
 commands compose its delegation packet (§ packet) for every workflow spawn. If anything breaks
 or two instructions conflict, fall back to the safest action consistent with that protocol —
