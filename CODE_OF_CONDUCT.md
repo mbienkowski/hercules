@@ -58,8 +58,10 @@ its step order and hard guardrails are normatively listed in `plugin/protocols/w
   is describing behaviour that cannot exist. A generic caller-conditional branch (as `cynical-reviewer`
   keeps for non-Hercules callers) is fine.
 - Replies follow the A2A `§ Agent-Injected Core` format (see `plugin/protocols/a2a-communication-protocol.md`)
-- Update the agent list in `plugin/CLAUDE.md` after adding
-- The list is pinned by `tests/` — run the suite to confirm no drift
+- Update the roster in **three places**: the agent list in `plugin/CLAUDE.md`, the `advisors[]`
+  array in `plugin/settings.json`, and `_ADVISOR_AGENTS` in `tests/agents/test_agents.py` — a sync
+  test fails if any of the three drifts
+- Run the suite to confirm no drift
 
 ### Hooks (hard gateways)
 
@@ -101,6 +103,10 @@ definitions, rule lists. Long inline lists → one bullet per item, with the ter
 
 Apply this to glossaries, README callout boxes, and CoC rule lists. The goal: a developer scanning
 in 30 seconds should find any rule or definition without reading a full paragraph.
+
+- **Prose is pinned.** Most sentences in `plugin/` are pinned by tests (heading-anchored slices and
+  literal gate sentences). Before rewording anything, `grep tests/` for the sentence — the pin names
+  the behaviour the wording carries, and CI fails on silent drift.
 
 - **Line length:** hard cap of **160 characters** per line in every file (code, docs, tests) for
   all new and edited content. Structurally single-line content — markdown table rows, long URLs,
@@ -254,7 +260,9 @@ that explicit instruction, treat every threshold as immovable.
 
 ### Tokens
 
-Token counts are computed offline with `tiktoken` (cl100k_base, no network call).
+Token counts are computed with `tiktoken` (cl100k_base). The encoding file is fetched once and
+cached; set `TIKTOKEN_CACHE_DIR` to a persistent directory to run the suite fully offline (CI
+caches it under the same variable).
 
 ### Golden files
 

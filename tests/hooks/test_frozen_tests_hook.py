@@ -985,3 +985,16 @@ def test_override_files_must_be_a_list(tmp_path):
                                       "spec": "spec-02-login.md", "round": 1,
                                       "reason": "user: 'fix it'"})
     assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
+
+
+def test_reason_displays_the_actual_round(tmp_path, capsys):
+    """The round in the block reason must be the session's real counter — a lookup that
+    silently falls back to 1 misinforms the user about how close the round limit is."""
+    project = tmp_path / "proj"
+    _setup(tmp_path, project)
+    hh = tmp_path / ".hercules"
+    state = json.loads((hh / "state" / "proj.json").read_text())
+    state["sessions"]["s1"]["current_spec_round"] = 2
+    (hh / "state" / "proj.json").write_text(json.dumps(state))
+    assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
+    assert "(build round 2/3)" in capsys.readouterr().err

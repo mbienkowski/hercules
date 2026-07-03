@@ -284,3 +284,35 @@ def test_readme_first_screen_names_the_category(read_file):
     head = "\n".join(read_file("README.md").splitlines()[:10])
     assert "Claude Code plugin" in head, \
         "the first screen must name the product category before the jokes"
+
+
+def test_coc_adding_an_agent_names_every_synced_surface(read_file):
+    """tests/agents enforces settings.json advisors[] ↔ roster sync and a CLAUDE.md
+    listing — a contributor following the CoC's steps must not discover extra required
+    files only from CI failures."""
+    coc = read_file("CODE_OF_CONDUCT.md")
+    section = coc[coc.index("### Adding an agent"):coc.index("### Hooks")]
+    assert "settings.json" in section, \
+        "the adding-an-agent steps must name the settings.json advisors[] roster"
+    assert "CLAUDE.md" in section, "…and the CLAUDE.md agent list"
+
+
+def test_coc_tokens_section_is_honest_about_the_encoding_fetch(read_file):
+    """tiktoken downloads the cl100k encoding on first use — 'no network call' is only
+    true after a warm cache, and a fresh contributor's make test dies offline. The CoC
+    must document the cache instead of denying the fetch."""
+    coc = read_file("CODE_OF_CONDUCT.md")
+    tokens = coc[coc.index("### Tokens"):coc.index("### Golden files")]
+    assert "no network call" not in tokens, \
+        "the offline claim only holds after a warm cache — say that instead"
+    assert "TIKTOKEN_CACHE_DIR" in tokens, \
+        "contributors need the cache variable to run the suite offline"
+
+
+def test_coc_documents_the_prose_pin_convention(read_file):
+    """Most of the suite pins command prose — a contributor rewording a sentence needs
+    to know to grep tests/ for it BEFORE CI tells them, or every wording change costs a
+    failed run."""
+    coc = read_file("CODE_OF_CONDUCT.md").lower()
+    assert "grep" in coc and "pinned" in coc, \
+        "the CoC must tell contributors that prose is test-pinned and how to find the pins"
