@@ -137,6 +137,11 @@ of Conduct**: it reads your repository (and any existing CoC) and upgrades it �
 a standards file tuned for *how* the agents implement (architecture, testing, and quality behaviours),
 not just contributor etiquette.
 
+Keep it lean: every agent reads the whole file on top of its own instructions, and models follow
+fewer instructions reliably as the total grows — the generator aims for **30–40 directives**
+(up to 50 for a big repo, never past 70). A focused CoC is followed; an 80-bullet org standard is
+skimmed.
+
 **What it does in three steps:**
 
 1. Scans the repo — architecture patterns, test layout, lint config, CI gates, delivery norms

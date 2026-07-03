@@ -316,3 +316,11 @@ def test_coc_documents_the_prose_pin_convention(read_file):
     coc = read_file("CODE_OF_CONDUCT.md").lower()
     assert "grep" in coc and "pinned" in coc, \
         "the CoC must tell contributors that prose is test-pinned and how to find the pins"
+
+
+def test_readme_explains_the_coc_directive_budget(read_file):
+    """README says every agent reads the CoC — it must also say that budget is finite
+    (30–40 directives sweet spot) so users don't paste an 80-bullet org standard."""
+    readme = read_file("README.md")
+    assert "30" in readme and "40" in readme and "directive" in readme.lower(), \
+        "README must state the CoC directive budget where it praises the CoC"

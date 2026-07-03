@@ -291,3 +291,12 @@ def test_first_run_gate_keys_on_something_the_recommended_setup_writes(read_file
     if "config.json" in persona:
         assert "config.json" in generator or "code-of-conduct.md` is present" in persona, \
             "the first-run gate re-triggers after setup — key it on the CoC file too"
+
+
+def test_every_agent_reads_the_project_code_of_conduct(agent_files):
+    """The project CoC is authoritative for stack, conventions, and the quality bar —
+    every agent must carry the read-it-if-present contract, or a delegate silently
+    ships defaults the project explicitly overrode."""
+    for path in agent_files:
+        assert "code-of-conduct" in path.read_text().lower(), \
+            f"{path.name} never reads the project code-of-conduct.md"

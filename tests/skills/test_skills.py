@@ -259,3 +259,13 @@ def test_learnings_skill_names_the_phase_that_invokes_it(read_file):
     if "ship time" in skill.lower():
         assert "learnings" in read_file("plugin/commands/ship.md"), \
             "learnings anchors to 'ship time' but only Build invokes it — rephrase the trigger"
+
+
+def test_generator_states_the_directive_budget(read_file):
+    """Every agent reads the whole project CoC on top of its ~100-directive base load,
+    and instruction-following degrades measurably past ~150 total — the generator must
+    aim for 30–40 directives, allow up to 50 for big repos, and never exceed 70."""
+    skill = read_file("plugin/skills/code-of-conduct-generator/SKILL.md")
+    assert "30" in skill and "40" in skill, "the generator must state the 30–40 sweet spot"
+    assert "50" in skill, "…the conditional ceiling for big repos"
+    assert "70" in skill, "…and the hard never-exceed line"

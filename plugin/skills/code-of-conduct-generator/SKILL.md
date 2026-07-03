@@ -5,17 +5,17 @@ description: Generate or update a project's code-of-conduct — the single sourc
 
 # Code-of-Conduct Generator
 
-The code-of-conduct is the highest-leverage file: every agent reads it. Tell the user: careful answers here compound across every future feature — less ambiguity, faster delivery.
+The code-of-conduct is the highest-leverage file: every agent reads it. Tell the user: careful answers compound across every future feature.
 
 ## Method
 
-**1. Filename.** Always `code-of-conduct.md` — the one name every command and agent reads (a repo's contributor `CODE_OF_CONDUCT.md`, if any, is a different document). Confirm before writing anything.
+**1. Filename.** Always `code-of-conduct.md` — the one name every command and agent reads. Confirm before writing anything.
 
 **2. Existing CoC check.** File found → read in full; switch to **update mode** below. No file → new-file flow.
 
 **3. Scan silently.** Work through the checklist below — tag each item `inferred-high`, `inferred-low`, `stated-unverified`, or `unknown`. Hard-exclude `.env*` and credential paths; record structure only, never values.
 
-**4. Single-batch questions.** Ask 5–10 questions in one message — no trickle. Minimum 5. Ask for *intent* behind choices (why this pattern? why this threshold?) — that depth makes the CoC useful across future features.
+**4. Single-batch questions.** Ask 5–10 questions in one message — no trickle; minimum 5. Ask for *intent* (why this pattern? why this threshold?) — depth makes the CoC useful across features.
 
 **5.** Call `EnterPlanMode`. Present the full CoC draft as the plan.
 
@@ -25,21 +25,22 @@ The code-of-conduct is the highest-leverage file: every agent reads it. Tell the
 
 Rules that never bend: never rename, reorder, delete, or restructure existing sections or bullets. Additions only.
 
-Gap analysis: missing items, conflicts (CoC says X, code does Y — surface as question, never auto-resolve), missing sections. Call `EnterPlanMode`; present an additions-only diff. Execute by inserting bullets in place and appending new sections at the end.
+Gap analysis: missing items, conflicts (CoC says X, code does Y — surface as question, never auto-resolve), missing sections. Call `EnterPlanMode`; present an additions-only diff. Insert bullets in place; append new sections at the end.
 
 ## Scan checklist (internal agent guide — not CoC output)
 
-- **Architecture:** directory layout · package strategy · primary pattern + enforcement · design patterns in use (name, problem solved, location) · module boundaries · dependency direction rules · DI/IoC approach · cross-cutting concerns
+- **Architecture:** directory layout · package strategy · primary pattern + enforcement · design patterns (name, problem, location) · module boundaries · dependency direction · DI/IoC approach · cross-cutting concerns
 - **Development:** naming conventions · comment policy · error handling strategy · logging standards · null/Optional handling · async model · immutability · config management
-- **Testing:** framework(s) · naming convention · structure (G/W/T vs. AAA) · BDD/Gherkin — scan for `.feature` files; if found, document runner; if absent, omit · mocking policy (per layer) · unit/integration/e2e/API scope · file locations · test data strategy · isolation requirements · performance tests
+- **Testing:** framework(s) · naming convention · structure (G/W/T vs. AAA) · BDD/Gherkin (scan `.feature` files; document runner, else omit) · mocking policy (per layer) · unit/integration/e2e/API scope · file locations · test data · isolation · performance tests
 - **Quality Gates:** branch coverage threshold (suggest ≥90%) · mutation kill rate (suggest ≥90%) · arch-unit checks · linter + config · formatter + config · static analysis tools · pre-commit hooks · CI gates · security/dependency scanning
 - **API** *(omit section if no public API):* style · versioning · schema approach · docs format · backward-compat policy · error format · auth
 - **Delivery:** branch model · commit format · PR requirements · merge strategy · release process · rollback · migration policy
 
 ## Output structure
 
-5–6 `##` sections (`## API` conditional on public API). **Each section opens with 1–3 sentences explaining WHY these standards exist** — the constraint, tradeoff, or lesson behind them. Then bullet points only; no prose in bullets; no intro or closing outside sections.
+5–6 `##` sections (`## API` conditional on public API). **Each section opens with 1–3 sentences explaining WHY these standards exist** — the constraint or lesson behind them. Then bullet points only; no prose in bullets; no intro or closing outside sections.
 
+**Directive budget.** Every agent reads this whole file on top of its own instructions — aim for **30–40** bullets; up to **50** for a large or polyglot repo; **never exceed 70**. Near the band, merge near-duplicates and cut what the code makes obvious; report the final count.
 
 **Never add Hercules attribution, AI mention, or generator reference to the output file.** It reads as a human-authored standards document.
 
@@ -51,4 +52,4 @@ Gap analysis: missing items, conflicts (CoC says X, code does Y — surface as q
 
 ## Preconditions
 
-Must run inside a git repository. If not, stop immediately and say so. Confirm the target root before scanning.
+Must run inside a git repository — if not, stop and say so. Confirm the target root before scanning.
