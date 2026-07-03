@@ -1,8 +1,12 @@
 name: CI
 
+# Two triggers, two meanings — not a duplicate: a push run tests the BRANCH TIP on every
+# commit (instant feedback, PR or not), a pull_request run tests the MERGE PREVIEW (the
+# branch merged into main — catches conflict-adjacent breakage the tip can't show).
+# The expensive mutation job stays gated to pull_request/main below.
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
     branches: [main]
 

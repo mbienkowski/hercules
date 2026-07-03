@@ -11,6 +11,8 @@ Guided end-to-end delivery: all four phases in one flow. Plugin-file citations (
 
 Guided end-to-end delivery: **Discover → Design → Build → Ship**. Runs all four phases in sequence with a human-approved transition between each. The more detail you put in early, the better the outcome.
 
+Phase commands are user-invoked skills, so on each transition run the phase by reading its file — `${CLAUDE_SKILL_DIR}/../commands/{discover,design,build,ship}.md` — and executing its steps inline. Announce each entry ("Entering the **{Phase}** phase") and never ask the user to type a `/hercules:*` command to continue the guided flow.
+
 ---
 
 ## Opening
@@ -65,6 +67,8 @@ Run the full `/hercules:build` flow, reading `*-business-requirements.md` and th
 >
 > Review the diff, run the tests, make any final adjustments. When ready:
 > Say **"move to Ship"** or run `/hercules:ship` directly.
+
+On "move to Ship": announce "🚀 Entering the **Ship** phase." and continue.
 
 ---
 

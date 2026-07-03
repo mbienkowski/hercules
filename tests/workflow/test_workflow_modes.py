@@ -204,3 +204,26 @@ def test_orchestrator_has_a_protocol_aligned_fallback_rule(read_file):
     md = read_file(_CLAUDE)
     assert "fall back to the safest action" in md and "never improvise" in md, \
         "CLAUDE.md must carry the protocol-aligned fallback rule"
+
+
+def test_workflow_continues_phases_by_reading_files_not_skill_invocation(read_file):
+    """Phase commands carry disable-model-invocation (auto-fire protection), so the model
+    cannot load them as skills — the guided workflow must instruct continuing by READING
+    each phase's command file, or an agent dead-ends into 'please type /hercules:design',
+    breaking the automatic flow."""
+    md = read_file(_WORKFLOW)
+    assert "reading its file" in md or "read its file" in md, \
+        "workflow must say phases continue by reading the command file inline"
+    assert "${CLAUDE_SKILL_DIR}/../commands" in md, \
+        "…and say where the files live at runtime"
+    assert "never ask the user to type" in md, \
+        "the guided flow must not push invocation back onto the user"
+
+
+def test_workflow_announces_every_phase_entry(read_file):
+    """The user experiences transitions as 'Entering the {Phase} phase' announcements —
+    they were never pinned, so a rewrite could silently drop them."""
+    md = read_file(_WORKFLOW)
+    for phase in ("Discover", "Design", "Build", "Ship"):
+        assert f"Entering the **{phase}** phase" in md, \
+            f"the {phase} entry announcement must survive"
