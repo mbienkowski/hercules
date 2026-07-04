@@ -86,8 +86,9 @@ local) so everyone gets Hercules on clone:
 **If you want to pin installation to a specific version**, add a `ref` to a release tag (a commit
 SHA also works) for reproducible installs across every machine and in CI — omit it (as above) and
 the install tracks the default branch, which drifts. When scopes conflict, the more-specific one
-wins (local over project over user). Either way, pull a new version with
-`/plugin update hercules@mbienkowski` (see § Updating); a pinned `ref` only moves when you bump it.
+wins (local over project over user). Either way, pull a new version with the
+`claude plugin update hercules@mbienkowski` CLI (see § Updating); a pinned `ref` only moves when you
+bump it.
 
 Use the **project** scope to standardize a whole repo; consider an org fork + a pinned version for
 governance. This file merges with any existing Claude Code settings — it does not replace them.
@@ -320,24 +321,23 @@ Hercules makes it easier to do that well.
 
 ## Updating
 
-Update Hercules directly by name, then apply it — no restart needed:
+Update Hercules with the `claude` **CLI** — this is a terminal command, **not** a Claude Code slash
+command (there is no in-session update command). Run it in your shell, or via the Bash tool in a
+session:
 
-```
-/plugin update hercules@mbienkowski
-/reload-plugins
+```bash
+claude plugin update hercules@mbienkowski
 ```
 
-Claude Code compares the released version and skips if you're already current. That one command
-fetches and applies the update for Hercules alone — no marketplace step. `/reload-plugins` applies
-it mid-session; a restart picks it up on its own. Only if Claude Code reports Hercules isn't found or
-looks stale, refresh the marketplace catalog once with `/plugin marketplace update mbienkowski`, then
-re-run the update above.
+That updates this one plugin. Then run the `/reload-plugins` slash command to apply it mid-session (a
+restart also picks it up). `claude plugin update` compares the released version and skips if you're
+already current.
 
 Prefer it hands-off? Claude Code's auto-update is **opt-in** and only at the marketplace level — there
-is no per-plugin toggle, so enabling it on `mbienkowski` (`/plugin` → **Marketplaces** → select
-`mbienkowski` → **Enable auto-update**) refreshes every plugin from that source at startup and prompts
-for `/reload-plugins` when something changed. To see the installed version, open `/plugin` →
-**Installed** and select Hercules. You can pin or roll back through Claude Code's plugin manager.
+is no per-plugin toggle. If you want it, enable auto-update for the marketplace under `/plugin` →
+**Marketplaces**; every plugin from that source then refreshes at startup and prompts `/reload-plugins`
+when something changed. To see the installed version, open `/plugin` → **Installed** and select
+Hercules. You can pin or roll back through Claude Code's plugin manager.
 
 ---
 

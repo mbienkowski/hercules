@@ -50,9 +50,10 @@ def test_readme_has_no_misleading_auto_update_claim(read_file):
     content = read_file("README.md")
     assert "keeps the plugin updated" not in content.lower(), \
         "README must not present auto-update as unconditional — it is opt-in per marketplace"
-    assert "/plugin update" in content, "README must document the per-plugin update command"
-    assert "/plugin marketplace update" in content, \
-        "README must document the marketplace-wide update command"
+    assert "claude plugin update hercules" in content, \
+        "README must document the real per-plugin update command — the `claude plugin update` CLI"
+    assert "cli" in content.lower(), \
+        "README must state the per-plugin update is a CLI command, not a Claude Code slash command"
     assert "/reload-plugins" in content, \
         "README must tell users to /reload-plugins so an update actually applies"
     assert "auto-update" in content.lower() and "opt-in" in content.lower(), \
