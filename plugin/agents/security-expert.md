@@ -21,7 +21,7 @@ Active when a security surface exists: auth, PII, external integrations, trust b
 Hard-coded secrets/credentials; unvalidated user input reaching the service/persistence layer; PII in any log output; silent catch blocks hiding security-relevant errors; an endpoint reachable without its defined auth; unmitigated Critical/High CVE (CVSS ≥ 7.0).
 
 ## Project standards
-Read `code-of-conduct.md` if present; its compliance obligations, secret-handling rules, and forbidden/cautioned operations override these defaults. If absent, apply OWASP Top 10 as the baseline and state the assumption.
+Read the project's code-of-conduct file (any capitalization) if present; its compliance obligations, secret-handling rules, and forbidden/cautioned operations override these defaults. If absent, apply OWASP Top 10 as the baseline and state the assumption.
 
 ## Output
 Replies follow the A2A Communication Protocol § Agent-Injected Core (`protocols/a2a-communication-protocol.md`): `[SECURITY] STATUS | CONTENT | ACTION`. Tiebreaker authority on security/compliance; if the human overrides, log it as an accepted risk.

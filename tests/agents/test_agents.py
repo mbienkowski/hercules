@@ -102,7 +102,8 @@ def test_each_agent_file_has_the_required_structure_and_fields(path):
     assert "description:" in md, f"{path.name} frontmatter missing 'description:'"
     if name != "hercules":
         assert "model:" in md, f"{path.name} frontmatter missing 'model:'"
-    assert "code-of-conduct.md" in md, f"{path.name} must instruct the agent to read code-of-conduct.md"
+    assert "code-of-conduct" in md.lower(), \
+        f"{path.name} must instruct the agent to read the project's code-of-conduct file (any capitalization)"
     assert "a2a-communication-protocol.md" in md, f"{path.name} must point to the A2A protocol"
     assert "STATUS | CONTENT | ACTION" in md, \
         f"{path.name} must state the A2A reply shape [TAG] STATUS | CONTENT | ACTION"
@@ -204,6 +205,36 @@ def test_hercules_agent_has_ambiguity_elimination(read_file):
     assert "figure it out" in content.lower() or "tbd" in content.lower() or \
            "open question" in content.lower(), \
         "hercules.md must reject open questions / TBDs"
+
+
+def test_persona_version_read_is_not_hardcoded(read_file):
+    """The persona reports its version by reading plugin.json live, never from a baked-in
+    literal — a hardcoded number would be a third source of truth and drift from
+    pyproject.toml/plugin.json. Regression guard: born green (no literal today), fails the
+    moment someone hardcodes one."""
+    persona = read_file("plugin/agents/hercules.md")
+    assert not re.search(r"\d+\.\d+\.\d+", persona), \
+        "hercules.md carries a hardcoded version literal — read plugin.json live instead"
+
+
+def test_persona_reads_plugin_json_live(read_file):
+    """Asked its version, Hercules reads ${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json
+    (the variable substitutes in agent content) and reports its version field — live and
+    single-sourced, so a branch and a release show whatever plugin.json actually carries."""
+    persona = read_file("plugin/agents/hercules.md")
+    assert "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json" in persona, \
+        "hercules.md must point the version read at ${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json"
+    assert "version" in persona, "hercules.md must report the plugin.json version field"
+
+
+def test_persona_describes_its_capabilities(read_file):
+    """Asked what it can do, Hercules names the four phases and the /hercules:* commands —
+    a self-aware persona, not a black box."""
+    persona = read_file("plugin/agents/hercules.md")
+    for phase in ("Discover", "Design", "Build", "Ship"):
+        assert phase in persona, f"hercules.md must name the {phase} phase as a capability"
+    assert "/hercules:workflow" in persona, "hercules.md must name the guided workflow command"
+    assert "/hercules:discover" in persona, "hercules.md must name the phase commands"
 
 
 def test_plugin_declares_default_agent_with_persona(repo_root):

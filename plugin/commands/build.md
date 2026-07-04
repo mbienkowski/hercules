@@ -5,9 +5,9 @@ disable-model-invocation: true
 
 # /hercules:build
 
-Plan the delivery, then execute the approved specs with TDD and full traceability. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) resolve under `${CLAUDE_SKILL_DIR}/..` — the plugin's install root, not this repo.
+Plan the delivery, then execute the approved specs with TDD and full traceability. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live at `${CLAUDE_PLUGIN_ROOT}` — the plugin install root (else the parent of this command's dir), not this repo.
 
-**Plan mode — required.** Build opens in plan mode like every other phase: call `EnterPlanMode`, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
+**Plan mode — required.** Build opens in plan mode: call `EnterPlanMode`, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
 
 ---
 
@@ -32,7 +32,7 @@ Present a numbered list. Ask which to deliver (number, path, or Enter for most r
 
 Each spec names its service in `## Scope`; none named → work in the current directory. Otherwise, for each named service not yet in the registry entry's `repositories` map (`~/.hercules/config.json`), ask for its local path, validate it exists, echo `"Found {service} at {path}"`, and write it to `repositories` (atomically; never into the repo).
 
-Check for `code-of-conduct.md` at each service path (and the home repo for single-service). If absent, agents infer conventions from existing tests; the user can say **'generate conduct for {service}'** at any point. A CoC directive to keep specs is cached as `keep_specs: true` in the registry entry (re-check each run; remove the key when the directive is gone).
+Check for the code-of-conduct file (any capitalization) at each service path (and the home repo for single-service). If absent, agents infer conventions from existing tests; the user can say **'generate conduct for {service}'**. A CoC directive to keep specs is cached as `keep_specs: true` in the registry entry (re-check each run; remove the key when the directive is gone).
 
 ### Step 3 — Read the specs & tier
 

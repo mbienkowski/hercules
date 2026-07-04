@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # /hercules:discover
 
-Turn a rough idea into a clear, approved business requirement — the foundation every other phase builds on. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) resolve under `${CLAUDE_SKILL_DIR}/..` — the plugin's install root, not this repo.
+Turn a rough idea into a clear, approved business requirement — the foundation every other phase builds on. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live at `${CLAUDE_PLUGIN_ROOT}` — the plugin install root (else the parent of this command's dir), not this repo.
 
 **Plan mode — required.** Call `EnterPlanMode` at the start. Every draft is a full inline proposal. Iterate freely; always regenerate the complete draft — never patch sections; never skip steps. At the **Plan approval** gate, on the user's approval, call `ExitPlanMode` (`auto`), then write.
 
@@ -19,7 +19,7 @@ registry entry (plan mode allows no writes). All paths below are relative to tha
 Read `docs/INDEX.md` if present — one-line digest of recent sessions. Read `docs/learnings.md` if
 present — surface entries matching the opening idea (key-match on topic); no-op if absent.
 
-**Code of conduct (recommended).** No `code-of-conduct.md` in the repo? Tell the user it's the
+**Code of conduct (recommended).** No code-of-conduct file (any capitalization) in the repo? Tell the user it's the
 biggest lever on output quality — every agent reads it for stack, test command, and bar — and offer
 to generate one (`code-of-conduct-generator`). Proceed either way.
 

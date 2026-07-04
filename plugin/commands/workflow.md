@@ -5,13 +5,13 @@ disable-model-invocation: true
 
 # /hercules:workflow
 
-Guided end-to-end delivery: all four phases in one flow. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) resolve under `${CLAUDE_SKILL_DIR}/..` — the plugin's install root, not this repo.
+Guided end-to-end delivery: all four phases in one flow. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live at `${CLAUDE_PLUGIN_ROOT}` — the plugin install root (else the parent of this command's dir), not this repo.
 
 **Plan mode — required across all four phases.** Open each phase with `EnterPlanMode`; present a full inline proposal; at the **Plan approval** gate, on the user's "approved", call `ExitPlanMode` (`auto`) — the phase then writes or executes without further prompts — then `EnterPlanMode` for the next phase. Iterate freely; write only on approval. Never patch sections — always regenerate the complete draft.
 
 Guided end-to-end delivery: **Discover → Design → Build → Ship**. Runs all four phases in sequence with a human-approved transition between each. The more detail you put in early, the better the outcome.
 
-Phase commands are user-invoked skills, so on each transition run the phase by reading its file — `${CLAUDE_SKILL_DIR}/../commands/{discover,design,build,ship}.md` — and executing its steps inline. Announce each entry ("Entering the **{Phase}** phase") and never ask the user to type a `/hercules:*` command to continue the guided flow.
+Phase commands are user-invoked skills, so on each transition run the phase by reading its file at `${CLAUDE_PLUGIN_ROOT}/commands/{discover,design,build,ship}.md` (or, if that path is not substituted, from the same directory as this file) and executing its steps inline. Announce each entry ("Entering the **{Phase}** phase") and never ask the user to type a `/hercules:*` command to continue the guided flow.
 
 ---
 

@@ -195,13 +195,34 @@ def test_code_of_conduct_generator_defines_required_sections(repo_root):
 
 
 def test_code_of_conduct_generator_detects_file_naming_convention(repo_root):
-    """The generator writes the ONE filename every command and agent reads — always the
-    lowercase `code-of-conduct.md`; a casing-detection rule would produce a file nobody reads."""
-    md = (repo_root / _COC_GENERATOR).read_text()
-    assert "Always `code-of-conduct.md`" in md, \
-        "the generator must always write code-of-conduct.md — the only name consumers read"
-    assert "uppercase stems" not in md, \
-        "no casing detection: an uppercase output filename would be ignored by every consumer"
+    """The generator finds an existing code-of-conduct case-insensitively — a repo may carry
+    `code-of-conduct.md` or `CODE_OF_CONDUCT.md` (on Linux, two distinct files) — so an
+    uppercase-only repo is not mistaken for having no standards."""
+    md = (repo_root / _COC_GENERATOR).read_text().lower()
+    assert "case-insensitiv" in md, \
+        "the generator must scan for the code-of-conduct file case-insensitively"
+    assert "any capitalization" in md or "any casing" in md, \
+        "the generator must state any capitalization of the filename counts as the same file"
+
+
+def test_coc_filename_regex_matches_any_casing():
+    """The detection regex is case-insensitive and separator-tolerant but ANCHORED — it matches
+    the real file at any casing and rejects a draft/variant that is not the code-of-conduct."""
+    coc_re = re.compile(r"(?i)^code[-_ ]?of[-_ ]?conduct\.md$")
+    for name in ("code-of-conduct.md", "CODE_OF_CONDUCT.md", "Code-Of-Conduct.md", "code_of_conduct.md"):
+        assert coc_re.match(name), f"{name} should be detected as a code-of-conduct file"
+    for name in ("code-of-conduct-draft.md", "code-of-conduct-v2.md", "conduct.md"):
+        assert not coc_re.match(name), f"{name} must NOT be treated as the code-of-conduct"
+
+
+def test_generator_documents_multi_match_precedence(read_file):
+    """With >1 code-of-conduct match (e.g. a lowercase technical file AND a .github community
+    doc), the generator must never silently pick one — it surfaces what it found and confirms."""
+    skill = read_file(_COC_GENERATOR).lower()
+    assert "more than one" in skill or "multiple" in skill, \
+        "generator must address the multi-match case"
+    assert "never silently" in skill or "confirm" in skill, \
+        "on multiple matches the generator must confirm with the user, not silently pick"
 
 
 def test_code_of_conduct_generator_handles_existing_coc_safely(repo_root):
@@ -218,14 +239,15 @@ def test_code_of_conduct_generator_handles_existing_coc_safely(repo_root):
         "code-of-conduct-generator must describe the additions-only update strategy"
 
 
-def test_coc_generator_output_filename_is_one_the_plugin_reads(read_file):
-    """Every command and agent reads the literal `code-of-conduct.md`; the generator must never
-    propose an uppercase output filename no consumer looks for."""
+def test_coc_generator_creates_lowercase_by_default(read_file):
+    """When NO code-of-conduct exists, the generator defaults the new file to the lowercase
+    `code-of-conduct.md` (uppercase CODE_OF_CONDUCT.md is GitHub's community-doc convention,
+    which would self-inflict the two-file collision). It never proposes uppercase unprompted."""
     skill = read_file("plugin/skills/code-of-conduct-generator/SKILL.md")
     assert "→ `CODE_OF_CONDUCT.md`" not in skill, \
-        "generator must never PROPOSE an uppercase output filename — no consumer reads it"
-    assert "Always `code-of-conduct.md`" in skill, \
-        "the output filename rule must be the lowercase name every consumer reads"
+        "generator must not PROPOSE an uppercase output filename by default"
+    assert "`code-of-conduct.md`" in skill, \
+        "the default create name must be the lowercase code-of-conduct.md"
 
 
 def test_learnings_skill_names_the_phase_that_invokes_it(read_file):

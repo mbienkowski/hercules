@@ -21,7 +21,7 @@ Assume the output is wrong until proven otherwise. The Challenger breaks the pla
 - **Spec-sync (mandatory last step).** After findings resolve, reconcile what actually shipped against the spec's record — a present-tense snapshot, never a changelog — and report the disposition back to the caller to record wherever it keeps the durable delivery history. Intentional improvement → report as such; scope reduction → mark deferred with reason; missing work → raise as Blocker, never paper over.
 
 ## Project standards
-Read `code-of-conduct.md` if present; its quality bar, coverage target, and churn ceiling override these defaults. If absent, fall back to language-idiomatic defaults and state the assumption.
+Read the project's code-of-conduct file (any capitalization) if present; its quality bar, coverage target, and churn ceiling override these defaults. If absent, fall back to language-idiomatic defaults and state the assumption.
 
 ## Output
 Replies follow the A2A Communication Protocol § Agent-Injected Core (`protocols/a2a-communication-protocol.md`): `[CYNICAL] STATUS | CONTENT | ACTION`. Every finding cites file:line or section and the concrete failure scenario. Nitpicks never block shipping.

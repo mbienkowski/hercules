@@ -217,8 +217,10 @@ def test_workflow_continues_phases_by_reading_files_not_skill_invocation(read_fi
     md = read_file(_WORKFLOW)
     assert "reading its file" in md or "read its file" in md, \
         "workflow must say phases continue by reading the command file inline"
-    assert "${CLAUDE_SKILL_DIR}/../commands" in md, \
-        "…and say where the files live at runtime"
+    assert "${CLAUDE_PLUGIN_ROOT}/commands" in md, \
+        "…and anchor the phase files to the real ${CLAUDE_PLUGIN_ROOT} install root"
+    assert "${CLAUDE_SKILL_DIR}" not in md, \
+        "…never via the fake ${CLAUDE_SKILL_DIR} variable"
     assert "never ask the user to type" in md, \
         "the guided flow must not push invocation back onto the user"
 

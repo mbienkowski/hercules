@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # /hercules:design
 
-Turn a business requirement into numbered technical specs ready for Build. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) resolve under `${CLAUDE_SKILL_DIR}/..` — the plugin's install root, not this repo.
+Turn a business requirement into numbered technical specs ready for Build. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live at `${CLAUDE_PLUGIN_ROOT}` — the plugin install root (else the parent of this command's dir), not this repo.
 
 **Plan mode — required.** Call `EnterPlanMode` at the start. Every draft is a full inline proposal; iterate freely; always regenerate the complete draft — never patch sections. At the **Plan approval** gate, on the user's approval, call `ExitPlanMode` (`auto`), then write.
 
@@ -34,7 +34,7 @@ Read the confirmed `*-business-requirements.md`. Extract every distinct requirem
 
 ## Step 3 — Codebase constraint scan & read tier
 
-Read `code-of-conduct.md` and any ADRs or API contracts the requirements reference, and scan the codebase for the surface this feature will touch (existing classes, modules, contracts). This scan feeds each spec's `## Affected code` section (do not scan again later) and bounds the Step 4 questions.
+Read the code-of-conduct file (any capitalization) and any ADRs or API contracts the requirements reference, and scan the codebase for the surface this feature will touch (existing classes, modules, contracts). This scan feeds each spec's `## Affected code` section (do not scan again later) and bounds the Step 4 questions.
 
 Read the session's `tier` from the project's state file (`~/.hercules/state/{slug}.json`). Complexity was scored once in Discover — **do not re-score it**; if the scan shows it was mis-scored, surface that and let the user override.
 

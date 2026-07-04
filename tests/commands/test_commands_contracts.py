@@ -294,17 +294,54 @@ def test_commands_declare_frontmatter(read_file):
         assert "disable-model-invocation: true" in head, \
             f"{rel} must not be auto-invocable mid-task"
 
-def test_commands_resolve_plugin_files_via_skill_dir(read_file):
-    """Plugin CLAUDE.md and protocols/ are NOT loaded into consumer sessions (per the
-    plugins reference: 'A CLAUDE.md file at the plugin root is not loaded as project
-    context') and relative paths resolve against the consumer's repo. Every command that
-    cites them must anchor the references to ${CLAUDE_SKILL_DIR} so they resolve at
-    runtime."""
-    for rel in (_DISCOVER, _DESIGN, _BUILD, _SHIP, _WORKFLOW):
-        md = read_file(rel)
-        if "CLAUDE.md §" in md or "protocols/" in md:
-            assert "${CLAUDE_SKILL_DIR}" in md, \
-                f"{rel} cites plugin files but never says where they live at runtime"
+def test_no_command_carries_the_fake_skill_dir_variable(read_file):
+    """${CLAUDE_SKILL_DIR} is not a documented Claude Code variable — it never substitutes,
+    so a command body citing it ships a literal the agent cannot resolve. The real install-root
+    variable is ${CLAUDE_PLUGIN_ROOT}. Unconditional guard: fails the instant the dead variable
+    returns to any command."""
+    for rel in _ALL_COMMANDS:
+        assert "${CLAUDE_SKILL_DIR}" not in read_file(rel), \
+            f"{rel} cites the fake ${{CLAUDE_SKILL_DIR}} variable — use ${{CLAUDE_PLUGIN_ROOT}}"
+
+
+def test_commands_cite_bundled_plugin_files_via_plugin_root(read_file):
+    """Plugin CLAUDE.md and protocols/ are NOT loaded into consumer sessions (per the plugins
+    reference: 'A CLAUDE.md file at the plugin root is not loaded as project context') and
+    relative paths resolve against the consumer's repo. Every command anchors its plugin-file
+    citation to ${CLAUDE_PLUGIN_ROOT} — the real, documented install-root variable — with a
+    prose fallback for the case a command body does not substitute it. Unconditional: no guard
+    that can vacuously skip."""
+    for rel in _ALL_COMMANDS:
+        assert "${CLAUDE_PLUGIN_ROOT}" in read_file(rel), \
+            f"{rel} must anchor plugin-file citations to ${{CLAUDE_PLUGIN_ROOT}}"
+
+
+def _expand_braces(path: str) -> list[str]:
+    """Expand a `{a,b,c}` brace group in a cited path (e.g. commands/{discover,design}.md)."""
+    m = re.search(r"\{([^{}]*)\}", path)
+    if not m:
+        return [path]
+    expanded = []
+    for option in m.group(1).split(","):
+        expanded.extend(_expand_braces(path[: m.start()] + option + path[m.end() :]))
+    return expanded
+
+
+def test_cited_plugin_paths_resolve_under_plugin(repo_root, read_file):
+    """Turn the manual 'do the cited plugin files exist' probe into a CI guard: every path a
+    command or the persona anchors to ${CLAUDE_PLUGIN_ROOT} must exist under plugin/. Catches a
+    relayout that silently breaks resolution — without needing a live run."""
+    plugin = repo_root / "plugin"
+    sources = [*_ALL_COMMANDS, "plugin/agents/hercules.md"]
+    ref_re = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([A-Za-z0-9_./{},\-]+)")
+    checked = 0
+    for rel in sources:
+        for raw in ref_re.findall(read_file(rel)):
+            for path in _expand_braces(raw.rstrip(".,`")):
+                assert (plugin / path).exists(), \
+                    f"{rel} cites ${{CLAUDE_PLUGIN_ROOT}}/{path} but plugin/{path} does not exist"
+                checked += 1
+    assert checked, "no ${CLAUDE_PLUGIN_ROOT} citations found — did the resolution fix regress?"
 
 def _documented_and_referenced_state_fields(read_file):
     """(documented set, referenced set, commands text) for the CLAUDE.md↔commands schema guard.

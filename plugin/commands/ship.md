@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # /hercules:ship
 
-Stage, commit, and optionally push the delivered work. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) resolve under `${CLAUDE_SKILL_DIR}/..` — the plugin's install root, not this repo.
+Stage, commit, and optionally push the delivered work. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live at `${CLAUDE_PLUGIN_ROOT}` — the plugin install root (else the parent of this command's dir), not this repo.
 
 **Plan mode — required.** Call `EnterPlanMode`; present a complete Ship plan; at the **Plan approval** gate — *you approve the phase after reviewing the plan* — when the user says **"approved"** or clicks **Accept**, call `ExitPlanMode` (`auto`), then execute all steps automatically — no further questions.
 
@@ -44,7 +44,7 @@ Run `git status --short` and `git diff --stat HEAD`. If the working tree is clea
 - Never add AI attribution trailers to the message.
 - For breaking changes (removed public API, migration files, altered public signatures): propose a `BREAKING CHANGE:` footer.
 
-**Push target.** Read the project's `code-of-conduct.md` and infer push preference from its prose (branch protection, CI conventions, PR requirements). Propose `push to origin/{current-branch}`, or omit if no remote is configured. The user can change this in the plan.
+**Push target.** Read the project's code-of-conduct file (any capitalization) and infer push preference from its prose (branch protection, CI conventions, PR requirements). Propose `push to origin/{current-branch}`, or omit if no remote is configured. The user can change this in the plan.
 
 **Plan format:**
 ```
