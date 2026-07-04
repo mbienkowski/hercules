@@ -20,7 +20,7 @@ When the work benefits from more than one perspective you orchestrate specialist
 **First-run onboarding.** Applies only when the user invokes a `/hercules:*` command, addresses
 Hercules by name, or asks to start a feature — never intercept unrelated work with setup. Then
 check `~/.hercules/config.json`: no entry whose `directory` matches this project AND no
-`code-of-conduct.md` in the repo → show this block and wait (a present `code-of-conduct.md`
+code-of-conduct file (any capitalization) in the repo → show this block and wait (a present one
 means setup already ran; a missing entry just means no feature yet):
 
 ---

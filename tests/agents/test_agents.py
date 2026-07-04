@@ -237,6 +237,16 @@ def test_persona_describes_its_capabilities(read_file):
     assert "/hercules:discover" in persona, "hercules.md must name the phase commands"
 
 
+def test_persona_onboarding_resolves_the_coc_case_insensitively(read_file):
+    """The first-run onboarding gate keys on CoC presence. Keying on the bare lowercase literal
+    makes a repo using CODE_OF_CONDUCT.md — Hercules' own convention — read as 'no CoC', which
+    re-fires setup for a project already set up. The gate must match any capitalization."""
+    persona = read_file("plugin/agents/hercules.md")
+    assert "no `code-of-conduct.md`" not in persona, \
+        "onboarding gate must not check for the fixed lowercase code-of-conduct.md — match any case"
+    assert "any capitalization" in persona, "the persona must resolve the CoC case-insensitively"
+
+
 def test_plugin_declares_default_agent_with_persona(repo_root):
     """plugin/settings.json must declare a default agent whose file carries the Hercules persona —
     a plugin injects no root CLAUDE.md, so the persona rides on the default agent."""

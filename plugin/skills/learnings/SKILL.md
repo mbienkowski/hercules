@@ -26,6 +26,6 @@ Select by relevance keyed on the task's traceability IDs / domain — determinis
 Create the store on first write (create-or-update); write atomically (temp + rename) with whole-entry granularity so concurrent sessions merge cleanly. Hard-stop loud rather than producing a malformed entry.
 
 ## Project standards
-Read `code-of-conduct.md` if present; it defines where the store lives and what counts as a
+Read the project's code-of-conduct (any capitalization) if present; it defines where the store lives and what counts as a
 promotable generic rule. If absent, default the store to `docs/learnings.md` and state
 the assumption.

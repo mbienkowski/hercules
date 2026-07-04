@@ -70,7 +70,8 @@ def test_each_skill_file_declares_its_purpose_and_preconditions(path):
     assert desc_m, f"{name}/SKILL.md frontmatter missing a description value"
     assert any(t in desc_m.group(1).lower() for t in ("use ", "use in", "use on", "use when", "use to")), \
         f"{name}/SKILL.md description must state WHEN to use the skill"
-    assert "code-of-conduct.md" in md, f"{name}/SKILL.md must reference code-of-conduct.md"
+    assert "code-of-conduct" in lower, \
+        f"{name}/SKILL.md must reference the project's code-of-conduct (any capitalization)"
     if name in _ACTIVE_SKILLS:
         assert "precondition" in lower, f"{name}/SKILL.md (active skill) must declare a Preconditions clause"
         assert re.search(r"\bstop\b", lower), f"{name}/SKILL.md (active skill) must hard-stop on precondition miss"
@@ -208,11 +209,23 @@ def test_code_of_conduct_generator_detects_file_naming_convention(repo_root):
 def test_coc_filename_regex_matches_any_casing():
     """The detection regex is case-insensitive and separator-tolerant but ANCHORED — it matches
     the real file at any casing and rejects a draft/variant that is not the code-of-conduct."""
-    coc_re = re.compile(r"(?i)^code[-_ ]?of[-_ ]?conduct\.md$")
+    coc_re = re.compile(r"(?i)^code[-_ ]of[-_ ]conduct\.md$")
     for name in ("code-of-conduct.md", "CODE_OF_CONDUCT.md", "Code-Of-Conduct.md", "code_of_conduct.md"):
         assert coc_re.match(name), f"{name} should be detected as a code-of-conduct file"
-    for name in ("code-of-conduct-draft.md", "code-of-conduct-v2.md", "conduct.md"):
+    for name in ("code-of-conduct-draft.md", "code-of-conduct-v2.md", "conduct.md", "codeofconduct.md"):
         assert not coc_re.match(name), f"{name} must NOT be treated as the code-of-conduct"
+
+
+def test_skills_read_the_coc_case_insensitively(skill_files):
+    """A skill that reads the project code-of-conduct must find it at any capitalization — a
+    'Read `code-of-conduct.md`' / '`code-of-conduct.md` if present' instruction misses
+    CODE_OF_CONDUCT.md on Linux (the same file). Naming references are not matched here."""
+    forbidden = ("`code-of-conduct.md` if present", "Read `code-of-conduct.md`", "read `code-of-conduct.md`")
+    for path in skill_files:
+        text = path.read_text()
+        for pat in forbidden:
+            assert pat not in text, \
+                f"{path.parent.name}/SKILL.md: '{pat}' is a fixed-lowercase CoC read — use 'any capitalization'"
 
 
 def test_generator_documents_multi_match_precedence(read_file):

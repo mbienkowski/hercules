@@ -77,9 +77,9 @@ relative to the resolved root as `docs/`.
 
 Every phase reads the project's code-of-conduct for its stack, conventions, and quality bar. Resolve it
 by a matcher, never a fixed filename: it may be `code-of-conduct.md`, `CODE_OF_CONDUCT.md`, or any
-capitalization — `-`/`_`/space or no separator between the words, extension `.md`, in the repo root,
-`.github/`, or `docs/` — so find it case-insensitively (`find -iname 'code[-_ ]of[-_ ]conduct.md'`; the
-anchored form `(?i)^code[-_ ]?of[-_ ]?conduct\.md$` matches any casing but not a lookalike like
+capitalization — `-`/`_`/space between the words, extension `.md`, in the repo root, `.github/`, or
+`docs/` — so find it case-insensitively (`find -iname 'code[-_ ]of[-_ ]conduct.md'`; the anchored form
+`(?i)^code[-_ ]of[-_ ]conduct\.md$` matches any casing but not a lookalike like
 `code-of-conduct-draft.md`). Read it from the repository the work targets, not the nearest path: a
 service-scoped spec uses that service's repo (`repositories[service]`), otherwise the home code repo
 (`directory`); when Claude is launched in a docs/requirements repo whose code lives elsewhere, the

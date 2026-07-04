@@ -30,4 +30,4 @@ Compare by priority order: the option leading on Production-readiness wins; ties
 The design must exist; if it is missing or empty, stop and ask the user to run `/hercules:design` first rather than scoring against guesses.
 
 ## Project standards
-Read `code-of-conduct.md` if present; if it overrides the priority order (e.g. performance-first), echo the effective order in the output and re-rank under it. If absent, use the order above (readability beats performance) and state the assumption.
+Read the project's code-of-conduct (any capitalization) if present; if it overrides the priority order (e.g. performance-first), echo the effective order in the output and re-rank under it. If absent, use the order above (readability beats performance) and state the assumption.
