@@ -173,7 +173,10 @@ mutation kill rate**, both gated in CI on every PR.
   gates, not obstacles — every token a command, agent, or skill carries is consumed on every run,
   eating the context an AI agent needs to edit code well, so more tokens mean lower output quality.
   Never silently raise a threshold or cut content to fit: surface the breach, propose at least three
-  options, and let the maintainer choose; raise a limit only on their explicit word.
+  options, and let the maintainer choose. Edit a budget **only on a direct user request to bump it** —
+  that is the single sanctioned path, reserved for a genuinely planned increase. An agent never bumps a
+  budget by default, on its own initiative, or as a side effect of another approved change; absent an
+  explicit "raise this budget" instruction, treat every threshold as immovable and fit the change to it.
 - **Assert the present state, not the past** — pair every absence check with a positive companion
   assertion or a named, ongoing risk it guards, or it is cosmetic.
 - **Prove it works, don't assert it "should."** A green suite is necessary, not sufficient — verify a
