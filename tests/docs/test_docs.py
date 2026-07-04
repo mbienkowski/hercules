@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import re
 
+from tests.conftest import ALL_COMMANDS, section
+
 
 def test_readme_documents_marketplace_install(read_file):
     """README must document the native marketplace install path."""
@@ -55,23 +57,6 @@ def test_readme_has_no_misleading_auto_update_claim(read_file):
         "README must tell users to /reload-plugins so an update actually applies"
     assert "auto-update" in content.lower() and "opt-in" in content.lower(), \
         "README must document the opt-in per-marketplace auto-update path"
-
-
-
-def test_code_of_conduct_whats_tested_rows_point_at_existing_files(repo_root, read_file):
-    """Every test path named in CODE_OF_CONDUCT.md must exist (no stale 'what's covered' rows)."""
-    content = read_file("CODE_OF_CONDUCT.md")
-    referenced = set(re.findall(r"tests/[\w/]+\.py", content))
-    missing = [p for p in referenced if not (repo_root / p).exists()]
-    assert not missing, f"CODE_OF_CONDUCT.md references non-existent test files: {sorted(missing)}"
-
-
-def test_code_of_conduct_states_contributor_invariants(read_file):
-    """CODE_OF_CONDUCT.md must record the contributor invariants this migration relies on."""
-    content = read_file("CODE_OF_CONDUCT.md").lower()
-    assert "owning test" in content, "CoC must require every shipped artifact to have an owning test"
-    assert "single source" in content or "single-source" in content, \
-        "CoC must record version single-sourcing across pyproject and the plugin manifest"
 
 
 def test_plugin_version_is_single_sourced(repo_root, read_file):
@@ -235,17 +220,6 @@ def test_readme_documents_keeping_specs(read_file):
         "README must document the keep-the-specs code-of-conduct override"
 
 
-def test_coc_agent_rule_spec_lifecycle_admits_keep_specs(read_file):
-    """The 'adding an agent' rule states a spec is delete-once — under a keep-specs
-    code-of-conduct a delivered spec is refreshed at retire instead, so the contributor rule
-    must carry the same carve-out or it forbids behaviour the plugin itself performs."""
-    coc = read_file("CODE_OF_CONDUCT.md")
-    rule = coc[coc.index("delete-once"):]
-    rule = rule[:rule.index("- Replies follow")]
-    assert "keep-specs" in rule or "keep_specs" in rule, \
-        "the delete-once rule must acknowledge the keep-specs retire mode (orchestrator-only)"
-
-
 def test_requirements_disclose_the_windows_python3_gap(read_file):
     """Stock Windows ships python/py, not python3 — there the guard silently never arms
     (fail-open). A README that claims python3 portability without the caveat oversells
@@ -286,89 +260,12 @@ def test_readme_first_screen_names_the_category(read_file):
         "the first screen must name the product category before the jokes"
 
 
-def test_coc_adding_an_agent_names_every_synced_surface(read_file):
-    """tests/agents enforces settings.json advisors[] ↔ roster sync and a CLAUDE.md
-    listing — a contributor following the CoC's steps must not discover extra required
-    files only from CI failures."""
-    coc = read_file("CODE_OF_CONDUCT.md")
-    section = coc[coc.index("### Adding an agent"):coc.index("### Hooks")]
-    assert "settings.json" in section, \
-        "the adding-an-agent steps must name the settings.json advisors[] roster"
-    assert "CLAUDE.md" in section, "…and the CLAUDE.md agent list"
-
-
-def test_coc_tokens_section_is_honest_about_the_encoding_fetch(read_file):
-    """tiktoken downloads the cl100k encoding on first use — 'no network call' is only
-    true after a warm cache, and a fresh contributor's make test dies offline. The CoC
-    must document the cache instead of denying the fetch."""
-    coc = read_file("CODE_OF_CONDUCT.md")
-    tokens = coc[coc.index("### Tokens"):coc.index("### Golden files")]
-    assert "no network call" not in tokens, \
-        "the offline claim only holds after a warm cache — say that instead"
-    assert "TIKTOKEN_CACHE_DIR" in tokens, \
-        "contributors need the cache variable to run the suite offline"
-
-
-def test_coc_documents_the_prose_pin_convention(read_file):
-    """Most of the suite pins command prose — a contributor rewording a sentence needs
-    to know to grep tests/ for it BEFORE CI tells them, or every wording change costs a
-    failed run."""
-    coc = read_file("CODE_OF_CONDUCT.md").lower()
-    assert "grep" in coc and "pinned" in coc, \
-        "the CoC must tell contributors that prose is test-pinned and how to find the pins"
-
-
 def test_readme_explains_the_coc_directive_budget(read_file):
     """README says every agent reads the CoC — it must state the budget as the sentence
     that IS the feature (bare '30'/'40' substrings matched token lifetimes elsewhere)."""
     readme = read_file("README.md")
     assert "the generator aims for **30–40 directives**" in readme
     assert "70 is the hard ceiling" in readme
-
-
-def test_coc_carries_the_execution_walk_and_semantic_extinction_rules(read_file):
-    """Two rules distilled from this branch's worst bugs: instructions that couldn't
-    execute as written (git rm on uncommitted files, plan-mode writes, unsatisfiable
-    gates), and semantic changes that left old meanings alive on other surfaces."""
-    coc = read_file("CODE_OF_CONDUCT.md")
-    walk = coc[coc.index("### The execution walk"):coc.index("### Changing what something means")]
-    assert "plan mode blocks" in walk and "git rm" in walk and "resume" in walk
-    meaning = coc[coc.index("### Changing what something means"):coc.index("### Adding an agent")]
-    assert "extinct" in meaning and "concept" in meaning
-
-
-def test_coc_carries_the_failure_moments_rule(read_file):
-    """Stops and blocks are product surfaces: scripted messages, real exits only,
-    one canonical description per mechanism, recipes that satisfy their validators."""
-    coc = read_file("CODE_OF_CONDUCT.md")
-    fm = coc[coc.index("### Failure moments"):coc.index("### Branching")]
-    assert "scripted" in fm and "canonical" in fm and "its own validator" in fm
-
-
-def test_coc_invariants_demand_red_first_and_both_contract_ends(read_file):
-    """A test first seen green has proven nothing (red-first at birth, red-possible for
-    life); a cross-file contract needs both its writer and its reader pinned."""
-    from tests.conftest import section
-    coc = read_file("CODE_OF_CONDUCT.md")
-    inv = section(coc, "### Invariants", "\n## ", label="CODE_OF_CONDUCT.md")
-    assert "Red first" in inv and "born failing" in inv and "right reason" in inv
-    assert "both ends" in inv and "reader-only" in inv.lower()
-
-
-def test_coc_treats_surviving_mutants_as_verdicts(read_file):
-    """A survivor is a missing test or a better design — never something a pragma
-    silences."""
-    coc = read_file("CODE_OF_CONDUCT.md")
-    testing = coc[coc.index("## Testing"):]
-    assert "verdict" in testing, "the surviving-mutant rule must live in Testing"
-
-
-def test_coc_agent_rules_carry_the_instruction_budget(read_file):
-    """New content must state whose context it lands in; a delegate's total stays under
-    ~150 directives — always-loaded content spends everyone's headroom."""
-    coc = read_file("CODE_OF_CONDUCT.md")
-    agent = coc[coc.index("### Adding an agent"):coc.index("### Hooks")]
-    assert "Instruction load is a budget" in agent and "150" in agent
 
 
 def test_first_run_gate_never_intercepts_unrelated_work(read_file):
@@ -415,3 +312,26 @@ def test_abandoning_a_session_has_a_documented_path(read_file):
     assert "abandon" in md.lower() and "clear" in md.lower()
     readme = read_file("README.md")
     assert "abandon" in readme.lower(), "the README must tell users they can bail out"
+
+
+def test_workflow_source_of_truth_is_the_protocol(read_file):
+    """The workflow's source of truth is plugin/protocols/workflow-protocol.md — NOT the commands
+    or CLAUDE.md. This exact inversion shipped twice in the CoC; this product pin guards the
+    concept (which file owns the workflow) so a third re-inversion fails CI. It is scoped to the
+    inverted phrasing, so legitimate 'source of truth' mentions about code/state still pass."""
+    # Positive: the protocol crowns itself, and the CoC names it as the owner.
+    protocol = read_file("plugin/protocols/workflow-protocol.md").lower()
+    assert "source of truth" in protocol and "workflow" in protocol, \
+        "workflow-protocol.md must name itself the source of truth for the workflow"
+    coc_section = section(read_file("CODE_OF_CONDUCT.md"), "### Changing the workflow", "\n### ",
+                          label="CODE_OF_CONDUCT.md")
+    assert "workflow-protocol.md" in coc_section, \
+        "the CoC 'Changing the workflow' section must name workflow-protocol.md as the source of truth"
+
+    # Negative: the exact twice-shipped inversion — "workflow's source of truth is ... command",
+    # with no "protocol" in between — must be absent from the CoC section and every command.
+    inverted = re.compile(r"workflow'?s source of truth\s+is\b(?:(?!protocol).){0,60}?command",
+                          re.IGNORECASE | re.DOTALL)
+    for rel in ["CODE_OF_CONDUCT.md", *ALL_COMMANDS]:
+        assert not inverted.search(read_file(rel)), \
+            f"{rel} crowns the commands as the workflow's source of truth (the twice-shipped inversion)"

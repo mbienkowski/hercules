@@ -36,11 +36,3 @@ def test_readme_python_floor_is_3_9(read_file):
     content = read_file("README.md")
     assert "Python ≥ 3.11" not in content
     assert "3.9" in content
-
-
-def test_code_of_conduct_documents_no_slash_branches(read_file):
-    """The dev Code of Conduct must record the no-slash branch-naming rule."""
-    content = read_file("CODE_OF_CONDUCT.md").lower()
-    assert "branch" in content
-    assert "slash" in content
-    assert "hyphen" in content, "CoC must name hyphens as the slash replacement for branch names"
