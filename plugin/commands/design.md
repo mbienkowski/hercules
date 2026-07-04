@@ -34,7 +34,7 @@ Read the confirmed `*-business-requirements.md`. Extract every distinct requirem
 
 ## Step 3 — Codebase constraint scan & read tier
 
-Read the code-of-conduct file (any capitalization) and any ADRs or API contracts the requirements reference, and scan the codebase for the surface this feature will touch (existing classes, modules, contracts). This scan feeds each spec's `## Affected code` section (do not scan again later) and bounds the Step 4 questions.
+Read the project's code-of-conduct (resolve it per `CLAUDE.md § Code-of-conduct resolution`) and any ADRs or API contracts the requirements reference, and scan the codebase for the surface this feature will touch (existing classes, modules, contracts). This scan feeds each spec's `## Affected code` section (do not scan again later) and bounds the Step 4 questions.
 
 Read the session's `tier` from the project's state file (`~/.hercules/state/{slug}.json`). Complexity was scored once in Discover — **do not re-score it**; if the scan shows it was mis-scored, surface that and let the user override.
 

@@ -44,7 +44,7 @@ Run `git status --short` and `git diff --stat HEAD`. If the working tree is clea
 - Never add AI attribution trailers to the message.
 - For breaking changes (removed public API, migration files, altered public signatures): propose a `BREAKING CHANGE:` footer.
 
-**Push target.** Read the project's code-of-conduct file (any capitalization) and infer push preference from its prose (branch protection, CI conventions, PR requirements). Propose `push to origin/{current-branch}`, or omit if no remote is configured. The user can change this in the plan.
+**Push target.** Read the project's code-of-conduct (resolve it per `CLAUDE.md § Code-of-conduct resolution`) and infer push preference from its prose (branch protection, CI conventions, PR requirements). Propose `push to origin/{current-branch}`, or omit if no remote is configured. The user can change this in the plan.
 
 **Plan format:**
 ```

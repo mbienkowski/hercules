@@ -70,7 +70,7 @@ For each spec in delivery order, run this cycle, announcing `"Spec N of M"`. Spa
 9. **Write the checkpoint.** Append a `build_progress` entry to the session in state: the spec's acceptance criteria + `satisfies:` links, key decisions, interfaces, the named tests added, coverage %, mutation %, accepted-equivalent reasons, and constraints later specs must respect.
 10. **Retire the spec.** As the **last** action for this spec, `git rm docs/{session}/{spec-filename}` (plain delete if never committed) — code is now the only source of truth — or, with `keep_specs: true`, keep the file and refresh it to match what shipped (present-tense). Update the session in state atomically (temp + rename): set `current_spec` to the next pending spec (or unset if none remain), append the filename to `delivered_specs`, drop it from `pending_specs`, remove `current_spec_round`, clear `frozen_test_files` and `frozen_override`. Multi-service: prefix spec references with `"{service}/"`.
 
-For a spec scoped to a service (named in its `## Scope`): announce `"Now working in {service} at {local-path}."`, read `{service-path}/code-of-conduct.md` if present (it overrides the home CoC), and build absolute paths as `{service-path}/{path-from-repo-root}` for every Read/Write/Edit and Bash run — never a bare relative path.
+For a spec scoped to a service (named in its `## Scope`): announce `"Now working in {service} at {local-path}."`, resolve that service's code-of-conduct (§ CoC resolution; overrides the home CoC), and build absolute paths as `{service-path}/{path-from-repo-root}` for every Read/Write/Edit and Bash run — never a bare relative path.
 
 ## Cross-check validation (after all specs)
 

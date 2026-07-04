@@ -170,8 +170,10 @@ mutation kill rate**, both gated in CI on every PR.
 - **Pin the product, not this guide.** Tests pin commands, agents, protocols, and hooks — the enforced
   surfaces; this document stays editable and is not itself pinned sentence-by-sentence.
 - **Budgets are fixed.** The token/instruction budgets in `tests/testdata/thresholds.json` are quality
-  gates — never silently raise a threshold or cut content to fit. Surface the breach, propose at least
-  three options, and let the maintainer choose; raise a limit only on their explicit word.
+  gates, not obstacles — every token a command, agent, or skill carries is consumed on every run,
+  eating the context an AI agent needs to edit code well, so more tokens mean lower output quality.
+  Never silently raise a threshold or cut content to fit: surface the breach, propose at least three
+  options, and let the maintainer choose; raise a limit only on their explicit word.
 - **Assert the present state, not the past** — pair every absence check with a positive companion
   assertion or a named, ongoing risk it guards, or it is cosmetic.
 - **Prove it works, don't assert it "should."** A green suite is necessary, not sufficient — verify a

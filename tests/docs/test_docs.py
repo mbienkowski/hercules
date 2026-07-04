@@ -336,3 +336,26 @@ def test_workflow_source_of_truth_is_the_protocol(read_file):
     for rel in ["CODE_OF_CONDUCT.md", *ALL_COMMANDS]:
         assert not inverted.search(read_file(rel)), \
             f"{rel} crowns the commands as the workflow's source of truth (the twice-shipped inversion)"
+
+
+def test_claude_md_defines_code_of_conduct_resolution(read_file):
+    """The CoC is resolved by a matcher in the correct repo — defined once in CLAUDE.md so every
+    phase resolves it the same way, never a fixed filename and never the path-nearest file."""
+    resolution = section(read_file("plugin/CLAUDE.md"),
+                         "## Code-of-conduct resolution", "\n## ", label="CLAUDE.md")
+    low = resolution.lower()
+    assert "any capitalization" in low or "case-insensitiv" in low, \
+        "resolution must match the CoC by name-pattern (any capitalization), not a fixed filename"
+    assert "repositories" in resolution and "directory" in resolution, \
+        "resolution must scope the CoC to the target repo (repositories[service] / directory)"
+    assert "nearest" in low or "closest" in low or "launch" in low, \
+        "resolution must forbid grabbing the launch/nearest-path CoC over the target repo's"
+    assert "validate" in low or "confirm" in low, \
+        "resolution must validate the match belongs to the target repo before trusting it"
+
+
+def test_build_service_coc_read_uses_the_matcher_not_a_fixed_name(read_file):
+    """Build's service-scoped CoC read must resolve by matcher (any capitalization), not a fixed
+    lowercase {service-path}/code-of-conduct.md that would miss CODE_OF_CONDUCT.md on Linux."""
+    assert "{service-path}/code-of-conduct.md" not in read_file("plugin/commands/build.md"), \
+        "build must not read a fixed-lowercase service CoC path — resolve it by matcher"

@@ -73,6 +73,23 @@ under `~/.hercules/` (the registry `config.json` plus per-project `state/{slug}.
 `~/.hercules` is install-and-state only and never holds project documents; commands show paths
 relative to the resolved root as `docs/`.
 
+## Code-of-conduct resolution
+
+Every phase reads the project's code-of-conduct for its stack, conventions, and quality bar. Resolve it
+by a matcher, never a fixed filename: it may be `code-of-conduct.md`, `CODE_OF_CONDUCT.md`, or any
+capitalization — `-`/`_`/space or no separator between the words, extension `.md`, in the repo root,
+`.github/`, or `docs/` — so find it case-insensitively (`find -iname 'code[-_ ]of[-_ ]conduct.md'`; the
+anchored form `(?i)^code[-_ ]?of[-_ ]?conduct\.md$` matches any casing but not a lookalike like
+`code-of-conduct-draft.md`). Read it from the repository the work targets, not the nearest path: a
+service-scoped spec uses that service's repo (`repositories[service]`), otherwise the home code repo
+(`directory`); when Claude is launched in a docs/requirements repo whose code lives elsewhere, the
+governing CoC is the code repo's, never the launch/artifact repo's just because it is closest to the
+working directory (a service CoC overrides the home CoC for that service's work). Then validate before
+trusting it — confirm the match is a real code-of-conduct at the target repo's root/`.github/`/`docs/`,
+not a lookalike or another repo's file; on more than one match don't silently pick (show them and
+confirm), and with none in the target repo infer conventions from that repo's own code and tests, and
+say so.
+
 ## Delivery workflow
 
 Four sequential steps, each a wizard command. **Every step opens in plan mode** — opened with
