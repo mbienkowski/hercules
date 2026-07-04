@@ -218,12 +218,12 @@ def test_persona_version_read_is_not_hardcoded(read_file):
 
 
 def test_persona_reads_plugin_json_live(read_file):
-    """Asked its version, Hercules reads ${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json
-    (the variable substitutes in agent content) and reports its version field — live and
-    single-sourced, so a branch and a release show whatever plugin.json actually carries."""
+    """Asked its version, Hercules reads plugin.json from the .claude-plugin/ folder in this
+    plugin's directory (located generically, no path variable) and reports its version field —
+    live and single-sourced, so a branch and a release show whatever plugin.json actually carries."""
     persona = read_file("plugin/agents/hercules.md")
-    assert "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json" in persona, \
-        "hercules.md must point the version read at ${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json"
+    assert ".claude-plugin/" in persona and "plugin.json" in persona, \
+        "hercules.md must instruct reading plugin.json from the .claude-plugin/ folder"
     assert "version" in persona, "hercules.md must report the plugin.json version field"
 
 

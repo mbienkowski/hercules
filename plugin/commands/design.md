@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # /hercules:design
 
-Turn a business requirement into numbered technical specs ready for Build. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live at `${CLAUDE_PLUGIN_ROOT}` — the plugin install root (else the parent of this command's dir), not this repo.
+Turn a business requirement into numbered technical specs ready for Build. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
 
 **Plan mode — required.** Call `EnterPlanMode` at the start. Every draft is a full inline proposal; iterate freely; always regenerate the complete draft — never patch sections. At the **Plan approval** gate, on the user's approval, call `ExitPlanMode` (`auto`), then write.
 

@@ -304,44 +304,50 @@ def test_no_command_carries_the_fake_skill_dir_variable(read_file):
             f"{rel} cites the fake ${{CLAUDE_SKILL_DIR}} variable — use ${{CLAUDE_PLUGIN_ROOT}}"
 
 
-def test_commands_cite_bundled_plugin_files_via_plugin_root(read_file):
+def test_commands_cite_bundled_plugin_files_generically(read_file):
     """Plugin CLAUDE.md and protocols/ are NOT loaded into consumer sessions (per the plugins
     reference: 'A CLAUDE.md file at the plugin root is not loaded as project context') and
-    relative paths resolve against the consumer's repo. Every command anchors its plugin-file
-    citation to ${CLAUDE_PLUGIN_ROOT} — the real, documented install-root variable — with a
-    prose fallback for the case a command body does not substitute it. Unconditional: no guard
-    that can vacuously skip."""
+    relative paths resolve against the consumer's repo. Every command locates them GENERICALLY —
+    in this plugin's own directory (the parent of the folder holding the command file) — without
+    depending on a path variable substituting, so it works whether or not any variable expands."""
     for rel in _ALL_COMMANDS:
-        assert "${CLAUDE_PLUGIN_ROOT}" in read_file(rel), \
-            f"{rel} must anchor plugin-file citations to ${{CLAUDE_PLUGIN_ROOT}}"
+        md = read_file(rel)
+        assert "this plugin's directory" in md, \
+            f"{rel} must locate plugin files in this plugin's directory (generic, no variable)"
 
 
-def _expand_braces(path: str) -> list[str]:
-    """Expand a `{a,b,c}` brace group in a cited path (e.g. commands/{discover,design}.md)."""
-    m = re.search(r"\{([^{}]*)\}", path)
-    if not m:
-        return [path]
-    expanded = []
-    for option in m.group(1).split(","):
-        expanded.extend(_expand_braces(path[: m.start()] + option + path[m.end() :]))
-    return expanded
+def test_agent_facing_prose_uses_no_path_variable(repo_root):
+    """Agent-facing instructions (commands, agents, skills) locate plugin files by a generic
+    plain-language approach, never by depending on a ${CLAUDE_PLUGIN_ROOT}/${CLAUDE_SKILL_DIR}
+    substitution — a variable that may not expand in this context. Path variables are only for
+    runtime hook configs (hooks.json / hook code), which this guard deliberately excludes."""
+    md_files = [
+        *(repo_root / "plugin" / "commands").glob("*.md"),
+        *(repo_root / "plugin" / "agents").glob("*.md"),
+        *(repo_root / "plugin" / "skills").glob("*/SKILL.md"),
+    ]
+    for path in md_files:
+        text = path.read_text()
+        for var in ("${CLAUDE_PLUGIN_ROOT}", "${CLAUDE_SKILL_DIR}"):
+            assert var not in text, \
+                f"{path.name} depends on {var} substituting — use the generic locate instead"
 
 
-def test_cited_plugin_paths_resolve_under_plugin(repo_root, read_file):
-    """Turn the manual 'do the cited plugin files exist' probe into a CI guard: every path a
-    command or the persona anchors to ${CLAUDE_PLUGIN_ROOT} must exist under plugin/. Catches a
-    relayout that silently breaks resolution — without needing a live run."""
+def test_cited_plugin_paths_resolve_under_plugin(repo_root):
+    """The plugin files that commands and the persona tell the agent to read must exist under
+    plugin/ — a relayout that moved or renamed one would silently break resolution. This is the
+    static half; the agent locates them generically (by directory + search) at runtime."""
     plugin = repo_root / "plugin"
-    sources = [*_ALL_COMMANDS, "plugin/agents/hercules.md"]
-    ref_re = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([A-Za-z0-9_./{},\-]+)")
-    checked = 0
-    for rel in sources:
-        for raw in ref_re.findall(read_file(rel)):
-            for path in _expand_braces(raw.rstrip(".,`")):
-                assert (plugin / path).exists(), \
-                    f"{rel} cites ${{CLAUDE_PLUGIN_ROOT}}/{path} but plugin/{path} does not exist"
-                checked += 1
-    assert checked, "no ${CLAUDE_PLUGIN_ROOT} citations found — did the resolution fix regress?"
+    must_exist = [
+        "CLAUDE.md",
+        ".claude-plugin/plugin.json",
+        "protocols/a2a-communication-protocol.md",
+        "protocols/workflow-protocol.md",
+        "commands/discover.md", "commands/design.md",
+        "commands/build.md", "commands/ship.md", "commands/workflow.md",
+    ]
+    for rel in must_exist:
+        assert (plugin / rel).exists(), f"cited plugin path missing: plugin/{rel}"
 
 def _documented_and_referenced_state_fields(read_file):
     """(documented set, referenced set, commands text) for the CLAUDE.md↔commands schema guard.

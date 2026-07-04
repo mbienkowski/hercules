@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # /hercules:ship
 
-Stage, commit, and optionally push the delivered work. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live at `${CLAUDE_PLUGIN_ROOT}` — the plugin install root (else the parent of this command's dir), not this repo.
+Stage, commit, and optionally push the delivered work. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
 
 **Plan mode — required.** Call `EnterPlanMode`; present a complete Ship plan; at the **Plan approval** gate — *you approve the phase after reviewing the plan* — when the user says **"approved"** or clicks **Accept**, call `ExitPlanMode` (`auto`), then execute all steps automatically — no further questions.
 

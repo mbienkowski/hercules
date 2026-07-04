@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # /hercules:build
 
-Plan the delivery, then execute the approved specs with TDD and full traceability. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live at `${CLAUDE_PLUGIN_ROOT}` — the plugin install root (else the parent of this command's dir), not this repo.
+Plan the delivery, then execute the approved specs with TDD and full traceability. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
 
 **Plan mode — required.** Build opens in plan mode: call `EnterPlanMode`, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
 
