@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py\""
+            "command": "python3",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py"]
           }
         ]
       }

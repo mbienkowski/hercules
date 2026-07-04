@@ -11,9 +11,10 @@ so it is runtime-*mediated*, not tamper-proof against a model that rewrites its 
 Fail policy: fail OPEN (allow) whenever no active build session resolves — a fresh repo, a
 non-Hercules repo, Hercules's own development, or any parse error — so the hook never bricks
 an unrelated edit. It only blocks when a confirmed active build owns the target as a frozen
-test. Invoked as `python3 "${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py"` (no shebang;
-interpreter resolution is Claude Code's PATH lookup). Where `python3` is not on PATH —
-e.g. stock Windows — the command fails, Claude Code proceeds, and the guard is absent by
+test. Invoked in hook exec form (`command: "python3"`, `args:
+["${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py"]`) — Claude Code spawns `python3` directly (no
+shebang, no shell), resolving it on PATH. Where no `python3` is found — e.g. stock Windows,
+which ships `python`/`py` — the spawn fails, Claude Code proceeds, and the guard is absent by
 the fail-open policy rather than broken.
 """
 

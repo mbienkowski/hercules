@@ -137,7 +137,12 @@ def _hook_wiring(repo_root, read_file):
     hook_rows = [r for r in _registry_rows(_section(read_file(_PROTOCOL), "registry")) if r[-1] == "hook"]
     pre = json.loads((repo_root / "plugin" / "hooks" / "hooks.json").read_text())["hooks"]["PreToolUse"]
     matchers = [entry["matcher"] for entry in pre]
-    commands = [h["command"] for entry in pre for h in entry["hooks"]]
+    # Fold exec-form `args` into the command string — the script path lives in `args` under exec
+    # form, in `command` under shell form; joining keeps the wiring checks form-agnostic.
+    commands = [
+        " ".join([h.get("command", "")] + list(h.get("args", [])))
+        for entry in pre for h in entry["hooks"]
+    ]
     return hook_rows, matchers, commands
 
 

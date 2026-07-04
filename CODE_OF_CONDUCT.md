@@ -86,15 +86,16 @@ Exception: `hercules.md`, the orchestrator persona.
 Hooks are the plugin's only **hard** enforcement — deterministic code Claude Code runs, which a model
 cannot rationalise past. They live in `plugin/hooks/` and auto-load via `plugin/hooks/hooks.json`.
 
-- **Stdlib-only Python, no shebang** — invoked as `python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<name>.py"`; no
-  jq/bash dependency, portable to Windows.
+- **Stdlib-only Python, no shebang** — invoked in hook exec form (`command: python3`, `args:
+  ["${CLAUDE_PLUGIN_ROOT}/hooks/<name>.py"]`); no jq/bash dependency, cross-platform.
 - **Read-only over `~/.hercules`, fail-open** — a hook never writes state (it would race the model's
-  atomic writes) and allows the action whenever no active build resolves. It must never crash a user's edit.
+  atomic writes) and allows the action whenever no active build resolves — or no `python3` is found. It
+  must never crash a user's edit.
 - **Honest scope.** It reads model-authored state, so it is **runtime-mediated, not tamper-proof** — say
   so, never "unbypassable." User-granted overrides (`frozen_override`, `frozen_hook: "off"`) are recorded
   state, not holes.
 - Every hook ships with executable tests under `tests/hooks/` plus a wiring test that its `hooks.json`
-  command resolves to a real script.
+  command/args resolve to a real script.
 
 ### Adding a skill
 
