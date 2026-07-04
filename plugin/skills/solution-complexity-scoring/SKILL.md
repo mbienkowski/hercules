@@ -1,6 +1,6 @@
 ---
 name: solution-complexity-scoring
-description: Score competing solution options on six prioritised dimensions and rank them lexicographically. Use in the Design pillar (medium+ complexity) when choosing between approaches, after the requirements exist. Produces a ranking and trade-off notes; writes no file of its own.
+description: Score competing solution options on six prioritised dimensions and rank them lexicographically. Use in the Design phase (medium+ complexity) when choosing between approaches, after the requirements exist. Produces a ranking and trade-off notes; writes no file of its own.
 ---
 
 # Solution Complexity Scoring

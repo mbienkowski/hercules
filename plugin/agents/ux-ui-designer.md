@@ -1,6 +1,6 @@
 ---
 name: ux-ui-designer
-description: Owns user flows, interaction design, UI consistency, and accessibility. Use in refinement and spec for any user-facing change to define the journey, states, and design-system fit before implementation. Reviews delivered UI against the intended experience.
+description: Owns user flows, interaction design, UI consistency, and accessibility. Use in the Discover and Design phases for any user-facing change to define the journey, states, and design-system fit before implementation. Reviews delivered UI against the intended experience.
 model: sonnet
 tools: Read, Grep, Glob
 ---

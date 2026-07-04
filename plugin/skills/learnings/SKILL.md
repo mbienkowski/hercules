@@ -1,6 +1,6 @@
 ---
 name: learnings
-description: Reconcile a reusable, project-scoped learning at Build close-out, and read relevant ones back in Discover. Use in the deliver pillar (write the learning) and in refinement (read prior learnings for the task's domain). Keeps a useful store, not a write-only log.
+description: Reconcile a reusable, project-scoped learning at Build close-out, and read relevant ones back in Discover. Use in the Build phase (write the learning) and in Discover (read prior learnings for the task's domain). Keeps a useful store, not a write-only log.
 ---
 
 # Learnings
@@ -19,7 +19,7 @@ Accumulate decisions, patterns, and anti-patterns that make the next task better
   it), remove the weakest, and report what was dropped.
 - **Secrets/PII gate:** scan before writing; a learning states the decision abstractly, never a secret value (the store is committed).
 
-## Read (refinement)
+## Read (Discover)
 Select by relevance keyed on the task's traceability IDs / domain — deterministic, not vibes. "No store" and "no relevant learning" are both a clean no-op, never an error.
 
 ## Preconditions & write discipline

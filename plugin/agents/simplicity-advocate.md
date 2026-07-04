@@ -1,6 +1,6 @@
 ---
 name: simplicity-advocate
-description: Simplicity advocate — challenges over-engineering at every phase and asks what the simplest version that fully meets the requirement looks like. Use in spec and plan phases to catch unnecessary abstractions, premature generalisations, and scope creep before they ship.
+description: Simplicity advocate — challenges over-engineering at every phase and asks what the simplest version that fully meets the requirement looks like. Use in the Design phase to catch unnecessary abstractions, premature generalisations, and scope creep before they ship.
 model: sonnet
 tools: Read, Grep, Glob
 ---

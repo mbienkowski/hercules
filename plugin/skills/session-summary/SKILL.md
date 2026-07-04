@@ -29,7 +29,7 @@ Reads the active session and produces a handoff note.
 **Next step:** {first pending spec} — {one sentence on what to do first}
 ```
 
-Omit `Handed off by` line if `handed_off_by` is absent from the project's entry.
+Omit `Handed off by` line if `handed_off_by` is absent from the active session.
 
 ## Output
 

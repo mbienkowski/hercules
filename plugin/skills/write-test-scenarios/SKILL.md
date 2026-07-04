@@ -1,6 +1,6 @@
 ---
 name: write-test-scenarios
-description: Generate failing, business-readable test scenarios from a source of truth — a spec section, the business requirements, or existing code. Test names state the business fact they verify. Tests scaffold to fail because the production interface is missing, not because the stub body forces a failure. Use in the Build pillar before implementation, or standalone to characterise existing code.
+description: Generate failing, business-readable test scenarios from a source of truth — a spec section, the business requirements, or existing code. Test names state the business fact they verify. Tests scaffold to fail because the production interface is missing, not because the stub body forces a failure. Use in the Build phase before implementation, or standalone to characterise existing code.
 ---
 
 # Write Test Scenarios

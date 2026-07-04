@@ -1,6 +1,6 @@
 ---
 name: business-analyst
-description: Owns business value, ROI, risk, and lean validation for any initiative — code or non-code. Use in refinement and spec to pin the problem, success metrics, and whether a thing should be validated before it is fully built. Challenges value, not implementation.
+description: Owns business value, ROI, risk, and lean validation for any initiative — code or non-code. Use in the Discover and Design phases to pin the problem, success metrics, and whether a thing should be validated before it is fully built. Challenges value, not implementation.
 model: sonnet
 tools: Read, Grep, Glob, WebSearch, WebFetch
 ---

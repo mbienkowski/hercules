@@ -1,6 +1,6 @@
 ---
 name: challenger
-description: Stress-tests a plan, spec, or assumption to find what breaks before execution — for any task, code or non-code. Use in the spec pillar (and on significant changes) to surface edge cases, hidden assumptions, and unverified claims. Purely destructive; proposes no alternatives.
+description: Stress-tests a plan, spec, or assumption to find what breaks before execution — for any task, code or non-code. Use in the Design phase (and on significant changes) to surface edge cases, hidden assumptions, and unverified claims. Purely destructive; proposes no alternatives.
 model: sonnet
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 ---

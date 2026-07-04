@@ -1,6 +1,6 @@
 ---
 name: maintainer
-description: Maintainability reviewer — answers whether a real human on-call could find and fix an issue from logs alone, without AI help. Use in spec and plan phases to validate log readability/impact, check for PII in observable outputs, and verify project structure matches its documentation.
+description: Maintainability reviewer — answers whether a real human on-call could find and fix an issue from logs alone, without AI help. Use in the Design phase to validate log readability/impact, check for PII in observable outputs, and verify project structure matches its documentation.
 model: sonnet
 tools: Read, Grep, Glob, Bash
 ---

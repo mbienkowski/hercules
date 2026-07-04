@@ -11,7 +11,7 @@ human and custom-agent orchestrators who read files.
 
 ## complexity
 
-Every debate is classified before Round 1. Classification is the orchestrator's responsibility, performed before dispatching Round 1 agents.
+Every debate is classified before Round 1 — the orchestrator's responsibility, performed before dispatching Round 1 agents. Inside the delivery workflow the complexity **is** the session tier (scored once in Discover, never re-derived — `workflow-protocol.md` G7); an ad-hoc debate outside a workflow gate is classified on its own.
 
 | complexity | Definition | Rounds |
 |------------|-----------|--------|
