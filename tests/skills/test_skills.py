@@ -2,8 +2,14 @@
 
 import json
 import re
+from pathlib import Path
 
 import pytest
+
+_PLUGIN = Path(__file__).resolve().parents[2] / "plugin"
+# Module-level lists so tests can parametrize over each file (one cell per file).
+_SKILL_PATHS = sorted(_PLUGIN.glob("skills/*/SKILL.md"))
+_DOC_FILES = sorted(_PLUGIN.glob("commands/*.md")) + _SKILL_PATHS + sorted(_PLUGIN.glob("agents/*.md"))
 
 
 _SKILL_LIST = [
@@ -49,40 +55,26 @@ def test_all_five_skills_are_present(repo_root):
     )
 
 
-def test_each_skill_file_declares_its_purpose_and_preconditions(repo_root, skill_files):
-    """Every skill must declare its use-case and active skills must define a precondition stop clause."""
-    # Given / When / Then
-    for path in skill_files:
-        md = path.read_text()
-        lower = md.lower()
-        name = path.parent.name
-
-        assert md.startswith("---"), f"{path.parent.name}/SKILL.md must open with YAML frontmatter"
-
-        m = _SKILL_NAME_RE.search(md)
-        assert m is not None, f"{path.parent.name}/SKILL.md frontmatter missing `name:`"
-        assert m.group(1) == name, (
-            f"{path.parent.name}/SKILL.md frontmatter name={m.group(1)!r} must match directory {name!r}"
-        )
-        assert "description:" in md, f"{path.parent.name}/SKILL.md frontmatter missing `description:`"
-
-        desc_m = re.search(r"(?m)^description:\s*(.+)$", md)
-        assert desc_m, f"{path.parent.name}/SKILL.md frontmatter missing a description value"
-        desc = desc_m.group(1).lower()
-        assert any(t in desc for t in ("use ", "use in", "use on", "use when", "use to")), (
-            f"{path.parent.name}/SKILL.md description must state WHEN to use the skill"
-        )
-        assert "code-of-conduct.md" in md, (
-            f"{path.parent.name}/SKILL.md must reference code-of-conduct.md"
-        )
-
-        if name in _ACTIVE_SKILLS:
-            assert "precondition" in lower, (
-                f"{path.parent.name}/SKILL.md (active skill) must declare a Preconditions clause"
-            )
-            assert re.search(r"\bstop\b", lower), (
-                f"{path.parent.name}/SKILL.md (active skill) must hard-stop on precondition miss"
-            )
+@pytest.mark.parametrize("path", _SKILL_PATHS, ids=lambda p: p.parent.name)
+def test_each_skill_file_declares_its_purpose_and_preconditions(path):
+    """Every skill declares its use-case; active skills also define a precondition hard-stop clause."""
+    md = path.read_text()
+    lower = md.lower()
+    name = path.parent.name
+    assert md.startswith("---"), f"{name}/SKILL.md must open with YAML frontmatter"
+    m = _SKILL_NAME_RE.search(md)
+    assert m is not None, f"{name}/SKILL.md frontmatter missing `name:`"
+    assert m.group(1) == name, f"{name}/SKILL.md frontmatter name={m.group(1)!r} must match directory {name!r}"
+    assert "description:" in md, f"{name}/SKILL.md frontmatter missing `description:`"
+    desc_m = re.search(r"(?m)^description:\s*(.+)$", md)
+    assert desc_m, f"{name}/SKILL.md frontmatter missing a description value"
+    assert any(t in desc_m.group(1).lower() for t in ("use ", "use in", "use on", "use when", "use to")), \
+        f"{name}/SKILL.md description must state WHEN to use the skill"
+    assert "code-of-conduct" in lower, \
+        f"{name}/SKILL.md must reference the project's code-of-conduct (any capitalization)"
+    if name in _ACTIVE_SKILLS:
+        assert "precondition" in lower, f"{name}/SKILL.md (active skill) must declare a Preconditions clause"
+        assert re.search(r"\bstop\b", lower), f"{name}/SKILL.md (active skill) must hard-stop on precondition miss"
 
 
 def test_skills_carry_no_framework_assumptions(repo_root, skill_files):
@@ -104,28 +96,13 @@ def test_skills_carry_no_framework_assumptions(repo_root, skill_files):
     )
 
 
-def test_hercules_commands_use_double_dash_prefix(repo_root, command_files, skill_files, agent_files):
-    """All plugin docs must use 'hercules --<subcommand>', never the bare form.
-
-    The bare form is forwarded to claude as a prompt instead of running natively.
-    This test walks commands/, skills/, AND agents/ so none can drift.
-    """
-    # Given
-    all_files = list(command_files) + list(skill_files) + list(agent_files)
-    violations = []
-
-    # When
-    for path in all_files:
-        md = path.read_text()
-        hit = _BARE_SUBCOMMAND_RE.search(md)
-        if hit:
-            violations.append(f"{path.relative_to(repo_root)}: {hit.group()!r}")
-
-    # Then
-    assert not violations, (
-        "Files using bare subcommand form (should be 'hercules --<name>'):\n"
-        + "\n".join(f"  {v}" for v in violations)
-    )
+@pytest.mark.parametrize("path", _DOC_FILES, ids=lambda p: p.stem)
+def test_plugin_doc_uses_double_dash_subcommand_prefix(path):
+    """All plugin docs (commands/, skills/, agents/) must use 'hercules --<subcommand>', never the
+    bare form — the bare form is forwarded to claude as a prompt instead of running natively."""
+    hit = _BARE_SUBCOMMAND_RE.search(path.read_text())
+    assert hit is None, \
+        f"{path.name} uses the bare subcommand form {hit.group()!r} — write 'hercules --<name>'"
 
 
 
@@ -219,11 +196,46 @@ def test_code_of_conduct_generator_defines_required_sections(repo_root):
 
 
 def test_code_of_conduct_generator_detects_file_naming_convention(repo_root):
-    """code-of-conduct-generator must infer the filename casing from the repo before proposing a name."""
-    md = (repo_root / _COC_GENERATOR).read_text()
-    lower = md.lower()
-    assert "uppercase" in lower or "lowercase" in lower or "casing" in lower, \
-        "code-of-conduct-generator must detect repo file-naming convention before writing"
+    """The generator finds an existing code-of-conduct case-insensitively — a repo may carry
+    `code-of-conduct.md` or `CODE_OF_CONDUCT.md` (on Linux, two distinct files) — so an
+    uppercase-only repo is not mistaken for having no standards."""
+    md = (repo_root / _COC_GENERATOR).read_text().lower()
+    assert "case-insensitiv" in md, \
+        "the generator must scan for the code-of-conduct file case-insensitively"
+    assert "any capitalization" in md or "any casing" in md, \
+        "the generator must state any capitalization of the filename counts as the same file"
+
+
+def test_coc_filename_regex_matches_any_casing():
+    """The detection regex is case-insensitive and separator-tolerant but ANCHORED — it matches
+    the real file at any casing and rejects a draft/variant that is not the code-of-conduct."""
+    coc_re = re.compile(r"(?i)^code[-_ ]of[-_ ]conduct\.md$")
+    for name in ("code-of-conduct.md", "CODE_OF_CONDUCT.md", "Code-Of-Conduct.md", "code_of_conduct.md"):
+        assert coc_re.match(name), f"{name} should be detected as a code-of-conduct file"
+    for name in ("code-of-conduct-draft.md", "code-of-conduct-v2.md", "conduct.md", "codeofconduct.md"):
+        assert not coc_re.match(name), f"{name} must NOT be treated as the code-of-conduct"
+
+
+def test_skills_read_the_coc_case_insensitively(skill_files):
+    """A skill that reads the project code-of-conduct must find it at any capitalization — a
+    'Read `code-of-conduct.md`' / '`code-of-conduct.md` if present' instruction misses
+    CODE_OF_CONDUCT.md on Linux (the same file). Naming references are not matched here."""
+    forbidden = ("`code-of-conduct.md` if present", "Read `code-of-conduct.md`", "read `code-of-conduct.md`")
+    for path in skill_files:
+        text = path.read_text()
+        for pat in forbidden:
+            assert pat not in text, \
+                f"{path.parent.name}/SKILL.md: '{pat}' is a fixed-lowercase CoC read — use 'any capitalization'"
+
+
+def test_generator_documents_multi_match_precedence(read_file):
+    """With >1 code-of-conduct match (e.g. a lowercase technical file AND a .github community
+    doc), the generator must never silently pick one — it surfaces what it found and confirms."""
+    skill = read_file(_COC_GENERATOR).lower()
+    assert "more than one" in skill or "multiple" in skill, \
+        "generator must address the multi-match case"
+    assert "never silently" in skill or "confirm" in skill, \
+        "on multiple matches the generator must confirm with the user, not silently pick"
 
 
 def test_code_of_conduct_generator_handles_existing_coc_safely(repo_root):
@@ -238,3 +250,52 @@ def test_code_of_conduct_generator_handles_existing_coc_safely(repo_root):
         "code-of-conduct-generator must perform gap analysis when re-running against an existing CoC"
     assert "addition" in lower or "append" in lower or "insert" in lower, \
         "code-of-conduct-generator must describe the additions-only update strategy"
+
+
+def test_coc_generator_creates_lowercase_by_default(read_file):
+    """When NO code-of-conduct exists, the generator defaults the new file to the lowercase
+    `code-of-conduct.md` (uppercase CODE_OF_CONDUCT.md is GitHub's community-doc convention,
+    which would self-inflict the two-file collision). It never proposes uppercase unprompted."""
+    skill = read_file("plugin/skills/code-of-conduct-generator/SKILL.md")
+    assert "→ `CODE_OF_CONDUCT.md`" not in skill, \
+        "generator must not PROPOSE an uppercase output filename by default"
+    assert "`code-of-conduct.md`" in skill, \
+        "the default create name must be the lowercase code-of-conduct.md"
+
+
+def test_learnings_skill_names_the_phase_that_invokes_it(read_file):
+    """build.md invokes learnings at Build close-out (every tier); a 'ship time' trigger routes
+    the model to Ship — which never invokes it and runs prompt-free — so nothing gets written."""
+    skill = read_file("plugin/skills/learnings/SKILL.md")
+    if "ship time" in skill.lower():
+        assert "learnings" in read_file("plugin/commands/ship.md"), \
+            "learnings anchors to 'ship time' but only Build invokes it — rephrase the trigger"
+
+
+def test_generator_states_the_directive_budget(read_file):
+    """The bands must be the literal rule sentences, the ceiling must reconcile with the
+    ~150 adherence line (100 base + 70 = 170 — the trade must be admitted), and the
+    cut/merge advice must not contradict update mode's additions-only law."""
+    skill = read_file("plugin/skills/code-of-conduct-generator/SKILL.md")
+    assert "aim for\n**30–40** directives" in skill or "aim for **30–40** directives" in skill
+    assert "up to **50**" in skill
+    assert "**70 is the hard ceiling**" in skill
+    assert "one bullet = one directive" in skill, "the counting unit must be defined"
+    assert "adherence" in skill, \
+        "past-40 must admit the trade against the ~150 adherence line, not hide it"
+    assert "update mode" in skill and "never cut or merged" in skill, \
+        "the cut/merge advice must carve out update mode (additions only)"
+    assert "mutation tool exists" in skill or "mutation tool is present" in skill, \
+        "never suggest a mutation gate for a repo with no mutation tooling"
+
+
+def test_learnings_store_has_an_entry_budget_and_eviction_criterion(read_file):
+    """Discover reads the whole store, so it is instruction load like the CoC: the cap
+    must be the literal rule sentence and eviction criterion-driven."""
+    skill = read_file("plugin/skills/learnings/SKILL.md")
+    assert "keep **20–30** entries" in skill
+    assert "**40 is the hard ceiling**" in skill
+    low = skill.lower()
+    assert "universal" in low and "importan" in low, \
+        "eviction must be criterion-driven: keep by universality and importance"
+

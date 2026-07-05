@@ -1,210 +1,198 @@
 # Hercules — Code of Conduct
 
-Hercules enforces spec-driven discipline for its users. It holds itself to the same standard.
-This document is for **contributors** — the rules for extending or contributing to Hercules
-itself. How a user *runs* Hercules (the workflow, phases, and artifact conventions) lives in
-[`plugin/CLAUDE.md`](plugin/CLAUDE.md).
+Hercules enforces spec-driven discipline on its users; it holds itself to the same bar. This document
+is for **contributors** — the rules for extending Hercules itself. How a user *runs* Hercules (the
+workflow, phases, and artifact conventions) lives in [`plugin/CLAUDE.md`](plugin/CLAUDE.md).
 
 ---
 
 ## Development
 
+### Working principles
+
+- **Look 2–3 steps ahead.** Judge a change by what it forecloses; a narrow fix that blocks a likely
+  future need loses to the more general approach.
+- **Propose a change in five parts, in order:** quote the original, show the after, link the file(s),
+  state the need, state the approach.
+- **New files** state their purpose and structure up front and use self-descriptive, case-safe names.
+- **Single source of truth.** Each fact has one owning file; every other place references or injects
+  it, never restates it as its own source.
+
 ### Adding a command
 
-- File: `plugin/commands/{name}.md` — **lowercase only** (macOS is case-insensitive, Linux is not)
-- Must contain the `/hercules:{name}` trigger phrase in the body
-- Every delivery phase opens in plan mode and ends at one **Plan approval** gate, exiting with
-  `ExitPlanMode` (`auto`). Discover and Design present a document draft and write on approval; Build
-  presents a delivery plan and on approval auto-executes the per-spec TDD loop; Ship presents a commit
-  plan and on approval executes. Skills that operate without user approval (read-only queries, utility
-  transforms) may omit plan mode.
-- Must use `YYYY-MM-DD` date format in all artifact paths
-- Must point forward to the next phase at close-out
-- Must update the delivery workflow table in `plugin/CLAUDE.md`
-- Add a token budget entry to `tests/testdata/thresholds.json`
-- Step numbering uses integers only — no letter suffixes (no `4a` / `1b`)
+Commands are `plugin/commands/{name}.md` (lowercase — macOS is case-insensitive, Linux is not). Each:
+
+- Carries its `/hercules:{name}` trigger phrase and uses `YYYY-MM-DD` dates in every artifact path.
+- Opens in plan mode and ends at one **Plan approval** gate, exiting with `ExitPlanMode` (`auto`);
+  read-only or utility skills may omit plan mode.
+- Points forward to the next phase at close-out and updates the workflow table in `plugin/CLAUDE.md`.
+- Adds a token-budget row to `tests/testdata/thresholds.json`. Step numbers are integers — no `4a`/`1b`.
 
 ### Changing the workflow
 
-The workflow's source of truth is the command files (`plugin/commands/*.md`) and `plugin/CLAUDE.md`;
-its canonical picture is `docs/workflow/workflow-diagram-detailed.html`, which ships with Hercules.
-Keep the two in lock-step:
+The workflow lives in four files, each owning one thing:
 
-- **Any change to a phase or a sub-phase step — its definition, wording, or order — must be reflected
-  in `docs/workflow/workflow-diagram-detailed.html` in the same change.** The diagram never lags the
-  commands; a workflow edit is not done until the diagram matches.
-- If the change is visible at the four-phase level (a phase's purpose or its headline output), also
-  update `docs/workflow/workflow-diagram-simplified.svg` and the README.
-- The detailed diagram is HTML on purpose — it changes whenever the workflow does, and HTML is far
-  easier to keep in sync than a hand-built SVG. Keep it self-contained (no external assets) and
-  present-state (see § Documentation style).
+- **protocol** (`plugin/protocols/workflow-protocol.md`) — the source of truth for step order, hard
+  guardrails, and the delegation packet (`#packet`);
+- **commands** (`plugin/commands/*.md`) — operational prose and state mechanics, composing that packet per spawn;
+- **`plugin/CLAUDE.md`** — the state schema and the user-facing overview;
+- **diagram** (`docs/workflow/workflow-diagram-detailed.html`) — the picture.
+
+Keep them in lock-step:
+
+- Any change to a phase or step — its definition, wording, or order — lands in the protocol's phase
+  list / guardrail registry first, with the command and the detailed diagram never lagging it **in the
+  same change** (CLAUDE.md follows only when the state schema or overview changes). A `hook`-class
+  registry row must match a live `plugin/hooks/hooks.json` matcher (CI-verified).
+- If the change is visible at the four-phase level, also update the simplified diagram and the README.
+
+### The execution walk
+
+Commands are executed, not read. Before merging a command change, walk it step-by-step as the runtime
+agent:
+
+- Does the data each step reads exist yet? Is the tool allowed in this mode (plan mode blocks writes)?
+  Can the shell command succeed on a fresh repo (`git rm` fails on uncommitted files)?
+- A crash at any step boundary must leave a state the resume path recovers.
+- A gate must be satisfiable by what it gates — a "must fail" gate can't judge a rightly-green corrected test.
+
+### Changing what something means
+
+A behaviour change is done when the old meaning is **extinct**, not when the new one is written:
+
+- List every surface stating the old meaning — commands, `plugin/CLAUDE.md`, templates, agents, hook
+  messages, README, diagrams, tests, and protocols — and update each.
+- Grep the **concept**, not the string; old meanings hide in paraphrase.
 
 ### Adding an agent
 
-- File: `plugin/agents/{name}.md` — lowercase
-- Carries **no hardcoded stack or personal preferences** — project variance lives in each project's `code-of-conduct.md`
-- Replies follow the A2A `§ Agent-Injected Core` format (see `plugin/protocols/a2a-communication-protocol.md`)
-- Update the agent list in `plugin/CLAUDE.md` after adding
-- The list is pinned by `tests/` — run the suite to confirm no drift
+Agents are `plugin/agents/{name}.md` (lowercase). They carry **no hardcoded stack** (project variance
+lives in each project's `code-of-conduct.md`) and **no Hercules-internal literals** (`/hercules:*`,
+state fields like `current_spec`/`tier`, `*-spec-NN-*.md`) — that knowledge is injected at call time.
+Exception: `hercules.md`, the orchestrator persona.
+
+- A spec is read-only / write-once / **delete-once** (`git rm` at delivery); under a keep-specs
+  code-of-conduct the orchestrator refreshes it once at retire instead. An agent never updates a spec.
+- Replies follow the A2A `§ Agent-Injected Core` (`plugin/protocols/a2a-communication-protocol.md`).
+- Update the roster in **three places** — the agent list in `plugin/CLAUDE.md`, the `advisors[]` array
+  in `plugin/settings.json`, and `_ADVISOR_AGENTS` in `tests/agents/test_agents.py`; a sync test fails
+  on drift.
+- **Instruction load is a budget.** Say whose context new content lands in — a delegate's total stays
+  under ~150 directives (own file + packet + A2A core + the project CoC). Always-loaded content spends
+  everyone's headroom.
+
+### Hooks
+
+Hooks are the plugin's only **hard** enforcement — deterministic code Claude Code runs, which a model
+cannot rationalise past. They live in `plugin/hooks/` and auto-load via `plugin/hooks/hooks.json`.
+
+- **Stdlib-only Python, no shebang** — invoked in hook exec form (`command: python3`, `args:
+  ["${CLAUDE_PLUGIN_ROOT}/hooks/<name>.py"]`); no jq/bash dependency, cross-platform.
+- **Read-only over `~/.hercules`, fail-open** — a hook never writes state (it would race the model's
+  atomic writes) and allows the action whenever no active build resolves — or no `python3` is found. It
+  must never crash a user's edit.
+- **Honest scope.** It reads model-authored state, so it is **runtime-mediated, not tamper-proof** — say
+  so, never "unbypassable." User-granted overrides (`frozen_override`, `frozen_hook: "off"`) are recorded
+  state, not holes.
+- Every hook ships with executable tests under `tests/hooks/` plus a wiring test that its `hooks.json`
+  command/args resolve to a real script.
 
 ### Adding a skill
 
-- Directory: `plugin/skills/{name}/SKILL.md`
-- Must declare: phase-anchored trigger, precondition-then-stop guard, atomic/idempotent writes
-- Falls back gracefully when `code-of-conduct.md` is absent in the target project
+Skills are `plugin/skills/{name}/SKILL.md` — each declares a phase-anchored trigger, a
+precondition-then-stop guard, and atomic/idempotent writes, and falls back gracefully when a target
+project has no `code-of-conduct.md`.
 
-### Documentation style
+### Failure moments
 
-Prefer bullet points over prose blobs for anything a contributor needs to scan — checklists, term
-definitions, rule lists. Long inline lists → one bullet per item, with the term in bold:
+Users judge the product at its stops, not its happy path:
 
-- **Term:** definition — not `*Term* = definition` run together in a sentence.
-
-Apply this to glossaries, README callout boxes, and CoC rule lists. The goal: a developer scanning
-in 30 seconds should find any rule or definition without reading a full paragraph.
+- Every stop, refusal, or block gets a **scripted** message naming the next action — never a bare problem
+  statement or an internal field name as the remedy.
+- Name only exits that exist; a recipe must satisfy **its own validator** (code checks four fields → the
+  message names four).
+- A mechanism described on several surfaces has ONE **canonical** list; every echo matches verbatim.
 
 ### Branching
 
-- **Branch names must not contain slashes.** A `/` makes git create nested directories under
-  `.git/refs/heads/` (e.g. `claude/feature-x` becomes `refs/heads/claude/feature-x`), which clutters
-  the ref namespace and blocks a later branch from reusing that name as a leaf.
-- Use **hyphens** instead: `claude-feature-x`, not `claude/feature-x`.
+- **Branch names must not contain slashes** — a `/` makes git nest refs under `.git/refs/heads/` and
+  blocks a later branch from reusing that name. Use **hyphens**: `claude-feature-x`, not `claude/feature-x`.
 
 ### Invariants
 
-These rules are enforced by `tests/` — a change that breaks one fails CI:
+Enforced by `tests/` — a change that breaks one fails CI:
 
-- **Every shipped artifact has an owning test.** A new manifest, agent, command, or skill
-  ships only with a test that fails when it is missing or malformed.
-- **The plugin version is single-sourced.** `pyproject.toml` and `plugin/.claude-plugin/plugin.json`
-  must carry the same version; CI fails on drift.
+- **Every shipped artifact has an owning test.** A new manifest, agent, command, or skill ships only with
+  a test that fails when it is missing or malformed.
+- **The plugin version is single-sourced** — `pyproject.toml` and `plugin/.claude-plugin/plugin.json`
+  carry the same version; CI fails on drift.
+- **Red first, red possible forever.** A new test is born failing — write it before the feature, watch it
+  fail for the right reason, then make it pass. Anchor it so it stays able to fail; `"auto" in lower`
+  stays green on "automatically" — that's decoration, not a test.
+- **Pin both ends of a cross-file contract** — writer and reader, or one sync test. A reader-only pin
+  stays green while the deleted writer bricks the product.
 
 ---
 
 ## Documentation style
 
-Every doc, README, and diagram describes **the present state — what exists now**. Never write a
-before/after comparison, a changelog narrative, or "previously / today / used to / changed from /
-new vs old" framing in shipped docs. A reader who wants history runs `git diff` or reads the
-changelog. This keeps docs readable and prevents them from rotting into a pile of "we used to…" notes.
+Every doc, README, and diagram describes the **present state — what exists now**. No before/after,
+changelog narrative, or "previously / today / used to / new vs old" framing — history lives in `git diff`
+and the generated `CHANGELOG.md`.
 
-Bad → good:
-
-- ✗ "Mutation moved into the loop. Today's per-tier table is inverted; now it is flat."
-  → ✓ "The mutation gate runs per spec, before retire, at the threshold the code-of-conduct sets."
-- ✗ "⚑ New mechanism versus today" / "This reverses the earlier decision."
-  → ✓ Describe the mechanism as it is.
-- ✗ "Complexity is no longer re-scored in every phase."
-  → ✓ "Complexity is scored once in Discover and read forward."
-
-(The `CHANGELOG.md` is the one place history belongs; it is generated from Conventional Commits.)
+- Prefer **bullets over prose** for anything a contributor scans — one bullet per rule, the term in bold.
+- **One reading only** — every sentence admits exactly one interpretation; if it reads two ways, split or reword it.
+- **160-character** hard line cap on new and edited content (table rows, long URLs, the HTML diagram's
+  markup, and YAML values are the only exemptions).
+- **Prose is pinned.** Most sentences in `plugin/` are pinned by tests — `grep tests/` for a sentence
+  before rewording it; CI fails on silent drift.
 
 ---
 
 ## Testing
 
-One language, one runner: **Python**. Everything is a pytest test under `python -m pytest tests/` —
-the plugin-content lint and the A2A protocol/metric budgets.
+One language, one runner: **Python**. Everything is a pytest test under `python -m pytest tests/` — the
+code tests plus the plugin-content lint and the A2A/metric budgets.
 
 ```bash
-# Set up once
-pip install -e ".[dev]"
-
-# Run everything — CI gates on >= 90% branch coverage (make test)
-make test
-
-# Branch coverage, same gate as CI
-python -m pytest tests/ --cov=tests.metrics --cov-branch --cov-report=term-missing --cov-fail-under=90
+pip install -e ".[dev]"   # once
+make test                 # CI gate: >= 90% branch coverage
+make test-mutation        # CI gate: >= 90% mutation kill rate
 ```
 
-Hercules holds itself to the bar it enforces on its users: **>= 90% branch coverage** (gated by
-`make test`) and a **>= 90% mutation kill rate** (gated by `make test-mutation`). Both run in CI on
-every PR — practice what we preach.
+Hercules holds itself to the bar it enforces on its users: **>= 90% branch coverage** and a **>= 90%
+mutation kill rate**, both gated in CI on every PR.
 
-### End-to-end smoke (manual)
-
-The static suite (`tests/workflow/test_workflow_modes.py`) asserts the workflow commands carry the
-right phase/mode directives, but the harness's permission-mode state can't be inspected from the
-plugin. To verify the *effect* — that Discover → Design → Build → Ship actually produces its artifacts — run
-the workflow by hand against a throwaway repo (install the plugin from a local-path marketplace, then
-drive `/hercules:workflow`) and confirm a `*-business-requirements.md`, then `*-spec-NN-*.md`, then
-code + tests appear in order, followed by a committed git record. This is a release-time manual check, not a CI gate — it needs a Claude
-binary and credentials.
-
-### What's covered
-
-| Area | Where | Kind |
-|------|-------|------|
-| Marketplace + plugin manifests, default-agent persona, no-AGENT_TEAMS guard | `tests/plugin/test_plugin_integrity.py`, `tests/agents/test_agents.py` | unit + policy |
-| Docs match the marketplace reality; version single-sourced | `tests/docs/test_docs.py` | policy |
-| A2A protocol grammar and status vocabulary | `tests/metrics/test_a2a_grammar.py`, `tests/protocols/test_protocol_files.py` | unit + policy |
-| Instruction and token budget checks | `tests/metrics/test_threshold_runner.py`, `tests/plugin/test_plugin_integrity.py` | unit + data-driven |
-| Agent and skill file hygiene | `tests/agents/test_agents.py`, `tests/skills/test_skills.py` | policy |
-| Command file structure | `tests/commands/test_commands.py` | policy |
-
-### Adding a check
-
-**A threshold/budget check → add a row to `tests/testdata/thresholds.json`** (no Python change):
-
-```json
-{
-  "name": "my-file-token-budget",
-  "target": "plugin/commands/discover.md",
-  "metric": "token_count",
-  "op": "<=", "limit": 400, "warn_at": 320,
-  "severity": "warn"
-}
-```
-
-- `target` — a path, or a comma-separated list of paths/globs. For a glob/list the metric is
-  **summed** across all matched files.
-- `metric` — one of: `instruction_count`, `token_count`, `core_entry_count`, `core_token_count`.
-  Add new ones in `tests/metrics/threshold_runner.py` (`METRIC_REGISTRY`).
-- `op` — `==`, `<=`, `>=`, `<`, `>`.
-- `severity` — `gate` (fails the build) or `warn` (prints a warning, non-failing).
-- `warn_at` (optional) — emit a warning when the value crosses this soft line while still under
-  the hard `limit`.
-- `per_file` (optional) — when `true`, apply the limit to **each** matched file individually
-  (e.g. "every agent ≤ 800 tokens"), instead of summing the metric across the glob. The agent and
-  skill token budgets use this, so a new agent or skill is gated automatically — no new row needed.
-
-**A new metric → add a function to `tests/metrics/` and register it** in `METRIC_REGISTRY`.
-
-### Budgets are fixed — stop and ask before you bump or cut
-
-Token and instruction budgets in `tests/testdata/thresholds.json` are quality gates, not
-obstacles: every token a command/agent/skill carries is consumed at startup and on every run,
-eating context the model needs for good output. More tokens → less room to think → lower quality.
-
-When a change would breach a budget, the assistant is the **guardian of the gate**. It must
-**not** silently raise the threshold, and must **not** silently cut content to make room. Instead:
-
-1. **Stop and surface it.** State plainly which budget would be exceeded and by how much, e.g.
-   *"The token budget for the Discover phase (`discover.md`) would be exceeded — ~1390 / limit 1350."*
-2. **Propose at least three options** and recommend one, for example:
-   - **Tighten verbose prose** elsewhere in the file to absorb the addition (usually the best fit).
-   - **Move content out** — extract detail into a separate file/reference the phase links to.
-   - **Drop a lower-value instruction** to make room for the higher-value one.
-   - **Raise the threshold** — only if the maintainer explicitly chooses this.
-3. **Let the maintainer decide.** Apply only the chosen option.
-
-Raise a threshold **only** when the maintainer explicitly instructs it in their own words. Absent
-that explicit instruction, treat every threshold as immovable.
+- **A surviving mutant is a verdict** — a missing test (write it) or a better behaviour than the code
+  (adopt it). Never a `# pragma: no mutate` to silence it; that pragma is allowed only on static strings
+  whose mutants are all behaviourally equivalent, never on a branch, comparison, or return value.
+- **One target per test.** Each test asserts one behaviour; split any test longer than 20 lines, and
+  any test file longer than 500 lines.
+- **Pin the product, not this guide.** Tests pin commands, agents, protocols, and hooks — the enforced
+  surfaces; this document stays editable and is not itself pinned sentence-by-sentence.
+- **Budgets are fixed.** The token/instruction budgets in `tests/testdata/thresholds.json` are quality
+  gates, not obstacles — every token a command, agent, or skill carries is consumed on every run,
+  eating the context an AI agent needs to edit code well, so more tokens mean lower output quality.
+  Never silently raise a threshold or cut content to fit: surface the breach, propose at least three
+  options, and let the maintainer choose. Edit a budget **only on a direct user request to bump it** —
+  that is the single sanctioned path, reserved for a genuinely planned increase. An agent never bumps a
+  budget by default, on its own initiative, or as a side effect of another approved change; absent an
+  explicit "raise this budget" instruction, treat every threshold as immovable and fit the change to it.
+- **Assert the present state, not the past** — pair every absence check with a positive companion
+  assertion or a named, ongoing risk it guards, or it is cosmetic.
+- **Prove it works, don't assert it "should."** A green suite is necessary, not sufficient — verify a
+  change end-to-end with a real run before calling it done. The suite can't inspect Claude Code's
+  permission mode, so at release time drive `/hercules:workflow` by hand against a throwaway repo and
+  confirm the four phases produce their artifacts in order. That manual smoke is a release check, not
+  a CI gate.
 
 ### Tokens
 
-Token counts are computed offline with `tiktoken` (cl100k_base, no network call).
+Token counts use `tiktoken` (cl100k_base); the encoding is fetched once and cached. Set
+`TIKTOKEN_CACHE_DIR` to a persistent directory to run the suite offline (CI caches it there).
 
 ### Golden files
 
-The injected A2A Core is pinned byte-for-byte in `tests/testdata/core.golden`. After an
-intentional edit to the Core block, re-bless it:
-
-```bash
-cp plugin/protocols/a2a-communication-protocol.md /tmp/a2a.md  # then extract and overwrite core.golden
-```
-
-Or let the failing test tell you the expected value and paste it in.
-
-All methodology checks are gates, not warnings. A failing gate means the change violates a
-contract — fix the contract or the gate, not the test.
+The injected A2A Core is pinned byte-for-byte in `tests/testdata/core.golden`. After an intentional edit,
+re-bless it from the failing test's expected value. All methodology checks are gates, not warnings — a
+failing gate means the change broke a contract; fix the contract, not the test.

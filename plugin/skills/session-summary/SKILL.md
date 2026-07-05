@@ -15,7 +15,7 @@ Reads the active session and produces a handoff note.
 - The active session in the project's state file `~/.hercules/state/{slug}.json` (see `CLAUDE.md § Machine-local state`) — `current_spec`, `delivered_specs`, `pending_specs`, `handed_off_by`, `handoff_note`
 - Session artifacts in `docs/{active_session}/` — `*-business-requirements.md`, `*-spec-NN-*.md` (present ones only)
 - `docs/learnings.md` — entries matching the session tag
-- `code-of-conduct.md` if present — for project conventions that inform the "next step" note
+- the project's code-of-conduct (any capitalization) if present — for project conventions that inform the "next step" note
 
 **Produces:**
 
@@ -29,7 +29,7 @@ Reads the active session and produces a handoff note.
 **Next step:** {first pending spec} — {one sentence on what to do first}
 ```
 
-Omit `Handed off by` line if `handed_off_by` is absent from the project's entry.
+Omit `Handed off by` line if `handed_off_by` is absent from the active session.
 
 ## Output
 

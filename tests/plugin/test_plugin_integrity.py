@@ -1,6 +1,7 @@
 """Tests that verify plugin file hygiene and shared settings correctness."""
 
 import json
+import warnings
 import re
 from pathlib import Path
 
@@ -36,6 +37,10 @@ def test_all_token_budgets_are_within_defined_limits(repo_root):
     assert not failures, "Token budget gate failures:\n" + "\n".join(
         f"  {r.message}" for r in failures
     )
+    # warn_at exists to give a pre-limit signal — surface it, or it is a dead feature.
+    for r in results:
+        if r.near_warn:
+            warnings.warn(f"approaching budget limit: {r.message}", stacklevel=1)
 
 
 def test_plugin_files_all_use_lowercase_names(repo_root):

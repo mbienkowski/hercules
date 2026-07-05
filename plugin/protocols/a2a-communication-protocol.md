@@ -53,7 +53,7 @@ A2A Communication Protocol  (every agent-to-agent reply; any multi-agent workflo
    or generic praise is invalid. An unresolved vote ends your role; orchestrator escalates.
 7. Debate: classify complexity first — trivial=skip; low=R1 only; medium=R1+R2;
    high=R1+R2+R3; critical=R1+R2+R3+fresh-eyes(mandatory). R1 blind/parallel →
-   R2 cross-examine (all see R1; Agreement: N/5) → R3 re-invoke ≤4/5 agents only.
+   R2 cross-examine (all see R1; Agreement: N/5) → R3 re-invoke ≤3/5 agents only.
    Max 3 rounds, then synthesise. Fresh-eyes: new agents, no R1/R2 history.
 Example (review):   [QA] Blocker | auth_handler:42 lets an unauthenticated request reach the admin handler, exposing user data. | Gate the handler behind a session check.
 Example (non-eval): [RESEARCH] Info | Postgres 16 ships logical-replication failover, relevant to the HA requirement. | none
@@ -81,7 +81,8 @@ agents skip `CLAUDE.md`. Use all three channels:
 
 1. **Per-call `prompt` injection (mandatory)** — prepend the Agent-Injected Core to the
    delegation message of every sub-agent. This is the **only** channel that reaches built-in
-   Explore/Plan agents, and it lands closest to the task. Always do this.
+   Explore/Plan agents, and it lands closest to the task. Always do this. For workflow spawns,
+   the orchestrator prepends the delegation packet (`workflow-protocol.md#packet`) above the Core.
 2. **`CLAUDE.md` pointer (one line)** — reinforces custom/ad-hoc agents that do read it:
    `Agent-to-agent output follows a2a-communication-protocol.md § Agent-Injected Core.`
    A pointer, not a paste — `CLAUDE.md` text carries less weight and duplication wastes budget.
@@ -106,7 +107,7 @@ agents skip `CLAUDE.md`. Use all three channels:
 | N | Meaning | Effect |
 |---|---------|--------|
 | 5 | Full agreement | resolved |
-| 4 | Agree, minor reservation | resolved (reservation carried to synthesis) |
+| 4 | Agree, minor reservation | reservation → user's decision (not auto-resolved) |
 | 3 | Neutral | another round |
 | 0–2 | Disagree → strong conflict | another round; if it persists past the cap → open question for the user |
 

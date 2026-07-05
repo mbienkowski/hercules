@@ -10,6 +10,15 @@ from pathlib import Path
 
 import pytest
 
+# Delivery command file paths — shared so a rename updates one place, not two test modules
+# (test_commands.py and test_workflow_modes.py both need them).
+DISCOVER = "plugin/commands/discover.md"
+DESIGN = "plugin/commands/design.md"
+BUILD = "plugin/commands/build.md"
+WORKFLOW = "plugin/commands/workflow.md"
+SHIP = "plugin/commands/ship.md"
+ALL_COMMANDS = [DISCOVER, DESIGN, BUILD, WORKFLOW, SHIP]
+
 
 @pytest.fixture(scope="session")
 def repo_root() -> Path:
@@ -51,6 +60,23 @@ def read_file(repo_root: Path):
     def _read(rel: str) -> str:
         return (repo_root / rel).read_text()
     return _read
+
+
+def section(text: str, start: str, stop: str = None, *, label: str = "") -> str:
+    """Slice `text` from `start` up to `stop` (or the end), failing LOUDLY.
+
+    The prose-pin idiom `md[md.index(a):md.index(b)]` dies with a bare ValueError
+    naming neither the marker nor the file; this helper turns a missing or renamed
+    anchor into an actionable assertion. `stop` is searched AFTER `start`, so a
+    window can never silently invert or bind to an earlier occurrence.
+    """
+    i = text.find(start)
+    assert i != -1, f"section start marker not found{f' in {label}' if label else ''}: {start!r}"
+    if stop is None:
+        return text[i:]
+    j = text.find(stop, i + len(start))
+    assert j != -1, f"section stop marker not found after start{f' in {label}' if label else ''}: {stop!r}"
+    return text[i:j]
 
 
 @pytest.fixture

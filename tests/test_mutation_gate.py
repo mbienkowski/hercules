@@ -15,8 +15,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 from check_mutation_gate import main  # noqa: E402
 
 
-def _make_count_fn(killed: int, survived: int, timeout: int):
-    counts = {"killed": killed, "survived": survived, "timeout": timeout}
+def _make_count_fn(killed: int, survived: int, timeout: int, untested: int = 0,
+                   suspicious: int = 0):
+    counts = {"killed": killed, "survived": survived, "timeout": timeout,
+              "untested": untested, "suspicious": suspicious}
     return counts.__getitem__
 
 
@@ -60,4 +62,21 @@ def test_gate_fails_when_no_mutants_generated():
 def test_gate_fails_when_only_timeouts():
     # all timeout, no killed or survived → indeterminate, should exit 1
     exit_code = main(_make_count_fn(killed=0, survived=0, timeout=50))
+    assert exit_code == 1
+
+
+def test_gate_fails_on_an_incomplete_run(capsys):
+    """A crashed or interrupted mutmut run leaves mutants untested; computing the kill
+    rate over the tested subset and printing OK is a green gate over data that never
+    existed. Any untested mutant must fail the gate loudly."""
+    exit_code = main(_make_count_fn(killed=95, survived=5, timeout=0, untested=40))
+    err_out = capsys.readouterr()
+    assert exit_code == 1
+    assert "incomplete" in (err_out.err + err_out.out).lower()
+
+
+def test_gate_fails_on_suspicious_mutants(capsys):
+    """mutmut marks nondeterministic outcomes 'suspicious' — a kill rate that silently
+    ignores them cannot be trusted either way."""
+    exit_code = main(_make_count_fn(killed=95, survived=5, timeout=0, suspicious=3))
     assert exit_code == 1

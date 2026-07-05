@@ -11,8 +11,9 @@ typically contains 2–4 atomic directives.  Empirically that gives:
   sub-agent heuristic ≈ 20  →  ~50 atomic directives
   orchestrator realistic ≈ 43 →  ~110 atomic directives
 
-Gates are set relative to the "150 hard / 120 ideal" per-agent ceiling the user
-specified, scaled to the heuristic:  150 / 3 ≈ 50, 120 / 3 ≈ 40.
+Gates are set relative to the ~150-directive per-agent adherence ceiling, scaled to the
+heuristic (÷3) — and the delegate gate reserves the 30–40 directives the project
+code-of-conduct spends on top of shipped content: (150 − 40) / 3 ≈ 35.
 """
 
 from __future__ import annotations
@@ -25,14 +26,17 @@ import pytest
 # ── Thresholds ────────────────────────────────────────────────────────────────
 # Heuristic instruction blocks (1 block ≈ 2–4 atomic directives).
 # Gate = user's atomic ceiling ÷ 3 (conservative), rounded up to nearest 5.
-_SUB_AGENT_GATE   = 50   # agent .md + a2a injected core + CLAUDE.md
+_SUB_AGENT_GATE   = 35   # agent .md + delegation packet + a2a injected core (CoC reserved)
 _ORCHESTRATOR_GATE = 55  # CLAUDE.md + heaviest command + both protocols (no skills)
 _SKILL_GATE        = 20  # per individual skill invocation
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _count_instructions(text: str) -> int:
+def _count_instruction_blocks(text: str) -> int:
+    # Deliberately DIFFERENT semantics from tests/metrics/markdown_metrics.count_instructions:
+    # this budget counts numbered items inside fences and bold labels too, because a fenced
+    # example still costs the runtime agent attention. Keep the names distinct.
     """Count discrete instruction units in *text*."""
     lines = text.splitlines()
     count = 0
@@ -69,12 +73,12 @@ def _a2a_core_n(repo_root: Path) -> int:
     """Instruction count of the Agent-Injected Core section only (what sub-agents receive)."""
     a2a = (repo_root / "plugin/protocols/a2a-communication-protocol.md").read_text()
     core = _extract_section(a2a, "## Agent-Injected Core", "## Orchestrator Section")
-    return _count_instructions(core)
+    return _count_instruction_blocks(core)
 
 
 @pytest.fixture(scope="module")
 def _claude_md_n(repo_root: Path) -> int:
-    return _count_instructions((repo_root / "plugin/CLAUDE.md").read_text())
+    return _count_instruction_blocks((repo_root / "plugin/CLAUDE.md").read_text())
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
@@ -86,7 +90,7 @@ def test_sub_agent_instruction_budget(repo_root, agent_files, _a2a_core_n, _clau
     (prepended to every delegation prompt) + plugin/CLAUDE.md.
     """
     for agent_file in agent_files:
-        agent_n = _count_instructions(agent_file.read_text())
+        agent_n = _count_instruction_blocks(agent_file.read_text())
         total = agent_n + _a2a_core_n + _claude_md_n
         assert total <= _SUB_AGENT_GATE, (
             f"{agent_file.name}: {total} instruction blocks in sub-agent context "
@@ -96,26 +100,31 @@ def test_sub_agent_instruction_budget(repo_root, agent_files, _a2a_core_n, _clau
         )
 
 
+def _all_protocols_n(repo_root: Path) -> int:
+    """Instruction blocks across EVERY shipped protocol — a new protocol file must not slip
+    into the orchestrator's context uncounted (they are all loadable during a phase)."""
+    return sum(
+        _count_instruction_blocks(p.read_text())
+        for p in sorted((repo_root / "plugin/protocols").glob("*.md"))
+    )
+
+
 def test_orchestrator_instruction_budget(repo_root, _claude_md_n):
     """The main orchestrator context must stay under _ORCHESTRATOR_GATE.
 
-    Includes: CLAUDE.md + heaviest command (build.md) + full a2a protocol
-    + debate protocol.  Skills are excluded — they load one-at-a-time.
+    Includes: CLAUDE.md + heaviest command (build.md) + ALL protocols (a2a, debate,
+    workflow — any of them can be in context during a phase).  Skills are excluded —
+    they load one-at-a-time.
     """
-    a2a_n   = _count_instructions(
-        (repo_root / "plugin/protocols/a2a-communication-protocol.md").read_text()
-    )
-    debate_n = _count_instructions(
-        (repo_root / "plugin/protocols/debate-consensus-protocol.md").read_text()
-    )
+    protocols_n = _all_protocols_n(repo_root)
     # Worst-case command = build.md (most instructions of all four commands)
-    build_n = _count_instructions((repo_root / "plugin/commands/build.md").read_text())
+    build_n = _count_instruction_blocks((repo_root / "plugin/commands/build.md").read_text())
 
-    total = _claude_md_n + build_n + a2a_n + debate_n
+    total = _claude_md_n + build_n + protocols_n
     assert total <= _ORCHESTRATOR_GATE, (
         f"Main orchestrator context: {total} instruction blocks "
         f"(CLAUDE.md:{_claude_md_n} + build.md:{build_n} "
-        f"+ a2a:{a2a_n} + debate:{debate_n}) "
+        f"+ protocols:{protocols_n}) "
         f"— gate is {_ORCHESTRATOR_GATE}. "
         f"Trim a protocol or the build command."
     )
@@ -124,7 +133,7 @@ def test_orchestrator_instruction_budget(repo_root, _claude_md_n):
 def test_skill_instruction_budget(skill_files):
     """Each skill loaded during a Build session must stay under _SKILL_GATE."""
     for skill_file in skill_files:
-        n = _count_instructions(skill_file.read_text())
+        n = _count_instruction_blocks(skill_file.read_text())
         assert n <= _SKILL_GATE, (
             f"{skill_file.parent.name}/SKILL.md: {n} instruction blocks "
             f"— gate is {_SKILL_GATE}. Trim or split the skill."
@@ -137,16 +146,10 @@ def test_no_command_exceeds_orchestrator_contribution(repo_root, command_files, 
 
     Ensures a future heavy command can't silently blow the budget.
     """
-    a2a_n    = _count_instructions(
-        (repo_root / "plugin/protocols/a2a-communication-protocol.md").read_text()
-    )
-    debate_n = _count_instructions(
-        (repo_root / "plugin/protocols/debate-consensus-protocol.md").read_text()
-    )
-    base = _claude_md_n + a2a_n + debate_n
+    base = _claude_md_n + _all_protocols_n(repo_root)
 
     for cmd_file in command_files:
-        cmd_n = _count_instructions(cmd_file.read_text())
+        cmd_n = _count_instruction_blocks(cmd_file.read_text())
         total = base + cmd_n
         assert total <= _ORCHESTRATOR_GATE, (
             f"{cmd_file.name}: orchestrator total {total} blocks with this command "

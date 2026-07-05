@@ -1,10 +1,17 @@
+---
+description: Guided end-to-end delivery — all four Hercules phases in one flow
+disable-model-invocation: true
+---
+
 # /hercules:workflow
 
-Guided end-to-end delivery: all four phases in one flow.
+Guided end-to-end delivery: all four phases in one flow. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
 
 **Plan mode — required across all four phases.** Open each phase with `EnterPlanMode`; present a full inline proposal; at the **Plan approval** gate, on the user's "approved", call `ExitPlanMode` (`auto`) — the phase then writes or executes without further prompts — then `EnterPlanMode` for the next phase. Iterate freely; write only on approval. Never patch sections — always regenerate the complete draft.
 
 Guided end-to-end delivery: **Discover → Design → Build → Ship**. Runs all four phases in sequence with a human-approved transition between each. The more detail you put in early, the better the outcome.
+
+Phase commands are user-invoked skills, so on each transition run the phase by reading its file from the same directory as this file — `{discover,design,build,ship}.md` beside it — and executing its steps inline. Announce each entry ("Entering the **{Phase}** phase") and never ask the user to type a `/hercules:*` command to continue the guided flow.
 
 ---
 
@@ -23,11 +30,11 @@ Guided end-to-end delivery: **Discover → Design → Build → Ship**. Runs all
 
 *Purpose: pin the real need, not the first thing you said.*
 
-Run the full `/hercules:discover` flow (Steps 0–6). When all five discovery groups (Goal, Users, Scope, Constraints, Success criteria) are covered, complexity is classified, and the `*-business-requirements.md` draft is approved and saved, pause:
+Run the full `/hercules:discover` flow (Steps 0–7). When all five discovery groups (Goal, Users, Scope, Constraints, Success criteria) are covered, complexity is classified, and the `*-business-requirements.md` draft is approved and saved, pause:
 
 > I think we have a clear picture of what you want to build.
 > Before we move on — is there anything else you'd like to add or change here?
-> This is the right moment: once we move to Design, the requirements are locked.
+> This is the right moment — after this, requirement changes need a fresh Discover pass.
 >
 > Say **"move to Design"** or **"not yet"** to keep going here.
 
@@ -39,10 +46,10 @@ On "move to Design": announce "📐 Entering the **Design** phase." and continue
 
 *Purpose: turn the requirement into one or more self-contained specs and a delivery sequence.*
 
-Run the full `/hercules:design` flow (Steps 1–8), reading the `*-business-requirements.md` written in Phase 1. When the design is approved, stakeholder review is complete (or skipped), coverage gate passes, and the sub-spec files are saved, pause:
+Run the full `/hercules:design` flow (Steps 1–9), reading the `*-business-requirements.md` written in Phase 1. When the design is approved, stakeholder review is complete (or skipped), coverage gate passes, and the sub-spec files are saved, pause:
 
 > The specs and delivery sequence are solid. Before we move on — any final thoughts or changes here?
-> Once we move to Build, the specs are locked.
+> After this, spec changes go through `/hercules:design` again.
 >
 > Say **"move to Build"** or **"not yet"** to keep going here.
 
@@ -60,6 +67,8 @@ Run the full `/hercules:build` flow, reading `*-business-requirements.md` and th
 >
 > Review the diff, run the tests, make any final adjustments. When ready:
 > Say **"move to Ship"** or run `/hercules:ship` directly.
+
+On "move to Ship": announce "🚀 Entering the **Ship** phase." and continue.
 
 ---
 

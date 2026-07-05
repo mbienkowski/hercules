@@ -7,7 +7,7 @@ name = "hercules"
 version = "1.2.0"
 description = "Hercules — Claude Code plugin with AI-assisted delivery methodology enforcement"
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "AGPL-3.0" }
 requires-python = ">=3.9"
 dependencies = []
 
@@ -30,7 +30,7 @@ pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.mutmut]
-paths_to_mutate = "tests/metrics/"
+paths_to_mutate = "tests/metrics/,plugin/hooks/"
 paths_to_exclude = "test_*.py,__init__.py,conftest.py"
 backup = false
 runner = "python -m pytest tests/ -x -q --tb=no --no-header"

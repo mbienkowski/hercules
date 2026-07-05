@@ -1,6 +1,6 @@
 ---
 name: write-test-scenarios
-description: Generate failing, business-readable test scenarios from a source of truth — a spec section, the business requirements, or existing code. Test names state the business fact they verify. Tests scaffold to fail because the production interface is missing, not because the stub body forces a failure. Use in the Build pillar before implementation, or standalone to characterise existing code.
+description: Generate failing, business-readable test scenarios from a source of truth — a spec section, the business requirements, or existing code. Test names state the business fact they verify. Tests scaffold to fail because the production interface is missing, not because the stub body forces a failure. Use in the Build phase before implementation, or standalone to characterise existing code.
 ---
 
 # Write Test Scenarios
@@ -14,7 +14,7 @@ Translate a source of truth into failing test stubs the test runner will pick up
    - the **business requirements** (`*-business-requirements.md` section) when no spec exists yet,
    - or **existing code** (characterisation tests that pin current behaviour before a change).
    Read the named source for the scope before writing anything.
-2. **Infer the test framework.** Read `code-of-conduct.md` for the declared test framework and
+2. **Infer the test framework.** Read the project's code-of-conduct (any capitalization) for the declared test framework and
    layout. If absent, scan existing test files to infer framework and conventions. Never assume
    a framework; stop and ask if none can be inferred.
 3. **Name tests in business language.** Each test name states the business fact it verifies, not
@@ -46,6 +46,6 @@ Stop and ask before proceeding if:
   stubs; do not silently omit them.
 
 ## Project standards
-Read `code-of-conduct.md` if present; its test framework, naming convention, file layout, and
+Read the project's code-of-conduct (any capitalization) if present; its test framework, naming convention, file layout, and
 mocking policy override these defaults. If absent, infer from existing tests and state the
 assumption.
