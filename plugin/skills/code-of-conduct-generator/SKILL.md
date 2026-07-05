@@ -57,10 +57,13 @@ and git command against that root (`git -C <root>`), never bare `.` — one CoC 
    per `CLAUDE.md § Sub-agent consent`, carrying the A2A Core plus the observations; a full trio is
    opt-in or automatic for a contested repo, per `CLAUDE.md § Debate protocol`; advisors return findings
    only, never write. Quick runs a light platitude/no-evidence self-scan instead.
-7. **Gate & present** — hold the draft at the **§ Output format** gate, then present it with a short
-   summary (top standards, added, conflicts, dropped), surfacing only the ~5 genuine decisions ranked by
-   marginal information — never a long list to curate. Feedback applies **surgically** with a diff of
-   what changed; regenerate wholesale only when the user reopens the scope, and re-gate only what changed.
+7. **Gate & present** — hold the draft until every rule clears the gate: reads exactly one way;
+   conflicts with no other; is backed by a captured observation or a user answer ("it looks nice" is not
+   proof); names an objective mechanical check — and **dry-run each cited check, dropping any that
+   fails** (full rationale in **§ Output format**). Then present it with a short summary (top standards,
+   added, conflicts, dropped), surfacing only the ~5 genuine decisions ranked by marginal information —
+   never a long list to curate. Feedback applies **surgically** with a diff of what changed; regenerate
+   wholesale only when the user reopens the scope, and re-gate only what changed.
 8. **Approve & write** — on approval: `ExitPlanMode` (`auto`) → write atomically (temp + rename) → add a
    deduplicated `@`-reference (default `@./code-of-conduct.md`) to the **target** repo's `CLAUDE.md`,
    creating it when missing.

@@ -395,6 +395,10 @@ def test_coc_generator_feedback_is_surgical(read_file):
     assert "genuine decisions" in flat and "marginal information" in flat
     assert "Feedback applies **surgically**" in flat
     assert "regenerate wholesale only when the user reopens the scope" in flat
+    # The gate is too important to relocate — its criteria live inline in the spine, non-skippable.
+    assert "reads exactly one way" in flat and '"it looks nice" is not proof' in flat
+    assert "dry-run each cited check, dropping any that\n fails".replace("\n ", " ") in flat \
+        or "dry-run each cited check, dropping any that fails" in flat
 
 
 def test_coc_generator_commit_stages_before_committing(read_file):
