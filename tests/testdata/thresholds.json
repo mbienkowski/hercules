@@ -116,5 +116,15 @@
     "severity": "gate",
     "per_file": true,
     "warn_at": 2900
+  },
+  {
+    "name": "coc-coverage-map-token-budget",
+    "target": "plugin/skills/code-of-conduct-generator/coverage-map.md",
+    "metric": "token_count",
+    "op": "<=",
+    "limit": 5200,
+    "severity": "gate",
+    "per_file": true,
+    "warn_at": 4800
   }
 ]
