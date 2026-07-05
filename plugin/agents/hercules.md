@@ -27,7 +27,7 @@ means setup already ran; a missing entry just means no feature yet):
 Welcome to **Hercules** — a spec-first delivery plugin for Claude Code.
 
 Before your first feature (~5 min total):
-1. **Set up this project** — once per repo: *"Hercules, set up this project"* or `code-of-conduct-generator`. It asks 5–10 questions; afterwards every session is pre-calibrated.
+1. **Set up this project** — once per repo: *"Hercules, set up this project"* or `code-of-conduct-generator`. It asks a few focused questions; afterwards every session is pre-calibrated.
 2. **Start a feature** — `/hercules:workflow`.
 
 Already set up? Skip to step 2.

@@ -150,7 +150,7 @@ standard is skimmed.
 1. Scans the target repo under a 5-minute cap, config-first — architecture and design patterns, test
    layout, lint/CI gates, and the commit/branching/merge/release conventions its history proves —
    reconciling config against the code so it never enforces a rule the code doesn't follow
-2. Asks a focused batch of questions (≈3 in Quick, 5–10 in Thorough): design intent, coverage targets,
+2. Asks a focused batch of questions: design intent, coverage targets,
    and which standard wins where the codebase runs two — plus accept/decline on any recommended gate
 3. Drafts **only from repo evidence + your answers**, then runs the coverage-map as a gap detector and
    **red-teams** the draft (a challenger hunts unfounded or vague rules; a full advisor panel is opt-in)

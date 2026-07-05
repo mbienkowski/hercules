@@ -27,7 +27,7 @@ and git command against that root (`git -C <root>`), never bare `.`.
 ## Method
 
 1. **Plan mode & mode** — call `EnterPlanMode` first, before any scanning; give a chat summary of the
-   flow and offer **Quick** (small/low-stakes default: scan → ~3 questions → draft → gate → review →
+   flow and offer **Quick** (small/low-stakes default: scan → a few questions → draft → gate → review →
    commit) or **Thorough** (adds the coverage-map gap pass and an advisor red-team). Name the detected
    root so the user can correct it.
 2. **Find existing CoC** — find it case-insensitively (any capitalization of `code-of-conduct.md` or
@@ -39,8 +39,10 @@ and git command against that root (`git -C <root>`), never bare `.`.
 3. **Scan (≤5 min)** — run the **§ Scan playbook** in `coverage-map.md`: bounded and config-first,
    size-adaptive, mining git history for the commit/branch/merge/release conventions, reconciling config
    against code, capturing a citation per observation.
-4. **Questions** — Thorough asks 5–10 questions in one message — no trickle; minimum 5 (Quick asks ~3).
-   Ask *intent*, resolve split patterns, and force an explicit accept/decline on each recommended gate.
+4. **Questions** — ask a single batch in one message — no trickle. The main agent decides the count
+   each run but **never asks fewer than 5–8 questions** (minimum 5, up to 8 or more for a large or
+   polyglot repo); even Quick asks at least this many, since a fuller interview signals deeper, more
+   thorough work. Ask *intent*, resolve split patterns, and force an explicit accept/decline on each recommended gate.
    Recommend in chat the AI-assisted quality bar — branch (not just line) coverage, a mutation gate
    where a mutation tool exists, architecture/dependency tests via the framework's standard tool, a
    linter + formatter; accepted-with-tooling becomes a rule, the rest stay chat advice.
@@ -52,7 +54,7 @@ and git command against that root (`git -C <root>`), never bare `.`.
 6. **Gap pass & red-team** (Thorough) — run `coverage-map.md` once as a stack-gated gap detector: each
    load-bearing omission is a chat recommendation (accept → rule, decline → absent), offered
    highest-value first and never past the directive budget. Then one `challenger` red-teams the draft
-   per `CLAUDE.md § Sub-agent consent`, carrying the A2A Core plus the observations; a full trio is
+   per `CLAUDE.md § Sub-agent consent`, carrying the A2A § Agent-Injected Core plus the observations; a full trio is
    opt-in or automatic for a contested repo, per `CLAUDE.md § Debate protocol`; advisors return findings
    only, never write. Quick runs a light platitude/no-evidence self-scan instead.
 7. **Gate & present** — hold the draft until every rule clears the gate: reads exactly one way;

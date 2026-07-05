@@ -356,10 +356,12 @@ def test_coc_generator_find_guard_and_target_resolution(read_file):
 
 
 def test_coc_generator_questions_and_quality_bar(read_file):
-    """5–10 (Quick ~3) single-batch questions, accept/decline per recommended gate, and the
-    AI-assisted quality bar recommended in chat."""
+    """A single batch with a raised floor — the main agent picks the count each run but never fewer
+    than 5–8 questions (minimum 5), plus accept/decline per recommended gate and the AI-assisted
+    quality bar recommended in chat."""
     flat = _coc_flat(read_file)
-    assert "5–10 questions in one message — no trickle; minimum 5" in flat
+    assert "no trickle" in flat and "never asks fewer than 5–8 questions" in flat
+    assert "minimum 5" in flat
     assert "accept/decline on each recommended gate" in flat
     assert "branch (not just line) coverage" in flat
     assert "mutation gate\n where a mutation tool exists".replace("\n ", " ") in flat \
@@ -374,7 +376,7 @@ def test_coc_generator_gap_pass_then_red_team(read_file):
     assert "never past the directive budget" in flat
     assert "`challenger` red-teams the draft" in flat
     assert "§ Sub-agent consent" in flat and "CLAUDE.md § Debate protocol" in flat
-    assert "A2A Core" in flat
+    assert "Agent-Injected Core" in flat
     assert "advisors return findings\n only, never write".replace("\n ", " ") in flat \
         or "advisors return findings only, never write" in flat
     raw = read_file(_COC_GENERATOR).lower()
