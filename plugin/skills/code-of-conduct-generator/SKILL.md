@@ -32,9 +32,11 @@ which repo the CoC is for. Run every scan command against that root (`git -C <ro
 ### Step 1 — Plan mode, roadmap, and mode
 
 Call `EnterPlanMode` first, before any scanning. Give the user a chat summary of the flow and offer a
-mode: **Quick** (the default for a small or low-stakes repo — scan → ~3 questions → draft → review →
-commit) or **Thorough** (adds the coverage-map gap pass, priority tuning, and an advisor red-team).
-Name the detected target root so the user can correct it.
+mode: **Quick** (the default for a small or low-stakes repo — scan → ~3 questions → draft → gate →
+review → commit; it still runs the Step 6b gate and a light self-scan for platitudes and unfounded
+rules, and only skips the coverage-map gap pass and the advisor red-team) or **Thorough** (adds the
+coverage-map gap pass, priority tuning, and an advisor red-team). Name the detected target root so the
+user can correct it.
 
 ### Step 2 — Find any existing code-of-conduct
 
@@ -49,19 +51,26 @@ the root, `.github/`, and `docs/` with `find <root> -maxdepth 2 -iname 'code[-_ 
 
 ### Step 3 — Scan the target repo (bounded ≤5 min, evidence-first)
 
-Resolve the coverage-map points (`coverage-map.md`) from the repo, cheapest signals first, under a hard
-**5-minute cap**. A sizing probe (`git ls-files | wc -l`, an extension histogram, workspace/monorepo
-detection) picks the path: small → config plus a generous sample; large or monorepo → root config plus
-a few representative modules per language, never every module — proceed sampled and invite the user to
-point at key modules or grant more budget, never block. Standards live in tooling config, so read
-manifests and config first, use grep counts as evidence, sample ~20–30 files, and note repeated design
-patterns and test conventions. Mine bounded history: `git log -n 200` for the commit convention, branch
-names and merge shape for the branching/merge strategy, `git tag` for releases. **Reconcile config
-against code** — a rule the config states but the sampled code violates becomes a Step-4 question, never
-an enforced rule. Capture each observation (`file:line` / count / commit) so a rule can cite it; on the
-cap, stop and mark the rest `unknown`. Two live patterns for one concern become a question — never
-majority rule. Exclude `.env*` and credential paths; record structure, never values. Persist the scan
-and answers to `~/.hercules/state/{slug}-coc.json` so a re-invoke resumes.
+A sizing probe (`git ls-files | wc -l`, an extension histogram, workspace/monorepo detection) picks the
+path and a hard **5-minute cap** bounds the whole scan. Work the coverage-map (`coverage-map.md`) for
+what to look for; capture each observation (`file:line` / count / commit) so a rule can cite it, and on
+the cap stop and mark the rest `unknown`.
+
+- **Config first** — standards live in tooling config, so read manifests and config first, before source.
+- **Sample, don't read the tree** — use grep counts as evidence, read ~20–30 files, note repeated design
+  patterns and test conventions.
+- **Mine bounded history** — `git log -n 200` for the commit convention, branch names and merge shape for
+  the branching/merge strategy, `git tag` for releases.
+- **Reconcile config against code** — a rule the config states but the sampled code violates becomes a
+  Step-4 question, never an enforced rule.
+- **Large / monorepo** — scan root config plus a few representative modules per language, never every
+  module; proceed sampled and invite the user to point at key modules or grant more budget, never block.
+- **Two live patterns for one concern** → a question, never majority rule. Exclude `.env*` and credential
+  paths; record structure, never values.
+
+Plan mode blocks writes, so hold scan results in memory: a scan interrupted before approval simply
+re-runs (it is bounded). Once the file is written (Step 8), the draft, answers, and chosen mode persist
+to `~/.hercules/state/{slug}-coc.json` so a later re-invoke resumes from the draft, not a rescan.
 
 ### Step 4 — Questions
 
@@ -94,10 +103,17 @@ write; in update mode they may propose dropping a stale bullet — Step 8 decide
 
 ### Step 6b — Validation gate
 
-Hold the draft until every rule: reads exactly one way; conflicts with no other; is backed by a captured
-observation or a user answer — "it looks nice" is not proof; and names a mechanical check a reviewer can
-run from a diff, the repo, or CI. Emit the rule→evidence citations as an auditable appendix and
-re-verify a sample of them against the source. Break-test each rule as a hostile reader before
+Hold the draft until every rule clears all four:
+
+- **reads exactly one way** — reword or split anything with a second reading;
+- **conflicts with no other** — an existing-vs-new clash is a user question, never a silent resolution;
+- **is backed by a captured observation or a user answer** — "it looks nice" is not proof, and a user
+  answer that merely restates the rule as a platitude is not proof either;
+- **names an objective mechanical check** — a grep, a lint rule, a CI job, or a numeric threshold; a rule
+  whose only check is unstructured reviewer judgment is rejected unless it also names such a signal.
+
+Emit the rule→evidence citations — each carrying its `file:line` / count / commit — as an auditable
+appendix and re-verify a sample against the source. Break-test each rule as a hostile reader before
 presenting.
 
 ### Step 7 — Present and iterate

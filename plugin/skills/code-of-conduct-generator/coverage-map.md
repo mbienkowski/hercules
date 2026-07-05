@@ -85,9 +85,11 @@ Each point: `name [tier][stack] — scan signal → rule shape.`
 - Supply-chain provenance [P2][infra] — signed artifacts, SBOM → require a SLSA Build level. SLSA (slsa.dev)
 - Threat modeling [P2] — new-surface docs → threat model for new external surfaces. (conv)
 - Audit logging (security events) [P1] — auth/admin logs → log auth/authz/admin actions. OWASP Logging Cheat Sheet
+- Coordinated disclosure policy [P1] — `SECURITY.md`, contact → a documented responsible-disclosure path. (conv)
 - Prompt-injection isolation [P2][ai] — LLM input handling → isolate untrusted input in agent flows. (conv)
 
 ## I. Privacy & data governance (GDPR/PII) [data]
+- Data classification scheme [P1][data] — classification tags/labels → public/internal/confidential/restricted tiers with a handling rule each. (conv)
 - PII classification & tagging [P0][data] — PII-like columns (email/phone/ssn/dob/ip) → tag every personal field; untagged PII fails review. (conv)
 - Encryption in transit & at rest [P0][data] — TLS + KMS/at-rest config → personal data TLS≥1.2; restricted at rest via KMS. (conv)
 - Retention & erasure [P1][data] — TTL, DSAR/delete paths → retention limit + automated erasure path. GDPR Art.17 (conv)
@@ -164,7 +166,8 @@ Each point: `name [tier][stack] — scan signal → rule shape.`
 
 ## S. Version control & git hygiene
 - Protected branches + required reviews [P0] — branch protection, CODEOWNERS → no direct push; min approvers. (conv)
-- Commit signing [P2] — signed commits → verified commits. (conv)
+- Commit signing / sign-off (DCO/CLA) [P2] — signed commits, `Signed-off-by`, CLA bot → provenance of contribution. (conv)
+- License headers [P2] — SPDX/header presence → source-file license header rule. (conv)
 - Secret/large-file pre-commit scan [P1] — pre-commit hooks → block secrets/binaries. (conv)
 - Monorepo vs polyrepo rules [P2] — workspace config → code-location policy. (conv)
 

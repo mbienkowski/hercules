@@ -368,7 +368,8 @@ def test_coc_generator_is_deterministic_and_resumable(read_file):
     assert "fixed\n question-priority order".replace("\n ", " ") in flat or "fixed question-priority order" in flat
     assert "stay deterministic" in flat
     assert "~/.hercules/state/{slug}-coc.json" in flat
-    assert "a re-invoke resumes" in flat
+    assert "re-invoke resumes" in flat
+    assert "Plan mode blocks writes" in flat, "resumability must not rely on a plan-mode write"
 
 
 def test_coc_generator_output_leads_with_must_block_and_inline_checks(read_file):
@@ -419,9 +420,10 @@ def test_coc_generator_validation_gate_is_strict_and_auditable(read_file):
     assert "reads exactly one way" in flat
     assert "conflicts with no other" in flat
     assert '"it looks nice" is not proof' in flat
-    assert "a reviewer can\n run from a diff, the repo, or CI".replace("\n ", " ") in flat \
-        or "a reviewer can run from a diff, the repo, or CI" in flat
-    assert "auditable appendix" in flat
+    assert "restates the rule as a platitude is not proof either" in flat
+    assert "names an objective mechanical check" in flat
+    assert "unstructured reviewer judgment is rejected" in flat
+    assert "auditable\n appendix".replace("\n ", " ") in flat or "auditable appendix" in flat
 
 
 def test_coc_generator_feedback_is_surgical(read_file):
