@@ -11,11 +11,10 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
 
 ## Invariants
 
-The file states the **target repository's** enforced standards only — every rule traces to a scan
-observation or a user answer, never invented, and never Hercules's process internals (phases, commands,
-state, spec-first flow, contributor rules). It reads as human-authored — no attribution in the file. It
-states only what is enforced today; anything recommended-but-unmet is offered in chat, not written in
-the file. Never average two conflicting values.
+The file states the **target repository's** enforced standards only — never Hercules's process internals
+(phases, commands, state, spec-first flow, contributor rules). It states only what is enforced today;
+anything recommended-but-unmet is offered in chat, not written in the file. Never average two
+conflicting values.
 
 ## Preconditions
 
