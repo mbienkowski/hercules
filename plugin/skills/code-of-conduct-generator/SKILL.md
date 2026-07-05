@@ -5,18 +5,17 @@ description: Generate or update a project's code-of-conduct — the single sourc
 
 # Code-of-Conduct Generator
 
-The code-of-conduct is the highest-leverage file: every agent reads it, so careful answers compound
-across every feature. The generator drafts it **evidence-first** — rules only from what this repo
-decided (scan + user answers) — then gap-checks and proves each before the user sees it. The detailed
+The code-of-conduct is the highest-leverage file — every agent reads it, so careful answers compound.
+The generator drafts it **evidence-first**, then proves each rule before the user sees it. The detailed
 scan tactics and output format live in the companion `coverage-map.md`; this file is the spine.
 
 ## Invariants
 
 The file states the **target repository's** enforced standards only — every rule traces to a scan
 observation or a user answer, never invented, and never Hercules's process internals (phases, commands,
-state, spec-first flow, contributor rules). It reads as human-authored: no attribution in the file —
-that goes in the commit message. It states only what is enforced today; anything recommended-but-unmet
-is offered in chat, not written in the file. Never average two conflicting values.
+state, spec-first flow, contributor rules). It reads as human-authored — no attribution in the file. It
+states only what is enforced today; anything recommended-but-unmet is offered in chat, not written in
+the file. Never average two conflicting values.
 
 ## Preconditions
 
@@ -24,7 +23,7 @@ Must run inside a git repository — else **stop** and tell the user to re-open 
 repository and re-invoke. Resolve the **target** repo per `CLAUDE.md § Code-of-conduct resolution`, not
 the launch directory; if Claude was opened away from the code or several candidate roots exist, list
 them (`ls`, `git rev-parse --show-toplevel`) and ask which repo the CoC is for. Run every scan, `find`,
-and git command against that root (`git -C <root>`), never bare `.` — one CoC per repo, never merged.
+and git command against that root (`git -C <root>`), never bare `.`.
 
 ## Method
 
@@ -96,5 +95,5 @@ mutation testing is a chat recommendation, never a file rule.
 ## Corner cases
 
 - Monorepo/polyglot: per-module subsections in the one root file.
-- Multi-repo or opened elsewhere: one CoC per target repo, never merged.
+- Multi-repo or opened elsewhere: one CoC per repo, never merged.
 - Thin/empty repo: lean on Q&A and ship a small labelled seed.
