@@ -300,195 +300,206 @@ def test_learnings_store_has_an_entry_budget_and_eviction_criterion(read_file):
         "eviction must be criterion-driven: keep by universality and importance"
 
 
-# ── code-of-conduct-generator: the debate-validated, evidence-mining flow ──────
+# ── code-of-conduct-generator: the v3 evidence-first, enforced-only flow ───────
 # New tests match a whitespace-collapsed read so a pinned phrase survives line-wrapping.
 
 def _coc_flat(read_file):
     return " ".join(read_file(_COC_GENERATOR).split())
 
 
-def test_coc_generator_enters_plan_mode_before_scanning(read_file):
-    """Plan mode opens the flow BEFORE the scan, so the whole session is read-only until the
-    user approves; the user also gets an upfront chat summary of the phases ahead."""
+def test_coc_generator_enters_plan_mode_and_offers_modes(read_file):
+    """Plan mode opens the flow before any scan, with a roadmap, and offers Quick vs Thorough
+    so a small repo is not dragged through the full ceremony."""
     flat = _coc_flat(read_file)
-    assert "Call `EnterPlanMode` first, before any scanning" in flat, \
-        "EnterPlanMode must be the first action, ahead of the repo scan"
-    assert "chat summary of the flow" in flat, \
-        "the user must get an upfront chat summary of what will happen"
+    assert "Call `EnterPlanMode` first, before any scanning" in flat
+    assert "chat summary of the flow" in flat
+    assert "Quick" in flat and "Thorough" in flat and "low-stakes" in flat
 
 
-def test_coc_generator_gates_advisors_on_user_consent(read_file):
-    """Advisors are never spawned silently; the skill defers to the house consent script
-    (single source of truth) rather than restating it."""
+def test_coc_generator_drafts_evidence_first_enforced_only(read_file):
+    """The draft is built only from scan observations + user answers, and the emitted file states
+    only what is enforced today — no aspirational (target) markers live in the file."""
     flat = _coc_flat(read_file)
-    assert "§ Sub-agent consent" in flat, \
-        "the skill must defer to CLAUDE.md § Sub-agent consent"
+    assert "Draft rules only from scan observations and user answers" in flat
+    assert "enforced today" in flat
+    assert "`(target)`" not in flat, "v3 emits an enforced-only file — no (target) markers"
 
 
-def test_coc_generator_names_default_advisor_trio(read_file):
-    """The default advisory set is architect + QA + challenger; the set stays adjustable."""
+def test_coc_generator_recommends_unmet_standards_in_chat(read_file):
+    """Recommended-but-unmet standards are offered in conversation, not written into the file;
+    a mutation gate ships only when a mutation tool exists, else it is a chat recommendation."""
     flat = _coc_flat(read_file)
-    for agent in ("lead-architect", "senior-qa-engineer", "challenger"):
-        assert agent in flat, f"default advisor trio must name {agent}"
-    assert "swap or extend to fit the repo" in flat, \
-        "the advisor set must stay adjustable to the repo"
+    assert "offered in\n chat".replace("\n ", " ") in flat or "offered in chat" in flat
+    assert "mutation testing is a chat recommendation, never a file rule" in flat
 
 
-def test_coc_generator_defers_debate_mechanics_to_the_protocol(read_file):
-    """Round mechanics have one owner: the skill references the debate protocol and classifies
-    complexity ad hoc (no session tier exists outside the workflow) — it never restates rounds."""
+def test_coc_generator_scan_is_bounded_and_size_adaptive(read_file):
+    """The scan is hard-capped at 5 minutes, config-first, and size-adaptive — a large/monorepo
+    proceeds sampled and invites the user rather than blocking."""
     flat = _coc_flat(read_file)
-    assert "CLAUDE.md § Debate protocol" in flat
-    assert "complexity classified ad hoc" in flat, \
-        "complexity is classified ad hoc — the skill has no session tier to read"
+    assert "**5-minute cap**" in flat
+    assert "sizing probe" in flat
+    assert "read\n manifests and config first".replace("\n ", " ") in flat or "read manifests and config first" in flat
+    assert "proceed sampled and invite the user to point at key modules" in flat
+
+
+def test_coc_generator_reconciles_config_against_code(read_file):
+    """A rule the config states but the sampled code violates becomes a question, never an
+    enforced rule — the CoC never enforces aspirational config nobody follows."""
+    flat = _coc_flat(read_file)
+    assert "Reconcile config\n against code".replace("\n ", " ") in flat or "Reconcile config against code" in flat
+    assert "becomes a Step-4 question, never\n an enforced rule".replace("\n ", " ") in flat \
+        or "becomes a Step-4 question, never an enforced rule" in flat
+
+
+def test_coc_generator_mines_git_history(read_file):
+    """Rules come from what the repo's own history testifies to — commit convention, branch and
+    merge shape, releases — under a bounded history read."""
+    flat = _coc_flat(read_file)
+    assert "`git log -n 200` for the commit convention" in flat
+    assert "branch\n names and merge shape".replace("\n ", " ") in flat or "branch names and merge shape" in flat
+    assert "`git tag` for releases" in flat
+
+
+def test_coc_generator_is_deterministic_and_resumable(read_file):
+    """A fixed question-priority order keeps runs deterministic, and scan+answers persist so a
+    cancelled run resumes instead of restarting the scan."""
+    flat = _coc_flat(read_file)
+    assert "fixed\n question-priority order".replace("\n ", " ") in flat or "fixed question-priority order" in flat
+    assert "stay deterministic" in flat
+    assert "~/.hercules/state/{slug}-coc.json" in flat
+    assert "a re-invoke resumes" in flat
+
+
+def test_coc_generator_output_leads_with_must_block_and_inline_checks(read_file):
+    """The emitted CoC leads with a flat Non-negotiables (MUST) block, and every rule names its
+    mechanical check inline and is tagged MUST or SHOULD."""
+    flat = _coc_flat(read_file)
+    assert "`## Non-negotiables (MUST)` block" in flat
+    assert "names its\n **mechanical check** inline".replace("\n ", " ") in flat \
+        or "names its **mechanical check** inline" in flat
+    assert "tagged **MUST** or\n **SHOULD**".replace("\n ", " ") in flat or "tagged **MUST** or **SHOULD**" in flat
+
+
+def test_coc_generator_thresholds_are_grounded_not_padded(read_file):
+    """A numeric threshold must quote a user answer or a computed repo statistic, never a padded
+    default; the file scales to the evidence (a thin repo ships a small seed)."""
+    flat = _coc_flat(read_file)
+    assert "quote a user answer or a computed repo statistic, never a padded" in flat
+    assert "small, clearly-labelled seed, never padded to fill a band" in flat
+
+
+def test_coc_generator_runs_gap_pass_then_red_team(read_file):
+    """The coverage-map runs once as a stack-gated gap detector after the evidence-first draft,
+    then one challenger red-teams; the full trio is opt-in, not the default."""
+    flat = _coc_flat(read_file)
+    assert "Run the coverage-map once as a **gap detector**" in flat
+    assert "stack-gated" in flat
+    assert "**red-team** the draft: one challenger" in flat
+    assert "full\n trio (lead-architect, senior-qa-engineer, challenger) is opt-in".replace("\n ", " ") in flat \
+        or "full trio (lead-architect, senior-qa-engineer, challenger) is opt-in" in flat
+
+
+def test_coc_generator_defers_debate_mechanics_and_advisors_are_read_only(read_file):
+    """Consent + round mechanics live in CLAUDE.md (referenced, never restated); advisors carry
+    the A2A Core and return findings only."""
+    flat = _coc_flat(read_file)
+    assert "§ Sub-agent consent" in flat and "CLAUDE.md § Debate protocol" in flat
+    assert "A2A Core" in flat
+    assert "return findings only, never\n write".replace("\n ", " ") in flat \
+        or "return findings only, never write" in flat
     raw = read_file(_COC_GENERATOR).lower()
-    assert "round 1" not in raw and "cross-examin" not in raw, \
-        "round mechanics live in the protocol only — reference, never restate"
+    assert "round 1" not in raw and "cross-examin" not in raw
 
 
-def test_coc_generator_advisors_are_read_only(read_file):
-    """Advisor spawns carry the injected A2A Core and return findings only — a plan-mode
-    session cannot absorb an advisor write, so none may ever be requested."""
+def test_coc_generator_validation_gate_is_strict_and_auditable(read_file):
+    """The gate holds the draft until every rule is unambiguous, conflict-free, evidence-backed,
+    and mechanically checkable; citations are emitted for audit and a sample re-verified."""
     flat = _coc_flat(read_file)
-    assert "A2A Core" in flat, "advisor prompts must carry the injected A2A Core"
-    assert "never ask an advisor to write" in flat
-
-
-def test_coc_generator_mines_git_history_for_conventions(read_file):
-    """Rules come from what the repo's own history testifies to — commit convention, branching,
-    merge shape, release cadence — not from invention or the agent's defaults."""
-    flat = _coc_flat(read_file)
-    assert "mine `git log` for the commit convention" in flat
-    assert "branch names and merge shape" in flat
-    assert "`git tag` for the release cadence" in flat
-
-
-def test_coc_generator_splits_conflicting_patterns_to_a_question(read_file):
-    """A codebase with two live patterns for one concern is never resolved by majority — the
-    generator asks the user which is the standard."""
-    flat = _coc_flat(read_file)
-    assert "two live patterns for one concern become a Step 4 question" in flat
-    assert "never majority rule" in flat
-
-
-def test_coc_generator_validation_gate_is_strict(read_file):
-    """The gate holds the draft until every directive is unambiguous, conflict-free, evidence-
-    backed, and reviewer-checkable — 'looks nice' is the named anti-pattern."""
-    flat = _coc_flat(read_file)
-    assert "every directive admits exactly one reading" in flat
-    assert "no two directives may conflict" in flat
+    assert "reads exactly one way" in flat
+    assert "conflicts with no other" in flat
     assert '"it looks nice" is not proof' in flat
-    assert "a reviewer can verify compliance from a diff, the repo, or CI output" in flat
+    assert "a reviewer can\n run from a diff, the repo, or CI".replace("\n ", " ") in flat \
+        or "a reviewer can run from a diff, the repo, or CI" in flat
+    assert "auditable appendix" in flat
 
 
-def test_coc_generator_runs_adversarial_pass_before_presenting(read_file):
-    """A hostile-reader pass tries to break every directive BEFORE the draft reaches the user;
-    it needs no advisor, so a 'skip' at Step 5 never disables it."""
+def test_coc_generator_feedback_is_surgical(read_file):
+    """Feedback applies surgically with a diff; the whole draft regenerates only when the user
+    reopens the scope — an approved rule is never silently mutated."""
     flat = _coc_flat(read_file)
-    assert "break-test each directive yourself as a hostile reader" in flat
-    skill = read_file(_COC_GENERATOR)
-    assert skill.index("break-test each directive") < skill.index("### Step 7"), \
-        "the adversarial pass belongs to synthesis, ahead of presentation"
+    assert "Feedback applies **surgically**" in flat
+    assert "diff of exactly what changed" in flat
+    assert "regenerate the whole draft only when the user reopens the scope" in flat
 
 
-def test_coc_generator_synthesizes_even_without_advisors(read_file):
-    """On advisor skip or a trivial debate there are no 'findings' — the skill synthesizes from
-    the scan and answers directly, so it never stalls."""
+def test_coc_generator_surfaces_only_genuine_decisions(read_file):
+    """The user is shown only the genuine decisions, ranked by marginal information so obvious
+    hygiene never outranks a repo-specific invariant — not a long list to curate."""
     flat = _coc_flat(read_file)
-    assert "on advisor skip or a trivial debate, the tagged scan and Step 4 answers" in flat
+    assert "genuine decisions" in flat
+    assert "marginal information" in flat
+    assert "do not hand the user a long list to curate" in flat
 
 
-def test_coc_generator_drops_only_on_explicit_user_yes(read_file):
-    """The generator never removes existing content on its own initiative; the debate may
-    PROPOSE a drop, each is a per-item user question, and applied drops are reported."""
+def test_coc_generator_commit_stages_before_committing(read_file):
+    """The confirmed bug fix: stage then commit via pathspec so a brand-new untracked file
+    commits, and the user's other staged work is never reset or swept in."""
     flat = _coc_flat(read_file)
-    assert "may propose dropping a stale, conflicting, or ambiguous" in flat
-    assert "generator's own initiative" in flat
-    assert "any edit the user directs in feedback" in flat, \
-        "user-directed edits must be exempt from the additions-only rule"
-
-
-def test_coc_generator_reports_directive_count_and_regenerates(read_file):
-    """The summary carries the directive count (so the 50–70 trade can surface), and feedback
-    always regenerates the whole draft and re-passes the gate."""
-    flat = _coc_flat(read_file)
-    assert "and the directive count" in flat
-    assert "always regenerate the complete draft, never patch sections" in flat
-    assert "re-passes the Step 6 gate" in flat
-
-
-def test_coc_generator_reviews_then_commits_via_pathspec(read_file):
-    """The file is shown for review before any commit; the commit is pathspec-scoped so the
-    user's other staged work is never reset or swept in."""
-    flat = _coc_flat(read_file)
-    assert "ask the user to review it" in flat
-    assert "git commit -- <paths>" in flat
+    assert "**stage then commit**" in flat
+    assert "`git add -- <paths>` then" in flat
     assert "never reset or unstage the user's other work" in flat
 
 
 def test_coc_generator_ship_is_self_contained_and_offer_only(read_file):
-    """Attribution goes only to the commit message, push is offer-only, and the step never
-    depends on /hercules:ship."""
+    """Attribution goes only to the commit message, push is offer-only, no /hercules:ship dep."""
     flat = _coc_flat(read_file)
     assert "Attribution lives in the commit message, never in the file" in flat
     assert "never push automatically" in flat
-    assert "/hercules:ship" not in flat, \
-        "the review-and-commit step must not depend on the ship command"
+    assert "/hercules:ship" not in flat
 
 
 def test_coc_generator_forbids_hercules_internals_bleed(read_file):
-    """The emitted CoC states the target repo's standards only; Hercules's process internals
-    never leak into a user's file."""
+    """The emitted file states the target repo's standards only; Hercules process internals never
+    leak into a user's file."""
     flat = _coc_flat(read_file)
     assert "target repository's" in flat
-    assert "Never leak Hercules's process internals" in flat, \
-        "Hercules process internals must be named as the thing that never leaks"
-    assert "spec-first flow" in flat, \
-        "spec-first delivery is a Hercules internal that must be named as non-leaking"
+    assert "Hercules's own process internals" in flat and "spec-first flow" in flat
 
 
-def test_coc_generator_recommends_the_ai_quality_bar(read_file):
-    """The skill proactively recommends the AI-assisted-coding quality bar — branch (not line)
-    coverage, mutation kill rate, architecture tests, and a linter+formatter."""
+def test_coc_generator_guards_behavioral_doc_and_resolves_target(read_file):
+    """A lone behavioural Contributor Covenant is not treated as an engineering standard; the
+    target repo is resolved (asking when ambiguous) and one CoC is generated per repo."""
     flat = _coc_flat(read_file)
-    assert "≥90% coverage on **branches, not just lines**" in flat
-    assert "mutation testing at a ≥90% kill rate" in flat
-    assert "architecture/dependency tests via the framework's" in flat
-    assert "linter plus formatter so human- and AI-authored code read identically" in flat
-
-
-def test_coc_generator_states_the_quality_bar_tradeoff(read_file):
-    """The recommendation is honest about cost: more time to deliver, fewer production
-    surprises — not a promise of zero risk."""
-    flat = _coc_flat(read_file)
-    assert "AI-assisted code takes longer to bring to proper shape" in flat
-    assert "cut it sharply" in flat
-
-
-def test_coc_generator_recommends_adopting_mutation_when_absent(read_file):
-    """A repo with no mutation tool is told to adopt one as a `(target)` — never a silent omit,
-    never an enforced gate it cannot measure."""
-    flat = _coc_flat(read_file)
-    assert "else recommend adopting one, marked `(target)`" in flat
-
-
-def test_coc_generator_resolves_target_repo_and_asks_when_ambiguous(read_file):
-    """The CoC is generated for the repo the standards govern — resolved per the house rule,
-    not the launch dir — and the skill asks the user when the target is ambiguous."""
-    flat = _coc_flat(read_file)
+    assert "Contributor Covenant is not an engineering standard" in flat
     assert "CLAUDE.md § Code-of-conduct resolution" in flat
-    assert "ask the user which repo the CoC is for" in flat
+    assert "ask the user\n which repo the CoC is for".replace("\n ", " ") in flat \
+        or "ask the user which repo the CoC is for" in flat
     assert "one CoC per repo, never merged" in flat
 
 
-def test_coc_generator_steps_are_in_execution_order(read_file):
-    """Structural, not just presence: plan mode → scan → questions → debate → gate → present →
-    write → commit. A reshuffled skill fails."""
-    skill = read_file(_COC_GENERATOR)
-    order = [
-        "### Step 1", "### Step 2", "### Step 3", "### Step 4",
-        "### Step 5", "### Step 6", "### Step 7", "### Step 8", "### Step 9",
-    ]
-    positions = [skill.index(s) for s in order]
-    assert positions == sorted(positions), "the nine steps must appear in order"
+def test_coc_generator_points_to_the_coverage_map(read_file):
+    """The exhaustive checklist lives in the companion coverage-map.md, which the skill reads
+    during the scan — keeping SKILL.md lean."""
+    flat = _coc_flat(read_file)
+    assert "coverage-map.md" in flat
 
+
+def test_coverage_map_exists_and_is_cited(read_file):
+    """The coverage-map ships with the tier legend, stack flags, and its primary-source anchors,
+    and is marked an internal scan aid, not CoC output."""
+    cmap = read_file("plugin/skills/code-of-conduct-generator/coverage-map.md")
+    assert "not CoC output" in cmap
+    assert "P0" in cmap and "P1" in cmap and "[fe]" in cmap and "[be]" in cmap
+    for anchor in ("OWASP ASVS", "SLSA", "SemVer", "SRE", "12-Factor", "RFC-2119"):
+        assert anchor in cmap, f"coverage-map must cite {anchor}"
+    assert "(conv)" in cmap, "convention gaps must be marked (conv)"
+
+
+def test_coc_generator_steps_are_in_execution_order(read_file):
+    """Structural: the numbered steps appear in order — a reshuffled skill fails."""
+    skill = read_file(_COC_GENERATOR)
+    order = ["### Step 1", "### Step 2", "### Step 3", "### Step 4",
+             "### Step 5", "### Step 6", "### Step 7", "### Step 8", "### Step 9"]
+    positions = [skill.index(s) for s in order]
+    assert positions == sorted(positions), "the steps must appear in execution order"

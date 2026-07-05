@@ -145,19 +145,19 @@ fewer instructions reliably as the total grows — the generator aims for **30�
 (up to 50 for a big repo; 70 is the hard ceiling). A focused CoC is followed; an 80-bullet org
 standard is skimmed.
 
-**What it does — a debated, evidence-checked pass:**
+**What it does — an evidence-first, bounded pass (Quick or Thorough):**
 
-1. Scans the repo and mines its git history — architecture and design patterns, test layout, lint and
-   CI gates, and the commit convention, branching, merge shape, and release cadence its history proves
-2. Asks 5–10 questions in a single batch: the things the scan can't infer — design intent, coverage
-   targets, and which standard wins where the codebase runs two
-3. Runs an advisor debate (architect, QA, and challenger by default, with your consent) over what the
-   standards should be, weighed against contemporary practice — and recommends a quality bar for
-   AI-assisted code (branch coverage, mutation testing, architecture tests, lint + format)
-4. Validates the draft adversarially before you see it — every directive gets exactly one reading, no
-   conflicts, and repo evidence behind it; "looks nice" is never enough
-5. Presents the full draft as a plan to approve or edit, writes it on approval, and commits it once
-   you've reviewed the file — push is offered, never automatic
+1. Scans the target repo under a 5-minute cap, config-first — architecture and design patterns, test
+   layout, lint/CI gates, and the commit/branching/merge/release conventions its history proves —
+   reconciling config against the code so it never enforces a rule the code doesn't follow
+2. Asks a focused batch of questions (≈3 in Quick, 5–10 in Thorough): design intent, coverage targets,
+   and which standard wins where the codebase runs two — plus accept/decline on any recommended gate
+3. Drafts **only from repo evidence + your answers**, then runs the coverage-map as a gap detector and
+   **red-teams** the draft (a challenger hunts unfounded or vague rules; a full advisor panel is opt-in)
+4. Gates every rule before you see it — exactly one reading, no conflicts, a mechanical check named
+   inline, and a captured observation behind it; "looks nice" is never enough
+5. Presents only the genuine decisions, writes an **enforced-only** file on approval (recommendations
+   stay in chat), and commits it once you've reviewed it — push is offered, never automatic
 
 > **A focused setup now compounds into smoother delivery on every future feature.** No corrections
 > mid-build, no agents guessing at your testing bar. The structure is permanent; the payoff repeats.
