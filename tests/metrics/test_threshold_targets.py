@@ -107,3 +107,21 @@ def test_plain_path_containing_x_is_not_treated_as_a_glob(tmp_path: Path):
     """Only *, ?, and [ mark a target as a glob — ordinary letters never do. A plain missing
     path resolves to itself (the caller reports it); a glob would silently resolve to []."""
     assert resolve_targets(tmp_path, "Xnope.md") == [tmp_path / "Xnope.md"]
+
+
+def test_every_skill_has_a_token_budget_row(repo_root: Path):
+    """Every shipped skill must be covered by a token_count threshold row. The shared skill glob
+    was narrowed to explicit files so code-of-conduct-generator can carry a larger budget without
+    loosening the others — this guard fails if a new skill (or that narrowing) leaves one uncovered."""
+    from tests.metrics.threshold_runner import load_thresholds
+
+    checks = load_thresholds(repo_root / "tests" / "testdata" / "thresholds.json")
+    covered: set[Path] = set()
+    for check in checks:
+        if check.metric == "token_count":
+            covered.update(resolve_targets(repo_root, check.target))
+
+    skills = set((repo_root / "plugin" / "skills").glob("*/SKILL.md"))
+    missing = skills - covered
+    assert not missing, \
+        f"skills with no token-budget row: {sorted(str(m.relative_to(repo_root)) for m in missing)}"

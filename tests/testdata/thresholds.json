@@ -99,12 +99,22 @@
   },
   {
     "name": "skill-token-budget",
-    "target": "plugin/skills/*/SKILL.md",
+    "target": "plugin/skills/solution-complexity-scoring/SKILL.md,plugin/skills/learnings/SKILL.md,plugin/skills/write-test-scenarios/SKILL.md,plugin/skills/session-summary/SKILL.md",
     "metric": "token_count",
     "op": "<=",
     "limit": 1050,
     "severity": "gate",
     "per_file": true,
     "warn_at": 1000
+  },
+  {
+    "name": "coc-generator-token-budget",
+    "target": "plugin/skills/code-of-conduct-generator/SKILL.md",
+    "metric": "token_count",
+    "op": "<=",
+    "limit": 3000,
+    "severity": "gate",
+    "per_file": true,
+    "warn_at": 2900
   }
 ]

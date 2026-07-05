@@ -145,12 +145,19 @@ fewer instructions reliably as the total grows — the generator aims for **30�
 (up to 50 for a big repo; 70 is the hard ceiling). A focused CoC is followed; an 80-bullet org
 standard is skimmed.
 
-**What it does in three steps:**
+**What it does — a debated, evidence-checked pass:**
 
-1. Scans the repo — architecture patterns, test layout, lint config, CI gates, delivery norms
-2. Asks 5–10 questions in a single batch: the things the scan can't infer — design decisions,
-   coverage targets, why a particular pattern was chosen
-3. Presents the full draft as a plan for you to approve or edit before anything is written
+1. Scans the repo and mines its git history — architecture and design patterns, test layout, lint and
+   CI gates, and the commit convention, branching, merge shape, and release cadence its history proves
+2. Asks 5–10 questions in a single batch: the things the scan can't infer — design intent, coverage
+   targets, and which standard wins where the codebase runs two
+3. Runs an advisor debate (architect, QA, and challenger by default, with your consent) over what the
+   standards should be, weighed against contemporary practice — and recommends a quality bar for
+   AI-assisted code (branch coverage, mutation testing, architecture tests, lint + format)
+4. Validates the draft adversarially before you see it — every directive gets exactly one reading, no
+   conflicts, and repo evidence behind it; "looks nice" is never enough
+5. Presents the full draft as a plan to approve or edit, writes it on approval, and commits it once
+   you've reviewed the file — push is offered, never automatic
 
 > **A focused setup now compounds into smoother delivery on every future feature.** No corrections
 > mid-build, no agents guessing at your testing bar. The structure is permanent; the payoff repeats.
