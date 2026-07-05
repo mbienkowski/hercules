@@ -377,8 +377,7 @@ def test_coc_generator_output_leads_with_must_block_and_inline_checks(read_file)
     mechanical check inline and is tagged MUST or SHOULD."""
     flat = _coc_flat(read_file)
     assert "`## Non-negotiables (MUST)` block" in flat
-    assert "names its\n **mechanical check** inline".replace("\n ", " ") in flat \
-        or "names its **mechanical check** inline" in flat
+    assert "naming its **mechanical check** inline" in flat
     assert "tagged **MUST** or\n **SHOULD**".replace("\n ", " ") in flat or "tagged **MUST** or **SHOULD**" in flat
 
 
@@ -387,7 +386,7 @@ def test_coc_generator_thresholds_are_grounded_not_padded(read_file):
     default; the file scales to the evidence (a thin repo ships a small seed)."""
     flat = _coc_flat(read_file)
     assert "quote a user answer or a computed repo statistic, never a padded" in flat
-    assert "small, clearly-labelled seed, never padded to fill a band" in flat
+    assert "small, clearly-labelled seed, never padded" in flat
 
 
 def test_coc_generator_runs_gap_pass_then_red_team(read_file):
@@ -424,6 +423,10 @@ def test_coc_generator_validation_gate_is_strict_and_auditable(read_file):
     assert "names an objective mechanical check" in flat
     assert "unstructured reviewer judgment is rejected" in flat
     assert "auditable\n appendix".replace("\n ", " ") in flat or "auditable appendix" in flat
+    assert "dry-run each cited check against the repo" in flat, \
+        "the gate must execute each cited check, not just require one be named"
+    assert "never push the file past\n the directive budget".replace("\n ", " ") in flat \
+        or "never push the file past the directive budget" in flat
 
 
 def test_coc_generator_feedback_is_surgical(read_file):
@@ -441,7 +444,7 @@ def test_coc_generator_surfaces_only_genuine_decisions(read_file):
     flat = _coc_flat(read_file)
     assert "genuine decisions" in flat
     assert "marginal information" in flat
-    assert "do not hand the user a long list to curate" in flat
+    assert "hand the user a long list to curate" in flat
 
 
 def test_coc_generator_commit_stages_before_committing(read_file):

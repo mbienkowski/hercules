@@ -12,11 +12,11 @@ actually decided — then proves and gap-checks every rule before the user sees 
 ## Invariants (hold in every step)
 
 The emitted file states the **target repository's** enforced standards only. Every shipped rule traces
-to a scan observation (file, count, or commit) or an explicit user answer — never invented, and never
-Hercules's own process internals (its phases, commands, state, spec-first flow, or contributor rules).
-The file reads as human-authored: no Hercules, AI, or generator attribution in it — that belongs in the
-commit message. It states only what is **enforced today**; anything recommended-but-unmet is offered in
-chat, not written as an aspirational marker in the file. Never average two conflicting values.
+to a scan observation (file, count, commit) or an explicit user answer — never invented, never
+Hercules's own process internals (phases, commands, state, spec-first flow, contributor rules). It reads
+as human-authored — no Hercules, AI, or generator attribution in the file; that belongs in the commit
+message. It states only what is **enforced today**; anything recommended-but-unmet is offered in chat,
+not marked in the file. Never average two conflicting values.
 
 ## Preconditions
 
@@ -81,25 +81,25 @@ question-priority order (widest confidence-gap first) so repeated runs stay dete
 
 ### Step 5 — Evidence-first draft
 
-Draft rules only from scan observations and user answers. Lead the file with a flat
-`## Non-negotiables (MUST)` block — the ~10 rules that must never be violated — then themed sections:
-Architecture (with the design patterns in use and why they exist), Development, Testing, Quality Gates
-(coverage; mutation), Security & Data, and Delivery. Each rule is a one-line imperative that names its
-**mechanical check** inline (a grep, a lint rule, a CI gate, or a numeric threshold), tagged **MUST** or
-**SHOULD**. A numeric threshold must quote a user answer or a computed repo statistic, never a padded
-default. Explain a rule's *why* only where it changes interpretation. Scale the file to the evidence — a
-thin repo ships a small, clearly-labelled seed, never padded to fill a band.
+Draft rules only from scan observations and user answers. Lead with a flat `## Non-negotiables (MUST)`
+block — the ~10 rules that must never be violated — then themed sections: Architecture (design patterns
+in use, and why), Development, Testing, Quality Gates (coverage; mutation), Security & Data, Delivery.
+Each rule is a one-line imperative naming its **mechanical check** inline (a grep, lint rule, CI gate, or
+numeric threshold), tagged **MUST** or **SHOULD**. A numeric threshold must quote a user answer or a
+computed repo statistic, never a padded default. Explain a rule's *why* only where it changes
+interpretation. Scale to the evidence — a thin repo ships a small, clearly-labelled seed, never padded.
 
 ### Step 6 — Gap pass, then red-team
 
 Run the coverage-map once as a **gap detector** (stack-gated — load only the groups the scan detected):
 for each applicable point with no drafted rule, surface it in chat as a recommendation — accept makes it
-a real rule, decline drops it. Then **red-team** the draft: one challenger, consented per
+a rule, decline drops it. Offer the highest-marginal-information gaps first and never push the file past
+the directive budget. Then **red-team** the draft: one challenger, consented per
 `CLAUDE.md § Sub-agent consent` and carrying the A2A Core plus the captured observations, hunts
 no-evidence rules, platitudes, hidden conflicts, and rules the code contradicts; fix and re-gate. A full
 trio (lead-architect, senior-qa-engineer, challenger) is opt-in, or automatic for a contested or
-high-blast-radius repo, debated per `CLAUDE.md § Debate protocol`. Advisors return findings only, never
-write; in update mode they may propose dropping a stale bullet — Step 8 decides.
+high-blast-radius repo, per `CLAUDE.md § Debate protocol`. Advisors return findings only, never write;
+in update mode they may propose dropping a stale bullet — Step 8 decides.
 
 ### Step 6b — Validation gate
 
@@ -113,17 +113,18 @@ Hold the draft until every rule clears all four:
   whose only check is unstructured reviewer judgment is rejected unless it also names such a signal.
 
 Emit the rule→evidence citations — each carrying its `file:line` / count / commit — as an auditable
-appendix and re-verify a sample against the source. Break-test each rule as a hostile reader before
+appendix, and **dry-run each cited check against the repo** (the grep must match; the lint rule or CI
+job must exist); drop any rule whose check does not run. Break-test each rule as a hostile reader before
 presenting.
 
 ### Step 7 — Present and iterate
 
-Present the draft plus a short summary: the most important standards, what was added, any conflict
-surfaced, and what was deferred. Surface only the **genuine decisions** — the few rules near the budget
-line and any unresolved conflict — ranked by marginal information so obvious hygiene never outranks a
-repo-specific invariant; do not hand the user a long list to curate. Feedback applies **surgically**,
-with a diff of exactly what changed; regenerate the whole draft only when the user reopens the scope,
-and re-run the gate only on what changed.
+Present the draft plus a short summary: the most important standards, what was added, any conflict, and
+what was deferred. Surface only the **genuine decisions** — the few rules near the budget line and any
+unresolved conflict — ranked by marginal information so obvious hygiene never outranks a repo-specific
+invariant; don't hand the user a long list to curate. Feedback applies **surgically**, with a diff of
+exactly what changed; regenerate the whole draft only when the user reopens the scope, and re-gate only
+what changed.
 
 ### Step 8 — Approve, then write
 
