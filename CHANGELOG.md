@@ -1,3 +1,7 @@
+## v1.3.0 (2026-07-05)
+
+* Hercules workflow hardening (#7)
+
 ## v1.2.0 (2026-06-30)
 
 * refactor(tests): reorganize suite by plugin category and retire the vestigial package (#6)
