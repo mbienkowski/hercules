@@ -11,6 +11,48 @@ Load only the groups whose stack the scan detected; always load A–D, H–L, Q�
 **Sources:** backbone points cite a primary standard; `(conv)` = established convention, not a cited spec.
 Each point: `name [tier][stack] — scan signal → rule shape.`
 
+## § Scan playbook (SKILL Step 3 runs this — bounded ≤5 min, config-first)
+
+Bound the whole scan with a hard **5-minute cap** plus file/byte caps; on breach, mark the rest
+`unknown` (they become Step-4 questions) — degrade, never stall. Read config, not the tree.
+
+- **Sizing probe** — `git ls-files | wc -l`, an extension histogram, and workspace/monorepo detection
+  (`nx.json`/`go.work`/multiple manifests) classify the repo before any heavy work.
+- **Config first** — read the known config set (deps + lockfiles, lint/format, `tsconfig`, CI workflows,
+  `Dockerfile`, `CODEOWNERS`, migrations dir, secrets-scanner/dependabot); it resolves most points cheaply.
+- **Sample, don't read the tree** — grep counts are evidence (`rg -l <pat> | wc -l`); read only a canonical
+  sorted sample (~20–30 files); note repeated design patterns and test conventions.
+- **Mine bounded history** — `git log -n 200` → commit convention (format, scope, tense, ticket refs);
+  branch names and merge shape → branching/merge strategy; `git tag` → release cadence.
+- **Reconcile config against code** — a rule the config states but the sampled code visibly violates
+  becomes a Step-4 question, never an enforced rule.
+- **Large / monorepo** — scan root config plus a few representative modules per language, never every
+  module; proceed sampled and invite the user to point at key modules or grant budget, never block.
+- **Tag & capture** — tag each observation (`inferred-high` … `unknown`) and capture its `file:line` /
+  count / commit so a rule can cite it. Two live patterns for one concern → a question, never majority
+  rule. Exclude `.env*` and credential paths; record structure, never values.
+- **Determinism & resume** — canonical sorted sampling and a fixed question order make two runs
+  ~identical. Plan mode blocks writes, so hold results in memory (a bounded interrupted scan re-runs);
+  after the write step the draft/answers/mode persist to `~/.hercules/state/{slug}-coc.json` to resume.
+
+## § Output format (SKILL Step 5 formats per this; Step 6b gate checks it)
+
+The emitted CoC is enforced-only and formatted for an AI reader:
+
+- **Lead with `## Non-negotiables (MUST)`** — the ~10 rules never violated — then themed sections in
+  scan order (Architecture with design patterns and why, Development, Testing, Quality Gates incl.
+  mutation, Security & Data, Delivery), most load-bearing first.
+- **One atomic imperative per rule**, tagged **MUST** or **SHOULD**, naming its **mechanical check**
+  inline — a grep, a lint rule, a CI job, or a numeric threshold. Explain a rule's *why* only where it
+  changes interpretation; a section may open with one evidence-grounded WHY sentence.
+- **Ground every number** — a threshold quotes a user answer or a computed repo statistic, never a padded
+  default. Scale to evidence: a thin repo ships a small, clearly-labelled seed, never padded.
+- **Gate (Step 6b) — every rule clears all four**: reads exactly one way; conflicts with no other; is
+  backed by a captured observation or a user answer ("it looks nice", or an answer that just restates the
+  rule, is not proof); names an **objective** mechanical check (reviewer-judgment-only is rejected unless
+  it also names a signal). Emit the rule→evidence citations as an auditable appendix; **dry-run each cited
+  check** (the grep must match; the lint rule or CI job must exist) and drop any rule whose check fails.
+
 ## A. Architecture & design
 - Layering & dependency direction [P0] — module graph, import cycles → deps point one way, no cycles. (conv)
 - Sanctioned design patterns [P1] — repeated pattern names/dirs → name them; ban over-abstraction. (conv)

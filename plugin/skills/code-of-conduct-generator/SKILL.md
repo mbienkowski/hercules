@@ -6,149 +6,78 @@ description: Generate or update a project's code-of-conduct — the single sourc
 # Code-of-Conduct Generator
 
 The code-of-conduct is the highest-leverage file: every agent reads it, so careful answers compound
-across every future feature. The generator drafts it **evidence-first** — from what this repo has
-actually decided — then proves and gap-checks every rule before the user sees it.
+across every feature. The generator drafts it **evidence-first** — rules only from what this repo
+decided (scan + user answers) — then gap-checks and proves each before the user sees it. The detailed
+scan tactics and output format live in the companion `coverage-map.md`; this file is the spine.
 
-## Invariants (hold in every step)
+## Invariants
 
-The emitted file states the **target repository's** enforced standards only. Every shipped rule traces
-to a scan observation (file, count, commit) or an explicit user answer — never invented, never
-Hercules's own process internals (phases, commands, state, spec-first flow, contributor rules). It reads
-as human-authored — no Hercules, AI, or generator attribution in the file; that belongs in the commit
-message. It states only what is **enforced today**; anything recommended-but-unmet is offered in chat,
-not marked in the file. Never average two conflicting values.
+The file states the **target repository's** enforced standards only — every rule traces to a scan
+observation or a user answer, never invented, and never Hercules's process internals (phases, commands,
+state, spec-first flow, contributor rules). It reads as human-authored: no attribution in the file —
+that goes in the commit message. It states only what is enforced today; anything recommended-but-unmet
+is offered in chat, not written in the file. Never average two conflicting values.
 
 ## Preconditions
 
-Must run inside a git repository — if not, **stop** and tell the user to re-open Hercules inside the
-target repository and re-invoke the skill. Resolve the **target** repo per
-`CLAUDE.md § Code-of-conduct resolution` — the repo the standards govern, not always the launch
-directory. When Claude was opened away from the code, or several candidate roots exist (multi-repo,
-nested checkouts, sub-projects), list them (`ls`, `git rev-parse --show-toplevel`) and ask the user
-which repo the CoC is for. Run every scan command against that root (`git -C <root>`), never bare `.`.
+Must run inside a git repository — else **stop** and tell the user to re-open Hercules in the target
+repository and re-invoke. Resolve the **target** repo per `CLAUDE.md § Code-of-conduct resolution`, not
+the launch directory; if Claude was opened away from the code or several candidate roots exist, list
+them (`ls`, `git rev-parse --show-toplevel`) and ask which repo the CoC is for. Run every scan, `find`,
+and git command against that root (`git -C <root>`), never bare `.` — one CoC per repo, never merged.
 
 ## Method
 
-### Step 1 — Plan mode, roadmap, and mode
-
-Call `EnterPlanMode` first, before any scanning. Give the user a chat summary of the flow and offer a
-mode: **Quick** (the default for a small or low-stakes repo — scan → ~3 questions → draft → gate →
-review → commit; it still runs the Step 6b gate and a light self-scan for platitudes and unfounded
-rules, and only skips the coverage-map gap pass and the advisor red-team) or **Thorough** (adds the
-coverage-map gap pass, priority tuning, and an advisor red-team). Name the detected target root so the
-user can correct it.
-
-### Step 2 — Find any existing code-of-conduct
-
-Find it case-insensitively: `code-of-conduct.md` or `CODE_OF_CONDUCT.md` (any capitalization) — scan
-the root, `.github/`, and `docs/` with `find <root> -maxdepth 2 -iname 'code[-_ ]of[-_ ]conduct.md'`.
-
-- **One match** → read it; **update mode** below. But a lone `.github/` file that is a *behavioural*
-  Contributor Covenant is not an engineering standard — treat it as none and create a separate file.
-- **More than one** (a technical file and a `.github/` community doc are distinct) → never silently
-  pick; list every match and confirm which is the standards target.
-- **None** → default to `code-of-conduct.md` in the root; new-file flow.
-
-### Step 3 — Scan the target repo (bounded ≤5 min, evidence-first)
-
-A sizing probe (`git ls-files | wc -l`, an extension histogram, workspace/monorepo detection) picks the
-path and a hard **5-minute cap** bounds the whole scan. Work the coverage-map (`coverage-map.md`) for
-what to look for; capture each observation (`file:line` / count / commit) so a rule can cite it, and on
-the cap stop and mark the rest `unknown`.
-
-- **Config first** — standards live in tooling config, so read manifests and config first, before source.
-- **Sample, don't read the tree** — use grep counts as evidence, read ~20–30 files, note repeated design
-  patterns and test conventions.
-- **Mine bounded history** — `git log -n 200` for the commit convention, branch names and merge shape for
-  the branching/merge strategy, `git tag` for releases.
-- **Reconcile config against code** — a rule the config states but the sampled code violates becomes a
-  Step-4 question, never an enforced rule.
-- **Large / monorepo** — scan root config plus a few representative modules per language, never every
-  module; proceed sampled and invite the user to point at key modules or grant more budget, never block.
-- **Two live patterns for one concern** → a question, never majority rule. Exclude `.env*` and credential
-  paths; record structure, never values.
-
-Plan mode blocks writes, so hold scan results in memory: a scan interrupted before approval simply
-re-runs (it is bounded). Once the file is written (Step 8), the draft, answers, and chosen mode persist
-to `~/.hercules/state/{slug}-coc.json` so a later re-invoke resumes from the draft, not a rescan.
-
-### Step 4 — Questions
-
-Thorough asks 5–10 questions in one message — no trickle; minimum 5 (Quick asks ~3). Ask for *intent*
-(why this pattern? why this threshold?), resolve any split pattern, and force an explicit accept or
-decline on each recommended gate so a recommendation is never silently assumed. Use a fixed
-question-priority order (widest confidence-gap first) so repeated runs stay deterministic.
-
-### Step 5 — Evidence-first draft
-
-Draft rules only from scan observations and user answers. Lead with a flat `## Non-negotiables (MUST)`
-block — the ~10 rules that must never be violated — then themed sections: Architecture (design patterns
-in use, and why), Development, Testing, Quality Gates (coverage; mutation), Security & Data, Delivery.
-Each rule is a one-line imperative naming its **mechanical check** inline (a grep, lint rule, CI gate, or
-numeric threshold), tagged **MUST** or **SHOULD**. A numeric threshold must quote a user answer or a
-computed repo statistic, never a padded default. Explain a rule's *why* only where it changes
-interpretation. Scale to the evidence — a thin repo ships a small, clearly-labelled seed, never padded.
-
-### Step 6 — Gap pass, then red-team
-
-Run the coverage-map once as a **gap detector** (stack-gated — load only the groups the scan detected):
-for each applicable point with no drafted rule, surface it in chat as a recommendation — accept makes it
-a rule, decline drops it. Offer the highest-marginal-information gaps first and never push the file past
-the directive budget. Then **red-team** the draft: one challenger, consented per
-`CLAUDE.md § Sub-agent consent` and carrying the A2A Core plus the captured observations, hunts
-no-evidence rules, platitudes, hidden conflicts, and rules the code contradicts; fix and re-gate. A full
-trio (lead-architect, senior-qa-engineer, challenger) is opt-in, or automatic for a contested or
-high-blast-radius repo, per `CLAUDE.md § Debate protocol`. Advisors return findings only, never write;
-in update mode they may propose dropping a stale bullet — Step 8 decides.
-
-### Step 6b — Validation gate
-
-Hold the draft until every rule clears all four:
-
-- **reads exactly one way** — reword or split anything with a second reading;
-- **conflicts with no other** — an existing-vs-new clash is a user question, never a silent resolution;
-- **is backed by a captured observation or a user answer** — "it looks nice" is not proof, and a user
-  answer that merely restates the rule as a platitude is not proof either;
-- **names an objective mechanical check** — a grep, a lint rule, a CI job, or a numeric threshold; a rule
-  whose only check is unstructured reviewer judgment is rejected unless it also names such a signal.
-
-Emit the rule→evidence citations — each carrying its `file:line` / count / commit — as an auditable
-appendix, and **dry-run each cited check against the repo** (the grep must match; the lint rule or CI
-job must exist); drop any rule whose check does not run. Break-test each rule as a hostile reader before
-presenting.
-
-### Step 7 — Present and iterate
-
-Present the draft plus a short summary: the most important standards, what was added, any conflict, and
-what was deferred. Surface only the **genuine decisions** — the few rules near the budget line and any
-unresolved conflict — ranked by marginal information so obvious hygiene never outranks a repo-specific
-invariant; don't hand the user a long list to curate. Feedback applies **surgically**, with a diff of
-exactly what changed; regenerate the whole draft only when the user reopens the scope, and re-gate only
-what changed.
-
-### Step 8 — Approve, then write
-
-On the user's approval: `ExitPlanMode` (`auto`) → write atomically (temp + rename) → add an
-`@`-reference to the written file (default `@./code-of-conduct.md`) to the **target** repo's `CLAUDE.md`
-if absent, creating `CLAUDE.md` when missing and never duplicating an existing reference.
-
-### Step 9 — Review, then commit
-
-Show the written file and ask the user to review it. On their go-ahead, **stage then commit** exactly
-the code-of-conduct file plus `CLAUDE.md` when touched — `git add -- <paths>` then
-`git commit -m … -- <paths>` — in the repo's mined commit convention, or a plain imperative subject when
-history gave none; never reset or unstage the user's other work. Attribution lives in the commit
-message, never in the file. Offer a push; never push automatically. No go-ahead → reply:
-"Left uncommitted: {paths}. Say 'commit' when ready, or edit first."
+1. **Plan mode & mode** — call `EnterPlanMode` first, before any scanning; give a chat summary of the
+   flow and offer **Quick** (small/low-stakes default: scan → ~3 questions → draft → gate → review →
+   commit) or **Thorough** (adds the coverage-map gap pass and an advisor red-team). Name the detected
+   root so the user can correct it.
+2. **Find existing CoC** — find it case-insensitively (any capitalization of `code-of-conduct.md` or
+   `CODE_OF_CONDUCT.md`) across root/`.github/`/`docs/` (`find <root> -maxdepth 2 -iname
+   'code[-_ ]of[-_ ]conduct.md'`). One match → **update mode**; but a lone `.github/` behavioural
+   Contributor Covenant is not an engineering standard — treat it as none and create a separate file.
+   **More than one** → never silently pick; list every match and confirm the target. None → default
+   `code-of-conduct.md` in the root.
+3. **Scan (≤5 min)** — run the **§ Scan playbook** in `coverage-map.md`: bounded and config-first,
+   size-adaptive, mining git history for the commit/branch/merge/release conventions, reconciling config
+   against code, capturing a citation per observation.
+4. **Questions** — Thorough asks 5–10 questions in one message — no trickle; minimum 5 (Quick asks ~3).
+   Ask *intent*, resolve split patterns, and force an explicit accept/decline on each recommended gate.
+   Recommend in chat the AI-assisted quality bar — branch (not just line) coverage, a mutation gate
+   where a mutation tool exists, architecture/dependency tests via the framework's standard tool, a
+   linter + formatter; accepted-with-tooling becomes a rule, the rest stay chat advice.
+5. **Draft** — draft rules only from scan observations and user answers, formatted per **§ Output
+   format** in `coverage-map.md`: lead with a `## Non-negotiables (MUST)` block, then themed sections —
+   Architecture (design patterns in use, and why), Development, Testing, Quality Gates (coverage;
+   mutation), Security & Data, Delivery — each rule naming its check inline and tagged MUST/SHOULD;
+   explain a rule's *why* only where it changes interpretation.
+6. **Gap pass & red-team** (Thorough) — run `coverage-map.md` once as a stack-gated gap detector: each
+   load-bearing omission is a chat recommendation (accept → rule, decline → absent), offered
+   highest-value first and never past the directive budget. Then one `challenger` red-teams the draft
+   per `CLAUDE.md § Sub-agent consent`, carrying the A2A Core plus the observations; a full trio is
+   opt-in or automatic for a contested repo, per `CLAUDE.md § Debate protocol`; advisors return findings
+   only, never write. Quick runs a light platitude/no-evidence self-scan instead.
+7. **Gate & present** — hold the draft at the **§ Output format** gate, then present it with a short
+   summary (top standards, added, conflicts, dropped), surfacing only the ~5 genuine decisions ranked by
+   marginal information — never a long list to curate. Feedback applies **surgically** with a diff of
+   what changed; regenerate wholesale only when the user reopens the scope, and re-gate only what changed.
+8. **Approve & write** — on approval: `ExitPlanMode` (`auto`) → write atomically (temp + rename) → add a
+   deduplicated `@`-reference (default `@./code-of-conduct.md`) to the **target** repo's `CLAUDE.md`,
+   creating it when missing.
+9. **Review & commit** — show the file and ask the user to review it. On their go-ahead, **stage then
+   commit** exactly the code-of-conduct file plus `CLAUDE.md` when touched — `git add -- <paths>` then
+   `git commit -m … -- <paths>` — so an untracked new file commits cleanly and the user's other staged
+   work is never reset or swept in; use the mined commit convention or a plain imperative subject.
+   Attribution lives in the commit message, never in the file. Offer a push; never push automatically.
+   No go-ahead → reply: "Left uncommitted: {paths}. Say 'commit' when ready, or edit first."
 
 ## Update mode
 
 Never rename, reorder, delete, or restructure existing sections or bullets on the generator's own
-initiative — additions only. Exceptions: a red-team-proposed drop of a stale, conflicting, or ambiguous
-existing bullet after the user's explicit yes, and any edit the user directs. Gap analysis surfaces
-missing items, conflicts (the CoC says X, the code does Y — a question, never auto-resolved), and
-missing sections; present an additions-only diff plus any drop questions, insert bullets in place, and
-append new sections at the end.
+initiative — additions only. Exceptions: a red-team-proposed drop after the user's explicit yes, and any
+edit the user directs. Gap analysis surfaces missing items, conflicts (the CoC says X, the code does Y —
+a question, never auto-resolved), and missing sections; present an additions-only diff plus any drop
+questions, insert bullets in place, and append new sections at the end.
 
 ## Output budget
 
@@ -163,6 +92,6 @@ mutation testing is a chat recommendation, never a file rule.
 
 ## Corner cases
 
-- Monorepo/polyglot: per-module subsections in the one root file; never average conflicting values.
-- Multi-repo or opened elsewhere: generate for the target repo only; one CoC per repo, never merged.
-- Thin/empty repo: skip the scan, ask a few forward-looking questions, ship a small labelled seed.
+- Monorepo/polyglot: per-module subsections in the one root file.
+- Multi-repo or opened elsewhere: one CoC per target repo, never merged.
+- Thin/empty repo: lean on Q&A and ship a small labelled seed.

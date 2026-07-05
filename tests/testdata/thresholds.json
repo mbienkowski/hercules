@@ -122,9 +122,9 @@
     "target": "plugin/skills/code-of-conduct-generator/coverage-map.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 5200,
+    "limit": 6000,
     "severity": "gate",
     "per_file": true,
-    "warn_at": 4800
+    "warn_at": 5600
   }
 ]
