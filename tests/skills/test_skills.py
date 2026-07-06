@@ -368,13 +368,13 @@ def test_coc_generator_questions_and_quality_bar(read_file):
         or "mutation gate where a mutation tool exists" in flat
 
 
-def test_coc_generator_gap_pass_then_red_team(read_file):
-    """Stack-gated gap detector bounded by the directive budget, then a single-challenger red-team
-    (full trio opt-in); debate mechanics are referenced, never restated."""
+def test_coc_generator_gap_pass_then_critical_review(read_file):
+    """Stack-gated gap detector bounded by the directive budget, then a single-challenger critical
+    review (full trio opt-in); debate mechanics are referenced, never restated."""
     flat = _coc_flat(read_file)
     assert "stack-gated gap detector" in flat
     assert "never past the directive budget" in flat
-    assert "`challenger` red-teams the draft" in flat
+    assert "`challenger` critically reviews the draft" in flat
     assert "§ Sub-agent consent" in flat and "CLAUDE.md § Debate protocol" in flat
     assert "Agent-Injected Core" in flat
     assert "advisors return findings\n only, never write".replace("\n ", " ") in flat \
@@ -384,7 +384,7 @@ def test_coc_generator_gap_pass_then_red_team(read_file):
 
 
 def test_coc_generator_quick_mode_still_self_scans(read_file):
-    """Quick skips the full red-team but still runs a light platitude/no-evidence self-scan, so the
+    """Quick skips the full critical review but still runs a light platitude/no-evidence self-scan, so the
     quality floor is not Thorough-only."""
     flat = _coc_flat(read_file)
     assert "Quick runs a light platitude/no-evidence self-scan" in flat

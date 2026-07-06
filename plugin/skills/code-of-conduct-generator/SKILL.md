@@ -28,7 +28,7 @@ and git command against that root (`git -C <root>`), never bare `.`.
 
 1. **Plan mode & mode** — call `EnterPlanMode` first, before any scanning; give a chat summary of the
    flow and offer **Quick** (small/low-stakes default: scan → a few questions → draft → gate → review →
-   commit) or **Thorough** (adds the coverage-map gap pass and an advisor red-team). Name the detected
+   commit) or **Thorough** (adds the coverage-map gap pass and an advisor critical-review pass). Name the detected
    root so the user can correct it.
 2. **Find existing CoC** — find it case-insensitively (any capitalization of `code-of-conduct.md` or
    `CODE_OF_CONDUCT.md`) across root/`.github/`/`docs/` (`find <root> -maxdepth 2 -iname
@@ -51,9 +51,9 @@ and git command against that root (`git -C <root>`), never bare `.`.
    Architecture (design patterns in use, and why), Development, Testing, Quality Gates (coverage;
    mutation), Security & Data, Delivery — each rule naming its check inline and tagged MUST/SHOULD;
    explain a rule's *why* only where it changes interpretation.
-6. **Gap pass & red-team** (Thorough) — run `coverage-map.md` once as a stack-gated gap detector: each
+6. **Gap pass & critical review** (Thorough) — run `coverage-map.md` once as a stack-gated gap detector: each
    load-bearing omission is a chat recommendation (accept → rule, decline → absent), offered
-   highest-value first and never past the directive budget. Then one `challenger` red-teams the draft
+   highest-value first and never past the directive budget. Then one `challenger` critically reviews the draft
    per `CLAUDE.md § Sub-agent consent`, carrying the A2A § Agent-Injected Core plus the observations; a full trio is
    opt-in or automatic for a contested repo, per `CLAUDE.md § Debate protocol`; advisors return findings
    only, never write. Quick runs a light platitude/no-evidence self-scan instead.
@@ -77,7 +77,7 @@ and git command against that root (`git -C <root>`), never bare `.`.
 ## Update mode
 
 Never rename, reorder, delete, or restructure existing sections or bullets on the generator's own
-initiative — additions only. Exceptions: a red-team-proposed drop after the user's explicit yes, and any
+initiative — additions only. Exceptions: a critical-review-proposed drop after the user's explicit yes, and any
 edit the user directs. Gap analysis surfaces missing items, conflicts (the CoC says X, the code does Y —
 a question, never auto-resolved), and missing sections; present an additions-only diff plus any drop
 questions, insert bullets in place, and append new sections at the end.
