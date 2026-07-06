@@ -1,3 +1,7 @@
+## v1.4.0 (2026-07-06)
+
+* feat(skills): make code-of-conduct-generator a debate-validated, evidence-mining flow (#8)
+
 ## v1.3.0 (2026-07-05)
 
 * Hercules workflow hardening (#7)
