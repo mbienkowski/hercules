@@ -286,7 +286,7 @@ def test_generator_states_the_directive_budget(read_file):
     assert "update mode" in skill and "never cut or merged" in skill, \
         "the cut/merge advice must carve out update mode (additions only)"
     assert "mutation tool exists" in skill or "mutation tool is present" in skill, \
-        "never suggest a mutation gate for a repo with no mutation tooling"
+        "the enforced mutation gate must be conditioned on a mutation tool being present"
 
 
 def test_learnings_store_has_an_entry_budget_and_eviction_criterion(read_file):
@@ -299,3 +299,192 @@ def test_learnings_store_has_an_entry_budget_and_eviction_criterion(read_file):
     assert "universal" in low and "importan" in low, \
         "eviction must be criterion-driven: keep by universality and importance"
 
+
+# ── code-of-conduct-generator: v4 lean spine + coverage-map companion ──────────
+# The SKILL.md is a lean orchestration spine; detailed scan/output rules live in the
+# coverage-map companion, read per-step. Tests read whichever file owns the behavior,
+# whitespace-collapsed so a pinned phrase survives line-wrapping.
+
+_COC_MAP = "plugin/skills/code-of-conduct-generator/coverage-map.md"
+
+
+def _coc_flat(read_file):
+    return " ".join(read_file(_COC_GENERATOR).split())
+
+
+def _cmap_flat(read_file):
+    return " ".join(read_file(_COC_MAP).split())
+
+
+def test_coc_generator_enters_plan_mode_and_offers_modes(read_file):
+    """Plan mode opens before any scan, with a roadmap, and Quick vs Thorough keeps a small repo
+    out of the full ceremony."""
+    flat = _coc_flat(read_file)
+    assert "call `EnterPlanMode` first, before any scanning" in flat
+    assert "chat summary of the" in flat
+    assert "Quick" in flat and "Thorough" in flat and "low-stakes" in flat
+
+
+def test_coc_generator_drafts_evidence_first_enforced_only(read_file):
+    """Rules come only from scan observations + user answers; the file is enforced-only with no
+    aspirational (target) markers."""
+    flat = _coc_flat(read_file)
+    assert "draft rules only from scan observations and user answers" in flat
+    assert "only what is enforced today" in flat
+    assert "`(target)`" not in flat, "v4 emits an enforced-only file — no (target) markers"
+
+
+def test_coc_generator_spine_points_to_companion_sections(read_file):
+    """The lean spine delegates detail to the companion's Scan-playbook and Output-format
+    sections — keeping SKILL.md's instruction load low."""
+    flat = _coc_flat(read_file)
+    assert "§ Scan playbook" in flat and "§ Output format" in flat
+    assert "coverage-map.md" in flat
+    assert "this file is the spine" in flat
+
+
+def test_coc_generator_find_guard_and_target_resolution(read_file):
+    """Case-insensitive detection, multi-match confirm, the behavioural-Covenant guard, and
+    target-repo resolution (ask when ambiguous)."""
+    flat = _coc_flat(read_file)
+    assert "any capitalization" in flat and "case-insensitiv" in flat.lower()
+    assert "More than one" in flat and "never silently" in flat
+    assert "Contributor Covenant is not an engineering standard" in flat
+    assert "CLAUDE.md § Code-of-conduct resolution" in flat
+    assert "which repo the CoC is for" in flat
+    assert "one CoC per repo, never merged" in flat
+
+
+def test_coc_generator_questions_and_quality_bar(read_file):
+    """A single batch with a raised floor — the main agent picks the count each run but never fewer
+    than 5–8 questions (minimum 5), plus accept/decline per recommended gate and the AI-assisted
+    quality bar recommended in chat."""
+    flat = _coc_flat(read_file)
+    assert "no trickle" in flat and "never asks fewer than 5–8 questions" in flat
+    assert "minimum 5" in flat
+    assert "accept/decline on each recommended gate" in flat
+    assert "branch (not just line) coverage" in flat
+    assert "mutation gate\n where a mutation tool exists".replace("\n ", " ") in flat \
+        or "mutation gate where a mutation tool exists" in flat
+
+
+def test_coc_generator_gap_pass_then_critical_review(read_file):
+    """Stack-gated gap detector bounded by the directive budget, then a single-challenger critical
+    review (full trio opt-in); debate mechanics are referenced, never restated."""
+    flat = _coc_flat(read_file)
+    assert "stack-gated gap detector" in flat
+    assert "never past the directive budget" in flat
+    assert "`challenger` critically reviews the draft" in flat
+    assert "§ Sub-agent consent" in flat and "CLAUDE.md § Debate protocol" in flat
+    assert "Agent-Injected Core" in flat
+    assert "advisors return findings\n only, never write".replace("\n ", " ") in flat \
+        or "advisors return findings only, never write" in flat
+    raw = read_file(_COC_GENERATOR).lower()
+    assert "round 1" not in raw and "cross-examin" not in raw
+
+
+def test_coc_generator_quick_mode_still_self_scans(read_file):
+    """Quick skips the full critical review but still runs a light platitude/no-evidence self-scan, so the
+    quality floor is not Thorough-only."""
+    flat = _coc_flat(read_file)
+    assert "Quick runs a light platitude/no-evidence self-scan" in flat
+
+
+def test_coc_generator_feedback_is_surgical(read_file):
+    """Only genuine decisions surface (ranked by marginal information); feedback is surgical, not a
+    silent full regenerate."""
+    flat = _coc_flat(read_file)
+    assert "genuine decisions" in flat and "marginal information" in flat
+    assert "Feedback applies **surgically**" in flat
+    assert "regenerate wholesale only when the user reopens the scope" in flat
+    # The gate is too important to relocate — its criteria live inline in the spine, non-skippable.
+    assert "reads exactly one way" in flat and '"it looks nice" is not proof' in flat
+    assert "dry-run each cited check, dropping any that\n fails".replace("\n ", " ") in flat \
+        or "dry-run each cited check, dropping any that fails" in flat
+
+
+def test_coc_generator_commit_stages_before_committing(read_file):
+    """The confirmed bug fix: stage then pathspec-commit so an untracked new file commits and the
+    user's other staged work is untouched; attribution only in the message; push offer-only."""
+    flat = _coc_flat(read_file)
+    assert "stage then\n commit".replace("\n ", " ") in flat or "stage then commit" in flat
+    assert "`git add -- <paths>` then" in flat
+    assert "never reset or swept in" in flat
+    assert "Attribution lives in the commit message, never in the file" in flat
+    assert "never push automatically" in flat
+    assert "/hercules:ship" not in flat
+
+
+def test_coc_generator_forbids_hercules_internals_bleed(read_file):
+    """The file states the target repo's standards only; Hercules process internals never leak."""
+    flat = _coc_flat(read_file)
+    assert "target repository's" in flat
+    assert "Hercules's process internals" in flat and "spec-first flow" in flat
+
+
+def test_coc_generator_steps_are_in_execution_order(read_file):
+    """Structural: the nine numbered steps appear in order — a reshuffled spine fails."""
+    skill = read_file(_COC_GENERATOR)
+    labels = ["1. **Plan mode", "2. **Find existing", "3. **Scan", "4. **Questions",
+              "5. **Draft", "6. **Gap pass", "7. **Gate", "8. **Approve", "9. **Review"]
+    positions = [skill.index(s) for s in labels]
+    assert positions == sorted(positions), "the nine steps must appear in execution order"
+
+
+# ── coverage-map companion: the relocated Scan-playbook and Output-format detail ──
+
+def test_coverage_map_scan_playbook_is_bounded_and_evidence_mining(read_file):
+    """The relocated scan playbook is bounded (≤5 min), config-first, size-adaptive, mines git
+    history, and reconciles config against code."""
+    flat = _cmap_flat(read_file)
+    assert "§ Scan playbook" in flat
+    assert "**5-minute cap**" in flat and "Sizing probe" in flat and "Config first" in flat
+    assert "`git log -n 200`" in flat and "branch names and merge shape" in flat and "`git tag`" in flat
+    assert "Reconcile config against code" in flat
+    assert "becomes a Step-4 question, never an enforced rule" in flat
+    assert "proceed sampled and invite the user to point at key modules" in flat
+
+
+def test_coverage_map_scan_playbook_is_deterministic_and_resumable(read_file):
+    """Determinism (canonical sampling, fixed question order) and resumability that does not rely
+    on a plan-mode write."""
+    flat = _cmap_flat(read_file)
+    assert "canonical sorted sampling" in flat
+    assert "Plan mode blocks writes" in flat
+    assert "~/.hercules/state/{slug}-coc.json" in flat
+
+
+def test_coverage_map_output_format_leads_with_must_and_inline_checks(read_file):
+    """The relocated output rules: lead with a MUST block, inline mechanical check, MUST/SHOULD
+    tags, grounded thresholds, evidence-scaled size."""
+    flat = _cmap_flat(read_file)
+    assert "Lead with `## Non-negotiables (MUST)`" in flat
+    assert "naming its **mechanical check** inline" in flat
+    assert "tagged **MUST** or **SHOULD**" in flat
+    assert "quotes a user answer or a computed repo statistic, never a padded default" in flat
+    assert "small, clearly-labelled seed, never padded" in flat
+
+
+def test_coverage_map_gate_is_strict_and_executed(read_file):
+    """The relocated Step-6b gate: four criteria, an objective (not reviewer-judgment) check, an
+    auditable citation appendix, and each cited check dry-run against the repo."""
+    flat = _cmap_flat(read_file)
+    assert "reads exactly one way" in flat and "conflicts with no other" in flat
+    assert '"it looks nice"' in flat and "is not proof" in flat
+    assert "names an **objective** mechanical check" in flat
+    assert "reviewer-judgment-only is rejected" in flat
+    assert "auditable\n appendix".replace("\n ", " ") in flat or "auditable appendix" in flat
+    assert "dry-run each cited check" in flat
+
+
+def test_coverage_map_exists_and_is_cited(read_file):
+    """The coverage-map ships with the tier legend, stack flags, primary-source anchors, and is
+    marked an internal scan aid, not CoC output."""
+    cmap = read_file(_COC_MAP)
+    assert "not CoC output" in cmap
+    assert "P0" in cmap and "P1" in cmap and "[fe]" in cmap and "[be]" in cmap
+    for anchor in ("OWASP ASVS", "SLSA", "SemVer", "SRE", "12-Factor", "RFC-2119"):
+        assert anchor in cmap, f"coverage-map must cite {anchor}"
+    assert "(conv)" in cmap
+    for added in ("Coordinated disclosure", "Data classification scheme", "DCO/CLA", "License headers"):
+        assert added in cmap, f"coverage-map must carry the {added} point"
