@@ -91,9 +91,7 @@ def test_all_agents_are_listed_in_the_project_documentation(repo_root):
 @pytest.mark.parametrize("path", _AGENT_PATHS, ids=lambda p: p.stem)
 def test_each_agent_file_has_the_required_structure_and_fields(path):
     """Every agent file declares frontmatter name/description/model and wires the A2A contract.
-    (Delegates pin a smaller model for cost control; `hercules` declares the `opus` alias as its
-    default — an initial selection the user overrides anytime via `/model`, never a hard pin.
-    See README § Plugin permissions.)"""
+    (Advisors pin a smaller model for cost; `hercules` declares `opus` as its default.)"""
     md = path.read_text()
     name = path.stem
     assert md.startswith("---"), f"{path.name} must open with YAML frontmatter"
