@@ -91,8 +91,9 @@ def test_all_agents_are_listed_in_the_project_documentation(repo_root):
 @pytest.mark.parametrize("path", _AGENT_PATHS, ids=lambda p: p.stem)
 def test_each_agent_file_has_the_required_structure_and_fields(path):
     """Every agent file declares frontmatter name/description/model and wires the A2A contract.
-    (Delegates pin a model for cost control; `hercules` is exempt BY DESIGN — it runs every
-    session and inherits the user's configured model. See README § Plugin permissions.)"""
+    (Delegates pin a smaller model for cost control; `hercules` declares the `opus` alias as its
+    default — an initial selection the user overrides anytime via `/model`, never a hard pin.
+    See README § Plugin permissions.)"""
     md = path.read_text()
     name = path.stem
     assert md.startswith("---"), f"{path.name} must open with YAML frontmatter"
@@ -100,8 +101,7 @@ def test_each_agent_file_has_the_required_structure_and_fields(path):
     assert m is not None, f"{path.name} frontmatter missing `name:`"
     assert m.group(1) == name, f"{path.name} frontmatter name={m.group(1)!r} must match filename {name!r}"
     assert "description:" in md, f"{path.name} frontmatter missing 'description:'"
-    if name != "hercules":
-        assert "model:" in md, f"{path.name} frontmatter missing 'model:'"
+    assert "model:" in md, f"{path.name} frontmatter missing 'model:'"
     assert "code-of-conduct" in md.lower(), \
         f"{path.name} must instruct the agent to read the project's code-of-conduct file (any capitalization)"
     assert "a2a-communication-protocol.md" in md, f"{path.name} must point to the A2A protocol"

@@ -279,12 +279,18 @@ def test_first_run_gate_never_intercepts_unrelated_work(read_file):
     assert "/hercules:" in gate, "the gate must scope itself to Hercules-directed requests"
 
 
-def test_persona_inherits_the_session_model(read_file):
-    """A plugin silently pinning every session to the most expensive model is a trust
-    breaker — the persona inherits whatever model the user configured."""
+def test_persona_defaults_to_opus_but_stays_overridable(read_file):
+    """The default persona defaults to opus (the tier that best fits Hercules' orchestration
+    work), declared via the `opus` alias. The alias is an *initial selection*, not a hard
+    pin: Claude Code lets the user switch models anytime with `/model`. A raw model id
+    (`claude-...`) would defeat that override and re-lock the session — so the frontmatter
+    must carry the alias, never a pinned id."""
     agent = read_file("plugin/agents/hercules.md")
     head = agent[:agent.index("\n---", 3)]
-    assert "model:" not in head, "the default persona must not pin a model"
+    assert re.search(r"(?m)^model:\s*opus\s*$", head), \
+        "the default persona must default to the opus model alias"
+    assert "claude-" not in head, \
+        "the persona must use the overridable `opus` alias, not a raw pinned model id"
 
 
 def test_readme_citation_doi_is_the_real_paper(read_file):

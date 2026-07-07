@@ -452,9 +452,10 @@ it can do is exactly what Claude Code can do in your session:
   in progress).
 - **Shell** — during Build, when tests need to run (Claude Code executes the command; Hercules issues no
   shell commands independently), and the hooks above, which Claude Code invokes as `python3` on edits.
-- **Models** — the Hercules persona runs on whatever model your session is configured to use; some
-  advisor agents pin smaller models (`sonnet`, `haiku`) to keep debates cheap. Nothing pins a larger
-  model than yours.
+- **Models** — the Hercules persona **defaults to `opus`**, the tier best suited to its orchestration
+  work. That default is just an initial selection, not a lock: **switch to any model anytime with
+  `/model`** (or set your own default in session/project settings) and Hercules follows it. Some
+  advisor agents pin smaller models (`sonnet`, `haiku`) to keep debates cheap.
 - **Network** — none. All model calls go through your existing Claude Code session and API key.
   Hercules makes no direct API calls and opens no separate network channel — hooks included.
 
