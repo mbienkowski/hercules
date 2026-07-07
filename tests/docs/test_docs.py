@@ -279,12 +279,27 @@ def test_first_run_gate_never_intercepts_unrelated_work(read_file):
     assert "/hercules:" in gate, "the gate must scope itself to Hercules-directed requests"
 
 
-def test_persona_inherits_the_session_model(read_file):
-    """A plugin silently pinning every session to the most expensive model is a trust
-    breaker — the persona inherits whatever model the user configured."""
+def test_persona_model_defaults_to_opus(read_file):
+    """The default persona declares its default model as the `opus` alias — version-flexible,
+    and (unlike a raw `claude-...` id) the exact-match regex here also pins it to the alias.
+    Whether `/model` overrides it at runtime is Claude Code behaviour this static check can't
+    prove; it is verified empirically in the PR."""
     agent = read_file("plugin/agents/hercules.md")
     head = agent[:agent.index("\n---", 3)]
-    assert "model:" not in head, "the default persona must not pin a model"
+    assert re.search(r"(?m)^model:\s*opus\s*$", head), \
+        "hercules.md frontmatter must declare `model: opus`"
+
+
+def test_readme_documents_opus_default_and_override(read_file):
+    """The user-facing half of the fix: the Plugin permissions Models bullet must say the
+    persona defaults to opus and can be changed with `/model`, or the doc silently regresses."""
+    readme = read_file("README.md")
+    match = re.search(r"## Plugin permissions\n(.*?)(?=\n## |\Z)", readme, re.DOTALL)
+    assert match, "README must have a '## Plugin permissions' section"
+    perms = match.group(1)
+    assert re.search(r"defaults to `?opus`?", perms, re.I), \
+        "Models bullet must state the persona defaults to opus"
+    assert "/model" in perms, "Models bullet must document the /model override"
 
 
 def test_readme_citation_doi_is_the_real_paper(read_file):
