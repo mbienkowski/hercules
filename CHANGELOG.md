@@ -1,3 +1,7 @@
+## v1.5.0 (2026-07-07)
+
+* feat(agents): default the Hercules persona to opus, user-overridable (#9)
+
 ## v1.4.0 (2026-07-06)
 
 * feat(skills): make code-of-conduct-generator a debate-validated, evidence-mining flow (#8)
