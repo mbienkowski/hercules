@@ -21,10 +21,15 @@ def _replace_version(path: Path, pattern: str, version: str) -> None:
 
 
 def set_version(version: str, root: Path = Path(".")) -> None:
-    """Set *version* in both pyproject.toml and plugin/.claude-plugin/plugin.json under *root*."""
+    """Set *version* in pyproject.toml, plugin/.claude-plugin/plugin.json, and package.json under *root*."""
     _replace_version(root / "pyproject.toml", r'(?m)^(version\s*=\s*")[^"]+(")', version)
     _replace_version(
         root / "plugin" / ".claude-plugin" / "plugin.json",
+        r'("version"\s*:\s*")[^"]+(")',
+        version,
+    )
+    _replace_version(
+        root / "package.json",
         r'("version"\s*:\s*")[^"]+(")',
         version,
     )

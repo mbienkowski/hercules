@@ -16,17 +16,21 @@ def _seed(root):
     (manifest_dir / "plugin.json").write_text(
         '{\n  "name": "hercules",\n  "version": "0.1.0",\n  "license": "MIT"\n}\n'
     )
+    (root / "package.json").write_text(
+        '{\n  "name": "hercules",\n  "version": "0.1.0",\n  "main": "opencode-plugin/hercules.js"\n}\n'
+    )
     return manifest_dir / "plugin.json"
 
 
-def test_set_version_updates_both_files_in_sync(tmp_path):
-    """A single call bumps the version in pyproject.toml AND the plugin manifest."""
+def test_set_version_updates_all_files_in_sync(tmp_path):
+    """A single call bumps the version in pyproject.toml, plugin manifest, and package.json."""
     manifest = _seed(tmp_path)
 
     set_version("1.2.3", root=tmp_path)
 
     assert 'version = "1.2.3"' in (tmp_path / "pyproject.toml").read_text()
     assert '"version": "1.2.3"' in manifest.read_text()
+    assert '"version": "1.2.3"' in (tmp_path / "package.json").read_text()
     # untouched fields survive
     assert '"name": "hercules"' in manifest.read_text()
     assert 'requires-python = ">=3.9"' in (tmp_path / "pyproject.toml").read_text()
@@ -38,6 +42,7 @@ def test_set_version_raises_when_a_version_line_is_missing(tmp_path):
     manifest_dir = tmp_path / "plugin" / ".claude-plugin"
     manifest_dir.mkdir(parents=True)
     (manifest_dir / "plugin.json").write_text('{"version": "0.1.0"}')
+    (tmp_path / "package.json").write_text('{"version": "0.1.0"}')
 
     with pytest.raises(SystemExit):
         set_version("1.0.0", root=tmp_path)

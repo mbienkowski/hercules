@@ -98,6 +98,42 @@ governance. This file merges with any existing Claude Code settings — it does 
 | Just want the plugin (most people) | **Marketplace** — the steps above |
 | A whole team / CI | **`settings.json`** (`extraKnownMarketplaces` + `enabledPlugins`) |
 
+### OpenCode
+
+Hercules also works in [OpenCode](https://opencode.ai). The Claude Code plugin in `plugin/` remains the source of truth; OpenCode artifacts under `.opencode/` and `opencode-plugin/hercules.js` are generated from it by `scripts/generate_opencode.py`.
+
+**Install from the GitHub repo:**
+
+```json
+{
+  "plugin": ["github:mbienkowski/hercules"]
+}
+```
+
+Then restart OpenCode. Hercules becomes the default agent and the `/hercules:*` commands (`/hercules:discover`, `/hercules:design`, `/hercules:build`, `/hercules:ship`, `/hercules:workflow`) are available.
+
+If OpenCode does not accept the colon in command names, the generator can be switched to emit the commands without the `hercules:` prefix.
+
+**For contributors:** when you change anything in `plugin/`, regenerate the OpenCode artifacts and commit them:
+
+```bash
+python scripts/generate_opencode.py
+```
+
+An optional pre-commit hook is included in `.githooks/pre-commit` to do this automatically:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Before opening a PR, run the verification script:
+
+```bash
+python scripts/verify_opencode.py
+```
+
+This checks that the generator runs, the committed artifacts are in sync, the plugin entry point loads, and the generated frontmatter is OpenCode-compatible.
+
 ---
 
 ## Quickstart

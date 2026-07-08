@@ -115,5 +115,44 @@ jobs:
               "marketplace.json must list the hercules plugin"
           version = re.search(r'(?m)^version\s*=\s*"([^"]+)"', open("pyproject.toml").read()).group(1)
           assert version == pl["version"], f"version drift: pyproject {version} != plugin {pl['version']}"
+          pkg = json.load(open("package.json"))
+          assert pkg["version"] == version, f"version drift: package.json {pkg['version']} != pyproject {version}"
           print("plugin package valid; version", version)
           PY
+
+  # ── Validate OpenCode artifacts are in sync with the Claude Code plugin source ─
+  # Regenerates .opencode/ and opencode.json from plugin/, then fails if any committed
+  # generated file differs. This guarantees a single source of truth in plugin/.
+  opencode-sync:
+    name: OpenCode artifact sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Regenerate OpenCode artifacts
+        run: python scripts/generate_opencode.py
+
+      - name: Fail if generated artifacts are out of sync
+        run: |
+          if [[ -n $(git status --porcelain .opencode opencode-plugin opencode.json package.json) ]]; then
+            echo "OpenCode artifacts are out of sync with plugin/. Run scripts/generate_opencode.py and commit the result."
+            git status --short .opencode opencode-plugin opencode.json package.json
+            exit 1
+          fi
+
+      - name: Validate generated plugin entry point syntax
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Check CommonJS plugin loads
+        run: node --check opencode-plugin/hercules.js

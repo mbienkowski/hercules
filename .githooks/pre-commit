@@ -1,0 +1,9 @@
+#!/bin/sh
+# Optional pre-commit hook: regenerate OpenCode artifacts if plugin/ changed.
+# Enable with: git config core.hooksPath .githooks
+
+if git diff --cached --name-only | grep -qE "^plugin/|^scripts/generate_opencode\.py"; then
+    echo "plugin/ changed — regenerating OpenCode artifacts..."
+    python3 scripts/generate_opencode.py || exit 1
+    git add .opencode opencode-plugin opencode.json package.json
+fi
