@@ -57,8 +57,6 @@ def check_opencode_json() -> None:
     config = json.loads(OPENCODE_JSON.read_text())
     assert config.get("$schema") == "https://opencode.ai/config.json"
     assert config.get("default_agent") == "hercules"
-    assert config.get("model", "").startswith("anthropic/")
-    assert config.get("small_model", "").startswith("anthropic/")
     assert config.get("instructions")
     assert config.get("skills", {}).get("paths")
     print("OK: opencode.json is valid and complete")
@@ -66,11 +64,14 @@ def check_opencode_json() -> None:
 
 def check_agents() -> None:
     tools_found = []
+    model_found = []
     mode_issues = []
     for path in (OPENCODE_DIR / "agents").glob("*.md"):
         text = path.read_text()
         if "\ntools:" in text or text.startswith("tools:"):
             tools_found.append(path.name)
+        if "\nmodel:" in text:
+            model_found.append(path.name)
         for line in text.splitlines():
             if line.startswith("mode:"):
                 expected = "primary" if path.stem == "hercules" else "subagent"
@@ -78,6 +79,7 @@ def check_agents() -> None:
                 if actual != expected:
                     mode_issues.append(f"{path.name}: expected {expected}, got {actual}")
     assert not tools_found, f"Claude-only 'tools:' found in: {tools_found}"
+    assert not model_found, f"Hard-coded 'model:' found in: {model_found}"
     assert not mode_issues, f"Agent mode issues: {mode_issues}"
     print("OK: generated agents have valid OpenCode frontmatter")
 

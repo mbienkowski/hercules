@@ -1,7 +1,6 @@
 ---
 name: source-checker
 description: Verifies factual claims, statistics, citations, compliance assertions, and performance numbers in any artifact — specs, documents, analyses, or code comments. Use when content makes assertions presented as fact that could be wrong, outdated, or unverifiable. Surfaces risk; does not block indefinitely.
-model: anthropic/claude-haiku-3-5
 mode: subagent
 ---
 

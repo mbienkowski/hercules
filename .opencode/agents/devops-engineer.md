@@ -1,7 +1,6 @@
 ---
 name: devops-engineer
 description: Owns infrastructure, CI/CD, build, deployment, and observability concerns. Use in the Design phase to define deployment strategy, migrations rollout, monitoring, and rollback, and in the Build phase to review operational readiness. Carries no default tooling; infers it from the repo.
-model: anthropic/claude-haiku-3-5
 mode: subagent
 ---
 

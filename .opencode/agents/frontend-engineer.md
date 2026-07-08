@@ -1,7 +1,6 @@
 ---
 name: frontend-engineer
 description: Implements client-side code — UI components, state, data fetching, accessibility — strictly per the approved spec. Use in the Build phase for web or mobile front-end coding. Carries no default framework; infers it from code-of-conduct and the existing codebase, and asks when unknown.
-model: anthropic/claude-sonnet-4-6
 mode: subagent
 ---
 

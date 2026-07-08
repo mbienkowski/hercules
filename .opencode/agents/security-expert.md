@@ -1,7 +1,6 @@
 ---
 name: security-expert
 description: Sets and enforces security requirements — authN/authZ, PII, secrets, encryption, compliance, supply chain. Use when a security surface exists (auth, external integrations, trust boundaries, public API, sensitive data). Owns the threat model; QA owns the security test scenarios.
-model: anthropic/claude-sonnet-4-6
 mode: subagent
 ---
 

@@ -36,8 +36,6 @@ def test_opencode_json_exists_and_is_valid(generated: Path):
     config = json.loads(opencode_json.read_text())
     assert config.get("$schema") == "https://opencode.ai/config.json"
     assert config.get("default_agent") == "hercules"
-    assert config.get("model", "").startswith("anthropic/")
-    assert config.get("small_model", "").startswith("anthropic/")
     assert isinstance(config.get("instructions"), list) and config["instructions"]
     assert isinstance(config.get("skills"), dict)
     assert isinstance(config["skills"].get("paths"), list) and config["skills"]["paths"]
@@ -103,6 +101,16 @@ def test_no_claude_plan_mode_tools_remain(generated: Path):
     assert not offenders, (
         "Generated files still contain Claude plan-mode tool names: " + ", ".join(offenders)
     )
+
+
+def test_no_provider_specific_model_ids_in_generated_files(generated: Path):
+    """Model IDs are provider-specific in OpenCode; generated files should not hard-code them."""
+    for path in (generated / ".opencode" / "agents").glob("*.md"):
+        text = path.read_text()
+        assert "\nmodel:" not in text, f"{path.name} contains a hard-coded model field"
+    for path in (generated / ".opencode" / "commands").glob("*.md"):
+        text = path.read_text()
+        assert "\nmodel:" not in text, f"{path.name} contains a hard-coded model field"
 
 
 def test_plugin_entry_point_loads_and_registers_config(generated: Path):
