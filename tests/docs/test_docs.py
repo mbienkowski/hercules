@@ -367,6 +367,10 @@ def test_claude_md_defines_code_of_conduct_resolution(read_file):
         "resolution must forbid grabbing the launch/nearest-path CoC over the target repo's"
     assert "validate" in low or "confirm" in low, \
         "resolution must validate the match belongs to the target repo before trusting it"
+    # Single-match branch stated explicitly (the none and >1 branches already are): a lone match
+    # resolves with no extra prompt, so a phase never over-asks on the common one-file case.
+    assert "exactly one" in low and "no extra prompt" in low, \
+        "resolution must state the single-match branch: exactly one match → use it, no extra prompt"
 
 
 def test_build_service_coc_read_uses_the_matcher_not_a_fixed_name(read_file):
