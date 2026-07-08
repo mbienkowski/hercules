@@ -216,6 +216,16 @@ def test_coc_filename_regex_matches_any_casing():
         assert not coc_re.match(name), f"{name} must NOT be treated as the code-of-conduct"
 
 
+def test_coc_matcher_resolves_this_repos_real_coc_file():
+    """The matcher must fire on this repo's ACTUAL on-disk code-of-conduct file, not only synthetic
+    names — the exact failure that started this feature (a real CoC silently missed). Rename-safe:
+    it scans the repo root from disk, so renaming the file to a non-matching name is caught here."""
+    repo_root = Path(__file__).resolve().parents[2]
+    coc_re = re.compile(r"(?i)^code[-_ ]of[-_ ]conduct\.md$")
+    matches = [p.name for p in repo_root.iterdir() if p.is_file() and coc_re.match(p.name)]
+    assert matches, "repo root must hold a code-of-conduct file the matcher resolves (rename-safe guard)"
+
+
 def test_skills_read_the_coc_case_insensitively(skill_files):
     """A skill that reads the project code-of-conduct must find it at any capitalization — a
     'Read `code-of-conduct.md`' / '`code-of-conduct.md` if present' instruction misses

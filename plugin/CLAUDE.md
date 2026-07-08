@@ -87,8 +87,8 @@ governing CoC is the code repo's, never the launch/artifact repo's just because 
 working directory (a service CoC overrides the home CoC for that service's work). Then validate before
 trusting it — confirm the match is a real code-of-conduct at the target repo's root/`.github/`/`docs/`,
 not a lookalike or another repo's file; on more than one match don't silently pick (show them and
-confirm), and with none in the target repo infer conventions from that repo's own code and tests, and
-say so.
+confirm); on exactly one, use it as the code-of-conduct with no extra prompt; and with none in the
+target repo infer conventions from that repo's own code and tests, and say so.
 
 ## Delivery workflow
 
