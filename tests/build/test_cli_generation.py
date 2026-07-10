@@ -55,5 +55,5 @@ def test_main_build_then_check_roundtrip(tmp_path, monkeypatch):
 
 
 def test_main_skips_unregistered_target():
-    # 'opencode' is declared but not registered until Spec 03 → skipped, exit 0.
-    assert cli.main(["--target", "opencode", "--check"]) == 0
+    # A target with no registered serializer is skipped → exit 0.
+    assert cli.main(["--target", "no-such-target", "--check"]) == 0

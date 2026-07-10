@@ -1,3 +1,4 @@
 {
-  "claude-code": {"high": "opus", "medium": "sonnet", "low": "haiku"}
+  "claude-code": {"high": "opus", "medium": "sonnet", "low": "haiku"},
+  "opencode":    {"high": null, "medium": null, "low": null}
 }

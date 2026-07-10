@@ -89,9 +89,38 @@ class ClaudeCodeSerializer:
         return fm_block + render_body(body, self.target, tokens)
 
 
+class OpenCodeSerializer:
+    """Emit OpenCode agent files: frontmatter ``name, description, mode`` (``primary`` for the
+    orchestrator, ``subagent`` otherwise); ``model``/``model_tier``/``tools`` dropped (OpenCode uses
+    the user's selected model — ``models.json[opencode]`` is all-``null``). Body via token/switch
+    substitution (the ``${target:opencode}`` branch selected)."""
+
+    target = "opencode"
+    primary_agent = "hercules"
+
+    def serialize_agent(self, frontmatter: dict[str, str], body: str, tokens: dict[str, str], models: dict) -> str:
+        name = frontmatter["name"]
+        out = {
+            "name": name,
+            "description": frontmatter["description"],
+            "mode": "primary" if name == self.primary_agent else "subagent",
+        }
+        return render_frontmatter(out) + "\n\n" + render_body(body, self.target, tokens)
+
+    def serialize_file(self, text: str, tokens: dict[str, str], models: dict) -> str:
+        fm_block, body = split_document(text)
+        if fm_block is None:
+            return render_body(text, self.target, tokens)
+        meta, _ = parse_frontmatter(fm_block)
+        if "name" in meta and ("model_tier" in meta or "tools" in meta):  # an agent file
+            return self.serialize_agent(meta, body, tokens, models)
+        return fm_block + render_body(body, self.target, tokens)
+
+
 def serialize_file(target: str, text: str, tokens: dict[str, str], models: dict) -> str:
     """Serialize *text* for *target* using its registered serializer."""
     return get(target).serialize_file(text, tokens, models)
 
 
 register(ClaudeCodeSerializer())
+register(OpenCodeSerializer())
