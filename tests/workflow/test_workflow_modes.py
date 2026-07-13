@@ -17,7 +17,7 @@ from tests.conftest import (  # shared so a command rename updates one place, no
     WORKFLOW as _WORKFLOW,
 )
 
-_CLAUDE = "plugin/CLAUDE.md"
+_CLAUDE = "dist/claude-code/CLAUDE.md"
 
 
 def test_workflow_emits_enter_and_exit_plan_mode(read_file):
@@ -120,7 +120,7 @@ def test_exit_plan_mode_uses_auto_mode(read_file):
     bare "auto" substring is satisfied by "automatically" while the mode argument is
     silently dropped."""
     for f in (_DISCOVER, _DESIGN, _BUILD, _SHIP, _WORKFLOW,
-              "plugin/skills/code-of-conduct-generator/SKILL.md"):
+              "dist/claude-code/skills/code-of-conduct-generator/SKILL.md"):
         text = read_file(f)
         assert re.search(r"ExitPlanMode`?\s*\(`auto`\)", text), \
             f"{f} must call ExitPlanMode with the literal (`auto`) mode argument"
@@ -181,7 +181,7 @@ def test_every_nonterminal_index_status_has_a_writer(repo_root):
     """CLAUDE.md's INDEX Status set depicts workflow-written values — each must actually be
     written by some command, or the INDEX silently lies for a whole phase (e.g. a multi-day
     Build whose row still says 'design'). 'abandoned' is user-manual."""
-    commands = [p.read_text() for p in (repo_root / "plugin" / "commands").glob("*.md")]
+    commands = [p.read_text() for p in (repo_root / "dist" / "claude-code" / "commands").glob("*.md")]
     for status in ("discover", "design", "build", "delivered"):
         assert any(
             "INDEX.md" in para and f"`{status}`" in para

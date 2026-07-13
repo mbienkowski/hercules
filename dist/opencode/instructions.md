@@ -103,11 +103,11 @@ gates come from the project's `code-of-conduct.md`.
 
 | Step         | Command               | Reads                                        | Produces                                          |
 |--------------|-----------------------|----------------------------------------------|---------------------------------------------------|
-| Full flow    | `/workflow`  | —                                            | all artifacts (guided)                            |
-| 1. Discover  | `/discover`  | —                                            | `*-business-requirements.md`                      |
-| 2. Design    | `/design`    | *-business-requirements.md                  | `*-spec-NN-*.md` (one per track) |
-| 3. Build     | `/build`     | *-business-requirements.md + *-spec-NN-*.md | code + tests          |
-| 4. Ship      | `/ship`      | git diff (staged changes)                    | a commit + optional push + optional PR            |
+| Full flow    | `/hercules:workflow`  | —                                            | all artifacts (guided)                            |
+| 1. Discover  | `/hercules:discover`  | —                                            | `*-business-requirements.md`                      |
+| 2. Design    | `/hercules:design`    | *-business-requirements.md                  | `*-spec-NN-*.md` (one per track) |
+| 3. Build     | `/hercules:build`     | *-business-requirements.md + *-spec-NN-*.md | code + tests          |
+| 4. Ship      | `/hercules:ship`      | git diff (staged changes)                    | a commit + optional push + optional PR            |
 
 Each step runs its own sub-process specified per command. Build runs a full TDD loop per spec
 (scaffold → write failing tests, then frozen → implement → quality gates), then one cross-check validation after all specs.

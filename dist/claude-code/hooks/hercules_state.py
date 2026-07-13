@@ -4,7 +4,7 @@ Reads `~/.hercules/config.json` (the registry) and `~/.hercules/state/{slug}.jso
 (the delivery state) to answer: for this working directory, which build sessions are
 active, and what are their frozen test files? Never writes; never raises.
 
-Used by the PreToolUse hook under `plugin/hooks/` and by its tests (which pass an
+Used by the PreToolUse hook under `hooks/` and by its tests (which pass an
 explicit `home` so they can point at a throwaway state tree).
 """
 

@@ -71,14 +71,14 @@ def _extract_section(text: str, start: str, stop: str | None = None) -> str:
 @pytest.fixture(scope="module")
 def _a2a_core_n(repo_root: Path) -> int:
     """Instruction count of the Agent-Injected Core section only (what sub-agents receive)."""
-    a2a = (repo_root / "plugin/protocols/a2a-communication-protocol.md").read_text()
+    a2a = (repo_root / "dist/claude-code/protocols/a2a-communication-protocol.md").read_text()
     core = _extract_section(a2a, "## Agent-Injected Core", "## Orchestrator Section")
     return _count_instruction_blocks(core)
 
 
 @pytest.fixture(scope="module")
 def _claude_md_n(repo_root: Path) -> int:
-    return _count_instruction_blocks((repo_root / "plugin/CLAUDE.md").read_text())
+    return _count_instruction_blocks((repo_root / "dist/claude-code/CLAUDE.md").read_text())
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ def _all_protocols_n(repo_root: Path) -> int:
     into the orchestrator's context uncounted (they are all loadable during a phase)."""
     return sum(
         _count_instruction_blocks(p.read_text())
-        for p in sorted((repo_root / "plugin/protocols").glob("*.md"))
+        for p in sorted((repo_root / "dist/claude-code/protocols").glob("*.md"))
     )
 
 
@@ -118,7 +118,7 @@ def test_orchestrator_instruction_budget(repo_root, _claude_md_n):
     """
     protocols_n = _all_protocols_n(repo_root)
     # Worst-case command = build.md (most instructions of all four commands)
-    build_n = _count_instruction_blocks((repo_root / "plugin/commands/build.md").read_text())
+    build_n = _count_instruction_blocks((repo_root / "dist/claude-code/commands/build.md").read_text())
 
     total = _claude_md_n + build_n + protocols_n
     assert total <= _ORCHESTRATOR_GATE, (

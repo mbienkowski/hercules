@@ -12,11 +12,11 @@ import pytest
 
 # Delivery command file paths — shared so a rename updates one place, not two test modules
 # (test_commands.py and test_workflow_modes.py both need them).
-DISCOVER = "plugin/commands/discover.md"
-DESIGN = "plugin/commands/design.md"
-BUILD = "plugin/commands/build.md"
-WORKFLOW = "plugin/commands/workflow.md"
-SHIP = "plugin/commands/ship.md"
+DISCOVER = "dist/claude-code/commands/discover.md"
+DESIGN = "dist/claude-code/commands/design.md"
+BUILD = "dist/claude-code/commands/build.md"
+WORKFLOW = "dist/claude-code/commands/workflow.md"
+SHIP = "dist/claude-code/commands/ship.md"
 ALL_COMMANDS = [DISCOVER, DESIGN, BUILD, WORKFLOW, SHIP]
 
 
@@ -33,7 +33,7 @@ def repo_root() -> Path:
 @pytest.fixture(scope="session")
 def plugin_root(repo_root: Path) -> Path:
     """Path to the plugin/ subdirectory containing all Claude plugin content."""
-    return repo_root / "plugin"
+    return repo_root / "dist" / "claude-code"
 
 
 @pytest.fixture(scope="session")

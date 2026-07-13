@@ -14,11 +14,11 @@ import re
 
 import pytest
 
-_PROTOCOL = "plugin/protocols/workflow-protocol.md"
+_PROTOCOL = "dist/claude-code/protocols/workflow-protocol.md"
 _SPAWNING_COMMANDS = [
-    "plugin/commands/discover.md",
-    "plugin/commands/design.md",
-    "plugin/commands/build.md",
+    "dist/claude-code/commands/discover.md",
+    "dist/claude-code/commands/design.md",
+    "dist/claude-code/commands/build.md",
 ]
 
 _ANCHOR_RE = re.compile(r"\{#([a-z0-9-]+)\}")
@@ -70,7 +70,7 @@ def test_protocol_anchor_references_all_resolve(repo_root, read_file):
     declared anchor."""
     anchors = _declared_anchors(read_file(_PROTOCOL))
     ref_re = re.compile(r"workflow-protocol\.md#([a-z0-9-]+)")
-    targets = [str(p.relative_to(repo_root)) for p in (repo_root / "plugin").rglob("*.md")]
+    targets = [str(p.relative_to(repo_root)) for p in (repo_root / "dist" / "claude-code").rglob("*.md")]
     targets.append("CODE_OF_CONDUCT.md")
     refs = {}
     for rel in targets:
@@ -89,7 +89,7 @@ def test_spawning_command_composes_the_delegation_packet(read_file, rel):
 
 def test_a2a_injection_names_the_delegation_packet(read_file):
     """The a2a § How to inject must name the delegation packet wrapping the Core."""
-    assert "workflow-protocol.md#packet" in read_file("plugin/protocols/a2a-communication-protocol.md"), \
+    assert "workflow-protocol.md#packet" in read_file("dist/claude-code/protocols/a2a-communication-protocol.md"), \
         "a2a § How to inject must name the delegation packet wrapping the Core"
 
 
@@ -135,7 +135,7 @@ def test_guardrail_registry_rows_are_well_formed(read_file):
 def _hook_wiring(repo_root, read_file):
     """(hook-class registry rows, PreToolUse matchers, wired commands) — shared by the hook tests."""
     hook_rows = [r for r in _registry_rows(_section(read_file(_PROTOCOL), "registry")) if r[-1] == "hook"]
-    pre = json.loads((repo_root / "plugin" / "hooks" / "hooks.json").read_text())["hooks"]["PreToolUse"]
+    pre = json.loads((repo_root / "src" / "targets" / "claude-code" / "hooks" / "hooks.json").read_text())["hooks"]["PreToolUse"]
     matchers = [entry["matcher"] for entry in pre]
     # Fold exec-form `args` into the command string — the script path lives in `args` under exec
     # form, in `command` under shell form; joining keeps the wiring checks form-agnostic.
@@ -162,7 +162,7 @@ def test_wired_hook_scripts_exist_and_edit_is_matched(repo_root, read_file):
     assert any("Edit" in m for m in matchers), "PreToolUse must match Edit for the frozen guard"
     for cmd in commands:
         script = cmd.split("${CLAUDE_PLUGIN_ROOT}/")[-1].strip('"')
-        assert (repo_root / "plugin" / script).is_file(), f"hook script missing: {script}"
+        assert (repo_root / "dist" / "claude-code" / script).is_file(), f"hook script missing: {script}"
 
 
 def test_frozen_tests_guard_row_is_wired(repo_root, read_file):
@@ -178,13 +178,13 @@ def test_frozen_tests_guard_row_is_wired(repo_root, read_file):
 # command file that owns the rule — the protocol can neither invent a rule the commands don't
 # carry, nor can a command drop a rule the registry still claims.
 _DRIFT_ANCHORS = [
-    ("G1", "frozen", "plugin/commands/build.md"),
-    ("G2", "3 implementation rounds", "plugin/commands/build.md"),
-    ("G3", "scaffold", "plugin/commands/build.md"),
-    ("G4", "named passing test", "plugin/commands/build.md"),
-    ("G5", "high-risk", "plugin/commands/build.md"),
-    ("G6", "build_complete", "plugin/commands/ship.md"),
-    ("G7", "scored once", "plugin/CLAUDE.md"),
+    ("G1", "frozen", "dist/claude-code/commands/build.md"),
+    ("G2", "3 implementation rounds", "dist/claude-code/commands/build.md"),
+    ("G3", "scaffold", "dist/claude-code/commands/build.md"),
+    ("G4", "named passing test", "dist/claude-code/commands/build.md"),
+    ("G5", "high-risk", "dist/claude-code/commands/build.md"),
+    ("G6", "build_complete", "dist/claude-code/commands/ship.md"),
+    ("G7", "scored once", "dist/claude-code/CLAUDE.md"),
 ]
 
 
@@ -228,7 +228,7 @@ def test_build_inner_loop_runs_in_order_in_the_protocol(read_file):
 
 def test_build_inner_loop_runs_in_the_same_order_in_build_md(read_file):
     """build.md's ## Execution section runs the Build inner loop in the same order as the protocol."""
-    build = read_file("plugin/commands/build.md").casefold()
+    build = read_file("dist/claude-code/commands/build.md").casefold()
     _assert_tokens_in_order(build[build.index("## execution"):], _BUILD_MD_TOKENS, "build.md ## Execution")
 
 
@@ -237,7 +237,7 @@ def test_design_reads_the_tier_before_its_questions(read_file, source):
     """Design reads the tier before its design questions in the protocol, design.md, AND the diagram."""
     text = {
         "protocol": _section(read_file(_PROTOCOL), "phase-design"),
-        "design.md": read_file("plugin/commands/design.md"),
+        "design.md": read_file("dist/claude-code/commands/design.md"),
         "diagram": read_file("docs/workflow/workflow-diagram-detailed.html"),
     }[source].casefold()
     m = re.search(r"read (?:the )?tier", text)
@@ -264,7 +264,7 @@ def test_role_slices_use_the_spec_template_vocabulary(read_file):
     emits (parsed at test time — the template is the closed vocabulary, not a hardcoded copy)."""
     template_headings = {
         m.group(1).strip()
-        for m in re.finditer(r"(?m)^## ([A-Z][^\n]*)$", read_file("plugin/commands/design.md"))
+        for m in re.finditer(r"(?m)^## ([A-Z][^\n]*)$", read_file("dist/claude-code/commands/design.md"))
         if not m.group(1).startswith("Step")
     }
     assert "Scope" in template_headings, "sanity: design.md template must carry ## Scope"

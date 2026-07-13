@@ -3,7 +3,7 @@ description: Design phase — turn a business requirement into numbered technica
 disable-model-invocation: true
 ---
 
-# /design
+# /hercules:design
 
 Turn a business requirement into numbered technical specs ready for Build. Plugin-file citations (`AGENTS.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
 
@@ -26,7 +26,7 @@ Found sessions ready for design:
 Which feature do you want to design? (number, path, or press Enter for the most recent)
 ```
 
-If the path doesn't match, ask to confirm or correct. If no sessions are found, tell the user to run `/discover` first.
+If the path doesn't match, ask to confirm or correct. If no sessions are found, tell the user to run `/hercules:discover` first.
 
 ## Step 2 — Read requirements
 
@@ -138,4 +138,4 @@ Update the active session in the project's state file (`~/.hercules/state/{slug}
 `current_phase` to `"design"` and write `pending_specs` (the spec filenames in ascending delivery
 order). Write atomically (temp + rename), preserving other sessions.
 
-Show the saved spec paths in delivery order. Then say: "The specs and delivery sequence are locked. Ready to **Build**? Run `/build` — I'll present a delivery plan first, then deliver the specs."
+Show the saved spec paths in delivery order. Then say: "The specs and delivery sequence are locked. Ready to **Build**? Run `/hercules:build` — I'll present a delivery plan first, then deliver the specs."

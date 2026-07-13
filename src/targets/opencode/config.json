@@ -2,7 +2,7 @@
   "vars": {
     "product": "OpenCode",
     "host": "OpenCode",
-    "ns": "/",
+    "ns": "/hercules:",
     "instructions_file": "AGENTS.md",
     "plan_enter": "plan mode",
     "plan_exit": "approval"

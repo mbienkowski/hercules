@@ -8,5 +8,8 @@
     "type": "git",
     "url": "https://github.com/mbienkowski/hercules.git"
   },
-  "main": "opencode-plugin/hercules.js"
+  "main": "dist/opencode/plugin.js",
+  "files": [
+    "dist/opencode"
+  ]
 }

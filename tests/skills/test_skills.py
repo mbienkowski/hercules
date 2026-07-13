@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-_PLUGIN = Path(__file__).resolve().parents[2] / "plugin"
+_PLUGIN = Path(__file__).resolve().parents[2] / "dist" / "claude-code"
 # Module-level lists so tests can parametrize over each file (one cell per file).
 _SKILL_PATHS = sorted(_PLUGIN.glob("skills/*/SKILL.md"))
 _DOC_FILES = sorted(_PLUGIN.glob("commands/*.md")) + _SKILL_PATHS + sorted(_PLUGIN.glob("agents/*.md"))
@@ -42,7 +42,7 @@ _BARE_SUBCOMMAND_RE = re.compile(r"hercules\s+(origin-trace|sessions)\b")
 def test_all_five_skills_are_present(repo_root):
     """All 5 listed skills must have a corresponding SKILL.md in skills/."""
     # Given
-    existing = {p.parent.name for p in (repo_root / "plugin" / "skills").glob("*/SKILL.md")}
+    existing = {p.parent.name for p in (repo_root / "dist" / "claude-code" / "skills").glob("*/SKILL.md")}
 
     # When
     missing = [n for n in _SKILL_LIST if n not in existing]
@@ -108,13 +108,13 @@ def test_plugin_doc_uses_double_dash_subcommand_prefix(path):
 
 def test_session_summary_skill_exists(repo_root):
     """session-summary must exist as a plugin skill for team handoff support."""
-    skill_file = repo_root / "plugin" / "skills" / "session-summary" / "SKILL.md"
-    assert skill_file.exists(), "plugin/skills/session-summary/SKILL.md must exist"
+    skill_file = repo_root / "dist" / "claude-code" / "skills" / "session-summary" / "SKILL.md"
+    assert skill_file.exists(), "dist/claude-code/skills/session-summary/SKILL.md must exist"
 
 
 def test_session_summary_skill_covers_handoff_fields(repo_root):
     """session-summary SKILL.md must reference delivered_specs and handoff context."""
-    md = (repo_root / "plugin" / "skills" / "session-summary" / "SKILL.md").read_text()
+    md = (repo_root / "dist" / "claude-code" / "skills" / "session-summary" / "SKILL.md").read_text()
     assert "delivered_specs" in md, \
         "session-summary must read delivered_specs from the per-project state file"
     assert "~/.hercules/" in md and "state" in md, \
@@ -127,16 +127,16 @@ def test_session_summary_skill_covers_handoff_fields(repo_root):
 
 def test_skill_list_matches_plugin_settings(repo_root):
     """_SKILL_LIST and plugin/settings.json skills[] must stay in sync."""
-    settings = json.loads((repo_root / "plugin" / "settings.json").read_text())
+    settings = json.loads((repo_root / "dist" / "claude-code" / "settings.json").read_text())
     manifest = settings.get("skills", [])
     assert sorted(manifest) == sorted(_SKILL_LIST), (
-        "plugin/settings.json skills[] and _SKILL_LIST are out of sync.\n"
+        "dist/claude-code/settings.json skills[] and _SKILL_LIST are out of sync.\n"
         f"  In settings.json only: {sorted(set(manifest) - set(_SKILL_LIST))}\n"
         f"  In _SKILL_LIST only: {sorted(set(_SKILL_LIST) - set(manifest))}"
     )
 
 
-_COC_GENERATOR = "plugin/skills/code-of-conduct-generator/SKILL.md"
+_COC_GENERATOR = "dist/claude-code/skills/code-of-conduct-generator/SKILL.md"
 
 
 def test_code_of_conduct_generator_uses_plan_mode(repo_root):
@@ -266,7 +266,7 @@ def test_coc_generator_creates_lowercase_by_default(read_file):
     """When NO code-of-conduct exists, the generator defaults the new file to the lowercase
     `code-of-conduct.md` (uppercase CODE_OF_CONDUCT.md is GitHub's community-doc convention,
     which would self-inflict the two-file collision). It never proposes uppercase unprompted."""
-    skill = read_file("plugin/skills/code-of-conduct-generator/SKILL.md")
+    skill = read_file("dist/claude-code/skills/code-of-conduct-generator/SKILL.md")
     assert "→ `CODE_OF_CONDUCT.md`" not in skill, \
         "generator must not PROPOSE an uppercase output filename by default"
     assert "`code-of-conduct.md`" in skill, \
@@ -276,9 +276,9 @@ def test_coc_generator_creates_lowercase_by_default(read_file):
 def test_learnings_skill_names_the_phase_that_invokes_it(read_file):
     """build.md invokes learnings at Build close-out (every tier); a 'ship time' trigger routes
     the model to Ship — which never invokes it and runs prompt-free — so nothing gets written."""
-    skill = read_file("plugin/skills/learnings/SKILL.md")
+    skill = read_file("dist/claude-code/skills/learnings/SKILL.md")
     if "ship time" in skill.lower():
-        assert "learnings" in read_file("plugin/commands/ship.md"), \
+        assert "learnings" in read_file("dist/claude-code/commands/ship.md"), \
             "learnings anchors to 'ship time' but only Build invokes it — rephrase the trigger"
 
 
@@ -286,7 +286,7 @@ def test_generator_states_the_directive_budget(read_file):
     """The bands must be the literal rule sentences, the ceiling must reconcile with the
     ~150 adherence line (100 base + 70 = 170 — the trade must be admitted), and the
     cut/merge advice must not contradict update mode's additions-only law."""
-    skill = read_file("plugin/skills/code-of-conduct-generator/SKILL.md")
+    skill = read_file("dist/claude-code/skills/code-of-conduct-generator/SKILL.md")
     assert "aim for\n**30–40** directives" in skill or "aim for **30–40** directives" in skill
     assert "up to **50**" in skill
     assert "**70 is the hard ceiling**" in skill
@@ -302,7 +302,7 @@ def test_generator_states_the_directive_budget(read_file):
 def test_learnings_store_has_an_entry_budget_and_eviction_criterion(read_file):
     """Discover reads the whole store, so it is instruction load like the CoC: the cap
     must be the literal rule sentence and eviction criterion-driven."""
-    skill = read_file("plugin/skills/learnings/SKILL.md")
+    skill = read_file("dist/claude-code/skills/learnings/SKILL.md")
     assert "keep **20–30** entries" in skill
     assert "**40 is the hard ceiling**" in skill
     low = skill.lower()
@@ -315,7 +315,7 @@ def test_learnings_store_has_an_entry_budget_and_eviction_criterion(read_file):
 # coverage-map companion, read per-step. Tests read whichever file owns the behavior,
 # whitespace-collapsed so a pinned phrase survives line-wrapping.
 
-_COC_MAP = "plugin/skills/code-of-conduct-generator/coverage-map.md"
+_COC_MAP = "dist/claude-code/skills/code-of-conduct-generator/coverage-map.md"
 
 
 def _coc_flat(read_file):

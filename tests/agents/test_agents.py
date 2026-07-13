@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 # Module-level list so tests can parametrize over each agent file (one cell per file).
-_AGENT_PATHS = sorted((Path(__file__).resolve().parents[2] / "plugin" / "agents").glob("*.md"))
+_AGENT_PATHS = sorted((Path(__file__).resolve().parents[2] / "dist" / "claude-code" / "agents").glob("*.md"))
 
 
 _ADVISOR_AGENTS = [
@@ -61,7 +61,7 @@ _HERCULES_LITERAL_EXEMPT = {"hercules"}
 def test_all_specialist_agents_are_present(repo_root):
     """Every listed agent must have a corresponding file in agents/, and vice versa."""
     # Given
-    existing = {p.stem for p in (repo_root / "plugin" / "agents").glob("*.md")}
+    existing = {p.stem for p in (repo_root / "dist" / "claude-code" / "agents").glob("*.md")}
 
     # When
     missing = [n for n in _ADVISOR_AGENTS if n not in existing]
@@ -72,14 +72,14 @@ def test_all_specialist_agents_are_present(repo_root):
     assert not extra, (
         f"agents/ has files that are neither a specialist advisor nor the default agent: {extra}"
     )
-    assert (repo_root / "plugin" / "agents" / f"{_DEFAULT_AGENT}.md").is_file(), \
+    assert (repo_root / "dist" / "claude-code" / "agents" / f"{_DEFAULT_AGENT}.md").is_file(), \
         "the default agent file must exist"
 
 
 def test_all_agents_are_listed_in_the_project_documentation(repo_root):
     """CLAUDE.md must mention every agent name so the docs don't drift from the shipped files."""
     # Given
-    doc = (repo_root / "plugin" / "CLAUDE.md").read_text()
+    doc = (repo_root / "dist" / "claude-code" / "CLAUDE.md").read_text()
 
     # When
     missing = [name for name in _ADVISOR_AGENTS if name not in doc]
@@ -143,7 +143,7 @@ def test_specialist_agent_carries_no_hercules_internal_literals(path):
 def test_qa_never_writes_test_code(repo_root):
     """QA proposes scenarios and never writes code — its tool list must carry no Edit/Write, and its
     description must say so (a specific, ongoing risk, not a bare absence check)."""
-    qa = (repo_root / "plugin" / "agents" / "senior-qa-engineer.md").read_text()
+    qa = (repo_root / "dist" / "claude-code" / "agents" / "senior-qa-engineer.md").read_text()
     tools_line = next(ln for ln in qa.splitlines() if ln.startswith("tools:"))
     assert "Edit" not in tools_line and "Write" not in tools_line, \
         f"senior-qa-engineer must not carry Edit/Write — it proposes scenarios (tools line: {tools_line!r})"
@@ -154,7 +154,7 @@ def test_qa_never_writes_test_code(repo_root):
 @pytest.mark.parametrize("name", ["backend-engineer", "frontend-engineer"])
 def test_engineer_authors_the_failing_tests(repo_root, name):
     """The engineers author the failing tests from QA's scenarios (positive companion to the QA rule)."""
-    body = (repo_root / "plugin" / "agents" / f"{name}.md").read_text()
+    body = (repo_root / "dist" / "claude-code" / "agents" / f"{name}.md").read_text()
     assert "Write them yourself" in body, \
         f"{name} must state the engineer authors the failing tests (following QA's scenarios)"
 
@@ -162,7 +162,7 @@ def test_engineer_authors_the_failing_tests(repo_root, name):
 def test_senior_qa_engineer_documents_bdd_for_frontend_scope(repo_root):
     """senior-qa-engineer must mention BDD/Gherkin and e2e tooling for frontend features."""
     # Given
-    md = (repo_root / "plugin" / "agents" / "senior-qa-engineer.md").read_text()
+    md = (repo_root / "dist" / "claude-code" / "agents" / "senior-qa-engineer.md").read_text()
 
     # When / Then
     assert "BDD" in md or "Gherkin" in md, \
@@ -176,7 +176,7 @@ def test_cynical_reviewer_spec_sync_is_caller_agnostic(read_file):
     editable live spec exists it *reports the disposition back to the caller* rather than naming any
     one caller's internal store. This is a positive assertion of the generic behaviour; the systemic
     no-literals scan separately guarantees no Hercules-internal literal leaks back in."""
-    md = read_file("plugin/agents/cynical-reviewer.md")
+    md = read_file("dist/claude-code/agents/cynical-reviewer.md")
     lower = md.lower()
     assert "spec-sync (mandatory last step)" in lower, \
         "cynical-reviewer must keep the mandatory spec-sync step"
@@ -186,7 +186,7 @@ def test_cynical_reviewer_spec_sync_is_caller_agnostic(read_file):
 
 def test_hercules_agent_has_first_run_detection(read_file):
     """Hercules must detect first-run sessions via the registry config.json and show onboarding."""
-    content = read_file("plugin/agents/hercules.md")
+    content = read_file("dist/claude-code/agents/hercules.md")
     assert "first-run" in content.lower() or "first run" in content.lower(), \
         "hercules.md must have first-run detection"
     assert "code-of-conduct-generator" in content, \
@@ -197,7 +197,7 @@ def test_hercules_agent_has_first_run_detection(read_file):
 
 def test_hercules_agent_has_ambiguity_elimination(read_file):
     """Hercules must have explicit ambiguity-elimination behavior documented in its persona."""
-    content = read_file("plugin/agents/hercules.md")
+    content = read_file("dist/claude-code/agents/hercules.md")
     assert "ambiguit" in content.lower(), \
         "hercules.md must address ambiguity elimination"
     assert "figure it out" in content.lower() or "tbd" in content.lower() or \
@@ -210,7 +210,7 @@ def test_persona_version_read_is_not_hardcoded(read_file):
     literal — a hardcoded number would be a third source of truth and drift from
     pyproject.toml/plugin.json. Regression guard: born green (no literal today), fails the
     moment someone hardcodes one."""
-    persona = read_file("plugin/agents/hercules.md")
+    persona = read_file("dist/claude-code/agents/hercules.md")
     assert not re.search(r"\d+\.\d+\.\d+", persona), \
         "hercules.md carries a hardcoded version literal — read plugin.json live instead"
 
@@ -219,7 +219,7 @@ def test_persona_reads_plugin_json_live(read_file):
     """Asked its version, Hercules reads plugin.json from the .claude-plugin/ folder in this
     plugin's directory (located generically, no path variable) and reports its version field —
     live and single-sourced, so a branch and a release show whatever plugin.json actually carries."""
-    persona = read_file("plugin/agents/hercules.md")
+    persona = read_file("dist/claude-code/agents/hercules.md")
     assert ".claude-plugin/" in persona and "plugin.json" in persona, \
         "hercules.md must instruct reading plugin.json from the .claude-plugin/ folder"
     assert "version" in persona, "hercules.md must report the plugin.json version field"
@@ -228,7 +228,7 @@ def test_persona_reads_plugin_json_live(read_file):
 def test_persona_describes_its_capabilities(read_file):
     """Asked what it can do, Hercules names the four phases and the /hercules:* commands —
     a self-aware persona, not a black box."""
-    persona = read_file("plugin/agents/hercules.md")
+    persona = read_file("dist/claude-code/agents/hercules.md")
     for phase in ("Discover", "Design", "Build", "Ship"):
         assert phase in persona, f"hercules.md must name the {phase} phase as a capability"
     assert "/hercules:workflow" in persona, "hercules.md must name the guided workflow command"
@@ -239,19 +239,19 @@ def test_persona_onboarding_resolves_the_coc_case_insensitively(read_file):
     """The first-run onboarding gate keys on CoC presence. Keying on the bare lowercase literal
     makes a repo using CODE_OF_CONDUCT.md — Hercules' own convention — read as 'no CoC', which
     re-fires setup for a project already set up. The gate must match any capitalization."""
-    persona = read_file("plugin/agents/hercules.md")
+    persona = read_file("dist/claude-code/agents/hercules.md")
     assert "no `code-of-conduct.md`" not in persona, \
         "onboarding gate must not check for the fixed lowercase code-of-conduct.md — match any case"
     assert "any capitalization" in persona, "the persona must resolve the CoC case-insensitively"
 
 
 def test_plugin_declares_default_agent_with_persona(repo_root):
-    """plugin/settings.json must declare a default agent whose file carries the Hercules persona —
+    """dist/claude-code/settings.json must declare a default agent whose file carries the Hercules persona —
     a plugin injects no root CLAUDE.md, so the persona rides on the default agent."""
-    settings = json.loads((repo_root / "plugin" / "settings.json").read_text())
+    settings = json.loads((repo_root / "dist" / "claude-code" / "settings.json").read_text())
     agent_name = settings.get("agent")
-    assert agent_name, "plugin/settings.json must declare a default 'agent'"
-    agent_file = repo_root / "plugin" / "agents" / f"{agent_name}.md"
+    assert agent_name, "dist/claude-code/settings.json must declare a default 'agent'"
+    agent_file = repo_root / "dist" / "claude-code" / "agents" / f"{agent_name}.md"
     assert agent_file.is_file(), f"default agent {agent_name!r} has no file at plugin/agents/{agent_name}.md"
     assert "You are **Hercules**" in agent_file.read_text(), \
         "the default agent must carry the Hercules persona marker"
@@ -259,10 +259,10 @@ def test_plugin_declares_default_agent_with_persona(repo_root):
 
 def test_advisor_list_matches_plugin_settings(repo_root):
     """_ADVISOR_AGENTS and plugin/settings.json advisors[] must stay in sync."""
-    settings = json.loads((repo_root / "plugin" / "settings.json").read_text())
+    settings = json.loads((repo_root / "dist" / "claude-code" / "settings.json").read_text())
     manifest = settings.get("advisors", [])
     assert sorted(manifest) == sorted(_ADVISOR_AGENTS), (
-        "plugin/settings.json advisors[] and _ADVISOR_AGENTS are out of sync.\n"
+        "dist/claude-code/settings.json advisors[] and _ADVISOR_AGENTS are out of sync.\n"
         f"  In settings.json only: {sorted(set(manifest) - set(_ADVISOR_AGENTS))}\n"
         f"  In _ADVISOR_AGENTS only: {sorted(set(_ADVISOR_AGENTS) - set(manifest))}"
     )
@@ -272,7 +272,7 @@ def test_engineers_defer_unpassable_test_verdict_to_the_caller(repo_root):
     """G2 gives the user the decision (3 rounds, root-cause, menu); an engineer agent must
     report an unpassable test to its caller, never self-declare a spec gap and abort."""
     for name in ("backend-engineer", "frontend-engineer"):
-        md = (repo_root / "plugin" / "agents" / f"{name}.md").read_text()
+        md = (repo_root / "dist" / "claude-code" / "agents" / f"{name}.md").read_text()
         assert "stop and re-enter" not in md, \
             f"{name} must not unilaterally exit the TDD loop — report the blocker to the caller"
 
@@ -280,7 +280,7 @@ def test_engineers_defer_unpassable_test_verdict_to_the_caller(repo_root):
 def test_cynical_reviewer_spec_sync_is_report_only(read_file):
     """The role expectation is 'report dispositions to the caller'; an 'update the spec' branch
     can fire on a live spec during ship-each cross-checks, mutating a frozen artifact."""
-    md = read_file("plugin/agents/cynical-reviewer.md")
+    md = read_file("dist/claude-code/agents/cynical-reviewer.md")
     assert "update the spec" not in md.lower(), \
         "cynical-reviewer must report dispositions, never update a spec"
 
@@ -289,8 +289,8 @@ def test_first_run_gate_keys_on_something_the_recommended_setup_writes(read_file
     """hercules.md gates onboarding on a registry entry, but its recommended setup step
     (code-of-conduct-generator) never writes one — the welcome block would re-trigger forever.
     The gate must also stand down when the CoC the setup DOES write is present."""
-    persona = read_file("plugin/agents/hercules.md")
-    generator = read_file("plugin/skills/code-of-conduct-generator/SKILL.md")
+    persona = read_file("dist/claude-code/agents/hercules.md")
+    generator = read_file("dist/claude-code/skills/code-of-conduct-generator/SKILL.md")
     if "config.json" in persona:
         assert "config.json" in generator or "setup already ran" in persona, \
             "the first-run gate re-triggers after setup — key it on the CoC file too"

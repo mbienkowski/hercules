@@ -66,7 +66,7 @@ def test_plugin_version_is_single_sourced(repo_root, read_file):
     m = re.search(r'(?m)^version\s*=\s*"([^"]+)"', py)
     assert m, "pyproject.toml must declare a version"
     plugin_version = json.loads(
-        (repo_root / "plugin" / ".claude-plugin" / "plugin.json").read_text()
+        (repo_root / "dist" / "claude-code" / ".claude-plugin" / "plugin.json").read_text()
     )["version"]
     assert m.group(1) == plugin_version, (
         f"version drift: pyproject {m.group(1)!r} != plugin manifest {plugin_version!r}"
@@ -75,17 +75,17 @@ def test_plugin_version_is_single_sourced(repo_root, read_file):
 
 def test_shipped_plugin_describes_no_sync_source(repo_root):
     """No shipped plugin content may describe the removed sync source / auto-sync CLI."""
-    for path in (repo_root / "plugin").rglob("*.md"):
+    for path in (repo_root / "dist" / "claude-code").rglob("*.md"):
         low = path.read_text().lower()
         assert "sync source" not in low, f"{path} references a removed 'sync source'"
         assert "auto-sync" not in low, f"{path} references removed auto-sync"
 
 
 def test_plugin_claude_md_describes_a_plugin_not_a_wrapper(read_file):
-    """plugin/CLAUDE.md must describe Hercules as a plugin, not a Python CLI wrapper."""
-    content = read_file("plugin/CLAUDE.md")
+    """dist/claude-code/CLAUDE.md must describe Hercules as a plugin, not a Python CLI wrapper."""
+    content = read_file("dist/claude-code/CLAUDE.md")
     assert "Python wrapper for the `claude` CLI" not in content, \
-        "plugin/CLAUDE.md must not call Hercules a Python wrapper for the claude CLI"
+        "dist/claude-code/CLAUDE.md must not call Hercules a Python wrapper for the claude CLI"
 
 
 def test_readme_documents_uninstall(read_file):
@@ -128,7 +128,7 @@ def test_review_only_agents_carry_no_edit_or_write_tools(repo_root):
     """Review/architecture agents find and decide; they do not author code. Their tool lists must
     never carry Edit/Write — a positive, ongoing guard so a future edit can't quietly grant a
     reviewer write access (the same risk the QA-role test pins for senior-qa-engineer)."""
-    agents = repo_root / "plugin" / "agents"
+    agents = repo_root / "dist" / "claude-code" / "agents"
     for name in ("cynical-reviewer", "lead-architect"):
         md = (agents / f"{name}.md").read_text()
         tools_line = next(ln for ln in md.splitlines() if ln.startswith("tools:"))
@@ -154,7 +154,7 @@ def test_diagram_scaffold_and_failing_tests_steps_are_gates(read_file):
 def test_requirements_section_discloses_hook_python_runtime(read_file):
     """hooks.json runs python3 on the user's machine on every edit — the Requirements section
     must not call Python contributor-only, and the intro must not deny extra executables."""
-    assert "python3" in read_file("plugin/hooks/hooks.json")
+    assert "python3" in read_file("dist/claude-code/hooks/hooks.json")
     readme = read_file("README.md")
     start = readme.index("## Requirements")
     section = readme[start:readme.index("## ", start + 3)]
@@ -207,7 +207,7 @@ def test_license_is_single_sourced(repo_root, read_file):
     """pyproject and the plugin manifest must declare the same license as LICENSE ships."""
     import json as _json
     py = read_file("pyproject.toml")
-    plugin = _json.loads((repo_root / "plugin" / ".claude-plugin" / "plugin.json").read_text())
+    plugin = _json.loads((repo_root / "dist" / "claude-code" / ".claude-plugin" / "plugin.json").read_text())
     lic = plugin.get("license", "")
     assert lic and lic.split("-")[0] in py, \
         f"pyproject license must match plugin.json's {lic!r}"
@@ -273,7 +273,7 @@ def test_first_run_gate_never_intercepts_unrelated_work(read_file):
     """The persona is the default agent for EVERY session — an onboarding block that fires
     on any turn in an un-set-up repo hijacks unrelated work and contradicts the README's
     'Optional'. It must apply only to Hercules-directed requests."""
-    agent = read_file("plugin/agents/hercules.md")
+    agent = read_file("dist/claude-code/agents/hercules.md")
     gate = agent[agent.index("**First-run onboarding.**"):]
     assert "unrelated" in gate, "the gate must promise never to intercept unrelated work"
     assert "/hercules:" in gate, "the gate must scope itself to Hercules-directed requests"
@@ -284,7 +284,7 @@ def test_persona_model_defaults_to_opus(read_file):
     and (unlike a raw `claude-...` id) the exact-match regex here also pins it to the alias.
     Whether `/model` overrides it at runtime is Claude Code behaviour this static check can't
     prove; it is verified empirically in the PR."""
-    agent = read_file("plugin/agents/hercules.md")
+    agent = read_file("dist/claude-code/agents/hercules.md")
     head = agent[:agent.index("\n---", 3)]
     assert re.search(r"(?m)^model:\s*opus\s*$", head), \
         "hercules.md frontmatter must declare `model: opus`"
@@ -324,7 +324,7 @@ def test_abandoning_a_session_has_a_documented_path(read_file):
     """Every other exit is stated at its friction point; abandoning a half-built feature
     had no user-facing path at all. CLAUDE.md must define the mechanics and the README
     must surface the phrase."""
-    md = read_file("plugin/CLAUDE.md")
+    md = read_file("dist/claude-code/CLAUDE.md")
     assert "abandon" in md.lower() and "clear" in md.lower()
     readme = read_file("README.md")
     assert "abandon" in readme.lower(), "the README must tell users they can bail out"
@@ -336,7 +336,7 @@ def test_workflow_source_of_truth_is_the_protocol(read_file):
     concept (which file owns the workflow) so a third re-inversion fails CI. It is scoped to the
     inverted phrasing, so legitimate 'source of truth' mentions about code/state still pass."""
     # Positive: the protocol crowns itself, and the CoC names it as the owner.
-    protocol = read_file("plugin/protocols/workflow-protocol.md").lower()
+    protocol = read_file("dist/claude-code/protocols/workflow-protocol.md").lower()
     assert "source of truth" in protocol and "workflow" in protocol, \
         "workflow-protocol.md must name itself the source of truth for the workflow"
     coc_section = section(read_file("CODE_OF_CONDUCT.md"), "### Changing the workflow", "\n### ",
@@ -356,7 +356,7 @@ def test_workflow_source_of_truth_is_the_protocol(read_file):
 def test_claude_md_defines_code_of_conduct_resolution(read_file):
     """The CoC is resolved by a matcher in the correct repo — defined once in CLAUDE.md so every
     phase resolves it the same way, never a fixed filename and never the path-nearest file."""
-    resolution = section(read_file("plugin/CLAUDE.md"),
+    resolution = section(read_file("dist/claude-code/CLAUDE.md"),
                          "## Code-of-conduct resolution", "\n## ", label="CLAUDE.md")
     low = resolution.lower()
     assert "any capitalization" in low or "case-insensitiv" in low, \
@@ -376,5 +376,5 @@ def test_claude_md_defines_code_of_conduct_resolution(read_file):
 def test_build_service_coc_read_uses_the_matcher_not_a_fixed_name(read_file):
     """Build's service-scoped CoC read must resolve by matcher (any capitalization), not a fixed
     lowercase {service-path}/code-of-conduct.md that would miss CODE_OF_CONDUCT.md on Linux."""
-    assert "{service-path}/code-of-conduct.md" not in read_file("plugin/commands/build.md"), \
+    assert "{service-path}/code-of-conduct.md" not in read_file("dist/claude-code/commands/build.md"), \
         "build must not read a fixed-lowercase service CoC path — resolve it by matcher"

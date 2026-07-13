@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "hercules",
-      "source": "./plugin",
+      "source": "./dist/claude-code",
       "description": "Methodology & workflow system for software delivery with AI"
     }
   ]

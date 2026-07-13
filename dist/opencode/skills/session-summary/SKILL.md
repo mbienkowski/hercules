@@ -5,7 +5,7 @@ description: Produce a structured handoff note for the next developer. Use at th
 
 # session-summary
 
-**Precondition:** an active session directory must exist inside the artifact root (`docs/` by default) with at least one artifact. If no session directory is found, stop and report: "No active session found — run `/discover` first."
+**Precondition:** an active session directory must exist inside the artifact root (`docs/` by default) with at least one artifact. If no session directory is found, stop and report: "No active session found — run `/hercules:discover` first."
 
 ## What it does
 

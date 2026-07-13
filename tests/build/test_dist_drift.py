@@ -10,7 +10,7 @@ import pytest
 from scripts.build.cli import build_target
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PLUGIN = REPO_ROOT / "plugin"
+PLUGIN = REPO_ROOT / "dist" / "claude-code"
 
 
 def _diff(a: Path, b: Path, ignore=("__pycache__",)) -> list[str]:
@@ -21,7 +21,7 @@ def _diff(a: Path, b: Path, ignore=("__pycache__",)) -> list[str]:
     return out
 
 
-@pytest.mark.skipif(not PLUGIN.exists(), reason="plugin/ retired (post-cutover)")
+@pytest.mark.skipif(not PLUGIN.exists(), reason="dist/claude-code/ retired (post-cutover)")
 def test_claude_code_matches_plugin_byte_identical(tmp_path):
     out = tmp_path / "claude-code"
     build_target("claude-code", out)
@@ -29,7 +29,7 @@ def test_claude_code_matches_plugin_byte_identical(tmp_path):
     assert diffs == [], f"dist/claude-code drifts from plugin/: {diffs}"
 
 
-@pytest.mark.skipif(not PLUGIN.exists(), reason="plugin/ retired (post-cutover)")
+@pytest.mark.skipif(not PLUGIN.exists(), reason="dist/claude-code/ retired (post-cutover)")
 def test_every_plugin_file_has_a_generated_counterpart(tmp_path):
     out = tmp_path / "claude-code"
     build_target("claude-code", out)

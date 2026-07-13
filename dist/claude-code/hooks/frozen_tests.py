@@ -1,6 +1,6 @@
 """PreToolUse hook: block edits to frozen test files during an active Hercules build.
 
-Wired by `plugin/hooks/hooks.json` on `Edit|MultiEdit|Write|NotebookEdit`. Reads the
+Wired by `hooks/hooks.json` on `Edit|MultiEdit|Write|NotebookEdit`. Reads the
 PreToolUse payload as JSON on stdin. Exit 2 (with a plain-language reason on stderr)
 hard-blocks the tool call; exit 0 allows it.
 

@@ -8,7 +8,7 @@ from pathlib import Path
 from scripts.build.cli import build_target
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CLAUDE_ISM = re.compile(r"CLAUDE\.md|E(?:nter|xit)PlanMode|/hercules:[a-z]|\bClaude\b")
+CLAUDE_ISM = re.compile(r"CLAUDE\.md|E(?:nter|xit)PlanMode|\bClaude\b")
 
 
 def _files(root: Path) -> dict[str, str]:

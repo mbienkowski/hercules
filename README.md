@@ -100,7 +100,7 @@ governance. This file merges with any existing Claude Code settings — it does 
 
 ### OpenCode
 
-Hercules also works in [OpenCode](https://opencode.ai). The Claude Code plugin in `plugin/` remains the source of truth; OpenCode artifacts under `.opencode/` and `opencode-plugin/hercules.js` are generated from it by `scripts/generate_opencode.py`.
+Hercules also works in [OpenCode](https://opencode.ai). All content is authored once in `src/`; the build (`scripts/build/`) generates the OpenCode plugin under `dist/opencode/` (the Claude Code plugin under `dist/claude-code/` is generated the same way).
 
 **Install from the GitHub repo:**
 
@@ -112,27 +112,19 @@ Hercules also works in [OpenCode](https://opencode.ai). The Claude Code plugin i
 
 Then restart OpenCode. Hercules becomes the default agent and the `/hercules:*` commands (`/hercules:discover`, `/hercules:design`, `/hercules:build`, `/hercules:ship`, `/hercules:workflow`) are available.
 
-If OpenCode does not accept the colon in command names, the generator can be switched to emit the commands without the `hercules:` prefix.
-
-**For contributors:** when you change anything in `plugin/`, regenerate the OpenCode artifacts and commit them:
+**For contributors:** the neutral source is `src/`; the shipped trees under `dist/` are generated and committed. After editing `src/`, rebuild and commit the output:
 
 ```bash
-python scripts/generate_opencode.py
+make build          # regenerate dist/ for every target
 ```
 
-An optional pre-commit hook is included in `.githooks/pre-commit` to do this automatically:
+An optional pre-commit hook (`.githooks/pre-commit`) regenerates `dist/` automatically when `src/` or `scripts/build/` changes:
 
 ```bash
 git config core.hooksPath .githooks
 ```
 
-Before opening a PR, run the verification script:
-
-```bash
-python scripts/verify_opencode.py
-```
-
-This checks that the generator runs, the committed artifacts are in sync, the plugin entry point loads, and the generated frontmatter is OpenCode-compatible.
+`make test` builds to a temp directory, verifies the committed `dist/` is in sync (a stale `dist/` fails with a `make build` remedy), then runs the suite against the committed output.
 
 ---
 

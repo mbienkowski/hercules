@@ -12,8 +12,8 @@ from tests.metrics.a2a_grammar import (
 from tests.metrics.markdown_metrics import count_status_table_rows
 
 
-_A2A_PROTOCOL = "plugin/protocols/a2a-communication-protocol.md"
-_DEBATE_PROTOCOL = "plugin/protocols/debate-consensus-protocol.md"
+_A2A_PROTOCOL = "dist/claude-code/protocols/a2a-communication-protocol.md"
+_DEBATE_PROTOCOL = "dist/claude-code/protocols/debate-consensus-protocol.md"
 _ALL_PROTOCOLS = [_A2A_PROTOCOL, _DEBATE_PROTOCOL]
 
 

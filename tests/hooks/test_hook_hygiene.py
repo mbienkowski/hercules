@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-_HOOKS_DIR = Path(__file__).resolve().parents[2] / "plugin" / "hooks"
+_HOOKS_DIR = Path(__file__).resolve().parents[2] / "src" / "targets" / "claude-code" / "hooks"
 _HOOK_SCRIPTS = sorted(_HOOKS_DIR.glob("*.py"))
 
 # Modules that would open a network channel — banned in shipped hook code.
@@ -116,7 +116,7 @@ def test_pragma_no_mutate_only_on_static_strings(repo_root):
     line without a string literal or type alias is suppressing real logic and must go."""
     import itertools
     scoped = itertools.chain(
-        (repo_root / "plugin" / "hooks").glob("*.py"),
+        (repo_root / "src" / "targets" / "claude-code" / "hooks").glob("*.py"),
         (repo_root / "tests" / "metrics").glob("*.py"),
     )
     for path in scoped:

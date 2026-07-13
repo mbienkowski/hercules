@@ -121,7 +121,7 @@ def test_every_skill_has_a_token_budget_row(repo_root: Path):
         if check.metric == "token_count":
             covered.update(resolve_targets(repo_root, check.target))
 
-    skills = set((repo_root / "plugin" / "skills").glob("*/SKILL.md"))
+    skills = set((repo_root / "dist" / "claude-code" / "skills").glob("*/SKILL.md"))
     missing = skills - covered
     assert not missing, \
         f"skills with no token-budget row: {sorted(str(m.relative_to(repo_root)) for m in missing)}"

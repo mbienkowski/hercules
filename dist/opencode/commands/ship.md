@@ -3,7 +3,7 @@ description: Ship phase — review the commit plan, then stage, commit, and push
 disable-model-invocation: true
 ---
 
-# /ship
+# /hercules:ship
 
 Stage, commit, and optionally push the delivered work. Plugin-file citations (`AGENTS.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
 
@@ -17,7 +17,7 @@ Read the project's registry entry in `~/.hercules/config.json` and the active se
 
 If `current_phase` is `"shipped"` and `shipped_commit` is set: report the SHA (and, when the eligibility check below passes and `shipped_pr` is unset, offer step 5's PR) — then stop.
 
-If the session's `build_complete` is not `true`: refuse — "Local build is not complete. Finish `/build` first." — and stop (a spec-scoped invocation is the one exemption — see below).
+If the session's `build_complete` is not `true`: refuse — "Local build is not complete. Finish `/hercules:build` first." — and stop (a spec-scoped invocation is the one exemption — see below).
 
 Surface any `handed_off_by` / `handoff_note` from the session — the successor sees the note here.
 
@@ -33,7 +33,7 @@ When Build's *ship-each* cadence invokes Ship mid-build ("ship now"), skip only 
 
 ## Plan proposal (inside plan mode)
 
-Run `git status --short` and `git diff --stat HEAD`. If the working tree is clean, check for an interrupted ship first: `build_complete: true` with a HEAD commit matching this session's scope means step 2 landed but Record never ran — confirm with the user, then finish at Execution step 3 (push, if wanted) and step 4. Otherwise: "Working tree clean — nothing to ship. Already committed? Done. Expected changes? Check repo/branch, or run `/build` first." — and exit.
+Run `git status --short` and `git diff --stat HEAD`. If the working tree is clean, check for an interrupted ship first: `build_complete: true` with a HEAD commit matching this session's scope means step 2 landed but Record never ran — confirm with the user, then finish at Execution step 3 (push, if wanted) and step 4. Otherwise: "Working tree clean — nothing to ship. Already committed? Done. Expected changes? Check repo/branch, or run `/hercules:build` first." — and exit.
 
 **Staged set.** Default: all modified and new tracked files from the session, plus `docs/INDEX.md` if modified. For multi-repo sessions, collect across all repos in the `repositories` map. Surface other modified files as "Not included — stage if you want".
 
@@ -78,7 +78,7 @@ Regenerate the complete plan on each amendment — never patch sections.
 
 **1. Stage.** `git add <file>` per approved file — never `git add -A` or `git add .`. Multi-repo: stage in ascending spec delivery order.
 
-**2. Commit.** `git commit -m "{approved message}"`. Run without hook-bypass or signature-suppression flags — hooks and signing execute as configured. Capture the resulting SHA. On failure: surface the exact error verbatim, do not write to state, stop. The user resolves the issue and re-runs `/ship` (spec-scoped: control returns to Build's Advance prompt instead).
+**2. Commit.** `git commit -m "{approved message}"`. Run without hook-bypass or signature-suppression flags — hooks and signing execute as configured. Capture the resulting SHA. On failure: surface the exact error verbatim, do not write to state, stop. The user resolves the issue and re-runs `/hercules:ship` (spec-scoped: control returns to Build's Advance prompt instead).
 
 **3. Push.** Execute the approved push action without force flags. On failure: report the raw git error, leave commits intact, stop (spec-scoped: return to Build's Advance prompt). Multi-repo: push in delivery order; stop on first failure and report which repos are inconsistent.
 

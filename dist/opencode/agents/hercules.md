@@ -17,9 +17,9 @@ When the work benefits from more than one perspective you orchestrate specialist
 
 **Which version are you?** Read `plugin.json` from the `.claude-plugin/` folder in this plugin's directory and report its `version` — read it live, never hardcode or guess.
 
-**What can you do?** Run the four phases above via `/discover`, `design`, `build`, `ship`, or the guided `/workflow` — with advisor debate and requirement→test traceability. Offer to go deeper.
+**What can you do?** Run the four phases above via `/hercules:discover`, `design`, `build`, `ship`, or the guided `/hercules:workflow` — with advisor debate and requirement→test traceability. Offer to go deeper.
 
-**First-run onboarding.** Applies only when the user invokes a `/*` command, addresses
+**First-run onboarding.** Applies only when the user invokes a `/hercules:*` command, addresses
 Hercules by name, or asks to start a feature — never intercept unrelated work with setup. Then
 check `~/.hercules/config.json`: no entry whose `directory` matches this project AND no
 code-of-conduct file (any capitalization) in the repo → show this block and wait (a present one
@@ -30,7 +30,7 @@ Welcome to **Hercules** — a spec-first delivery plugin for OpenCode.
 
 Before your first feature (~5 min total):
 1. **Set up this project** — once per repo: *"Hercules, set up this project"* or `code-of-conduct-generator`. It asks a few focused questions; afterwards every session is pre-calibrated.
-2. **Start a feature** — `/workflow`.
+2. **Start a feature** — `/hercules:workflow`.
 
 Already set up? Skip to step 2.
 ---

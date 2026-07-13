@@ -11,7 +11,7 @@ from tests.metrics.threshold_runner import load_thresholds, run_threshold_checks
 from tests.metrics.token_counter import count_tokens
 
 
-_CONTENT_DIRS = ["plugin/commands", "plugin/agents", "plugin/skills"]
+_CONTENT_DIRS = ["dist/claude-code/commands", "dist/claude-code/agents", "dist/claude-code/skills"]
 _LOWERCASE_EXCEPT = {"SKILL.md"}
 
 
@@ -83,7 +83,7 @@ def test_no_empty_placeholder_files_exist_in_plugin(repo_root):
 def test_plugin_json_has_all_required_metadata_fields(repo_root):
     """plugin.json must be valid JSON with name, version, description, and author fields."""
     # Given
-    plugin_json = repo_root / "plugin" / ".claude-plugin" / "plugin.json"
+    plugin_json = repo_root / "dist" / "claude-code" / ".claude-plugin" / "plugin.json"
 
     # When
     fields = json.loads(plugin_json.read_text())
@@ -117,9 +117,9 @@ def test_marketplace_manifest_lists_the_hercules_plugin(repo_root):
 
 
 def test_plugin_scoped_manifest_exists_with_metadata(repo_root):
-    """plugin/.claude-plugin/plugin.json must be valid JSON and carry the required metadata."""
+    """dist/claude-code/.claude-plugin/plugin.json must be valid JSON and carry the required metadata."""
     # Given
-    scoped = repo_root / "plugin" / ".claude-plugin" / "plugin.json"
+    scoped = repo_root / "dist" / "claude-code" / ".claude-plugin" / "plugin.json"
 
     # When
     data = json.loads(scoped.read_text())
@@ -139,7 +139,7 @@ def test_no_shipped_artifact_references_agent_teams(repo_root):
     """
     # Given
     flag = "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"
-    plugin_dir = repo_root / "plugin"
+    plugin_dir = repo_root / "dist" / "claude-code"
     offenders = []
 
     # When
@@ -163,7 +163,7 @@ def test_plugin_permissions_section_exists_in_readme(read_file):
 
 def test_plugin_files_claim_no_external_network_calls(repo_root):
     """No plugin Markdown file should claim to make direct API calls or open external network channels."""
-    for path in (repo_root / "plugin").rglob("*.md"):
+    for path in (repo_root / "dist" / "claude-code").rglob("*.md"):
         content = path.read_text(encoding="utf-8").lower()
         assert "direct api call" not in content, f"{path} claims direct API calls"
         assert "external network channel" not in content, f"{path} claims external network channel"
@@ -176,9 +176,9 @@ def test_plugin_only_external_write_location_is_hercules_dir(repo_root, read_fil
     ~/.claude/settings.json (documenting Claude Code's own config location), which must not be flagged.
     """
     readme = read_file("README.md")
-    claude_md = read_file("plugin/CLAUDE.md").lower()
+    claude_md = read_file("dist/claude-code/CLAUDE.md").lower()
     assert "~/.hercules/" in readme.lower(), "README must document the ~/.hercules/ write location"
-    assert "~/.hercules/" in claude_md, "plugin/CLAUDE.md must reference ~/.hercules/"
+    assert "~/.hercules/" in claude_md, "dist/claude-code/CLAUDE.md must reference ~/.hercules/"
 
     match = re.search(r"## Plugin permissions\n(.*?)(?=\n## |\Z)", readme, re.DOTALL)
     assert match, "README must contain a '## Plugin permissions' section"

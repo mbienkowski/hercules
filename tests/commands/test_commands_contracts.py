@@ -19,21 +19,21 @@ from tests.commands.conftest import _BAD_DATE_RE, _ISO_DATE_RE, _LETTER_STEP_RE
 def test_documentation_lists_exactly_the_commands_that_exist(repo_root, read_file):
     """CLAUDE.md must name every /hercules: command, and each named command must exist as a file."""
     # Given
-    doc = read_file("plugin/CLAUDE.md")
+    doc = read_file("dist/claude-code/CLAUDE.md")
     command_re = re.compile(r"/hercules:([a-z-]+)")
     doc_commands = {m.group(1) for m in command_re.finditer(doc)}
 
     # When / Then
     for name in doc_commands:
-        cmd_file = repo_root / "plugin" / "commands" / f"{name}.md"
+        cmd_file = repo_root / "dist" / "claude-code" / "commands" / f"{name}.md"
         assert cmd_file.exists(), (
             f"CLAUDE.md names /hercules:{name} but plugin/commands/{name}.md does not exist"
         )
 
     for step_file in [_DISCOVER, _DESIGN, _BUILD]:
-        name = step_file.split("/")[2].replace(".md", "")
+        name = step_file.split("/")[-1].replace(".md", "")
         assert name in doc_commands, (
-            f"plugin/commands/{name}.md exists in the workflow chain but is not documented in CLAUDE.md"
+            f"dist/claude-code/commands/{name}.md exists in the workflow chain but is not documented in CLAUDE.md"
         )
 
 def test_command_steps_use_integer_numbering(read_file):
@@ -110,7 +110,7 @@ def test_no_session_md_lightweight_path(repo_root, read_file):
     """Regression guard: the workflow is one dynamic flow (the diagram is the source of truth).
     There is no separate `*-session.md` 'lightweight path' / 'lightweight shortcut' / 'fast pass'
     for trivial/low — every tier runs the same four phases and produces the same artifacts."""
-    targets = [*_ALL_COMMANDS, "plugin/CLAUDE.md", "plugin/skills/session-summary/SKILL.md", "README.md"]
+    targets = [*_ALL_COMMANDS, "dist/claude-code/CLAUDE.md", "dist/claude-code/skills/session-summary/SKILL.md", "README.md"]
     for path in targets:
         text = read_file(path)
         lower = text.lower()
@@ -142,7 +142,7 @@ def test_advisor_debate_step_is_operational(read_file):
 def test_spec_deletion_wording_consistent(repo_root, read_file):
     """Specs are deleted when delivered in code (during Build), not on merge to main. No shipped
     doc may describe spec deletion as happening on 'merge to main'."""
-    targets = ["README.md", *(str(p.relative_to(repo_root)) for p in (repo_root / "plugin").rglob("*.md"))]
+    targets = ["README.md", *(str(p.relative_to(repo_root)) for p in (repo_root / "dist" / "claude-code").rglob("*.md"))]
     for path in targets:
         lower = read_file(path).lower()
         assert "merge to main" not in lower, f"{path} must not say specs are deleted on 'merge to main'"
@@ -169,22 +169,22 @@ def test_readme_no_auto_escalation_claim(read_file):
     readme = read_file("README.md").lower()
     assert "escalates the tier" not in readme, \
         "README must not claim dissent auto-escalates the tier (contradicts CLAUDE.md's never-re-scores rule)"
-    assert "never re-scores" in read_file("plugin/CLAUDE.md").lower(), \
+    assert "never re-scores" in read_file("dist/claude-code/CLAUDE.md").lower(), \
         "sanity: CLAUDE.md must still state the never-re-scores rule this test pins README against"
 
 def test_high_risk_floor_list_consistent(read_file):
     """The high-risk surfaces that floor a feature at `high` must be stated identically in the
     README and plugin/CLAUDE.md (token-based, so minor wording differences elsewhere are fine)."""
     readme = read_file("README.md").lower()
-    claude = read_file("plugin/CLAUDE.md").lower()
+    claude = read_file("dist/claude-code/CLAUDE.md").lower()
     canonical = ["auth", "secrets", "money", "migration", "deletion", "production config", "concurrency"]
     for token in canonical:
-        assert token in claude, f"plugin/CLAUDE.md floor list must name '{token}'"
+        assert token in claude, f"dist/claude-code/CLAUDE.md floor list must name '{token}'"
         assert token in readme, f"README high-risk floor rule must name '{token}'"
 
 def test_index_md_schema_is_defined_in_claude_md(read_file):
     """CLAUDE.md must define the INDEX.md column schema so all commands write consistent rows."""
-    md = read_file("plugin/CLAUDE.md")
+    md = read_file("dist/claude-code/CLAUDE.md")
     assert "Status" in md and "Tier" in md, "CLAUDE.md must define Status and Tier columns"
     # Pin the declared Status set on its actual declaration line so a command can't write a
     # status (discover/design) that CLAUDE.md later drops without failing here.
@@ -195,7 +195,7 @@ def test_index_md_schema_is_defined_in_claude_md(read_file):
 
 def test_commands_reference_artifact_root_resolution_rule(read_file):
     """The artifact-root resolution rule must be defined once in CLAUDE.md and used by commands."""
-    claude_md = read_file("plugin/CLAUDE.md").lower()
+    claude_md = read_file("dist/claude-code/CLAUDE.md").lower()
     assert "artifact root resolution" in claude_md, \
         "CLAUDE.md must define the Artifact root resolution rule"
     assert "default to" in claude_md and "docs/" in claude_md, \
@@ -205,7 +205,7 @@ def test_no_command_or_readme_references_removed_context_file(read_file):
     """Regression guard: docs/.context was removed. No command, the plugin CLAUDE.md, or the README
     may reference it or promise a 'gitignored, never committed' machine-local file — that claim was
     never enforced and risked leaking a local file into the user's repo."""
-    targets = [*_ALL_COMMANDS, "plugin/CLAUDE.md", "plugin/skills/session-summary/SKILL.md", "README.md"]
+    targets = [*_ALL_COMMANDS, "dist/claude-code/CLAUDE.md", "dist/claude-code/skills/session-summary/SKILL.md", "README.md"]
     for path in targets:
         text = read_file(path)
         assert "docs/.context" not in text, f"{path} must not reference the removed docs/.context file"
@@ -213,9 +213,9 @@ def test_no_command_or_readme_references_removed_context_file(read_file):
             f"{path} must not promise an untested 'gitignored, never committed' machine-local file"
 
 def test_claude_md_documents_home_config_state_contract(read_file):
-    """plugin/CLAUDE.md must document the split machine-local state: a registry config.json with a
+    """dist/claude-code/CLAUDE.md must document the split machine-local state: a registry config.json with a
     `projects` map (directory, state_file, repositories) plus per-project state/{slug}.json files."""
-    md = read_file("plugin/CLAUDE.md")
+    md = read_file("dist/claude-code/CLAUDE.md")
     assert "config.json" in md, "CLAUDE.md must name the registry ~/.hercules/config.json"
     assert "state/" in md or "state_file" in md, \
         "CLAUDE.md must document the per-project state file (~/.hercules/state/{slug}.json)"
@@ -235,7 +235,7 @@ def test_claude_md_documents_home_config_state_contract(read_file):
 
 def test_claude_md_defines_development_principles(read_file):
     """CLAUDE.md must contain a Development principles section with the fixed project rules."""
-    md = read_file("plugin/CLAUDE.md")
+    md = read_file("dist/claude-code/CLAUDE.md")
     assert "Development principles" in md, \
         "CLAUDE.md must define a '## Development principles' section"
     assert "hercules" in md.lower(), \
@@ -248,7 +248,7 @@ def test_claude_md_defines_development_principles(read_file):
 def test_claude_md_documents_current_phase_semantics(read_file):
     """Both hooks arm/disarm on current_phase — the session-field prose must document it and
     its full value set like every other field."""
-    md = read_file("plugin/CLAUDE.md")
+    md = read_file("dist/claude-code/CLAUDE.md")
     prose = md[md.index("Session object (in the state file):"):]
     assert "`current_phase`" in prose, "session prose must document current_phase"
     for v in ('"discover"', '"design"', '"build"', '"shipped"'):
@@ -256,7 +256,7 @@ def test_claude_md_documents_current_phase_semantics(read_file):
 
 def test_claude_md_documents_keep_specs(read_file):
     """The registry prose must document keep_specs, and principle 3 must carry the carve-out."""
-    md = read_file("plugin/CLAUDE.md")
+    md = read_file("dist/claude-code/CLAUDE.md")
     assert "keep_specs" in md, "CLAUDE.md must document the keep_specs registry field"
     principles = md[md.index("## Development principles"):md.index("## Persona")]
     assert "keep" in principles.lower() and "code-of-conduct" in principles.lower(), \
@@ -276,7 +276,7 @@ def test_spec_template_deletion_note_acknowledges_keep_override(read_file):
 def test_claude_md_principle_8_survives_keep_specs(read_file):
     """Principle 8's close-out gate must be phrased for both retire modes: 'deleted only after
     delivery is proven' is false under keep_specs, where a proven spec is refreshed, not deleted."""
-    md = read_file("plugin/CLAUDE.md")
+    md = read_file("dist/claude-code/CLAUDE.md")
     principles = md[md.index("## Development principles"):md.index("## Persona")]
     p8 = next(line for line in principles.splitlines() if line.startswith("8."))
     assert "retired" in p8, \
@@ -322,9 +322,9 @@ def test_agent_facing_prose_uses_no_path_variable(repo_root):
     substitution — a variable that may not expand in this context. Path variables are only for
     runtime hook configs (hooks.json / hook code), which this guard deliberately excludes."""
     md_files = [
-        *(repo_root / "plugin" / "commands").glob("*.md"),
-        *(repo_root / "plugin" / "agents").glob("*.md"),
-        *(repo_root / "plugin" / "skills").glob("*/SKILL.md"),
+        *(repo_root / "dist" / "claude-code" / "commands").glob("*.md"),
+        *(repo_root / "dist" / "claude-code" / "agents").glob("*.md"),
+        *(repo_root / "dist" / "claude-code" / "skills").glob("*/SKILL.md"),
     ]
     for path in md_files:
         text = path.read_text()
@@ -337,7 +337,7 @@ def test_cited_plugin_paths_resolve_under_plugin(repo_root):
     """The plugin files that commands and the persona tell the agent to read must exist under
     plugin/ — a relayout that moved or renamed one would silently break resolution. This is the
     static half; the agent locates them generically (by directory + search) at runtime."""
-    plugin = repo_root / "plugin"
+    plugin = repo_root / "dist" / "claude-code"
     must_exist = [
         "CLAUDE.md",
         ".claude-plugin/plugin.json",
@@ -353,7 +353,7 @@ def _documented_and_referenced_state_fields(read_file):
     """(documented set, referenced set, commands text) for the CLAUDE.md↔commands schema guard.
     snake_case only — a loose pattern drags in backticked value literals (`false`); the two
     single-word fields (tier, cadence) are named explicitly so they stay guarded."""
-    md = read_file("plugin/CLAUDE.md")
+    md = read_file("dist/claude-code/CLAUDE.md")
     prose = (_section(md, "Session object (in the state file):", "\n\n")
              + _section(md, "Registry entry:", "\n\n"))
     documented = set(re.findall(r"`([a-z]+(?:_[a-z]+)+)`", prose))

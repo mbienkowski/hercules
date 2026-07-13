@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-_PLUGIN = Path(__file__).resolve().parents[2] / "plugin"
+_PLUGIN = Path(__file__).resolve().parents[2] / "src" / "targets" / "claude-code"
 _HOOKS = _PLUGIN / "hooks" / "hooks.json"
 
 

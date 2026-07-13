@@ -11,7 +11,7 @@ def _seed(root):
     (root / "pyproject.toml").write_text(
         '[project]\nname = "hercules"\nversion = "0.1.0"\nrequires-python = ">=3.9"\n'
     )
-    manifest_dir = root / "plugin" / ".claude-plugin"
+    manifest_dir = root / "dist" / "claude-code" / ".claude-plugin"
     manifest_dir.mkdir(parents=True)
     (manifest_dir / "plugin.json").write_text(
         '{\n  "name": "hercules",\n  "version": "0.1.0",\n  "license": "MIT"\n}\n'
@@ -39,7 +39,7 @@ def test_set_version_updates_all_files_in_sync(tmp_path):
 def test_set_version_raises_when_a_version_line_is_missing(tmp_path):
     """If a target file has no version line, the bump fails loudly rather than silently no-op."""
     (tmp_path / "pyproject.toml").write_text('[project]\nname = "hercules"\n')  # no version
-    manifest_dir = tmp_path / "plugin" / ".claude-plugin"
+    manifest_dir = tmp_path / "dist" / "claude-code" / ".claude-plugin"
     manifest_dir.mkdir(parents=True)
     (manifest_dir / "plugin.json").write_text('{"version": "0.1.0"}')
     (tmp_path / "package.json").write_text('{"version": "0.1.0"}')

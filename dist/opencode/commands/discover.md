@@ -3,7 +3,7 @@ description: Discover phase — turn a rough idea into a clear, approved busines
 disable-model-invocation: true
 ---
 
-# /discover
+# /hercules:discover
 
 Turn a rough idea into a clear, approved business requirement — the foundation every other phase builds on. Plugin-file citations (`AGENTS.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
 
@@ -119,4 +119,4 @@ repo, atomically (temp + rename): create the registry entry if missing (`directo
 Append a new row to `docs/INDEX.md` (create if absent) with `tier`, `discover` status,
 and a one-line goal summary.
 
-Show the saved path. Then say: "The requirements are locked. Ready for **Design**? Run `/design` — we'll shape the solution and delivery sequence there."
+Show the saved path. Then say: "The requirements are locked. Ready for **Design**? Run `/hercules:design` — we'll shape the solution and delivery sequence there."

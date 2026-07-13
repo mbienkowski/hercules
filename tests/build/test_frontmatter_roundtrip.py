@@ -14,7 +14,7 @@ import pytest
 from scripts.build.parse import parse_frontmatter, render_frontmatter, split_document
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PLUGIN = REPO_ROOT / "plugin"
+PLUGIN = REPO_ROOT / "dist" / "claude-code"
 PLUGIN_MD = sorted(str(p.relative_to(REPO_ROOT)) for p in PLUGIN.rglob("*.md"))
 
 

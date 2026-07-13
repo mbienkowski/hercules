@@ -39,7 +39,7 @@ def test_build_offers_handoff_prompt(read_file):
 
 def test_config_registry_is_rebuildable_from_state(read_file):
     """CLAUDE.md must document the registry as a regenerable index rebuilt from the state files."""
-    md = read_file("plugin/CLAUDE.md").lower()
+    md = read_file("dist/claude-code/CLAUDE.md").lower()
     assert "regenerable index" in md, "CLAUDE.md must describe the registry as a regenerable index"
     assert "rebuilt from" in md or "source of truth" in md, \
         "CLAUDE.md must state the state files are the source of truth (registry rebuildable)"

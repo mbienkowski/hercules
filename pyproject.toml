@@ -30,7 +30,7 @@ pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.mutmut]
-paths_to_mutate = "tests/metrics/,plugin/hooks/"
+paths_to_mutate = "tests/metrics/,src/targets/claude-code/hooks/"
 paths_to_exclude = "test_*.py,__init__.py,conftest.py"
 backup = false
 runner = "python -m pytest tests/ -x -q --tb=no --no-header"
