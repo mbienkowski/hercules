@@ -1,6 +1,6 @@
 # hercules — project instructions
 
-Hercules is a ${product} plugin of agents, commands, and skills, distributed through the native
+Hercules is a OpenCode plugin of agents, commands, and skills, distributed through the native
 plugin marketplace.
 
 ## Development principles
@@ -13,7 +13,7 @@ plugin marketplace.
    are refreshed at delivery to match what shipped.
 4. Every feature runs all phases (Discover → Design → Build → Ship) and produces the same artifacts. Complexity scoring sets the advisor count only (trivial runs none), never which phases run.
 5. Discovery is the heaviest phase. Accept PRDs, ADRs, Figma links, QA scenarios, and any rich context upfront. The more invested here, the less rework in Build.
-6. Open ${host} where documents live: monorepo → open in that repo; microservices with cross-repo features → use a dedicated requirements repo.
+6. Open OpenCode where documents live: monorepo → open in that repo; microservices with cross-repo features → use a dedicated requirements repo.
 7. No rework after delivery is the north star. Preparation quality drives build quality.
 8. Traceability is gated, not assumed — requirement → spec → code/test is verified at close-out, and a spec is retired only after its delivery is proven. No requirement ships uncovered; nothing ships unrequested.
 
@@ -82,7 +82,7 @@ capitalization — `-`/`_`/space between the words, extension `.md`, in the repo
 `(?i)^code[-_ ]of[-_ ]conduct\.md$` matches any casing but not a lookalike like
 `code-of-conduct-draft.md`). Read it from the repository the work targets, not the nearest path: a
 service-scoped spec uses that service's repo (`repositories[service]`), otherwise the home code repo
-(`directory`); when ${host} is launched in a docs/requirements repo whose code lives elsewhere, the
+(`directory`); when OpenCode is launched in a docs/requirements repo whose code lives elsewhere, the
 governing CoC is the code repo's, never the launch/artifact repo's just because it is closest to the
 working directory (a service CoC overrides the home CoC for that service's work). Then validate before
 trusting it — confirm the match is a real code-of-conduct at the target repo's root/`.github/`/`docs/`,
@@ -93,7 +93,7 @@ target repo infer conventions from that repo's own code and tests, and say so.
 ## Delivery workflow
 
 Four sequential steps, each a wizard command. **Every step opens in plan mode** — opened with
-`${plan_enter}`, closed at the single **Plan approval** gate with `${plan_exit}` (`auto`), after which
+`plan mode`, closed at the single **Plan approval** gate with `approval` (`auto`), after which
 the step proceeds without further prompts. Discover and Design present a document draft and write it
 on approval. Build presents a **delivery plan** (which specs, the requirement each satisfies, the
 order and grouping), and on approval auto-executes the per-spec TDD loop (writing code and tests, not
@@ -103,11 +103,11 @@ gates come from the project's `code-of-conduct.md`.
 
 | Step         | Command               | Reads                                        | Produces                                          |
 |--------------|-----------------------|----------------------------------------------|---------------------------------------------------|
-| Full flow    | `${ns}workflow`  | —                                            | all artifacts (guided)                            |
-| 1. Discover  | `${ns}discover`  | —                                            | `*-business-requirements.md`                      |
-| 2. Design    | `${ns}design`    | *-business-requirements.md                  | `*-spec-NN-*.md` (one per track) |
-| 3. Build     | `${ns}build`     | *-business-requirements.md + *-spec-NN-*.md | code + tests          |
-| 4. Ship      | `${ns}ship`      | git diff (staged changes)                    | a commit + optional push + optional PR            |
+| Full flow    | `/workflow`  | —                                            | all artifacts (guided)                            |
+| 1. Discover  | `/discover`  | —                                            | `*-business-requirements.md`                      |
+| 2. Design    | `/design`    | *-business-requirements.md                  | `*-spec-NN-*.md` (one per track) |
+| 3. Build     | `/build`     | *-business-requirements.md + *-spec-NN-*.md | code + tests          |
+| 4. Ship      | `/ship`      | git diff (staged changes)                    | a commit + optional push + optional PR            |
 
 Each step runs its own sub-process specified per command. Build runs a full TDD loop per spec
 (scaffold → write failing tests, then frozen → implement → quality gates), then one cross-check validation after all specs.

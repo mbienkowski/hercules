@@ -3,11 +3,11 @@ description: Build phase — plan the delivery, then execute approved specs with
 disable-model-invocation: true
 ---
 
-# ${ns}build
+# /build
 
-Plan the delivery, then execute the approved specs with TDD and full traceability. Plugin-file citations (`${instructions_file} §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
+Plan the delivery, then execute the approved specs with TDD and full traceability. Plugin-file citations (`AGENTS.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
 
-**Plan mode — required.** Build opens in plan mode: call `${plan_enter}`, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
+**Plan mode — required.** Build opens in plan mode: call `plan mode`, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
 
 ---
 
@@ -15,7 +15,7 @@ Plan the delivery, then execute the approved specs with TDD and full traceabilit
 
 ### Step 0 — Session context (resume)
 
-Resolve the **artifact root** (`docs_root`, default `docs/`; `${instructions_file} § Artifact root resolution`), then read the registry entry and state file (`~/.hercules/config.json`, `~/.hercules/state/{slug}.json`; `${instructions_file} § Machine-local state`). Surface any `handed_off_by` / `handoff_note` whenever present. If a session's `current_phase` is `"build"` and `current_spec` is set, show the latest `build_progress` checkpoint, then offer:
+Resolve the **artifact root** (`docs_root`, default `docs/`; `AGENTS.md § Artifact root resolution`), then read the registry entry and state file (`~/.hercules/config.json`, `~/.hercules/state/{slug}.json`; `AGENTS.md § Machine-local state`). Surface any `handed_off_by` / `handoff_note` whenever present. If a session's `current_phase` is `"build"` and `current_spec` is set, show the latest `build_progress` checkpoint, then offer:
 > "You were building `{active_session}` on **{current_spec}**. Resume? Say **'resume'** or **'start fresh'**."
 
 On 'start fresh': clear `current_spec`, `current_spec_round`, `frozen_test_files`, `frozen_override`, `pending_specs`, `build_progress`, and `delivered_specs` (under `keep_specs: true` keep `delivered_specs` and their `build_progress` checkpoints — the cross-check needs their record), then proceed. On 'resume': Steps 1–4 stay brief (prior answers stand); present the resume plan — current spec, round, stored `cadence` — and take **Plan approval** as usual; execution then starts at the spec matching `current_spec`.
@@ -26,7 +26,7 @@ On resume, reconcile against the filesystem: a spec in `delivered_specs` whose f
 
 Find sessions with specs not yet delivered: the state lists a non-empty `pending_specs` (never count `delivered_specs` — kept specs stay on disk); with no state file, `*-business-requirements.md` plus spec files on disk counts.
 
-Present a numbered list. Ask which to deliver (number, path, or Enter for most recent). If no sessions are found, tell the user to run `${ns}design` first.
+Present a numbered list. Ask which to deliver (number, path, or Enter for most recent). If no sessions are found, tell the user to run `/design` first.
 
 ### Step 2 — Service paths
 
@@ -48,7 +48,7 @@ Show the delivery plan: each spec, the requirement(s) it satisfies (its `satisfi
 
 ### Plan approval
 
-The single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. On the user's approval, call `${plan_exit}` (`auto`) first, then set `current_phase: "build"`, `current_spec` to the first pending spec (on resume, the interrupted one), and the approved `cadence` (`"deliver-all"` / `"ship-each"`) in the session's state file (atomic temp + rename) and this session's `Status` to `build` in `docs/INDEX.md`; execution runs automatically per the approved batching and cadence.
+The single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. On the user's approval, call `approval` (`auto`) first, then set `current_phase: "build"`, `current_spec` to the first pending spec (on resume, the interrupted one), and the approved `cadence` (`"deliver-all"` / `"ship-each"`) in the session's state file (atomic temp + rename) and this session's `Status` to `build` in `docs/INDEX.md`; execution runs automatically per the approved batching and cadence.
 
 ---
 
@@ -61,12 +61,12 @@ For each spec in delivery order, run this cycle, announcing `"Spec N of M"`. Spa
 3. **Write failing tests.** Invoke `write-test-scenarios` for the spec's scope and its `## Test suite` section. Gate: every new test compiles **and fails for the right reason** — a real assertion of the requirement against the real interface, red only because the implementation is missing, never a syntax/runner error or forced failure. Frontend scope: suggest Gherkin e2e scenarios (Cypress/Playwright), kept in source control. Record the test files to `frozen_test_files` and set `current_spec_round: 1` in the same atomic write (overrides bind to the round). **The tests are now frozen** — the agent does not edit them. Announce the freeze and its exits as bullets: "change test X" (your permission is recorded — files, spec, round, your words — and the edit proceeds this turn); the round-limit stop's five options (step 5); `frozen_hook: "off"` to switch the project to prompt-only discipline. Backstop: before the advance step, `git diff` the frozen files; any change outside the sanctioned user-decision path (step 5) or the current-round `frozen_override` blocks; clear a consumed `frozen_override` here.
 4. **Implement.** Write the minimum code to turn the failing tests green; refactor inline while the tests stay green. No test edits. No scope expansion. Respect `code-of-conduct.md`.
 5. **Quality gates.** All tests pass, no regressions; every quality gate the project's `code-of-conduct.md` defines passes — branch coverage, mutation kill rate, lint/format, type-checks, arch-unit checks — at the thresholds the CoC sets (Hercules carries no numbers of its own). Run the real tools, never a self-report. **Round limit:** at most 3 implementation rounds against the frozen tests; persist the count in `current_spec_round` so a resume can't reset it. Still failing after round 3 → stop, run a root-cause analysis, persist the checkpoint (note the spec as blocked there), and ask:
-   > "Three rounds in, {spec} still fails {N} tests — my read: {root cause}. Your call: **correct the test** (tell me the fix — I record your grant and edit), **rework the design** (`${ns}design`), **adjust scope**, **more rounds**, or **accept with a reason**."
+   > "Three rounds in, {spec} still fails {N} tests — my read: {root cause}. Your call: **correct the test** (tell me the fix — I record your grant and edit), **rework the design** (`/design`), **adjust scope**, **more rounds**, or **accept with a reason**."
 
    On a correct-the-test grant, record `frozen_override` — files, spec, round, quoted words — and edit; gate: the corrected test compiles and asserts the corrected requirement (green against existing code is the expected pass); then clear the override. The agent never edits a frozen test unprompted and never auto-advances.
 6. **Mutation gate.** When the CoC requires one, meet its kill-rate threshold. Fix surviving mutants, or annotate an accepted-equivalent with a one-line reason. Runs before the spec is retired, so a weak test is strengthened while the spec is live.
-7. **Traceability.** Each `satisfies:` requirement §section maps to ≥1 **named passing test** — the spec's own acceptance criteria passing is not sufficient; the business requirement needs a test asserting it. Each acceptance criterion maps to a test. Uncovered requirement → stop, re-enter `${ns}design`.
-8. **Advance.** Honour the cadence approved in plan mode. *Ship each* → pause: `"Spec N of M complete — tests green, traced. Ship now, continue (next spec), or continue all (finish the rest without pausing)?"`; "ship now" cross-checks this spec, blocks on a regression, then runs `${ns}ship` **spec-scoped** (ship.md § Spec-scoped ship); on failure control returns here and the spec is not retired. *Deliver all* → continue without pausing.
+7. **Traceability.** Each `satisfies:` requirement §section maps to ≥1 **named passing test** — the spec's own acceptance criteria passing is not sufficient; the business requirement needs a test asserting it. Each acceptance criterion maps to a test. Uncovered requirement → stop, re-enter `/design`.
+8. **Advance.** Honour the cadence approved in plan mode. *Ship each* → pause: `"Spec N of M complete — tests green, traced. Ship now, continue (next spec), or continue all (finish the rest without pausing)?"`; "ship now" cross-checks this spec, blocks on a regression, then runs `/ship` **spec-scoped** (ship.md § Spec-scoped ship); on failure control returns here and the spec is not retired. *Deliver all* → continue without pausing.
 9. **Write the checkpoint.** Append a `build_progress` entry to the session in state: the spec's acceptance criteria + `satisfies:` links, key decisions, interfaces, the named tests added, coverage %, mutation %, and constraints later specs must respect.
 10. **Retire the spec.** As the **last** action for this spec, `git rm docs/{session}/{spec-filename}` (plain delete if never committed) — code is now the only source of truth — or, with `keep_specs: true`, keep the file and refresh it to match what shipped (present-tense). Update the session in state atomically (temp + rename): set `current_spec` to the next pending spec (or unset if none remain), append the filename to `delivered_specs`, drop it from `pending_specs`, remove `current_spec_round`, clear `frozen_test_files` and `frozen_override`. Multi-service: prefix spec references with `"{service}/"`.
 
@@ -90,4 +90,4 @@ Set this session's `Status` to `delivered` in `docs/INDEX.md` (atomic temp + ren
 
 Ask: "Anyone taking over? Say 'handoff to {name}: {note}', or skip." Then write to the session in the state file (`~/.hercules/state/{slug}.json`) atomically: any `handed_off_by` / `handoff_note`, `current_spec: null`, `pending_specs: []`, `build_complete: true`, `last_updated`.
 
-Show a one-line summary of what was delivered. Review the diff; when ready, run `${ns}ship` to commit.
+Show a one-line summary of what was delivered. Review the diff; when ready, run `/ship` to commit.

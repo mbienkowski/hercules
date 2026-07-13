@@ -1,1 +1,10 @@
-{}
+{
+  "vars": {
+    "product": "Claude Code",
+    "host": "Claude",
+    "ns": "/hercules:",
+    "instructions_file": "CLAUDE.md",
+    "plan_enter": "EnterPlanMode",
+    "plan_exit": "ExitPlanMode"
+  }
+}

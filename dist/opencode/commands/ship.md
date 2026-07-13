@@ -3,25 +3,25 @@ description: Ship phase — review the commit plan, then stage, commit, and push
 disable-model-invocation: true
 ---
 
-# ${ns}ship
+# /ship
 
-Stage, commit, and optionally push the delivered work. Plugin-file citations (`${instructions_file} §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
+Stage, commit, and optionally push the delivered work. Plugin-file citations (`AGENTS.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
 
-**Plan mode — required.** Call `${plan_enter}`; present a complete Ship plan; at the **Plan approval** gate — *you approve the phase after reviewing the plan* — when the user says **"approved"** or clicks **Accept**, call `${plan_exit}` (`auto`), then execute all steps automatically — no further questions.
+**Plan mode — required.** Call `plan mode`; present a complete Ship plan; at the **Plan approval** gate — *you approve the phase after reviewing the plan* — when the user says **"approved"** or clicks **Accept**, call `approval` (`auto`), then execute all steps automatically — no further questions.
 
 ---
 
-## Precondition check (before ${plan_enter})
+## Precondition check (before plan mode)
 
-Read the project's registry entry in `~/.hercules/config.json` and the active session in its state file `~/.hercules/state/{slug}.json` (see `${instructions_file} § Machine-local state`).
+Read the project's registry entry in `~/.hercules/config.json` and the active session in its state file `~/.hercules/state/{slug}.json` (see `AGENTS.md § Machine-local state`).
 
 If `current_phase` is `"shipped"` and `shipped_commit` is set: report the SHA (and, when the eligibility check below passes and `shipped_pr` is unset, offer step 5's PR) — then stop.
 
-If the session's `build_complete` is not `true`: refuse — "Local build is not complete. Finish `${ns}build` first." — and stop (a spec-scoped invocation is the one exemption — see below).
+If the session's `build_complete` is not `true`: refuse — "Local build is not complete. Finish `/build` first." — and stop (a spec-scoped invocation is the one exemption — see below).
 
 Surface any `handed_off_by` / `handoff_note` from the session — the successor sees the note here.
 
-Verify the working directory is a git repository (`git status` returning "not a git repository" → stop: "Not a git repository — run `git init` or open ${host} in your repo, then re-run."). Detect a detached HEAD (`git symbolic-ref --quiet HEAD` failing) → stop: "Detached HEAD — check out a branch (`git checkout -b {name}`), then re-run."
+Verify the working directory is a git repository (`git status` returning "not a git repository" → stop: "Not a git repository — run `git init` or open OpenCode in your repo, then re-run."). Detect a detached HEAD (`git symbolic-ref --quiet HEAD` failing) → stop: "Detached HEAD — check out a branch (`git checkout -b {name}`), then re-run."
 
 Check PR eligibility silently (never blocks Ship): verify origin URL contains `github.com`; `gh --version` succeeds; `gh auth status` exits 0; `gh pr list --head {current-branch} --state open --json url` returns empty (eligible) or an existing PR URL (capture as `_existing_pr` for the plan — conversation-local; `shipped_pr` is written only by steps 4–5). Any failure → omit PR from plan.
 
@@ -33,7 +33,7 @@ When Build's *ship-each* cadence invokes Ship mid-build ("ship now"), skip only 
 
 ## Plan proposal (inside plan mode)
 
-Run `git status --short` and `git diff --stat HEAD`. If the working tree is clean, check for an interrupted ship first: `build_complete: true` with a HEAD commit matching this session's scope means step 2 landed but Record never ran — confirm with the user, then finish at Execution step 3 (push, if wanted) and step 4. Otherwise: "Working tree clean — nothing to ship. Already committed? Done. Expected changes? Check repo/branch, or run `${ns}build` first." — and exit.
+Run `git status --short` and `git diff --stat HEAD`. If the working tree is clean, check for an interrupted ship first: `build_complete: true` with a HEAD commit matching this session's scope means step 2 landed but Record never ran — confirm with the user, then finish at Execution step 3 (push, if wanted) and step 4. Otherwise: "Working tree clean — nothing to ship. Already committed? Done. Expected changes? Check repo/branch, or run `/build` first." — and exit.
 
 **Staged set.** Default: all modified and new tracked files from the session, plus `docs/INDEX.md` if modified. For multi-repo sessions, collect across all repos in the `repositories` map. Surface other modified files as "Not included — stage if you want".
 
@@ -44,7 +44,7 @@ Run `git status --short` and `git diff --stat HEAD`. If the working tree is clea
 - Never add AI attribution trailers to the message.
 - For breaking changes (removed public API, migration files, altered public signatures): propose a `BREAKING CHANGE:` footer.
 
-**Push target.** Read the project's code-of-conduct (resolve it per `${instructions_file} § Code-of-conduct resolution`) and infer push preference from its prose (branch protection, CI conventions, PR requirements). Propose `push to origin/{current-branch}`, or omit if no remote is configured. The user can change this in the plan.
+**Push target.** Read the project's code-of-conduct (resolve it per `AGENTS.md § Code-of-conduct resolution`) and infer push preference from its prose (branch protection, CI conventions, PR requirements). Propose `push to origin/{current-branch}`, or omit if no remote is configured. The user can change this in the plan.
 
 **Plan format:**
 ```
@@ -74,11 +74,11 @@ Regenerate the complete plan on each amendment — never patch sections.
 
 ---
 
-## Execution (after ${plan_exit} — automatic, no further prompts)
+## Execution (after approval — automatic, no further prompts)
 
 **1. Stage.** `git add <file>` per approved file — never `git add -A` or `git add .`. Multi-repo: stage in ascending spec delivery order.
 
-**2. Commit.** `git commit -m "{approved message}"`. Run without hook-bypass or signature-suppression flags — hooks and signing execute as configured. Capture the resulting SHA. On failure: surface the exact error verbatim, do not write to state, stop. The user resolves the issue and re-runs `${ns}ship` (spec-scoped: control returns to Build's Advance prompt instead).
+**2. Commit.** `git commit -m "{approved message}"`. Run without hook-bypass or signature-suppression flags — hooks and signing execute as configured. Capture the resulting SHA. On failure: surface the exact error verbatim, do not write to state, stop. The user resolves the issue and re-runs `/ship` (spec-scoped: control returns to Build's Advance prompt instead).
 
 **3. Push.** Execute the approved push action without force flags. On failure: report the raw git error, leave commits intact, stop (spec-scoped: return to Build's Advance prompt). Multi-repo: push in delivery order; stop on first failure and report which repos are inconsistent.
 

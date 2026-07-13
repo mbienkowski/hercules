@@ -27,7 +27,7 @@ Compare by priority order: the option leading on Production-readiness wins; ties
 - **Unknowable dimension:** emit `Unknown` with the evidence that would resolve it — never a fabricated digit; an Unknown on a high-priority dimension blocks a confident verdict.
 
 ## Preconditions
-The design must exist; if it is missing or empty, stop and ask the user to run `${ns}design` first rather than scoring against guesses.
+The design must exist; if it is missing or empty, stop and ask the user to run `/design` first rather than scoring against guesses.
 
 ## Project standards
 Read the project's code-of-conduct (any capitalization) if present; if it overrides the priority order (e.g. performance-first), echo the effective order in the output and re-rank under it. If absent, use the order above (readability beats performance) and state the assumption.

@@ -5,14 +5,14 @@ description: Produce a structured handoff note for the next developer. Use at th
 
 # session-summary
 
-**Precondition:** an active session directory must exist inside the artifact root (`docs/` by default) with at least one artifact. If no session directory is found, stop and report: "No active session found — run `${ns}discover` first."
+**Precondition:** an active session directory must exist inside the artifact root (`docs/` by default) with at least one artifact. If no session directory is found, stop and report: "No active session found — run `/discover` first."
 
 ## What it does
 
 Reads the active session and produces a handoff note.
 
 **Reads:**
-- The active session in the project's state file `~/.hercules/state/{slug}.json` (see `${instructions_file} § Machine-local state`) — `current_spec`, `delivered_specs`, `pending_specs`, `handed_off_by`, `handoff_note`
+- The active session in the project's state file `~/.hercules/state/{slug}.json` (see `AGENTS.md § Machine-local state`) — `current_spec`, `delivered_specs`, `pending_specs`, `handed_off_by`, `handoff_note`
 - Session artifacts in `docs/{active_session}/` — `*-business-requirements.md`, `*-spec-NN-*.md` (present ones only)
 - `docs/learnings.md` — entries matching the session tag
 - the project's code-of-conduct (any capitalization) if present — for project conventions that inform the "next step" note

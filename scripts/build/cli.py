@@ -15,6 +15,9 @@ import tempfile
 from pathlib import Path
 
 from scripts.build.layout import discover_sources
+from scripts.build.manifests import generate_opencode_json, generate_plugin_js
+from scripts.build.parse import parse_frontmatter, split_document
+from scripts.build.render import render_body
 from scripts.build.serialize import registered_targets, serialize_file
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -24,7 +27,48 @@ DIST = REPO_ROOT / "dist"
 TARGETS = ("claude-code", "opencode")
 
 # Per-target source→dest renames + the Claude-only byte-copied files.
-_RENAMES = {"claude-code": {"persona.md": "CLAUDE.md"}}
+_RENAMES = {"claude-code": {"persona.md": "CLAUDE.md"}, "opencode": {"persona.md": "instructions.md"}}
+
+_OPENCODE_CAPABILITIES = """# Hercules on OpenCode — capabilities & disclosed gaps
+
+Hercules ships the full Discover → Design → Build → Ship methodology on OpenCode, with two capability
+gaps disclosed here (the "disclose gaps, never hide" principle):
+
+- **No hard write-gate hook.** On Claude Code a PreToolUse hook can deny a premature artifact write;
+  OpenCode has no equivalent, so the approval gate is prompt/permission-mediated — the agent presents
+  the plan and waits, but it is not a runtime-enforced deny. Enable `permission: {edit: "ask"}` in your
+  `opencode.json` for a stronger backstop.
+- **No per-agent model tier.** Every Hercules agent runs on the model you select in OpenCode (the
+  build omits per-agent `model:` on purpose). Claude Code assigns a heavier model to the orchestrator
+  and lighter models to routine advisors; on OpenCode that tiering is intentionally not applied.
+"""
+
+
+def _opencode_agents_and_commands(tokens: dict[str, str]):
+    """Collect ``(name, meta, opencode-rendered-prompt)`` triples for the plugin.js inline entries."""
+    agents = []
+    for src in sorted((SRC_CONTENT / "agents").glob("*.md")):
+        text = src.read_text(encoding="utf-8")
+        meta, _ = parse_frontmatter(text)
+        _, body = split_document(text)
+        agents.append((
+            src.stem,
+            {"description": render_body(meta["description"], "opencode", tokens),
+             "mode": "primary" if src.stem == "hercules" else "subagent"},
+            render_body(body, "opencode", tokens).strip(),
+        ))
+    commands = []
+    for src in sorted((SRC_CONTENT / "commands").glob("*.md")):
+        commands.append((src.stem, {}, render_body(src.read_text(encoding="utf-8"), "opencode", tokens).strip()))
+    return agents, commands
+
+
+def _emit_opencode_extras(out_root: Path, tokens: dict[str, str]) -> list[str]:
+    agents, commands = _opencode_agents_and_commands(tokens)
+    _write(out_root / "plugin.js", generate_plugin_js("hercules", agents, commands))
+    _write(out_root / "opencode.json", json.dumps(generate_opencode_json(), indent=2) + "\n")
+    _write(out_root / "CAPABILITIES.md", _OPENCODE_CAPABILITIES)
+    return ["plugin.js", "opencode.json", "CAPABILITIES.md"]
 _CLAUDE_COPIES = {
     "settings.json": "settings.json",
     "hooks/hooks.json": "hooks/hooks.json",
@@ -73,6 +117,8 @@ def build_target(target: str, out_root: Path) -> list[str]:
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(tdir / src_rel, dest)
             written.append(dest_rel)
+    elif target == "opencode":
+        written += _emit_opencode_extras(out_root, tokens)
     return sorted(written)
 
 

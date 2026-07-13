@@ -19,14 +19,14 @@ conflicting values.
 ## Preconditions
 
 Must run inside a git repository — else **stop** and tell the user to re-open Hercules in the target
-repository and re-invoke. Resolve the **target** repo per `${instructions_file} § Code-of-conduct resolution`, not
-the launch directory; if ${host} was opened away from the code or several candidate roots exist, list
+repository and re-invoke. Resolve the **target** repo per `AGENTS.md § Code-of-conduct resolution`, not
+the launch directory; if OpenCode was opened away from the code or several candidate roots exist, list
 them (`ls`, `git rev-parse --show-toplevel`) and ask which repo the CoC is for. Run every scan, `find`,
 and git command against that root (`git -C <root>`), never bare `.`.
 
 ## Method
 
-1. **Plan mode & mode** — call `${plan_enter}` first, before any scanning; give a chat summary of the
+1. **Plan mode & mode** — call `plan mode` first, before any scanning; give a chat summary of the
    flow and offer **Quick** (small/low-stakes default: scan → a few questions → draft → gate → review →
    commit) or **Thorough** (adds the coverage-map gap pass and an advisor critical-review pass). Name the detected
    root so the user can correct it.
@@ -54,8 +54,8 @@ and git command against that root (`git -C <root>`), never bare `.`.
 6. **Gap pass & critical review** (Thorough) — run `coverage-map.md` once as a stack-gated gap detector: each
    load-bearing omission is a chat recommendation (accept → rule, decline → absent), offered
    highest-value first and never past the directive budget. Then one `challenger` critically reviews the draft
-   per `${instructions_file} § Sub-agent consent`, carrying the A2A § Agent-Injected Core plus the observations; a full trio is
-   opt-in or automatic for a contested repo, per `${instructions_file} § Debate protocol`; advisors return findings
+   per `AGENTS.md § Sub-agent consent`, carrying the A2A § Agent-Injected Core plus the observations; a full trio is
+   opt-in or automatic for a contested repo, per `AGENTS.md § Debate protocol`; advisors return findings
    only, never write. Quick runs a light platitude/no-evidence self-scan instead.
 7. **Gate & present** — hold the draft until every rule clears the gate: reads exactly one way;
    conflicts with no other; is backed by a captured observation or a user answer ("it looks nice" is not
@@ -64,11 +64,11 @@ and git command against that root (`git -C <root>`), never bare `.`.
    added, conflicts, dropped), surfacing only the ~5 genuine decisions ranked by marginal information —
    never a long list to curate. Feedback applies **surgically** with a diff of what changed; regenerate
    wholesale only when the user reopens the scope, and re-gate only what changed.
-8. **Approve & write** — on approval: `${plan_exit}` (`auto`) → write atomically (temp + rename) → add a
-   deduplicated `@`-reference (default `@./code-of-conduct.md`) to the **target** repo's `${instructions_file}`,
+8. **Approve & write** — on approval: `approval` (`auto`) → write atomically (temp + rename) → add a
+   deduplicated `@`-reference (default `@./code-of-conduct.md`) to the **target** repo's `AGENTS.md`,
    creating it when missing.
 9. **Review & commit** — show the file and ask the user to review it. On their go-ahead, **stage then
-   commit** exactly the code-of-conduct file plus `${instructions_file}` when touched — `git add -- <paths>` then
+   commit** exactly the code-of-conduct file plus `AGENTS.md` when touched — `git add -- <paths>` then
    `git commit -m … -- <paths>` — so an untracked new file commits cleanly and the user's other staged
    work is never reset or swept in; use the mined commit convention or a plain imperative subject.
    Attribution lives in the commit message, never in the file. Offer a push; never push automatically.

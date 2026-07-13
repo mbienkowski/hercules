@@ -3,18 +3,18 @@ description: Design phase — turn a business requirement into numbered technica
 disable-model-invocation: true
 ---
 
-# ${ns}design
+# /design
 
-Turn a business requirement into numbered technical specs ready for Build. Plugin-file citations (`${instructions_file} §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
+Turn a business requirement into numbered technical specs ready for Build. Plugin-file citations (`AGENTS.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
 
-**Plan mode — required.** Call `${plan_enter}` at the start. Every draft is a full inline proposal; iterate freely; always regenerate the complete draft — never patch sections. At the **Plan approval** gate, on the user's approval, call `${plan_exit}` (`auto`), then write.
+**Plan mode — required.** Call `plan mode` at the start. Every draft is a full inline proposal; iterate freely; always regenerate the complete draft — never patch sections. At the **Plan approval** gate, on the user's approval, call `approval` (`auto`), then write.
 
 Technical design and delivery sequencing wizard. Locate the business requirements, break them into self-contained specs, iterate, validate (implementability, then coverage with evidence), then take Plan approval and write. Never write without approval or with uncovered requirements.
 
 ## Step 1 — Session discovery
 
 Read the **artifact root** (`docs_root`, default `docs/`) from the project's registry entry in
-`~/.hercules/config.json` (see `${instructions_file} § Artifact root resolution`). Find
+`~/.hercules/config.json` (see `AGENTS.md § Artifact root resolution`). Find
 `*-business-requirements.md` files inside its subdirectories.
 List sessions that have a `*-business-requirements.md` but no specs yet:
 
@@ -26,7 +26,7 @@ Found sessions ready for design:
 Which feature do you want to design? (number, path, or press Enter for the most recent)
 ```
 
-If the path doesn't match, ask to confirm or correct. If no sessions are found, tell the user to run `${ns}discover` first.
+If the path doesn't match, ask to confirm or correct. If no sessions are found, tell the user to run `/discover` first.
 
 ## Step 2 — Read requirements
 
@@ -34,7 +34,7 @@ Read the confirmed `*-business-requirements.md`. Extract every distinct requirem
 
 ## Step 3 — Codebase constraint scan & read tier
 
-Read the project's code-of-conduct (resolve it per `${instructions_file} § Code-of-conduct resolution`) and any ADRs or API contracts the requirements reference, and scan the codebase for the surface this feature will touch (existing classes, modules, contracts). This scan feeds each spec's `## Affected code` section (do not scan again later) and bounds the Step 4 questions.
+Read the project's code-of-conduct (resolve it per `AGENTS.md § Code-of-conduct resolution`) and any ADRs or API contracts the requirements reference, and scan the codebase for the surface this feature will touch (existing classes, modules, contracts). This scan feeds each spec's `## Affected code` section (do not scan again later) and bounds the Step 4 questions.
 
 Read the session's `tier` from the project's state file (`~/.hercules/state/{slug}.json`). Complexity was scored once in Discover — **do not re-score it**; if the scan shows it was mis-scored, surface that and let the user override.
 
@@ -48,7 +48,7 @@ Ask only what is needed — only what the Step 3 scan and `*-business-requiremen
 
 ## Step 5 — Advisor debate
 
-Follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **lead-architect, security-expert, senior-qa-engineer**; see `${instructions_file} § Agent scaling`). On the user's go-ahead, run the debate per `protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
+Follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **lead-architect, security-expert, senior-qa-engineer**; see `AGENTS.md § Agent scaling`). On the user's go-ahead, run the debate per `protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
 
 ## Step 6 — Draft & feedback loop
 
@@ -84,7 +84,7 @@ If any requirement is uncovered or partially covered, do not write the specs. As
 
 ## Step 8 — Plan approval
 
-This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. **Do not write the specs until the user approves.** On approval, call `${plan_exit}` (`auto`), then write (Step 9).
+This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. **Do not write the specs until the user approves.** On approval, call `approval` (`auto`), then write (Step 9).
 
 ## Step 9 — Output
 
@@ -138,4 +138,4 @@ Update the active session in the project's state file (`~/.hercules/state/{slug}
 `current_phase` to `"design"` and write `pending_specs` (the spec filenames in ascending delivery
 order). Write atomically (temp + rename), preserving other sessions.
 
-Show the saved spec paths in delivery order. Then say: "The specs and delivery sequence are locked. Ready to **Build**? Run `${ns}build` — I'll present a delivery plan first, then deliver the specs."
+Show the saved spec paths in delivery order. Then say: "The specs and delivery sequence are locked. Ready to **Build**? Run `/build` — I'll present a delivery plan first, then deliver the specs."

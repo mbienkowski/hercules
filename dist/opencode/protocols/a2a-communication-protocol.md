@@ -76,16 +76,16 @@ sub-agent — keeping them out of the injected core is a per-spawn token saving.
 ## How to inject
 
 A custom subagent receives its own `.md` body (system prompt), then the orchestrator's
-delegation `prompt`, then project + user `${instructions_file}`. Built-in **Explore** and **Plan**
-agents skip `${instructions_file}`. Use all three channels:
+delegation `prompt`, then project + user `AGENTS.md`. Built-in **Explore** and **Plan**
+agents skip `AGENTS.md`. Use all three channels:
 
 1. **Per-call `prompt` injection (mandatory)** — prepend the Agent-Injected Core to the
    delegation message of every sub-agent. This is the **only** channel that reaches built-in
    Explore/Plan agents, and it lands closest to the task. Always do this. For workflow spawns,
    the orchestrator prepends the delegation packet (`workflow-protocol.md#packet`) above the Core.
-2. **`${instructions_file}` pointer (one line)** — reinforces custom/ad-hoc agents that do read it:
+2. **`AGENTS.md` pointer (one line)** — reinforces custom/ad-hoc agents that do read it:
    `Agent-to-agent output follows a2a-communication-protocol.md § Agent-Injected Core.`
-   A pointer, not a paste — `${instructions_file}` text carries less weight and duplication wastes budget.
+   A pointer, not a paste — `AGENTS.md` text carries less weight and duplication wastes budget.
 3. **Owned agent `.md` body (highest adherence)** — for long-lived sub-agents you maintain,
    paste the full Core into the `.md` body (the system prompt).
 

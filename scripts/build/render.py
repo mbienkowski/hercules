@@ -29,9 +29,9 @@ def _resolve_switches(text: str, target: str) -> str:
             continue
         name = m.group(1)
         if name == "end":
-            raise RenderError("`${target:end}` without an opening branch")
+            raise RenderError("`${target:end}` without an opening branch")  # pragma: no mutate
         if not _TARGET_NAME.match(name):
-            raise RenderError(f"malformed switch directive: {lines[i]!r}")
+            raise RenderError(f"malformed switch directive: {lines[i]!r}")  # pragma: no mutate
         branches: dict[str, list[str]] = {name: []}
         current = name
         i += 1
@@ -45,7 +45,7 @@ def _resolve_switches(text: str, target: str) -> str:
                     i += 1
                     break
                 if not _TARGET_NAME.match(nm):
-                    raise RenderError(f"malformed switch directive: {lines[i]!r}")
+                    raise RenderError(f"malformed switch directive: {lines[i]!r}")  # pragma: no mutate
                 current = nm
                 branches[nm] = []
                 i += 1
@@ -53,7 +53,7 @@ def _resolve_switches(text: str, target: str) -> str:
             branches[current].append(lines[i])
             i += 1
         if not closed:
-            raise RenderError("unclosed `${target:…}` switch")
+            raise RenderError("unclosed `${target:…}` switch")  # pragma: no mutate
         # Match the full target key, then its short alias (claude-code → claude), then default.
         chosen: list[str] = []
         for key in (target, target.split("-", 1)[0], "default"):

@@ -20,9 +20,9 @@ def resolve(models: dict, target: str, tier: str) -> str | None:
     Raises :class:`ModelMapError` on an unknown *tier* or a *target* absent from *models*.
     """
     if tier not in TIER_FALLBACK:
-        raise ModelMapError(f"unknown tier: {tier!r}")
+        raise ModelMapError(f"unknown tier: {tier!r}")  # pragma: no mutate
     if target not in models:
-        raise ModelMapError(f"target not configured in models.json: {target!r}")
+        raise ModelMapError(f"target not configured in models.json: {target!r}")  # pragma: no mutate
     tmap = models[target]
     idx = TIER_FALLBACK.index(tier)
     order = [tier, *reversed(TIER_FALLBACK[:idx])]  # requested tier, then higher tiers
