@@ -1,6 +1,6 @@
 ---
 description: Guided end-to-end delivery — all four Hercules phases in one flow
-disable-model-invocation: true
+agent: hercules
 ---
 
 # /hercules:workflow

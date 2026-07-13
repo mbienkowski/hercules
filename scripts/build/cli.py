@@ -60,7 +60,15 @@ def _opencode_agents_and_commands(tokens: dict[str, str]):
         ))
     commands = []
     for src in sorted((SRC_CONTENT / "commands").glob("*.md")):
-        commands.append((src.stem, {}, render_body(src.read_text(encoding="utf-8"), "opencode", tokens).strip()))
+        text = src.read_text(encoding="utf-8")
+        meta, _ = parse_frontmatter(text)
+        _, body = split_document(text)
+        commands.append((
+            src.stem,
+            {"description": render_body(meta["description"], "opencode", tokens),
+             "agent": "hercules"},
+            render_body(body, "opencode", tokens).strip(),
+        ))
     return agents, commands
 
 

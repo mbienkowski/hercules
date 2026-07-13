@@ -1,6 +1,6 @@
 ---
 description: Ship phase — review the commit plan, then stage, commit, and push the delivered work
-disable-model-invocation: true
+agent: hercules
 ---
 
 # /hercules:ship

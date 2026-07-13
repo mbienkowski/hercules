@@ -1,6 +1,6 @@
 ---
 description: Design phase — turn a business requirement into numbered technical specs
-disable-model-invocation: true
+agent: hercules
 ---
 
 # /hercules:design

@@ -1,6 +1,6 @@
 ---
 description: Build phase — plan the delivery, then execute approved specs with TDD
-disable-model-invocation: true
+agent: hercules
 ---
 
 # /hercules:build

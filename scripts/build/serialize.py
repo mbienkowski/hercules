@@ -107,6 +107,15 @@ class OpenCodeSerializer:
         }
         return render_frontmatter(out) + "\n\n" + render_body(body, self.target, tokens)
 
+    def serialize_command(self, frontmatter: dict[str, str], body: str, tokens: dict[str, str]) -> str:
+        """Emit an OpenCode command file: frontmatter ``description, agent``; the Claude-only
+        ``disable-model-invocation`` key is dropped and the command is bound to the primary agent."""
+        out = {
+            "description": render_body(frontmatter["description"], self.target, tokens),
+            "agent": self.primary_agent,
+        }
+        return render_frontmatter(out) + "\n\n" + render_body(body, self.target, tokens).lstrip("\n")
+
     def serialize_file(self, text: str, tokens: dict[str, str], models: dict) -> str:
         fm_block, body = split_document(text)
         if fm_block is None:
@@ -114,6 +123,8 @@ class OpenCodeSerializer:
         meta, _ = parse_frontmatter(fm_block)
         if "name" in meta and ("model_tier" in meta or "tools" in meta):  # an agent file
             return self.serialize_agent(meta, body, tokens, models)
+        if "disable-model-invocation" in meta:  # a command file (Claude's slash-command marker)
+            return self.serialize_command(meta, body, tokens)
         return fm_block + render_body(body, self.target, tokens)
 
 

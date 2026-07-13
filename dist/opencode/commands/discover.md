@@ -1,6 +1,6 @@
 ---
 description: Discover phase — turn a rough idea into a clear, approved business requirement
-disable-model-invocation: true
+agent: hercules
 ---
 
 # /hercules:discover

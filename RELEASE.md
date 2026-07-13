@@ -36,11 +36,27 @@ announcing a release, run this by hand and record the result (date, version, tes
 
 ### OpenCode
 
-- [ ] Install the published npm package; `plugin.js` loads with no missing-asset error.
+**Install:** OpenCode does not auto-discover an npm plugin — after `npm install hercules`, the user
+must add it to their `opencode.json`:
+
+```json
+{ "plugin": ["hercules"] }
+```
+
+OpenCode then resolves the package `main` (`dist/opencode/plugin.js`) and runs its `config` hook.
+These load-time behaviours are **not** provable by the build (no headless OpenCode harness exists) —
+they must be confirmed live before release:
+
+- [ ] With `"plugin": ["hercules"]` set, the `config` hook actually fires (agents/commands register).
+      *If it does not, nothing inline registers — the whole plugin is inert.*
+- [ ] `plugin.js` loads with no missing-asset throw (`instructions.md` + `skills/` present as siblings).
 - [ ] `default_agent` is `hercules` (primary); a subagent (e.g. `challenger`) spawns as a subagent.
-- [ ] A skill auto-fires from its description.
-- [ ] `CAPABILITIES.md` is present and discloses the write-gate and model-tier gaps.
-- [ ] Commands are registered under the `hercules:` namespace.
+- [ ] `/hercules:discover` resolves and runs as the `hercules` agent (confirm the `:` in the command
+      name is honoured in the slash menu).
+- [ ] A skill auto-fires from its description (skills are reachable via `cfg.skills.paths`).
+- [ ] Command prompts contain **no** leaked YAML frontmatter and show a real description in the UI.
+- [ ] "Which version are you?" reports the package version (reads `package.json`, not a Claude path).
+- [ ] `CAPABILITIES.md` discloses the write-gate and model-tier gaps.
 
 ### Cross-ecosystem
 
