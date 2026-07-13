@@ -28,9 +28,17 @@ py-modules = []
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+# pytest's DEFAULT norecursedirs includes "build" and "dist" — so a test dir named
+# tests/build/ is silently skipped during recursion (it collects only when named
+# explicitly). We override to the stock list MINUS "build" so tests/build/ (the
+# compiler suite) actually runs under `pytest tests/`. Guarded by
+# tests/test_collection_integrity.py so this can never silently regress.
+norecursedirs = ["*.egg", ".*", "_darcs", "CVS", "dist", "node_modules", "venv", "{arch}"]
 
 [tool.mutmut]
-paths_to_mutate = "tests/metrics/,src/targets/claude-code/hooks/"
+# Pure transform layer (parse/render/model_map/serialize/manifests/version_targets) + hooks + metrics
+# carry the mutation gate; the FS boundary (cli/layout) is round-trip-covered, not mutated.
+paths_to_mutate = "tests/metrics/,src/targets/claude-code/hooks/,scripts/build/parse.py,scripts/build/render.py,scripts/build/model_map.py,scripts/build/serialize.py,scripts/build/manifests.py,scripts/build/version_targets.py"
 paths_to_exclude = "test_*.py,__init__.py,conftest.py"
 backup = false
 runner = "python -m pytest tests/ -x -q --tb=no --no-header"

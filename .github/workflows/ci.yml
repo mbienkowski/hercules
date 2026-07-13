@@ -20,9 +20,47 @@ defaults:
     shell: bash
 
 jobs:
+  # ── Build gate — regenerate dist/ and prove it matches what's committed ──────
+  # Runs FIRST: a src/ edit pushed without a rebuild fails here (drift), before any
+  # test burns minutes. Also proves the build is deterministic (two runs byte-equal)
+  # and that dist/ is tracked, not silently git-ignored.
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+
+      - name: Drift gate — committed dist/ must match a fresh build
+        run: python -m scripts.build.cli --target all --check
+
+      - name: Determinism gate — two builds are byte-identical
+        run: |
+          python -m scripts.build.cli --target all
+          A=$(mktemp -d); cp -a dist "$A/dist"
+          git checkout -- dist
+          python -m scripts.build.cli --target all
+          diff -r "$A/dist" dist && echo "build is deterministic"
+          git checkout -- dist
+
+      - name: Untracked-dist guard — dist/ is tracked, nothing left un-committed
+        run: |
+          if git check-ignore -q dist; then
+            echo "::error::dist/ is git-ignored — tags would snapshot an empty tree"; exit 1
+          fi
+          python -m scripts.build.cli --target all
+          if [ -n "$(git status --porcelain --untracked-files=all dist)" ]; then
+            echo "::error::dist/ has uncommitted output — run 'make build' and commit it"
+            git status --porcelain --untracked-files=all dist; exit 1
+          fi
+
   # ── Tests — always, on every branch ─────────────────────────────────────────
   test:
     name: Test
+    needs: [build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -48,7 +86,7 @@ jobs:
           TIKTOKEN_CACHE_DIR: /home/runner/.cache/tiktoken
 
   # ── Mutation testing — every commit on PR branches (+ main), after tests ────
-  # Runs mutmut against src/targets/claude-code/hooks/ + tests/metrics/ and gates on a 90% kill rate. Runs on the
+  # Runs mutmut against the pure build layer (scripts/build/*) + hooks + tests/metrics/ and gates on a 90% kill rate. Runs on the
   # pull_request event (every commit pushed to a branch with an open PR) and on
   # main pushes (post-merge) — so feature-branch commits without a PR don't
   # burn CI minutes, and a SHA is never mutation-tested twice. Releases are cut
@@ -97,6 +135,7 @@ jobs:
   # Claude binary; the end-to-end install smoke stays an opt-in manual check.
   validate:
     name: Validate plugin package
+    needs: [build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -108,14 +147,12 @@ jobs:
       - name: Validate manifests and single-source version
         run: |
           python - <<'PY'
-          import json, re
+          import json
+          from scripts.build.version_targets import check_in_sync, read_versions
           mk = json.load(open(".claude-plugin/marketplace.json"))
-          pl = json.load(open("dist/claude-code/.claude-plugin/plugin.json"))
           assert any(p.get("name") == "hercules" for p in mk["plugins"]), \
               "marketplace.json must list the hercules plugin"
-          version = re.search(r'(?m)^version\s*=\s*"([^"]+)"', open("pyproject.toml").read()).group(1)
-          assert version == pl["version"], f"version drift: pyproject {version} != plugin {pl['version']}"
-          pkg = json.load(open("package.json"))
-          assert pkg["version"] == version, f"version drift: package.json {pkg['version']} != pyproject {version}"
-          print("plugin package valid; version", version)
+          # Single-source version: every canonical manifest agrees (raises on drift).
+          check_in_sync()
+          print("plugin package valid; version", set(read_versions().values()).pop())
           PY

@@ -11,6 +11,7 @@ import argparse
 import filecmp
 import json
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 
@@ -155,6 +156,11 @@ def main(argv: list[str] | None = None) -> int:
             rc |= check_target(target)
         else:
             build_target(target, DIST / target)
+    if args.check and rc != 0:
+        print(
+            "dist/ is stale — regenerate it with `make build` and commit the result.",
+            file=sys.stderr,
+        )
     return rc
 
 

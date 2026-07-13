@@ -184,7 +184,7 @@ mutation kill rate**, both gated in CI on every PR.
   change end-to-end with a real run before calling it done. The suite can't inspect Claude Code's
   permission mode, so at release time drive `/hercules:workflow` by hand against a throwaway repo and
   confirm the four phases produce their artifacts in order. That manual smoke is a release check, not
-  a CI gate.
+  a CI gate — the full per-ecosystem checklist lives in [`RELEASE.md`](RELEASE.md).
 
 ### Tokens
 

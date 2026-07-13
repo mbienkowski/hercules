@@ -33,6 +33,10 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       !startsWith(github.event.workflow_run.head_commit.message, 'chore(release):')
     runs-on: ubuntu-latest
+    # Exposed at job level so the npm-publish steps can gate on its presence in `if:`
+    # (secrets aren't directly readable in step conditions).
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -68,7 +72,8 @@ jobs:
           custom_tag: ${{ steps.meta.outputs.is_first == 'true' && '1.0.0' || '' }}
           dry_run: true
 
-      # 2. Write the new version into pyproject.toml + the plugin manifest.
+      # 2. Write the new version into EVERY canonical manifest (pyproject.toml,
+      #    dist/claude-code plugin.json, package.json) — the single-source list.
       - name: Bump version files
         run: python scripts/set_version.py "${{ steps.bump.outputs.new_version }}"
 
@@ -86,7 +91,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pyproject.toml plugin/.claude-plugin/plugin.json CHANGELOG.md
+          # Stage every file the canonical version list touches — no hardcoded manifest paths,
+          # so a new target added to VERSION_TARGETS is committed automatically.
+          FILES=$(python -c "from scripts.build.version_targets import VERSION_TARGETS; print(' '.join(rel for rel, _ in VERSION_TARGETS))")
+          git add $FILES CHANGELOG.md
           git commit -m "chore(release): ${{ steps.bump.outputs.new_version }} [skip ci]"
           git tag "${{ steps.bump.outputs.new_tag }}"
           git push --follow-tags
@@ -98,3 +106,19 @@ jobs:
           tag: ${{ steps.bump.outputs.new_tag }}
           name: ${{ steps.bump.outputs.new_tag }}
           body: ${{ steps.bump.outputs.changelog }}
+
+      # 6. Publish the OpenCode plugin to npm (primary channel). The working tree is at the
+      #    bumped commit, so package.json already carries the new version. `files: ["dist/opencode"]`
+      #    scopes the tarball. Skipped automatically if NPM_TOKEN is not configured.
+      - name: Set up Node for npm publish
+        if: ${{ env.NPM_TOKEN != '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: npm publish
+        if: ${{ env.NPM_TOKEN != '' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
