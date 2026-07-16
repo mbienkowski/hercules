@@ -122,7 +122,7 @@ Session object (in the state file): `current_phase` — the phase backbone (`"di
 
 Complexity is classified **once in Discover**, persisted to the session's `tier` in the state file, and **read forward** by Design and Build. **Tier = max(effort-signal, blast-radius-signal)** — never the average. A change touching auth, secrets, money, data migration, deletion, production config, or concurrency is floored at `high` regardless of diff size. Hercules **never re-scores** the tier — no automated escalation or de-escalation in any later phase. The **user may manually override** the tier at any point; that manual override is the only thing that changes it. (Advisor dissent surfaces as input to the user, not an automatic re-score.)
 
-Sub-agent count per tier (main agent decides; user may override):
+Sub-agent count per tier (main agent decides; user may override) — these counts are **advisors**; independent reviewers at the coverage/traceability gates are a separate category (§ Independent review):
 
 | Tier | Sub-agents |
 |---|---|
@@ -136,7 +136,7 @@ Agent selection is the main agent's call, driven by the task at hand: the per-ph
 
 ### Sub-agent consent
 
-The main agent never spawns advisors silently. It first asks the user's questions to pin down gaps and intent; when it has no more questions, it recommends advisors and waits:
+The main agent never spawns advisors silently. It first asks the user's questions to pin down gaps and intent; when it has no more questions, it recommends advisors and waits. (This governs *advisors* — the generative debate. **Independent reviewers** at the coverage/traceability gates are a separate category, per § Independent review: mandatory at `low`+, recommend-and-ask at `trivial`, not part of this consent prompt.)
 > Main agent has no more questions.
 >
 > As a recommendation, would you like to run a set of sub-agents to advocate on the current phase?
@@ -162,3 +162,17 @@ to the session tier — running them is not separately optional.
 Full orchestrator mechanics: [${CLAUDE_PLUGIN_ROOT}/protocols/debate-consensus-protocol.md](${CLAUDE_PLUGIN_ROOT}/protocols/debate-consensus-protocol.md).
 For debates involving built-in Explore/Plan/Workflow agents, prepend the full
 `${CLAUDE_PLUGIN_ROOT}/protocols/debate-consensus-protocol.md` to the per-call delegation prompt.
+
+## Independent review
+
+The two gates where a session would judge an artifact **it produced** — Design **requirement coverage**
+and Build **traceability** — are decided by a freshly-spawned `hercules:cynical-reviewer` (read-only, not
+a debate default — it never co-authored the draft), one reviewer per gate. It **reads the durable source
+directly** — the full `*-business-requirements.md` (+ the spec's `## Affected code`/acceptance criteria, or
+`build_progress` checkpoints) — **never a slice the producing agent pre-selected** (a curated slice is a
+bias lever). At `trivial` the main agent recommends (skip / run one) and the user chooses; at `low`+ it
+runs. Reviewers are distinct from advisors (§ Agent scaling's `trivial → 0` is advisors). The orchestrator
+synthesises the findings (terminal — not itself reviewed) and **surfaces Blocker/High to the user at
+Plan-approval as input, never an auto-veto**; a contested Blocker goes to the user. A fix is re-checked by
+a **fresh** reviewer, bounded (three rounds → the user) — so self-review can't return and the gate can't
+deadlock.

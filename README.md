@@ -15,8 +15,8 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
   acceptance criteria are written in plain business language you can sign off; nothing is
   built until you approve the plan.
 - **Solo developers** — move fast without accumulating requirements debt; a built-in advisory
-  board challenges your design before any code; coverage and mutation gates hold the quality
-  bar when there's no reviewer around.
+  board challenges your design before any code; an independent reviewer — plus coverage and
+  mutation gates — holds the quality bar when you're the only human on it.
 - **Teams** — every feature traceable from requirement to merged code; built-in handoff notes
   and checkpoints let anyone pick up mid-build; one shared standard from your
   `code-of-conduct.md`, enforced identically for everyone.
@@ -311,7 +311,7 @@ advisor dissent surfaces as input for you to weigh, never an automatic re-score.
 project's `code-of-conduct.md` sets, and on a **mutation-kill** threshold when the CoC defines one —
 the generator suggests **≥90%** for both as a default, and you can change them. Mutation testing
 checks that your tests actually catch bugs, and a requirement ships only when a **named test** asserts
-it. Traceability is always enforced; branch coverage gates when your CoC sets a threshold, and the mutation gate runs whenever the CoC sets
+it. Traceability is always enforced — decided by an independent reviewer, not the session that wrote the code; branch coverage gates when your CoC sets a threshold, and the mutation gate runs whenever the CoC sets
 a kill-rate threshold — none of this is a best-practice you skip under pressure once it applies.
 
 ---
@@ -338,7 +338,7 @@ later.
   number of advisors (a trivial task runs none). Not because ceremony is the goal, but because
   even a one-line change in production code has a business reason. That reason belongs in
   `business-requirements.md` so six months from now anyone reading the history knows *why*
-  something changed, not just what. The trivial path is fast: fewer advisors, same traceability.
+  something changed, not just what. The trivial path is fast: fewer advisors (the independent reviewer is offered — your call), same traceability.
 - **Human in the loop, by design.** The human decides what is needed. Hercules ensures that
   decision is captured, challenged, and executed faithfully, with tests, traceability, and a
   clean git record. If you want an AI that acts without asking, this is the wrong tool. If you
@@ -508,6 +508,9 @@ complexity and adds none for trivial work).
   advisors keeps each one in its high-adherence range.
 - **Context drifts over long sessions.** The counter: a spec locked before code, and TDD that freezes
   expected behaviour into tests. Fresh advisors re-read the spec, not the chat history.
+- **A session that produced an artifact can't judge it without bias.** The counter: the requirement-
+  coverage and traceability gates are decided by a **fresh independent reviewer** that reads the source
+  directly and never sees the author's reasoning — its findings come back to you, they don't self-approve.
 - **Output volume feeds the drift.** The counter: a terse agent-communication protocol — structured,
   low-noise replies.
 - **The debate costs fewer tokens than reworking a missed spec.** A requirement gap that slips into

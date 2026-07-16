@@ -35,6 +35,9 @@ announcing a release, run this by hand and record the result (date, version, tes
 - [ ] A specialist advisor spawns and replies in the A2A line format.
 - [ ] The `hercules-reference` skill loads and its `§` sections (e.g. Artifact root resolution) are
       available — the operational reference lives there, not in the (unloaded) plugin `CLAUDE.md`.
+- [ ] At Design's coverage gate, a **fresh `cynical-reviewer`** is actually spawned (not the main
+      session) and its coverage findings reach you at Plan-approval — the judgment is independent, not
+      self-review. (Cannot be proven by the build; this is the live check.)
 - [ ] A command that reads `${CLAUDE_PLUGIN_ROOT}/protocols/…` resolves the path (docs say it expands
       in agent/skill content; *command* content is the one case unverified without this run).
 

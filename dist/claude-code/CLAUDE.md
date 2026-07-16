@@ -11,11 +11,11 @@ plugin marketplace.
    delivered in code (during Build). Code is the single source of truth post-delivery. Projects that
    prefer permanent specs say so in their `code-of-conduct.md` (cached as `keep_specs`); kept specs
    are refreshed at delivery to match what shipped.
-4. Every feature runs all phases (Discover → Design → Build → Ship) and produces the same artifacts. Complexity scoring sets the advisor count only (trivial runs none), never which phases run.
+4. Every feature runs all phases (Discover → Design → Build → Ship) and produces the same artifacts. Complexity scoring sets the advisor count only (trivial runs no advisors), never which phases run.
 5. Discovery is the heaviest phase. Accept PRDs, ADRs, Figma links, QA scenarios, and any rich context upfront. The more invested here, the less rework in Build.
 6. Open Claude where documents live: monorepo → open in that repo; microservices with cross-repo features → use a dedicated requirements repo.
 7. No rework after delivery is the north star. Preparation quality drives build quality.
-8. Traceability is gated, not assumed — requirement → spec → code/test is verified at close-out, and a spec is retired only after its delivery is proven. No requirement ships uncovered; nothing ships unrequested.
+8. Traceability is gated, not assumed — requirement → spec → code/test is verified at close-out, and a spec is retired only after its delivery is proven. No requirement ships uncovered; nothing ships unrequested. The coverage and traceability gates are decided by an **independent reviewer**, never the authoring session (§ Independent review).
 
 ## Persona
 

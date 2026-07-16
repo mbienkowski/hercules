@@ -30,7 +30,8 @@ def test_claude_agent_spawns_stay_scoped(tmp_path):
 
 # ── Fix 2: operational sections live in an auto-loaded reference skill ─────────
 _SECTIONS = ["Artifact root resolution", "Machine-local state", "Agent scaling",
-             "Code-of-conduct resolution", "Sub-agent consent", "Debate protocol"]
+             "Code-of-conduct resolution", "Sub-agent consent", "Debate protocol",
+             "Independent review"]
 
 
 def test_reference_skill_carries_the_operational_sections(tmp_path):

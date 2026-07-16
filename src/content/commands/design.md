@@ -67,9 +67,7 @@ Iterate: apply every change, show the updated draft, ask again, until the user i
 
 Implementability check — every file named in a spec's `## Affected code` must already exist or be explicitly marked new; every `satisfies:` header must resolve to a real `*-business-requirements.md` section. Block on any mismatch — do not paper over it.
 
-Requirements coverage — read `*-business-requirements.md`. For every requirement item, find the specific sentence in the spec drafts that addresses it. Do not declare coverage by assumption or paraphrase — cite directly.
-
-Present the coverage matrix:
+Requirements coverage is an **independent review** (`hercules-reference § Independent review`), never a self-check: spawn `${agent_ns}cynical-reviewer` with the delegation packet (`${plugin_root}protocols/workflow-protocol.md#packet`). It reads `*-business-requirements.md` and the spec drafts **directly** (never a slice you pre-select) and, for every requirement item, cites the specific spec sentence that addresses it — no coverage by assumption or paraphrase. It returns the coverage matrix:
 ```
 Requirements coverage:
   ✓ [requirement text]
@@ -80,11 +78,11 @@ Requirements coverage:
     → partially covered: "quote" — but missing [specific gap]
 ```
 
-Sub-spec ownership — every requirement must map to at least one spec via that spec's `satisfies:` header. A requirement owned by no spec is a ✗ — it would never get built. Block the write until every requirement has an owning spec.
+Sub-spec ownership — every requirement must map to at least one spec via that spec's `satisfies:` header; a requirement owned by no spec is a ✗ — it would never get built.
 
 Note on n-1 — `*-business-requirements.md` is both the validation source and the only prior artifact (n-1); one read suffices.
 
-If any requirement is uncovered or partially covered, do not write the specs. Ask whether to extend the specs to cover them, or mark them explicitly out of scope (with a reason). Only proceed to Plan approval once every requirement is covered (with a quote) and owned by a spec, or explicitly out of scope.
+Synthesise the reviewer's findings (that synthesis is the terminal judgment): if any requirement is uncovered or partially covered, do not write the specs — surface the matrix to the user at Step 8 as input and ask whether to extend the specs to cover them, or mark them explicitly out of scope (with a reason); a fix is re-checked by a fresh reviewer. Only proceed to Plan approval once every requirement is covered (with a quote) and owned by a spec, or explicitly out of scope.
 
 ## Step 8 — Plan approval
 

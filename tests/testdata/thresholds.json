@@ -38,8 +38,8 @@
     "target": "dist/claude-code/protocols/workflow-protocol.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 1000,
-    "warn_at": 950,
+    "limit": 1050,
+    "warn_at": 1030,
     "severity": "gate"
   },
   {
@@ -56,8 +56,8 @@
     "target": "dist/claude-code/commands/design.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 2000,
-    "warn_at": 1980,
+    "limit": 2100,
+    "warn_at": 2080,
     "severity": "gate"
   },
   {
@@ -65,8 +65,8 @@
     "target": "dist/claude-code/commands/build.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 2900,
-    "warn_at": 2860,
+    "limit": 3000,
+    "warn_at": 2980,
     "severity": "gate"
   },
   {
@@ -112,10 +112,10 @@
     "target": "dist/claude-code/skills/hercules-reference/SKILL.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 3200,
+    "limit": 3400,
     "severity": "gate",
     "per_file": true,
-    "warn_at": 3100
+    "warn_at": 3380
   },
   {
     "name": "coc-generator-token-budget",
