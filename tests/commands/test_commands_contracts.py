@@ -110,7 +110,7 @@ def test_no_session_md_lightweight_path(repo_root, read_file):
     """Regression guard: the workflow is one dynamic flow (the diagram is the source of truth).
     There is no separate `*-session.md` 'lightweight path' / 'lightweight shortcut' / 'fast pass'
     for trivial/low — every tier runs the same four phases and produces the same artifacts."""
-    targets = [*_ALL_COMMANDS, "dist/claude-code/CLAUDE.md", "dist/claude-code/skills/session-summary/SKILL.md", "README.md"]
+    targets = [*_ALL_COMMANDS, "dist/claude-code/CLAUDE.md", "dist/claude-code/skills/write-test-scenarios/SKILL.md", "README.md"]
     for path in targets:
         text = read_file(path)
         lower = text.lower()
@@ -205,7 +205,7 @@ def test_no_command_or_readme_references_removed_context_file(read_file):
     """Regression guard: docs/.context was removed. No command, the plugin CLAUDE.md, or the README
     may reference it or promise a 'gitignored, never committed' machine-local file — that claim was
     never enforced and risked leaking a local file into the user's repo."""
-    targets = [*_ALL_COMMANDS, "dist/claude-code/CLAUDE.md", "dist/claude-code/skills/session-summary/SKILL.md", "README.md"]
+    targets = [*_ALL_COMMANDS, "dist/claude-code/CLAUDE.md", "dist/claude-code/skills/write-test-scenarios/SKILL.md", "README.md"]
     for path in targets:
         text = read_file(path)
         assert "docs/.context" not in text, f"{path} must not reference the removed docs/.context file"

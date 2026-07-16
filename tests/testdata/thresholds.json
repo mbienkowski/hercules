@@ -99,7 +99,7 @@
   },
   {
     "name": "skill-token-budget",
-    "target": "dist/claude-code/skills/solution-complexity-scoring/SKILL.md,dist/claude-code/skills/learnings/SKILL.md,dist/claude-code/skills/write-test-scenarios/SKILL.md,dist/claude-code/skills/session-summary/SKILL.md",
+    "target": "dist/claude-code/skills/learnings/SKILL.md,dist/claude-code/skills/write-test-scenarios/SKILL.md",
     "metric": "token_count",
     "op": "<=",
     "limit": 1050,

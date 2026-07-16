@@ -13,16 +13,14 @@ _DOC_FILES = sorted(_PLUGIN.glob("commands/*.md")) + _SKILL_PATHS + sorted(_PLUG
 
 
 _SKILL_LIST = [
-    "solution-complexity-scoring", "code-of-conduct-generator",
-    "learnings", "write-test-scenarios", "session-summary",
+    "code-of-conduct-generator", "learnings", "write-test-scenarios",
     # Reference skill: carries the operational sections that plugin-root CLAUDE.md cannot load
     # (per Claude Code plugins-reference); auto-loads during any phase. Not an active procedure.
     "hercules-reference",
 ]
 
 _ACTIVE_SKILLS = frozenset({
-    "solution-complexity-scoring", "code-of-conduct-generator", "learnings",
-    "write-test-scenarios", "session-summary",
+    "code-of-conduct-generator", "learnings", "write-test-scenarios",
 })
 
 _SKILL_NAME_RE = re.compile(r"(?m)^name:\s*(\S+)\s*$")
@@ -42,8 +40,8 @@ _STACK_LITERAL_PATTERNS = [
 _BARE_SUBCOMMAND_RE = re.compile(r"hercules\s+(origin-trace|sessions)\b")
 
 
-def test_all_five_skills_are_present(repo_root):
-    """All 5 listed skills must have a corresponding SKILL.md in skills/."""
+def test_all_listed_skills_are_present(repo_root):
+    """Every skill in the canonical list must have a corresponding SKILL.md in skills/."""
     # Given
     existing = {p.parent.name for p in (repo_root / "dist" / "claude-code" / "skills").glob("*/SKILL.md")}
 
@@ -109,23 +107,6 @@ def test_plugin_doc_uses_double_dash_subcommand_prefix(path):
 
 
 
-def test_session_summary_skill_exists(repo_root):
-    """session-summary must exist as a plugin skill for team handoff support."""
-    skill_file = repo_root / "dist" / "claude-code" / "skills" / "session-summary" / "SKILL.md"
-    assert skill_file.exists(), "dist/claude-code/skills/session-summary/SKILL.md must exist"
-
-
-def test_session_summary_skill_covers_handoff_fields(repo_root):
-    """session-summary SKILL.md must reference delivered_specs and handoff context."""
-    md = (repo_root / "dist" / "claude-code" / "skills" / "session-summary" / "SKILL.md").read_text()
-    assert "delivered_specs" in md, \
-        "session-summary must read delivered_specs from the per-project state file"
-    assert "~/.hercules/" in md and "state" in md, \
-        "session-summary must read machine-local state from ~/.hercules/ (the per-project state file)"
-    assert "docs/.context" not in md, \
-        "session-summary must not reference the removed docs/.context file"
-    assert "handoff" in md.lower(), \
-        "session-summary must produce a handoff note"
 
 
 def test_skill_list_matches_plugin_settings(repo_root):

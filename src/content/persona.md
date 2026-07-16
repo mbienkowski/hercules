@@ -46,9 +46,8 @@ The list is pinned by `tests/` (drift, no-stack-literals, required clauses).
 
 Reusable procedures in `skills/` (auto-loaded, model-invoked by description):
 
-- **Methodology:** `solution-complexity-scoring`
 - **Delivery aids:** `write-test-scenarios`
-- **Knowledge:** `learnings`, `code-of-conduct-generator`, `session-summary`
+- **Knowledge:** `learnings`, `code-of-conduct-generator`
 
 Each obeys a shared contract (phase-anchored trigger, precondition-then-stop, atomic/idempotent
 writes, code-of-conduct fallback), pinned by `tests/`. Skills are model-invoked by their
