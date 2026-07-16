@@ -254,11 +254,12 @@ def test_readme_generator_output_filename_is_lowercase(read_file):
 
 
 def test_readme_first_screen_names_the_category(read_file):
-    """A skimming engineer's first question is 'what IS this' — the words 'Claude Code
-    plugin' must appear in the first ~10 lines, before any mythology."""
+    """A skimming engineer's first question is 'what IS this' — the first ~10 lines must name the
+    product category (a plugin) and both shipped ecosystems, before any mythology."""
     head = "\n".join(read_file("README.md").splitlines()[:10])
-    assert "Claude Code plugin" in head, \
-        "the first screen must name the product category before the jokes"
+    assert "plugin" in head, "the first screen must name the product category (plugin)"
+    assert "Claude Code" in head and "OpenCode" in head, \
+        "the first screen must name both supported ecosystems before the jokes"
 
 
 def test_readme_explains_the_coc_directive_budget(read_file):

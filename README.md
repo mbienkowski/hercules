@@ -2,7 +2,7 @@
 
 Half god, half man — strong enough to wrestle a lion, patient enough to sit through your kickoff meeting.
 
-**Hercules is a Claude Code plugin** that enforces a **spec-first** workflow — **Discover → Design → Build → Ship** — so what you're building ships fast and reliably, without the rework.
+**Hercules is a universal, spec-first delivery plugin** — install it in **Claude Code** or **OpenCode** (Codex & Cursor coming) — that enforces **Discover → Design → Build → Ship** so what you're building ships fast and reliably, without the rework.
 
 ![How Hercules works](docs/workflow/workflow-diagram-simplified.svg)
 
@@ -22,7 +22,7 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
   `code-of-conduct.md`, enforced identically for everyone.
 
 > **New to the terms?**
-> - **Plugin:** an add-on you install into Claude Code.
+> - **Plugin:** an add-on you install into your AI coding tool (Claude Code or OpenCode).
 > - **Marketplace:** a source (here, a GitHub repo) you add plugins from.
 > - **Agent:** a specialist persona Claude can consult.
 > - **Business requirements:** the permanent, plain-language "what & why" doc.
@@ -32,6 +32,11 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
 ---
 
 ## Install
+
+Hercules installs natively in each supported ecosystem — **pick yours**. (Codex & Cursor are coming.)
+
+<details>
+<summary><b>Claude Code</b></summary>
 
 **Prerequisite:** Hercules runs *inside* [Claude Code](https://code.claude.com) — install Claude Code first.
 
@@ -66,12 +71,10 @@ When enabled, Hercules becomes your **default agent** — that's why you can als
 this plugin is enabled — it does not add instructions to Claude sessions where the plugin is off.
 The `/hercules:*` commands run the phases.
 
-### Claude Code Desktop
-Same flow: type the `/plugin` commands in the chat, **or** use the in-app plugin browser (the `+` near
+**Claude Code Desktop** — same flow: type the `/plugin` commands in the chat, **or** use the in-app plugin browser (the `+` near
 the prompt → **Plugins** → add marketplace / install). It is *not* a "Settings → Plugins" page.
 
-### For a team (or CI) — no typing
-Declare it once in `settings.json` (user `~/.claude/settings.json`, project `.claude/settings.json`, or
+**For a team (or CI) — no typing.** Declare it once in `settings.json` (user `~/.claude/settings.json`, project `.claude/settings.json`, or
 local) so everyone gets Hercules on clone:
 
 ```json
@@ -98,11 +101,12 @@ governance. This file merges with any existing Claude Code settings — it does 
 | Just want the plugin (most people) | **Marketplace** — the steps above |
 | A whole team / CI | **`settings.json`** (`extraKnownMarketplaces` + `enabledPlugins`) |
 
-### OpenCode
+</details>
 
-Hercules also works in [OpenCode](https://opencode.ai). All content is authored once in `src/`; the build (`scripts/build/`) generates the OpenCode plugin under `dist/opencode/` (the Claude Code plugin under `dist/claude-code/` is generated the same way).
+<details>
+<summary><b>OpenCode</b></summary>
 
-**Install from the GitHub repo:**
+Hercules also works in [OpenCode](https://opencode.ai). **Install from the GitHub repo** — add it to your `opencode.json`:
 
 ```json
 {
@@ -112,7 +116,12 @@ Hercules also works in [OpenCode](https://opencode.ai). All content is authored 
 
 Then restart OpenCode. Hercules becomes the default agent and the `/hercules:*` commands (`/hercules:discover`, `/hercules:design`, `/hercules:build`, `/hercules:ship`, `/hercules:workflow`) are available.
 
-**For contributors:** the neutral source is `src/`; the shipped trees under `dist/` are generated and committed. After editing `src/`, rebuild and commit the output:
+</details>
+
+<details>
+<summary><b>Building from source (contributors)</b></summary>
+
+All content is authored once in `src/`; the build (`scripts/build/`) generates the plugin trees under `dist/claude-code/` and `dist/opencode/` (generated and committed). After editing `src/`, rebuild and commit the output:
 
 ```bash
 make build          # regenerate dist/ for every target
@@ -125,6 +134,8 @@ git config core.hooksPath .githooks
 ```
 
 `make test` builds to a temp directory, verifies the committed `dist/` is in sync (a stale `dist/` fails with a `make build` remedy), then runs the suite against the committed output.
+
+</details>
 
 ---
 
