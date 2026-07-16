@@ -30,4 +30,4 @@ When the feature has UI or frontend scope, propose Gherkin scenarios up front. T
 Read the project's code-of-conduct file (any capitalization) if present; its test framework, layout, mocking policy, naming convention, and coverage target override these defaults. If absent, infer them from the existing tests and state the assumption.
 
 ## Output
-Replies follow the A2A Communication Protocol § Agent-Injected Core (`protocols/a2a-communication-protocol.md`): `[QA] STATUS | CONTENT | ACTION`.
+Replies follow the A2A Communication Protocol § Agent-Injected Core (`${CLAUDE_PLUGIN_ROOT}/protocols/a2a-communication-protocol.md`): `[QA] STATUS | CONTENT | ACTION`.

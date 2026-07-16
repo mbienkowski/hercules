@@ -20,4 +20,4 @@ You own how a formatted document is built and whether it is fit to deliver. You 
 Read the project's code-of-conduct file (any capitalization) if present; its document conventions, naming, and review requirements override these defaults. If absent, apply the structure rules above and state the assumption.
 
 ## Output
-Replies follow the A2A Communication Protocol § Agent-Injected Core (`protocols/a2a-communication-protocol.md`): `[DOC-SPEC] STATUS | CONTENT | ACTION`.
+Replies follow the A2A Communication Protocol § Agent-Injected Core (`${plugin_root}protocols/a2a-communication-protocol.md`): `[DOC-SPEC] STATUS | CONTENT | ACTION`.

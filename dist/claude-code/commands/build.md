@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # /hercules:build
 
-Plan the delivery, then execute the approved specs with TDD and full traceability. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
+Plan the delivery, then execute the approved specs with TDD and full traceability. Plugin-file citations (`hercules-reference §…`, `protocols/…`) live in this plugin's directory.
 
 **Plan mode — required.** Build opens in plan mode: call `EnterPlanMode`, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
 
@@ -15,7 +15,7 @@ Plan the delivery, then execute the approved specs with TDD and full traceabilit
 
 ### Step 0 — Session context (resume)
 
-Resolve the **artifact root** (`docs_root`, default `docs/`; `CLAUDE.md § Artifact root resolution`), then read the registry entry and state file (`~/.hercules/config.json`, `~/.hercules/state/{slug}.json`; `CLAUDE.md § Machine-local state`). Surface any `handed_off_by` / `handoff_note` whenever present. If a session's `current_phase` is `"build"` and `current_spec` is set, show the latest `build_progress` checkpoint, then offer:
+Resolve the **artifact root** (`docs_root`, default `docs/`; `hercules-reference § Artifact root resolution`), then read the registry entry and state file (`~/.hercules/config.json`, `~/.hercules/state/{slug}.json`; `hercules-reference § Machine-local state`). Surface any `handed_off_by` / `handoff_note` whenever present. If a session's `current_phase` is `"build"` and `current_spec` is set, show the latest `build_progress` checkpoint, then offer:
 > "You were building `{active_session}` on **{current_spec}**. Resume? Say **'resume'** or **'start fresh'**."
 
 On 'start fresh': clear `current_spec`, `current_spec_round`, `frozen_test_files`, `frozen_override`, `pending_specs`, `build_progress`, and `delivered_specs` (under `keep_specs: true` keep `delivered_specs` and their `build_progress` checkpoints — the cross-check needs their record), then proceed. On 'resume': Steps 1–4 stay brief (prior answers stand); present the resume plan — current spec, round, stored `cadence` — and take **Plan approval** as usual; execution then starts at the spec matching `current_spec`.
@@ -54,7 +54,7 @@ The single **Plan approval** gate — *you approve the phase after reviewing the
 
 ## Execution (after Plan approval — automatic)
 
-For each spec in delivery order, run this cycle, announcing `"Spec N of M"`. Spawns in this phase carry the delegation packet (`protocols/workflow-protocol.md#packet`).
+For each spec in delivery order, run this cycle, announcing `"Spec N of M"`. Spawns in this phase carry the delegation packet (`${CLAUDE_PLUGIN_ROOT}/protocols/workflow-protocol.md#packet`).
 
 1. **Read the spec.** Acceptance criteria, implementation guide, `satisfies:` links. Confirm what "done" means before writing a line of code.
 2. **Scaffold.** Create empty classes, method signatures, and interfaces — no logic. Gate: the scaffold must compile before any tests are written.

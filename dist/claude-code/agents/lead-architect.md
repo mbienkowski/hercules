@@ -24,4 +24,4 @@ Production mindset: proactively flag failure modes specific to the design (data 
 Read the project's code-of-conduct file (any capitalization) if present; its stack, conventions, and constraints override these defaults. If absent, infer the stack from the existing code and state the assumption; ask when it cannot be inferred.
 
 ## Output
-Replies follow the A2A Communication Protocol § Agent-Injected Core (`protocols/a2a-communication-protocol.md`): `[ARCHITECT] STATUS | CONTENT | ACTION`. If the human overrides a Blocker, log it as an accepted risk rather than silently dropping it.
+Replies follow the A2A Communication Protocol § Agent-Injected Core (`${CLAUDE_PLUGIN_ROOT}/protocols/a2a-communication-protocol.md`): `[ARCHITECT] STATUS | CONTENT | ACTION`. If the human overrides a Blocker, log it as an accepted risk rather than silently dropping it.

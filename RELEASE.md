@@ -33,6 +33,10 @@ announcing a release, run this by hand and record the result (date, version, tes
       in order (against a throwaway repo).
 - [ ] The write-gate hook blocks an unapproved artifact write and allows it after `approved`.
 - [ ] A specialist advisor spawns and replies in the A2A line format.
+- [ ] The `hercules-reference` skill loads and its `§` sections (e.g. Artifact root resolution) are
+      available — the operational reference lives there, not in the (unloaded) plugin `CLAUDE.md`.
+- [ ] A command that reads `${CLAUDE_PLUGIN_ROOT}/protocols/…` resolves the path (docs say it expands
+      in agent/skill content; *command* content is the one case unverified without this run).
 
 ### OpenCode
 
@@ -57,6 +61,10 @@ they must be confirmed live before release:
 - [ ] Command prompts contain **no** leaked YAML frontmatter and show a real description in the UI.
 - [ ] "Which version are you?" reports the package version (reads `package.json`, not a Claude path).
 - [ ] `CAPABILITIES.md` discloses the write-gate and model-tier gaps.
+- [ ] The Build phase's Spec-Sync spawns the **bare** `cynical-reviewer` id (not `hercules:cynical-reviewer`).
+- [ ] Protocol references resolve — the 3 protocols are injected into `cfg.instructions` (confirm the
+      config-hook mutation to `instructions` is applied before the model runs; documented for skills).
+- [ ] The `hercules-reference` skill is model-invoked and its `§` sections are reachable.
 
 ### Cross-ecosystem
 

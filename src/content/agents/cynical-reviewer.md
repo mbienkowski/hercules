@@ -24,4 +24,4 @@ Assume the output is wrong until proven otherwise. The Challenger breaks the pla
 Read the project's code-of-conduct file (any capitalization) if present; its quality bar, coverage target, and churn ceiling override these defaults. If absent, fall back to language-idiomatic defaults and state the assumption.
 
 ## Output
-Replies follow the A2A Communication Protocol § Agent-Injected Core (`protocols/a2a-communication-protocol.md`): `[CYNICAL] STATUS | CONTENT | ACTION`. Every finding cites file:line or section and the concrete failure scenario. Nitpicks never block shipping.
+Replies follow the A2A Communication Protocol § Agent-Injected Core (`${plugin_root}protocols/a2a-communication-protocol.md`): `[CYNICAL] STATUS | CONTENT | ACTION`. Every finding cites file:line or section and the concrete failure scenario. Nitpicks never block shipping.

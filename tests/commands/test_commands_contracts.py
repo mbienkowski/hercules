@@ -19,7 +19,7 @@ from tests.commands.conftest import _BAD_DATE_RE, _ISO_DATE_RE, _LETTER_STEP_RE
 def test_documentation_lists_exactly_the_commands_that_exist(repo_root, read_file):
     """CLAUDE.md must name every /hercules: command, and each named command must exist as a file."""
     # Given
-    doc = read_file("dist/claude-code/CLAUDE.md")
+    doc = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     command_re = re.compile(r"/hercules:([a-z-]+)")
     doc_commands = {m.group(1) for m in command_re.finditer(doc)}
 
@@ -169,14 +169,14 @@ def test_readme_no_auto_escalation_claim(read_file):
     readme = read_file("README.md").lower()
     assert "escalates the tier" not in readme, \
         "README must not claim dissent auto-escalates the tier (contradicts CLAUDE.md's never-re-scores rule)"
-    assert "never re-scores" in read_file("dist/claude-code/CLAUDE.md").lower(), \
+    assert "never re-scores" in (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md")).lower(), \
         "sanity: CLAUDE.md must still state the never-re-scores rule this test pins README against"
 
 def test_high_risk_floor_list_consistent(read_file):
     """The high-risk surfaces that floor a feature at `high` must be stated identically in the
     README and plugin/CLAUDE.md (token-based, so minor wording differences elsewhere are fine)."""
     readme = read_file("README.md").lower()
-    claude = read_file("dist/claude-code/CLAUDE.md").lower()
+    claude = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md")).lower()
     canonical = ["auth", "secrets", "money", "migration", "deletion", "production config", "concurrency"]
     for token in canonical:
         assert token in claude, f"dist/claude-code/CLAUDE.md floor list must name '{token}'"
@@ -184,7 +184,7 @@ def test_high_risk_floor_list_consistent(read_file):
 
 def test_index_md_schema_is_defined_in_claude_md(read_file):
     """CLAUDE.md must define the INDEX.md column schema so all commands write consistent rows."""
-    md = read_file("dist/claude-code/CLAUDE.md")
+    md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     assert "Status" in md and "Tier" in md, "CLAUDE.md must define Status and Tier columns"
     # Pin the declared Status set on its actual declaration line so a command can't write a
     # status (discover/design) that CLAUDE.md later drops without failing here.
@@ -195,7 +195,7 @@ def test_index_md_schema_is_defined_in_claude_md(read_file):
 
 def test_commands_reference_artifact_root_resolution_rule(read_file):
     """The artifact-root resolution rule must be defined once in CLAUDE.md and used by commands."""
-    claude_md = read_file("dist/claude-code/CLAUDE.md").lower()
+    claude_md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md")).lower()
     assert "artifact root resolution" in claude_md, \
         "CLAUDE.md must define the Artifact root resolution rule"
     assert "default to" in claude_md and "docs/" in claude_md, \
@@ -215,7 +215,7 @@ def test_no_command_or_readme_references_removed_context_file(read_file):
 def test_claude_md_documents_home_config_state_contract(read_file):
     """dist/claude-code/CLAUDE.md must document the split machine-local state: a registry config.json with a
     `projects` map (directory, state_file, repositories) plus per-project state/{slug}.json files."""
-    md = read_file("dist/claude-code/CLAUDE.md")
+    md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     assert "config.json" in md, "CLAUDE.md must name the registry ~/.hercules/config.json"
     assert "state/" in md or "state_file" in md, \
         "CLAUDE.md must document the per-project state file (~/.hercules/state/{slug}.json)"
@@ -235,7 +235,7 @@ def test_claude_md_documents_home_config_state_contract(read_file):
 
 def test_claude_md_defines_development_principles(read_file):
     """CLAUDE.md must contain a Development principles section with the fixed project rules."""
-    md = read_file("dist/claude-code/CLAUDE.md")
+    md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     assert "Development principles" in md, \
         "CLAUDE.md must define a '## Development principles' section"
     assert "hercules" in md.lower(), \
@@ -248,7 +248,7 @@ def test_claude_md_defines_development_principles(read_file):
 def test_claude_md_documents_current_phase_semantics(read_file):
     """Both hooks arm/disarm on current_phase — the session-field prose must document it and
     its full value set like every other field."""
-    md = read_file("dist/claude-code/CLAUDE.md")
+    md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     prose = md[md.index("Session object (in the state file):"):]
     assert "`current_phase`" in prose, "session prose must document current_phase"
     for v in ('"discover"', '"design"', '"build"', '"shipped"'):
@@ -256,7 +256,7 @@ def test_claude_md_documents_current_phase_semantics(read_file):
 
 def test_claude_md_documents_keep_specs(read_file):
     """The registry prose must document keep_specs, and principle 3 must carry the carve-out."""
-    md = read_file("dist/claude-code/CLAUDE.md")
+    md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     assert "keep_specs" in md, "CLAUDE.md must document the keep_specs registry field"
     principles = md[md.index("## Development principles"):md.index("## Persona")]
     assert "keep" in principles.lower() and "code-of-conduct" in principles.lower(), \
@@ -276,7 +276,7 @@ def test_spec_template_deletion_note_acknowledges_keep_override(read_file):
 def test_claude_md_principle_8_survives_keep_specs(read_file):
     """Principle 8's close-out gate must be phrased for both retire modes: 'deleted only after
     delivery is proven' is false under keep_specs, where a proven spec is refreshed, not deleted."""
-    md = read_file("dist/claude-code/CLAUDE.md")
+    md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     principles = md[md.index("## Development principles"):md.index("## Persona")]
     p8 = next(line for line in principles.splitlines() if line.startswith("8."))
     assert "retired" in p8, \
@@ -316,21 +316,26 @@ def test_commands_cite_bundled_plugin_files_generically(read_file):
             f"{rel} must locate plugin files in this plugin's directory (generic, no variable)"
 
 
-def test_agent_facing_prose_uses_no_path_variable(repo_root):
-    """Agent-facing instructions (commands, agents, skills) locate plugin files by a generic
-    plain-language approach, never by depending on a ${CLAUDE_PLUGIN_ROOT}/${CLAUDE_SKILL_DIR}
-    substitution — a variable that may not expand in this context. Path variables are only for
-    runtime hook configs (hooks.json / hook code), which this guard deliberately excludes."""
+def test_agent_facing_prose_uses_the_sanctioned_plugin_root_variable(repo_root):
+    """Bundled plugin files (protocols/) are referenced via ${CLAUDE_PLUGIN_ROOT}, which Claude Code
+    DOES substitute inside skill and agent content — plugins-reference, Environment variables table:
+    'Skill and agent content | Anywhere the placeholder appears'. (This supersedes the earlier
+    assumption that the variable may not expand in agent prose; the docs are explicit.) The fake
+    ${CLAUDE_SKILL_DIR} never substitutes and stays forbidden."""
     md_files = [
         *(repo_root / "dist" / "claude-code" / "commands").glob("*.md"),
         *(repo_root / "dist" / "claude-code" / "agents").glob("*.md"),
         *(repo_root / "dist" / "claude-code" / "skills").glob("*/SKILL.md"),
     ]
+    saw_plugin_root = False
     for path in md_files:
         text = path.read_text()
-        for var in ("${CLAUDE_PLUGIN_ROOT}", "${CLAUDE_SKILL_DIR}"):
-            assert var not in text, \
-                f"{path.name} depends on {var} substituting — use the generic locate instead"
+        assert "${CLAUDE_SKILL_DIR}" not in text, \
+            f"{path.name} cites the fake ${{CLAUDE_SKILL_DIR}} — use ${{CLAUDE_PLUGIN_ROOT}}"
+        if "${CLAUDE_PLUGIN_ROOT}" in text:
+            saw_plugin_root = True
+    assert saw_plugin_root, \
+        "protocol references should resolve via ${CLAUDE_PLUGIN_ROOT} (the doc-sanctioned placeholder)"
 
 
 def test_cited_plugin_paths_resolve_under_plugin(repo_root):
@@ -353,7 +358,7 @@ def _documented_and_referenced_state_fields(read_file):
     """(documented set, referenced set, commands text) for the CLAUDE.md↔commands schema guard.
     snake_case only — a loose pattern drags in backticked value literals (`false`); the two
     single-word fields (tier, cadence) are named explicitly so they stay guarded."""
-    md = read_file("dist/claude-code/CLAUDE.md")
+    md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     prose = (_section(md, "Session object (in the state file):", "\n\n")
              + _section(md, "Registry entry:", "\n\n"))
     documented = set(re.findall(r"`([a-z]+(?:_[a-z]+)+)`", prose))

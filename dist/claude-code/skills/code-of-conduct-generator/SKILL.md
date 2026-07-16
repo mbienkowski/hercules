@@ -19,7 +19,7 @@ conflicting values.
 ## Preconditions
 
 Must run inside a git repository — else **stop** and tell the user to re-open Hercules in the target
-repository and re-invoke. Resolve the **target** repo per `CLAUDE.md § Code-of-conduct resolution`, not
+repository and re-invoke. Resolve the **target** repo per `hercules-reference § Code-of-conduct resolution`, not
 the launch directory; if Claude was opened away from the code or several candidate roots exist, list
 them (`ls`, `git rev-parse --show-toplevel`) and ask which repo the CoC is for. Run every scan, `find`,
 and git command against that root (`git -C <root>`), never bare `.`.
@@ -54,8 +54,8 @@ and git command against that root (`git -C <root>`), never bare `.`.
 6. **Gap pass & critical review** (Thorough) — run `coverage-map.md` once as a stack-gated gap detector: each
    load-bearing omission is a chat recommendation (accept → rule, decline → absent), offered
    highest-value first and never past the directive budget. Then one `challenger` critically reviews the draft
-   per `CLAUDE.md § Sub-agent consent`, carrying the A2A § Agent-Injected Core plus the observations; a full trio is
-   opt-in or automatic for a contested repo, per `CLAUDE.md § Debate protocol`; advisors return findings
+   per `hercules-reference § Sub-agent consent`, carrying the A2A § Agent-Injected Core plus the observations; a full trio is
+   opt-in or automatic for a contested repo, per `hercules-reference § Debate protocol`; advisors return findings
    only, never write. Quick runs a light platitude/no-evidence self-scan instead.
 7. **Gate & present** — hold the draft until every rule clears the gate: reads exactly one way;
    conflicts with no other; is backed by a captured observation or a user answer ("it looks nice" is not

@@ -4,6 +4,8 @@
     "host": "OpenCode",
     "ns": "/hercules:",
     "instructions_file": "AGENTS.md",
+    "agent_ns": "",
+    "plugin_root": "",
     "plan_enter": "plan mode",
     "plan_exit": "approval"
   }

@@ -24,4 +24,4 @@ You implement server-side code strictly per the approved spec. Spec ambiguity �
 Read the project's code-of-conduct file (any capitalization) if present; it is authoritative for stack and conventions. If absent, follow the idioms of the existing code and state the assumption.
 
 ## Output
-Replies follow the A2A Communication Protocol § Agent-Injected Core (`protocols/a2a-communication-protocol.md`): `[BACKEND] STATUS | CONTENT | ACTION`.
+Replies follow the A2A Communication Protocol § Agent-Injected Core (`${CLAUDE_PLUGIN_ROOT}/protocols/a2a-communication-protocol.md`): `[BACKEND] STATUS | CONTENT | ACTION`.

@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # /hercules:design
 
-Turn a business requirement into numbered technical specs ready for Build. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
+Turn a business requirement into numbered technical specs ready for Build. Plugin-file citations (`hercules-reference §…`, `protocols/…`) live in this plugin's directory.
 
 **Plan mode — required.** Call `EnterPlanMode` at the start. Every draft is a full inline proposal; iterate freely; always regenerate the complete draft — never patch sections. At the **Plan approval** gate, on the user's approval, call `ExitPlanMode` (`auto`), then write.
 
@@ -14,7 +14,7 @@ Technical design and delivery sequencing wizard. Locate the business requirement
 ## Step 1 — Session discovery
 
 Read the **artifact root** (`docs_root`, default `docs/`) from the project's registry entry in
-`~/.hercules/config.json` (see `CLAUDE.md § Artifact root resolution`). Find
+`~/.hercules/config.json` (see `hercules-reference § Artifact root resolution`). Find
 `*-business-requirements.md` files inside its subdirectories.
 List sessions that have a `*-business-requirements.md` but no specs yet:
 
@@ -34,7 +34,7 @@ Read the confirmed `*-business-requirements.md`. Extract every distinct requirem
 
 ## Step 3 — Codebase constraint scan & read tier
 
-Read the project's code-of-conduct (resolve it per `CLAUDE.md § Code-of-conduct resolution`) and any ADRs or API contracts the requirements reference, and scan the codebase for the surface this feature will touch (existing classes, modules, contracts). This scan feeds each spec's `## Affected code` section (do not scan again later) and bounds the Step 4 questions.
+Read the project's code-of-conduct (resolve it per `hercules-reference § Code-of-conduct resolution`) and any ADRs or API contracts the requirements reference, and scan the codebase for the surface this feature will touch (existing classes, modules, contracts). This scan feeds each spec's `## Affected code` section (do not scan again later) and bounds the Step 4 questions.
 
 Read the session's `tier` from the project's state file (`~/.hercules/state/{slug}.json`). Complexity was scored once in Discover — **do not re-score it**; if the scan shows it was mis-scored, surface that and let the user override.
 
@@ -48,7 +48,7 @@ Ask only what is needed — only what the Step 3 scan and `*-business-requiremen
 
 ## Step 5 — Advisor debate
 
-Follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **lead-architect, security-expert, senior-qa-engineer**; see `CLAUDE.md § Agent scaling`). On the user's go-ahead, run the debate per `protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
+Follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **lead-architect, security-expert, senior-qa-engineer**; see `hercules-reference § Agent scaling`). On the user's go-ahead, run the debate per `${CLAUDE_PLUGIN_ROOT}/protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`${CLAUDE_PLUGIN_ROOT}/protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
 
 ## Step 6 — Draft & feedback loop
 

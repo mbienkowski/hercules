@@ -15,6 +15,9 @@ _DOC_FILES = sorted(_PLUGIN.glob("commands/*.md")) + _SKILL_PATHS + sorted(_PLUG
 _SKILL_LIST = [
     "solution-complexity-scoring", "code-of-conduct-generator",
     "learnings", "write-test-scenarios", "session-summary",
+    # Reference skill: carries the operational sections that plugin-root CLAUDE.md cannot load
+    # (per Claude Code plugins-reference); auto-loads during any phase. Not an active procedure.
+    "hercules-reference",
 ]
 
 _ACTIVE_SKILLS = frozenset({
@@ -360,7 +363,7 @@ def test_coc_generator_find_guard_and_target_resolution(read_file):
     assert "any capitalization" in flat and "case-insensitiv" in flat.lower()
     assert "More than one" in flat and "never silently" in flat
     assert "Contributor Covenant is not an engineering standard" in flat
-    assert "CLAUDE.md § Code-of-conduct resolution" in flat
+    assert "hercules-reference § Code-of-conduct resolution" in flat
     assert "which repo the CoC is for" in flat
     assert "one CoC per repo, never merged" in flat
 
@@ -385,7 +388,7 @@ def test_coc_generator_gap_pass_then_critical_review(read_file):
     assert "stack-gated gap detector" in flat
     assert "never past the directive budget" in flat
     assert "`challenger` critically reviews the draft" in flat
-    assert "§ Sub-agent consent" in flat and "CLAUDE.md § Debate protocol" in flat
+    assert "§ Sub-agent consent" in flat and "hercules-reference § Debate protocol" in flat
     assert "Agent-Injected Core" in flat
     assert "advisors return findings\n only, never write".replace("\n ", " ") in flat \
         or "advisors return findings only, never write" in flat

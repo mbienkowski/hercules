@@ -5,9 +5,9 @@ agent: hercules
 
 # /hercules:build
 
-Plan the delivery, then execute the approved specs with TDD and full traceability. Plugin-file citations (`AGENTS.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
+Plan the delivery, then execute the approved specs with TDD and full traceability. Plugin-file citations (`hercules-reference §…`, `protocols/…`) live in this plugin's directory.
 
-**Plan mode — required.** Build opens in plan mode: call `plan mode`, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
+**Plan mode — required.** Build opens in plan mode: enter plan mode, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
 
 ---
 
@@ -15,7 +15,7 @@ Plan the delivery, then execute the approved specs with TDD and full traceabilit
 
 ### Step 0 — Session context (resume)
 
-Resolve the **artifact root** (`docs_root`, default `docs/`; `AGENTS.md § Artifact root resolution`), then read the registry entry and state file (`~/.hercules/config.json`, `~/.hercules/state/{slug}.json`; `AGENTS.md § Machine-local state`). Surface any `handed_off_by` / `handoff_note` whenever present. If a session's `current_phase` is `"build"` and `current_spec` is set, show the latest `build_progress` checkpoint, then offer:
+Resolve the **artifact root** (`docs_root`, default `docs/`; `hercules-reference § Artifact root resolution`), then read the registry entry and state file (`~/.hercules/config.json`, `~/.hercules/state/{slug}.json`; `hercules-reference § Machine-local state`). Surface any `handed_off_by` / `handoff_note` whenever present. If a session's `current_phase` is `"build"` and `current_spec` is set, show the latest `build_progress` checkpoint, then offer:
 > "You were building `{active_session}` on **{current_spec}**. Resume? Say **'resume'** or **'start fresh'**."
 
 On 'start fresh': clear `current_spec`, `current_spec_round`, `frozen_test_files`, `frozen_override`, `pending_specs`, `build_progress`, and `delivered_specs` (under `keep_specs: true` keep `delivered_specs` and their `build_progress` checkpoints — the cross-check needs their record), then proceed. On 'resume': Steps 1–4 stay brief (prior answers stand); present the resume plan — current spec, round, stored `cadence` — and take **Plan approval** as usual; execution then starts at the spec matching `current_spec`.
@@ -48,7 +48,7 @@ Show the delivery plan: each spec, the requirement(s) it satisfies (its `satisfi
 
 ### Plan approval
 
-The single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. On the user's approval, call `approval` (`auto`) first, then set `current_phase: "build"`, `current_spec` to the first pending spec (on resume, the interrupted one), and the approved `cadence` (`"deliver-all"` / `"ship-each"`) in the session's state file (atomic temp + rename) and this session's `Status` to `build` in `docs/INDEX.md`; execution runs automatically per the approved batching and cadence.
+The single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. On the user's approval, leave plan mode, then set `current_phase: "build"`, `current_spec` to the first pending spec (on resume, the interrupted one), and the approved `cadence` (`"deliver-all"` / `"ship-each"`) in the session's state file (atomic temp + rename) and this session's `Status` to `build` in `docs/INDEX.md`; execution runs automatically per the approved batching and cadence.
 
 ---
 
@@ -74,7 +74,7 @@ For a spec scoped to a service (named in its `## Scope`): announce `"Now working
 
 ## Cross-check validation (after all specs)
 
-Spawn `hercules:cynical-reviewer` (Spec Sync) to cross-check the whole delivery — *does what we built match what we set out to build?* Specs are retired, so it reads each spec's `build_progress` checkpoint + the permanent `*-business-requirements.md`, not the spec files. Per spec: an intentional improvement is documented; a scope reduction is marked deferred; a bug or regression is a **blocker**. Then requirement traceability & drift, with evidence: every requirement maps to a delivered spec and a named passing test (`✓ [requirement] → evidence` / `✗ [requirement] → NOT COVERED`); and the reverse — shipped behaviour with no originating requirement is scope drift, surfaced for a disposition (amend `*-business-requirements.md`, or annotate deliberate/trivial). Drift on a high-risk surface (auth, secrets, money, migration, deletion, prod-config, concurrency) **blocks** until requirement-backed. Depth scales to tier: trivial/low light; medium+ full; high/critical add the domain-expert.
+Spawn `cynical-reviewer` (Spec Sync) to cross-check the whole delivery — *does what we built match what we set out to build?* Specs are retired, so it reads each spec's `build_progress` checkpoint + the permanent `*-business-requirements.md`, not the spec files. Per spec: an intentional improvement is documented; a scope reduction is marked deferred; a bug or regression is a **blocker**. Then requirement traceability & drift, with evidence: every requirement maps to a delivered spec and a named passing test (`✓ [requirement] → evidence` / `✗ [requirement] → NOT COVERED`); and the reverse — shipped behaviour with no originating requirement is scope drift, surfaced for a disposition (amend `*-business-requirements.md`, or annotate deliberate/trivial). Drift on a high-risk surface (auth, secrets, money, migration, deletion, prod-config, concurrency) **blocks** until requirement-backed. Depth scales to tier: trivial/low light; medium+ full; high/critical add the domain-expert.
 
 Any undelivered spec or uncovered requirement → do not close out; the user resolves or defers with a reason.
 

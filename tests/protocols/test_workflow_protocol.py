@@ -184,7 +184,7 @@ _DRIFT_ANCHORS = [
     ("G4", "named passing test", "dist/claude-code/commands/build.md"),
     ("G5", "high-risk", "dist/claude-code/commands/build.md"),
     ("G6", "build_complete", "dist/claude-code/commands/ship.md"),
-    ("G7", "scored once", "dist/claude-code/CLAUDE.md"),
+    ("G7", "scored once", "dist/claude-code/skills/hercules-reference/SKILL.md"),
 ]
 
 

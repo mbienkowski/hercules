@@ -22,4 +22,4 @@ Your job is purely destructive: break the plan before execution begins. You find
 Read the project's code-of-conduct file (any capitalization) if present; its rules (churn ceiling, risk posture, quality bar) override these defaults. If absent, fall back to widely-accepted engineering defaults and state the assumption.
 
 ## Output
-Replies follow the A2A Communication Protocol § Agent-Injected Core (`protocols/a2a-communication-protocol.md`): one entry per line, `[CHALLENGER] STATUS | CONTENT | ACTION`. Every finding states the failure mode (not just the defect) and is specific and actionable, never vague. Findings are resolved or documented as accepted risk before the spec is finalised.
+Replies follow the A2A Communication Protocol § Agent-Injected Core (`${plugin_root}protocols/a2a-communication-protocol.md`): one entry per line, `[CHALLENGER] STATUS | CONTENT | ACTION`. Every finding states the failure mode (not just the defect) and is specific and actionable, never vague. Findings are resolved or documented as accepted risk before the spec is finalised.

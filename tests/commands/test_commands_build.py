@@ -252,7 +252,7 @@ def test_build_persists_the_approved_cadence(read_file):
     build = read_file(_BUILD)
     para = build[build.index("### Plan approval"):build.index("## Execution")]
     assert "cadence" in para, "Plan approval must persist the approved cadence to state"
-    md = read_file("dist/claude-code/CLAUDE.md")
+    md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     prose = md[md.index("Session object (in the state file):"):]
     assert "`cadence`" in prose, "CLAUDE.md session prose must document the cadence field"
 
@@ -287,7 +287,7 @@ def test_correction_gate_expects_green(read_file):
         "the correction path must not demand the failing-test gate against corrected tests"
     assert "green" in step5.lower(), \
         "the correction gate must state that green against existing code is the pass"
-    md = read_file("dist/claude-code/CLAUDE.md")
+    md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     assert "re-passes the write-tests gate" not in md, \
         "CLAUDE.md's override clearing must match the corrected-test gate"
 

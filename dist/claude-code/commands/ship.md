@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # /hercules:ship
 
-Stage, commit, and optionally push the delivered work. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
+Stage, commit, and optionally push the delivered work. Plugin-file citations (`hercules-reference §…`, `protocols/…`) live in this plugin's directory.
 
 **Plan mode — required.** Call `EnterPlanMode`; present a complete Ship plan; at the **Plan approval** gate — *you approve the phase after reviewing the plan* — when the user says **"approved"** or clicks **Accept**, call `ExitPlanMode` (`auto`), then execute all steps automatically — no further questions.
 
@@ -13,7 +13,7 @@ Stage, commit, and optionally push the delivered work. Plugin-file citations (`C
 
 ## Precondition check (before EnterPlanMode)
 
-Read the project's registry entry in `~/.hercules/config.json` and the active session in its state file `~/.hercules/state/{slug}.json` (see `CLAUDE.md § Machine-local state`).
+Read the project's registry entry in `~/.hercules/config.json` and the active session in its state file `~/.hercules/state/{slug}.json` (see `hercules-reference § Machine-local state`).
 
 If `current_phase` is `"shipped"` and `shipped_commit` is set: report the SHA (and, when the eligibility check below passes and `shipped_pr` is unset, offer step 5's PR) — then stop.
 
@@ -27,7 +27,7 @@ Check PR eligibility silently (never blocks Ship): verify origin URL contains `g
 
 ### Spec-scoped ship (from Build's cadence)
 
-When Build's *ship-each* cadence invokes Ship mid-build ("ship now"), skip only the `build_complete` refusal — the session-wide gate (G6, `protocols/workflow-protocol.md#registry`) stays for the close-out ship. Scope the run to the current spec: the staged set is the files this spec produced — the working-tree changes its loop just made (surface anything else as "Not included — stage if you want"), the commit message derives from the spec's scope, and the PR step is omitted — `shipped_pr` belongs to the close-out ship. The plan flow is unchanged — default plan, feedback rounds, execute on acceptance. A spec-scoped ship never writes `current_phase: "shipped"`, `build_complete`, or `shipped_commit`; on a failed commit or push, control returns to Build's Advance prompt and the spec is not retired. The close-out ship later commits the remaining residue (retired specs, `INDEX.md`) — its message should say so.
+When Build's *ship-each* cadence invokes Ship mid-build ("ship now"), skip only the `build_complete` refusal — the session-wide gate (G6, `${CLAUDE_PLUGIN_ROOT}/protocols/workflow-protocol.md#registry`) stays for the close-out ship. Scope the run to the current spec: the staged set is the files this spec produced — the working-tree changes its loop just made (surface anything else as "Not included — stage if you want"), the commit message derives from the spec's scope, and the PR step is omitted — `shipped_pr` belongs to the close-out ship. The plan flow is unchanged — default plan, feedback rounds, execute on acceptance. A spec-scoped ship never writes `current_phase: "shipped"`, `build_complete`, or `shipped_commit`; on a failed commit or push, control returns to Build's Advance prompt and the spec is not retired. The close-out ship later commits the remaining residue (retired specs, `INDEX.md`) — its message should say so.
 
 ---
 
@@ -44,7 +44,7 @@ Run `git status --short` and `git diff --stat HEAD`. If the working tree is clea
 - Never add AI attribution trailers to the message.
 - For breaking changes (removed public API, migration files, altered public signatures): propose a `BREAKING CHANGE:` footer.
 
-**Push target.** Read the project's code-of-conduct (resolve it per `CLAUDE.md § Code-of-conduct resolution`) and infer push preference from its prose (branch protection, CI conventions, PR requirements). Propose `push to origin/{current-branch}`, or omit if no remote is configured. The user can change this in the plan.
+**Push target.** Read the project's code-of-conduct (resolve it per `hercules-reference § Code-of-conduct resolution`) and infer push preference from its prose (branch protection, CI conventions, PR requirements). Propose `push to origin/{current-branch}`, or omit if no remote is configured. The user can change this in the plan.
 
 **Plan format:**
 ```

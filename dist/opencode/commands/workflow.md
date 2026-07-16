@@ -5,9 +5,9 @@ agent: hercules
 
 # /hercules:workflow
 
-Guided end-to-end delivery: all four phases in one flow. Plugin-file citations (`AGENTS.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
+Guided end-to-end delivery: all four phases in one flow. Plugin-file citations (`hercules-reference §…`, `protocols/…`) live in this plugin's directory.
 
-**Plan mode — required across all four phases.** Open each phase with `plan mode`; present a full inline proposal; at the **Plan approval** gate, on the user's "approved", call `approval` (`auto`) — the phase then writes or executes without further prompts — then `plan mode` for the next phase. Iterate freely; write only on approval. Never patch sections — always regenerate the complete draft.
+**Plan mode — required across all four phases.** Open each phase in plan mode; present a full inline proposal; at the **Plan approval** gate, on the user's "approved", leave plan mode — the phase then writes or executes without further prompts — then re-enter plan mode for the next phase. Iterate freely; write only on approval. Never patch sections — always regenerate the complete draft.
 
 Guided end-to-end delivery: **Discover → Design → Build → Ship**. Runs all four phases in sequence with a human-approved transition between each. The more detail you put in early, the better the outcome.
 

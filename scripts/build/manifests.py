@@ -46,7 +46,7 @@ const fs = require("fs");
 
 // This file lives at the root of dist/opencode/; assets are its siblings.
 const PLUGIN_ROOT = path.resolve(__dirname);
-for (const asset of [__INSTRUCTIONS_PATH__, __SKILLS_PATH__]) {
+for (const asset of [__ASSET_LIST__]) {
   if (!fs.existsSync(path.join(PLUGIN_ROOT, asset))) {
     throw new Error("hercules opencode plugin: missing asset " + asset);
   }
@@ -56,9 +56,11 @@ module.exports = async () => {
   return {
     config: (cfg) => {
       cfg.default_agent = __DEFAULT_AGENT__;
+      // Persona + protocols are always-loaded so their `§`/path references resolve
+      // (OpenCode has no ${CLAUDE_PLUGIN_ROOT}; the plugin injects absolute paths here).
       cfg.instructions = [
         ...(cfg.instructions || []),
-        path.join(PLUGIN_ROOT, __INSTRUCTIONS_PATH__),
+        __INSTRUCTION_JOINS__
       ];
       cfg.skills = cfg.skills || {};
       cfg.skills.paths = [
@@ -73,10 +75,21 @@ module.exports = async () => {
 """
 
 
-def generate_plugin_js(default_agent, agents, commands, instructions_path="instructions.md", skills_path="skills"):
+# The protocol docs are always-injected on OpenCode so their `§`/path references resolve at
+# runtime (OpenCode has no ${CLAUDE_PLUGIN_ROOT} placeholder for in-prompt path resolution).
+_PROTOCOL_PATHS = (
+    "protocols/a2a-communication-protocol.md",
+    "protocols/debate-consensus-protocol.md",
+    "protocols/workflow-protocol.md",
+)
+
+
+def generate_plugin_js(default_agent, agents, commands, instructions_path="instructions.md",
+                       skills_path="skills", protocols=_PROTOCOL_PATHS):
     """Generate the CommonJS OpenCode plugin entry with inlined agents/commands.
 
     *agents* / *commands* are ``(name, metadata, prompt)`` triples; command keys stay ``hercules:<name>``.
+    *protocols* are injected into ``cfg.instructions`` alongside the persona so their references load.
     """
     agent_entries = {
         name: {"description": meta.get("description", ""), "mode": meta.get("mode", "subagent"), "prompt": prompt}
@@ -86,10 +99,14 @@ def generate_plugin_js(default_agent, agents, commands, instructions_path="instr
         f"hercules:{name}": {"description": meta.get("description", ""), "agent": meta.get("agent", "hercules"), "template": prompt}
         for name, meta, prompt in commands
     }
+    instruction_paths = [instructions_path, *protocols]
+    asset_list = ", ".join(escape_ts_string(p) for p in (*instruction_paths, skills_path))
+    instruction_joins = ",\n        ".join(f"path.join(PLUGIN_ROOT, {escape_ts_string(p)})" for p in instruction_paths)
     return (
         _PLUGIN_JS_TEMPLATE
         .replace("__DEFAULT_AGENT__", escape_ts_string(default_agent))
-        .replace("__INSTRUCTIONS_PATH__", escape_ts_string(instructions_path))
+        .replace("__ASSET_LIST__", asset_list)
+        .replace("__INSTRUCTION_JOINS__", instruction_joins)
         .replace("__SKILLS_PATH__", escape_ts_string(skills_path))
         .replace("__AGENT_ENTRIES__", ts_object_literal(agent_entries))
         .replace("__COMMAND_ENTRIES__", ts_object_literal(command_entries))

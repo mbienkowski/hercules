@@ -5,15 +5,15 @@ agent: hercules
 
 # /hercules:ship
 
-Stage, commit, and optionally push the delivered work. Plugin-file citations (`AGENTS.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
+Stage, commit, and optionally push the delivered work. Plugin-file citations (`hercules-reference §…`, `protocols/…`) live in this plugin's directory.
 
-**Plan mode — required.** Call `plan mode`; present a complete Ship plan; at the **Plan approval** gate — *you approve the phase after reviewing the plan* — when the user says **"approved"** or clicks **Accept**, call `approval` (`auto`), then execute all steps automatically — no further questions.
+**Plan mode — required.** Enter plan mode; present a complete Ship plan; at the **Plan approval** gate — *you approve the phase after reviewing the plan* — when the user says **"approved"** or clicks **Accept**, leave plan mode, then execute all steps automatically — no further questions.
 
 ---
 
 ## Precondition check (before plan mode)
 
-Read the project's registry entry in `~/.hercules/config.json` and the active session in its state file `~/.hercules/state/{slug}.json` (see `AGENTS.md § Machine-local state`).
+Read the project's registry entry in `~/.hercules/config.json` and the active session in its state file `~/.hercules/state/{slug}.json` (see `hercules-reference § Machine-local state`).
 
 If `current_phase` is `"shipped"` and `shipped_commit` is set: report the SHA (and, when the eligibility check below passes and `shipped_pr` is unset, offer step 5's PR) — then stop.
 
@@ -44,7 +44,7 @@ Run `git status --short` and `git diff --stat HEAD`. If the working tree is clea
 - Never add AI attribution trailers to the message.
 - For breaking changes (removed public API, migration files, altered public signatures): propose a `BREAKING CHANGE:` footer.
 
-**Push target.** Read the project's code-of-conduct (resolve it per `AGENTS.md § Code-of-conduct resolution`) and infer push preference from its prose (branch protection, CI conventions, PR requirements). Propose `push to origin/{current-branch}`, or omit if no remote is configured. The user can change this in the plan.
+**Push target.** Read the project's code-of-conduct (resolve it per `hercules-reference § Code-of-conduct resolution`) and infer push preference from its prose (branch protection, CI conventions, PR requirements). Propose `push to origin/{current-branch}`, or omit if no remote is configured. The user can change this in the plan.
 
 **Plan format:**
 ```

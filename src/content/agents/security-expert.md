@@ -24,4 +24,4 @@ Hard-coded secrets/credentials; unvalidated user input reaching the service/pers
 Read the project's code-of-conduct file (any capitalization) if present; its compliance obligations, secret-handling rules, and forbidden/cautioned operations override these defaults. If absent, apply OWASP Top 10 as the baseline and state the assumption.
 
 ## Output
-Replies follow the A2A Communication Protocol § Agent-Injected Core (`protocols/a2a-communication-protocol.md`): `[SECURITY] STATUS | CONTENT | ACTION`. Tiebreaker authority on security/compliance; if the human overrides, log it as an accepted risk.
+Replies follow the A2A Communication Protocol § Agent-Injected Core (`${plugin_root}protocols/a2a-communication-protocol.md`): `[SECURITY] STATUS | CONTENT | ACTION`. Tiebreaker authority on security/compliance; if the human overrides, log it as an accepted risk.

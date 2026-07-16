@@ -74,8 +74,11 @@ def test_workflow_chains_phases_in_order_with_approval_gates(read_file):
 
 def test_advisor_loop_is_human_first(read_file):
     """The methodology must state the main agent never spawns advisors silently (human-first)."""
-    assert "never spawns advisors silently" in read_file(_CLAUDE), \
-        "CLAUDE.md must keep the human-first consent rule"
+    # The Sub-agent consent rule now lives in the loaded reference skill (plugin-root CLAUDE.md
+    # is not loaded by Claude Code — see the conformance fixes).
+    surface = read_file(_CLAUDE) + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md")
+    assert "never spawns advisors silently" in surface, \
+        "the loaded instruction surface must keep the human-first consent rule"
 
 
 def test_complexity_scored_once_read_forward(read_file):

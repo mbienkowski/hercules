@@ -108,6 +108,16 @@
     "warn_at": 1000
   },
   {
+    "name": "hercules-reference-token-budget",
+    "target": "dist/claude-code/skills/hercules-reference/SKILL.md",
+    "metric": "token_count",
+    "op": "<=",
+    "limit": 3200,
+    "severity": "gate",
+    "per_file": true,
+    "warn_at": 3100
+  },
+  {
     "name": "coc-generator-token-budget",
     "target": "dist/claude-code/skills/code-of-conduct-generator/SKILL.md",
     "metric": "token_count",

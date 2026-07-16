@@ -83,7 +83,7 @@ def test_shipped_plugin_describes_no_sync_source(repo_root):
 
 def test_plugin_claude_md_describes_a_plugin_not_a_wrapper(read_file):
     """dist/claude-code/CLAUDE.md must describe Hercules as a plugin, not a Python CLI wrapper."""
-    content = read_file("dist/claude-code/CLAUDE.md")
+    content = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     assert "Python wrapper for the `claude` CLI" not in content, \
         "dist/claude-code/CLAUDE.md must not call Hercules a Python wrapper for the claude CLI"
 
@@ -324,7 +324,7 @@ def test_abandoning_a_session_has_a_documented_path(read_file):
     """Every other exit is stated at its friction point; abandoning a half-built feature
     had no user-facing path at all. CLAUDE.md must define the mechanics and the README
     must surface the phrase."""
-    md = read_file("dist/claude-code/CLAUDE.md")
+    md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     assert "abandon" in md.lower() and "clear" in md.lower()
     readme = read_file("README.md")
     assert "abandon" in readme.lower(), "the README must tell users they can bail out"
@@ -356,7 +356,7 @@ def test_workflow_source_of_truth_is_the_protocol(read_file):
 def test_claude_md_defines_code_of_conduct_resolution(read_file):
     """The CoC is resolved by a matcher in the correct repo — defined once in CLAUDE.md so every
     phase resolves it the same way, never a fixed filename and never the path-nearest file."""
-    resolution = section(read_file("dist/claude-code/CLAUDE.md"),
+    resolution = section((read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md")),
                          "## Code-of-conduct resolution", "\n## ", label="CLAUDE.md")
     low = resolution.lower()
     assert "any capitalization" in low or "case-insensitiv" in low, \

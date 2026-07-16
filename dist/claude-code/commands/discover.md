@@ -5,13 +5,13 @@ disable-model-invocation: true
 
 # /hercules:discover
 
-Turn a rough idea into a clear, approved business requirement — the foundation every other phase builds on. Plugin-file citations (`CLAUDE.md §…`, `protocols/…`) live in this plugin's directory — the parent of the folder holding this command file, not the user's repo; search the plugin dir if needed.
+Turn a rough idea into a clear, approved business requirement — the foundation every other phase builds on. Plugin-file citations (`hercules-reference §…`, `protocols/…`) live in this plugin's directory.
 
 **Plan mode — required.** Call `EnterPlanMode` at the start. Every draft is a full inline proposal. Iterate freely; always regenerate the complete draft — never patch sections; never skip steps. At the **Plan approval** gate, on the user's approval, call `ExitPlanMode` (`auto`), then write.
 
 ## Step 0 — Artifact location & prior context
 
-Resolve the **artifact root** per `CLAUDE.md § Artifact root resolution`: a `code-of-conduct.md`
+Resolve the **artifact root** per `hercules-reference § Artifact root resolution`: a `code-of-conduct.md`
 directive wins (same-repo directory → use it; separate repo → ask its local path once), else
 default to `docs/`. Note it as `docs_root` now — Step 7's session-init write persists it to the
 registry entry (plan mode allows no writes). All paths below are relative to that root (shown as `docs/`).
@@ -56,7 +56,7 @@ Every tier continues through Steps 4–7; the tier sets how many advisors run, n
 
 ## Step 4 — Advisor debate
 
-The advisor count scales with the tier (`CLAUDE.md § Agent scaling`): `trivial` runs none — skip to Step 5; `low` runs a reduced set; `medium` and up run the fuller set. When advisors apply, follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **business-analyst, challenger, simplicity-advocate**; at `low`, 1–2) — choose deliberately different, even opposing, perspectives so they argue, not echo. Productive disagreement beats easy consensus. On the user's go-ahead, run the debate per `protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
+The advisor count scales with the tier (`hercules-reference § Agent scaling`): `trivial` runs none — skip to Step 5; `low` runs a reduced set; `medium` and up run the fuller set. When advisors apply, follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **business-analyst, challenger, simplicity-advocate**; at `low`, 1–2) — choose deliberately different, even opposing, perspectives so they argue, not echo. Productive disagreement beats easy consensus. On the user's go-ahead, run the debate per `${CLAUDE_PLUGIN_ROOT}/protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`${CLAUDE_PLUGIN_ROOT}/protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
 
 ## Step 5 — Draft & feedback loop
 
@@ -109,7 +109,7 @@ File structure:
 
 **Business language only** — committed and read by stakeholders. No class/method names, code, or file paths; implementation detail belongs in the spec. Design references hold visual-artifact links (Figma, wireframes), never implementation detail.
 
-Write the session-init state under `~/.hercules/` (see `CLAUDE.md § Machine-local state`), never the
+Write the session-init state under `~/.hercules/` (see `hercules-reference § Machine-local state`), never the
 repo, atomically (temp + rename): create the registry entry if missing (`directory`, `docs_root`,
 `state_file`) — on an existing entry update only those keys, preserving `repositories`,
 `frozen_hook`, `keep_specs`, and anything else — and write the state file's session
