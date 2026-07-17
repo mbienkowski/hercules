@@ -1,4 +1,4 @@
-"""Hygiene scans for shipped hook code under `plugin/hooks/`.
+"""Hygiene scans for shipped hook code under `src/targets/claude-code/hooks/`.
 
 The plugin claims "no external network channel" and "no credentials"; hooks are the only
 executable Python it ships, so they must be scanned (the markdown-only network scan in
@@ -37,7 +37,7 @@ def _top_level_imports(tree: ast.AST):
 
 
 def test_there_is_at_least_one_hook_script():
-    assert _HOOK_SCRIPTS, "expected shipped hook scripts under plugin/hooks/"
+    assert _HOOK_SCRIPTS, "expected shipped hook scripts under src/targets/claude-code/hooks/"
 
 
 @pytest.mark.parametrize("script", _HOOK_SCRIPTS, ids=lambda p: p.name)

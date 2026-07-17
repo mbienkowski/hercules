@@ -1,6 +1,6 @@
 """The workflow protocol is the source of truth for step order and hard guardrails.
 
-These are structural/policy gates over plugin/protocols/workflow-protocol.md and its wiring:
+These are structural/policy gates over dist/claude-code/protocols/workflow-protocol.md and its wiring:
 anchors resolve, the delegation packet keeps its field order, the guardrail registry stays
 well-formed and bidirectionally anchored to the commands, and the one hook-class row maps to a
 live PreToolUse hook. Tests assert packet/registry TEXT and STRUCTURE — no test can prove an

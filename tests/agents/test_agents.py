@@ -252,7 +252,7 @@ def test_plugin_declares_default_agent_with_persona(repo_root):
     agent_name = settings.get("agent")
     assert agent_name, "dist/claude-code/settings.json must declare a default 'agent'"
     agent_file = repo_root / "dist" / "claude-code" / "agents" / f"{agent_name}.md"
-    assert agent_file.is_file(), f"default agent {agent_name!r} has no file at plugin/agents/{agent_name}.md"
+    assert agent_file.is_file(), f"default agent {agent_name!r} has no file at dist/claude-code/agents/{agent_name}.md"
     assert "You are **Hercules**" in agent_file.read_text(), \
         "the default agent must carry the Hercules persona marker"
 

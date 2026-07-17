@@ -32,7 +32,7 @@ def repo_root() -> Path:
 
 @pytest.fixture(scope="session")
 def plugin_root(repo_root: Path) -> Path:
-    """Path to the plugin/ subdirectory containing all Claude plugin content."""
+    """Path to the dist/claude-code/ directory containing all Claude plugin content."""
     return repo_root / "dist" / "claude-code"
 
 

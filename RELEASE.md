@@ -43,14 +43,17 @@ announcing a release, run this by hand and record the result (date, version, tes
 
 ### OpenCode
 
-**Install:** OpenCode does not auto-discover an npm plugin — after `npm install hercules`, the user
-must add it to their `opencode.json`:
+**Install:** The canonical OpenCode install path is the GitHub repo ref — the user adds it to their
+`opencode.json`:
 
 ```json
-{ "plugin": ["hercules"] }
+{ "plugin": ["github:mbienkowski/hercules"] }
 ```
 
-OpenCode then resolves the package `main` (`dist/opencode/plugin.js`) and runs its `config` hook.
+OpenCode resolves the package via its `package.json` `main` (`dist/opencode/plugin.js`) and runs its
+`config` hook. (The plugin is also published to npm as `hercules` on release when `NPM_TOKEN` is
+configured; npm is an opt-in alternative channel, not the primary install path.)
+
 These load-time behaviours are **not** provable by the build (no headless OpenCode harness exists) —
 they must be confirmed live before release:
 
@@ -74,4 +77,5 @@ they must be confirmed live before release:
 - [ ] `dist/claude-code/.claude-plugin/plugin.json`, `package.json`, and `pyproject.toml` all show the
       release version (matches the git tag).
 
-v1 ships **Claude Code + OpenCode**. Codex and Cursor are TBD — add their smoke sections when delivered.
+v1 ships **Claude Code + OpenCode**. Codex and Cursor are TBD — add their smoke sections when delivered
+(see [CONTRIBUTING.md](CONTRIBUTING.md) § Adding a new target for the proven extension procedure).
