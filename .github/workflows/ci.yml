@@ -75,7 +75,7 @@ jobs:
         run: pip install -e ".[dev]"
 
       - name: Cache tiktoken encodings
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/tiktoken
           key: tiktoken-cl100k
@@ -113,7 +113,7 @@ jobs:
         run: pip install -e ".[dev]"
 
       - name: Cache tiktoken encodings
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/tiktoken
           key: tiktoken-cl100k
@@ -125,7 +125,7 @@ jobs:
 
       - name: Upload mutation results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: mutmut-results
           path: mutmut-results.txt
