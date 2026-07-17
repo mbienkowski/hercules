@@ -46,3 +46,11 @@ def test_registry_round_trips_and_lists_targets():
 def test_get_unknown_target_raises():
     with pytest.raises(KeyError):
         serialize.get("does-not-exist")
+
+
+def test_missing_required_field_raises_a_scripted_message():
+    """A source artifact missing name/description fails with an actionable message, not a bare KeyError."""
+    with pytest.raises(serialize.SerializeError, match="description"):
+        ClaudeCodeSerializer().serialize_agent({"name": "challenger"}, "# Challenger\n", {}, MODELS)
+    with pytest.raises(serialize.SerializeError, match="name"):
+        serialize.OpenCodeSerializer().serialize_agent({"description": "d"}, "# X\n", {}, MODELS)

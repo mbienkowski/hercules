@@ -19,13 +19,14 @@ from scripts.build.layout import discover_sources
 from scripts.build.manifests import generate_opencode_json, generate_plugin_js
 from scripts.build.parse import parse_frontmatter, split_document
 from scripts.build.render import render_body
-from scripts.build.serialize import registered_targets, serialize_file
+from scripts.build.serialize import registered_targets, require_field, serialize_file
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC = REPO_ROOT / "src"
 SRC_CONTENT = SRC / "content"
 DIST = REPO_ROOT / "dist"
-TARGETS = ("claude-code", "opencode")
+# Derived from the serializer registry (populated at import) — adding a target needs no edit here.
+TARGETS = tuple(registered_targets())
 
 # Per-target source→dest renames + the Claude-only byte-copied files.
 _RENAMES = {"claude-code": {"persona.md": "CLAUDE.md"}, "opencode": {"persona.md": "instructions.md"}}
@@ -54,7 +55,7 @@ def _opencode_agents_and_commands(tokens: dict[str, str]):
         _, body = split_document(text)
         agents.append((
             src.stem,
-            {"description": render_body(meta["description"], "opencode", tokens),
+            {"description": render_body(require_field(meta, "description"), "opencode", tokens),
              "mode": "primary" if src.stem == "hercules" else "subagent"},
             render_body(body, "opencode", tokens).strip(),
         ))
@@ -65,7 +66,7 @@ def _opencode_agents_and_commands(tokens: dict[str, str]):
         _, body = split_document(text)
         commands.append((
             src.stem,
-            {"description": render_body(meta["description"], "opencode", tokens),
+            {"description": render_body(require_field(meta, "description"), "opencode", tokens),
              "agent": "hercules"},
             render_body(body, "opencode", tokens).strip(),
         ))
@@ -127,15 +128,33 @@ def build_target(target: str, out_root: Path) -> list[str]:
             shutil.copyfile(tdir / src_rel, dest)
             written.append(dest_rel)
     elif target == "opencode":
+        # The generic loop above also wrote dist/opencode/{agents,commands}/*.md. OpenCode does NOT
+        # load agents/commands from those files — it reads the inlined cfg.agent/cfg.command maps in
+        # plugin.js (below). They are kept as a readable, diff-friendly mirror; test_opencode_mirror
+        # pins them byte-equal to the inlined entries so the two render paths can't diverge.
         written += _emit_opencode_extras(out_root, tokens)
     return sorted(written)
 
 
+def _rel_files(root: Path) -> set[str]:
+    return {
+        p.relative_to(root).as_posix()
+        for p in root.rglob("*")
+        if p.is_file() and "__pycache__" not in p.parts and not p.name.endswith(".pyc")
+    }
+
+
 def _dir_diff(a: Path, b: Path) -> list[str]:
-    cmp = filecmp.dircmp(str(a), str(b))
-    diffs = list(cmp.left_only) + list(cmp.right_only) + list(cmp.diff_files)
-    for sub in cmp.common_dirs:
-        diffs += [f"{sub}/{d}" for d in _dir_diff(a / sub, b / sub)]
+    """Relative paths that differ between *a* and *b*, compared by CONTENT.
+
+    Uses ``filecmp.cmp(..., shallow=False)`` so same-size files are always byte-compared. The stdlib
+    ``filecmp.dircmp`` compares shallowly (stat signature), which can miss a same-size, same-mtime
+    hand-edit to a committed ``dist/`` file — this walk closes that hole.
+    """
+    a_files, b_files = _rel_files(a), _rel_files(b)
+    diffs = sorted(a_files ^ b_files)
+    diffs += [rel for rel in sorted(a_files & b_files)
+              if not filecmp.cmp(a / rel, b / rel, shallow=False)]
     return diffs
 
 

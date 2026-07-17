@@ -10,7 +10,7 @@ build-check:
 	python -m scripts.build.cli --target all --check
 
 test: build-check
-	python -m pytest tests/ -v --cov=tests.metrics --cov=src/targets/claude-code/hooks --cov-branch --cov-report=term-missing --cov-fail-under=90
+	python -m pytest tests/ -v --cov=scripts/build --cov=tests.metrics --cov=src/targets/claude-code/hooks --cov-branch --cov-report=term-missing --cov-fail-under=90
 
 test-mutation:
 	mutmut run || true

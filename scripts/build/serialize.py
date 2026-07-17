@@ -28,6 +28,21 @@ class Serializer(Protocol):
         ...
 
 
+class SerializeError(ValueError):
+    """Raised when a source artifact is missing frontmatter a target requires."""
+
+
+def require_field(meta: dict[str, str], key: str) -> str:
+    """Return ``meta[key]`` or raise :class:`SerializeError` with a scripted, actionable message."""
+    if key not in meta:
+        name = meta.get("name", "<unnamed>")
+        raise SerializeError(  # pragma: no mutate - message text only
+            f"source artifact {name!r} is missing required frontmatter field {key!r} "
+            f"— add a '{key}:' line to its frontmatter"
+        )
+    return meta[key]
+
+
 _REGISTRY: dict[str, "Serializer"] = {}
 
 
@@ -56,7 +71,8 @@ class ClaudeCodeSerializer:
 
     def serialize_agent(self, frontmatter: dict[str, str], body: str, tokens: dict[str, str], models: dict) -> str:
         tier = frontmatter.get("model_tier")
-        out: dict[str, str] = {"name": frontmatter["name"], "description": frontmatter["description"]}
+        out: dict[str, str] = {"name": require_field(frontmatter, "name"),
+                               "description": require_field(frontmatter, "description")}
         if tier is not None:
             model = resolve_model(models, self.target, tier)
             if model is not None:
@@ -99,10 +115,12 @@ class OpenCodeSerializer:
     primary_agent = "hercules"
 
     def serialize_agent(self, frontmatter: dict[str, str], body: str, tokens: dict[str, str], models: dict) -> str:
-        name = frontmatter["name"]
+        name = require_field(frontmatter, "name")
         out = {
             "name": name,
-            "description": frontmatter["description"],
+            # Render the description like serialize_command does, so the standalone agent file and the
+            # plugin.js-inlined entry (cli._opencode_agents_and_commands) stay byte-for-byte in step.
+            "description": render_body(require_field(frontmatter, "description"), self.target, tokens),
             "mode": "primary" if name == self.primary_agent else "subagent",
         }
         return render_frontmatter(out) + "\n\n" + render_body(body, self.target, tokens)
@@ -111,7 +129,7 @@ class OpenCodeSerializer:
         """Emit an OpenCode command file: frontmatter ``description, agent``; the Claude-only
         ``disable-model-invocation`` key is dropped and the command is bound to the primary agent."""
         out = {
-            "description": render_body(frontmatter["description"], self.target, tokens),
+            "description": render_body(require_field(frontmatter, "description"), self.target, tokens),
             "agent": self.primary_agent,
         }
         return render_frontmatter(out) + "\n\n" + render_body(body, self.target, tokens).lstrip("\n")
