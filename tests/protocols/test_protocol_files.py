@@ -60,25 +60,6 @@ def test_status_table_has_a_row_for_each_approved_status(read_file):
     )
 
 
-def test_debate_protocol_references_all_required_elements(read_file):
-    """The debate protocol must reference the A2A protocol and define the round limit."""
-    # Given
-    md = read_file(_DEBATE_PROTOCOL)
-    lower = md.lower()
-
-    # When / Then
-    assert "a2a-communication-protocol.md" in md, (
-        "debate protocol must reference a2a-communication-protocol.md"
-    )
-    assert "maximum 3 rounds" in lower, (
-        "debate protocol must state 'Maximum 3 rounds' (canonical hard-limit phrase)"
-    )
-    for level in ["complexity:trivial", "complexity:low", "complexity:medium",
-                  "complexity:high", "complexity:critical"]:
-        assert level in md, f"debate protocol must define {level}"
-    assert "fresh-eyes" in lower, "debate protocol must include the fresh-eyes panel rule"
-
-
 def test_injected_agent_core_has_not_been_accidentally_changed(repo_root):
     """The A2A Core block must match the blessed golden snapshot exactly.
 

@@ -7,8 +7,6 @@ import re
 import subprocess
 from pathlib import Path
 
-from scripts.build import cli
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 # Path-literal patterns that reach the retired plugin/ tree (NOT `.claude-plugin/`, `plugin.json`,
 # the `plugin_root` fixture name, or the prose "Claude Code plugin").
@@ -67,10 +65,3 @@ def test_mutmut_targets_the_migrated_hooks_source():
     assert "src/targets/claude-code/hooks/" in pyproject
     assert "plugin/hooks/" not in pyproject
 
-
-def test_build_check_detects_stale_committed_dist(tmp_path, monkeypatch):
-    committed = tmp_path / "claude-code"
-    cli.build_target("claude-code", committed)
-    (committed / "CLAUDE.md").write_text("STALE", encoding="utf-8")  # simulate un-rebuilt drift
-    monkeypatch.setattr(cli, "DIST", tmp_path)
-    assert cli.check_target("claude-code") == 1

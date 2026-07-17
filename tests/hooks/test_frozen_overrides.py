@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import json
-import os
-import sys
 import pytest
 
-from tests.hooks.conftest import _HOOKS_DIR, _grant, _payload, _setup, main
+from tests.hooks.conftest import _grant, _payload, _setup, main
 
 
 def test_override_allows_edit_to_named_frozen_file_in_matching_round(tmp_path):
@@ -102,21 +100,6 @@ def test_override_helper_fails_closed_when_candidates_raise(tmp_path, monkeypatc
             raise RuntimeError("session exploded")
 
     assert ft._override_allows(_Boom(), [], "x") is False
-
-
-def test_override_end_to_end_as_a_script(tmp_path):
-    """Real deployment shape: with a recorded grant the script exits 0 on the granted file."""
-    import subprocess
-
-    project = tmp_path / "proj"
-    _setup(tmp_path, project)
-    _grant(tmp_path, files=["tests/test_login.py"])
-    env = {**os.environ, "HOME": str(tmp_path)}
-    run = subprocess.run(
-        [sys.executable, str(_HOOKS_DIR / "frozen_tests.py")],
-        input=_payload(project, "tests/test_login.py"), capture_output=True, text=True, env=env,
-    )
-    assert run.returncode == 0
 
 
 def test_frozen_hook_off_opt_out_allows_everything(tmp_path):

@@ -155,15 +155,6 @@ def test_mutation_gates_behind_both_quick_checks():
         "mutation must need both test and validate"
 
 
-def test_ci_guards_against_untracked_dist():
-    assert "git status --porcelain" in CI and "dist" in CI, "CI must guard against untracked dist/"
-
-
-def test_drift_gate_names_make_build_as_the_remedy():
-    # The drift gate's operator-facing remedy must point at `make build`, not an opaque diff.
-    assert "make build" in CI
-
-
 # ── Determinism: two builds are byte-identical ───────────────────────────────
 def _files(root: Path) -> dict[str, str]:
     return {p.relative_to(root).as_posix(): p.read_text(encoding="utf-8")

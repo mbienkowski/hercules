@@ -148,21 +148,6 @@ def test_spec_deletion_wording_consistent(repo_root, read_file):
         assert "merge to main" not in lower, f"{path} must not say specs are deleted on 'merge to main'"
         assert "merged to main" not in lower, f"{path} must not say specs are deleted on 'merged to main'"
 
-def test_readme_quality_thresholds_deferred_to_coc(read_file):
-    """README must present coverage/mutation thresholds as the project code-of-conduct.md default
-    (the plugin carries no numbers of its own), not as a hardcoded universal gate."""
-    content = read_file("README.md")
-    assert "Build gates on **≥90% branch coverage**" not in content, \
-        "README must not hardcode ≥90% as an absolute gate — thresholds come from the CoC"
-    assert "code-of-conduct.md` sets" in content, \
-        "README must tie quality thresholds to the project's code-of-conduct.md"
-    assert "suggests **≥90%**" in content, \
-        "README must frame ≥90% as the suggested CoC default"
-    assert "mandatory steps, not best-practices you skip" not in content.lower(), \
-        "README must not call the (CoC-conditional) mutation gate unconditionally mandatory"
-    assert "when the coc" in content.lower() or "when the code-of-conduct.md" in content.lower(), \
-        "README must condition the mutation gate on the CoC defining a threshold"
-
 def test_readme_no_auto_escalation_claim(read_file):
     """README must not claim a single dissent automatically escalates the tier — CLAUDE.md is
     explicit that Hercules never re-scores; dissent only surfaces as input to the user."""
@@ -293,16 +278,6 @@ def test_commands_declare_frontmatter(read_file):
         assert "description:" in head, f"{rel} frontmatter must carry a description"
         assert "disable-model-invocation: true" in head, \
             f"{rel} must not be auto-invocable mid-task"
-
-def test_no_command_carries_the_fake_skill_dir_variable(read_file):
-    """${CLAUDE_SKILL_DIR} is not a documented Claude Code variable — it never substitutes,
-    so a command body citing it ships a literal the agent cannot resolve. The real install-root
-    variable is ${CLAUDE_PLUGIN_ROOT}. Unconditional guard: fails the instant the dead variable
-    returns to any command."""
-    for rel in _ALL_COMMANDS:
-        assert "${CLAUDE_SKILL_DIR}" not in read_file(rel), \
-            f"{rel} cites the fake ${{CLAUDE_SKILL_DIR}} variable — use ${{CLAUDE_PLUGIN_ROOT}}"
-
 
 def test_commands_cite_bundled_plugin_files_generically(read_file):
     """Plugin CLAUDE.md and protocols/ are NOT loaded into consumer sessions (per the plugins

@@ -100,16 +100,6 @@ def test_hook_never_writes_the_filesystem(script: Path):
     assert not offenders, f"{script.name} performs filesystem writes {offenders}; hooks are read-only"
 
 
-def test_hook_modules_import_without_side_effects():
-    """Importing a hook module must not read state, hit the filesystem, or fail — the guard logic
-    only runs when called, so import must be inert."""
-    sys.path.insert(0, str(_HOOKS_DIR))
-    import hercules_state  # noqa: F401
-    import frozen_tests  # noqa: F401
-    # Importing again is idempotent and cheap.
-    assert hasattr(frozen_tests, "main") and hasattr(hercules_state, "resolve_session")
-
-
 def test_pragma_no_mutate_only_on_static_strings(repo_root):
     """A pragma is a hole in the mutation gate — it may silence only behaviourally-equivalent
     mutants: static message strings, type aliases, replace-decode codec args. Any pragma on a

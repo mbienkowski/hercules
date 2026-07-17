@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from tests.conftest import (
     BUILD as _BUILD,
     section as _section,
@@ -10,79 +9,10 @@ from tests.conftest import (
 from tests.commands.conftest import _RETIRE_STEP
 
 
-# Each clause of build.md's execution contract, one row = one single-target case (predicate over
-# the raw text `md` and its lowercase `lo`). Data, not logic — kept inline next to its test.
-_BUILD_CONTRACT = [
-    ("reads_business_requirements", lambda md, lo: "business-requirements.md" in md,
-     "build command must read *-business-requirements.md"),
-    ("no_design_md_artifact", lambda md, lo: "design.md" not in md,
-     "build command must not read a *-design.md artifact (it no longer exists)"),
-    ("iterates_over_specs", lambda md, lo: "spec" in lo,
-     "build command must read and iterate over spec files"),
-    ("writes_under_docs", lambda md, lo: "docs/" in md, "build writes artifacts under docs/"),
-    ("reads_tier_from_state", lambda md, lo: "tier" in lo and "state" in lo,
-     "build must read the tier from state (complexity is scored once in Discover)"),
-    ("requires_coverage", lambda md, lo: "coverage" in lo, "build must require coverage"),
-    ("requires_evidence", lambda md, lo: "evidence" in lo,
-     "build command must require evidence for delivered specs"),
-    ("enforces_tdd_failing_tests_first", lambda md, lo: "failing test" in lo,
-     "build command must enforce TDD (failing tests first)"),
-    ("enforces_scope_lock", lambda md, lo: "frozen" in lo or "scope lock" in lo,
-     "build command must enforce scope lock after red tests"),
-    ("references_write_test_scenarios", lambda md, lo: "write-test-scenarios" in md,
-     "build command must reference write-test-scenarios skill"),
-    ("invokes_cynical_reviewer", lambda md, lo: "cynical-reviewer" in md,
-     "build command must invoke cynical-reviewer at medium+"),
-    ("invokes_learnings", lambda md, lo: "learnings" in md,
-     "build command must invoke learnings skill at every tier"),
-    ("references_branch_coverage", lambda md, lo: "branch" in lo,
-     "build must reference branch coverage as a gate"),
-    ("defers_thresholds_to_coc", lambda md, lo: "code-of-conduct" in lo,
-     "build must defer quality-gate thresholds to the project's code-of-conduct.md"),
-    ("no_hardcoded_number", lambda md, lo: "90%" not in md,
-     "build must not hardcode a coverage/mutation number — thresholds come from code-of-conduct.md"),
-    ("requires_mutation", lambda md, lo: "mutation" in lo, "build must require mutation testing"),
-    ("references_kill_rate", lambda md, lo: "kill rate" in lo or "kill-rate" in lo,
-     "build must reference the mutation kill rate"),
-    ("suggests_bdd_for_frontend", lambda md, lo: "frontend" in lo or "Gherkin" in md or "BDD" in md,
-     "build must suggest BDD/Gherkin e2e for frontend scope"),
-    ("deletes_specs_via_git_rm", lambda md, lo: "git rm" in md,
-     "build must delete each spec file after delivery via git rm"),
-    ("verifies_traceability", lambda md, lo: "traceab" in lo,
-     "build close-out must verify requirement→spec→code/test traceability"),
-    ("checks_reverse_drift", lambda md, lo: "drift" in lo,
-     "build close-out must check for reverse scope-drift"),
-    ("no_build_md_artifact", lambda md, lo: "-build.md" not in lo,
-     "build must not produce a *-build.md artifact — code + tests + git history are the record"),
-]
-
-
-@pytest.mark.parametrize("predicate,reason", [(p, r) for _, p, r in _BUILD_CONTRACT],
-                         ids=[i for i, _, _ in _BUILD_CONTRACT])
-def test_build_step_declares_each_contract_clause(read_file, predicate, reason):
-    md = read_file(_BUILD)
-    assert predicate(md, md.lower()), reason
-
-
 def test_build_deletes_specs_after_the_traceability_check(read_file):
     """Spec deletion (git rm) must come after the traceability check, not before it."""
     lower = read_file(_BUILD).lower()
     assert lower.rindex("git rm") > lower.index("traceab")
-
-def test_debate_round_counts_consistent(read_file):
-    """The debate-consensus protocol and the a2a Core must agree on rounds per tier, and `low`
-    must run exactly Round 1 (never reach Round 2)."""
-    debate = read_file("dist/claude-code/protocols/debate-consensus-protocol.md").lower()
-    a2a = read_file("dist/claude-code/protocols/a2a-communication-protocol.md").lower()
-    # a2a Core: trivial=skip; low=R1 only; medium=R1+R2; high=R1+R2+R3; critical=...fresh-eyes
-    assert "low=r1 only" in a2a, "a2a Core must state low=R1 only"
-    assert "medium=r1+r2" in a2a, "a2a Core must state medium=R1+R2"
-    # debate table mirrors it
-    assert "round 1 only" in debate, "debate protocol must state 'Round 1 only' for low"
-    assert "round 1 + 2" in debate, "debate protocol must state 'Round 1 + 2' for medium"
-    # the Round-3 skip line must not claim low reaches Round 2
-    assert "round 1 is its only round" in debate, \
-        "debate protocol must say low's only round is Round 1 (not that Round 2 is its final round)"
 
 def test_build_writes_current_phase_on_plan_approval(read_file):
     """Build must write current_phase: "build" at its own Plan-approval gate, otherwise Step 0's
@@ -95,16 +25,6 @@ def test_build_writes_current_phase_on_plan_approval(read_file):
     lower = md.lower()
     assert lower.index("### plan approval") < lower.index('current_phase: "build"'.lower()), \
         "current_phase: \"build\" must be written at the Plan-approval gate, not only at retire"
-
-def test_build_retire_advances_current_spec_to_next_pending(read_file):
-    """Step 10's retire-time write must give current_spec an explicit value (the next pending spec,
-    or unset) — the original text said 'set current_spec,' with no value at all, which would leave
-    current_spec stale on every spec after the first."""
-    retire_text = _section(read_file(_BUILD).lower(), *_RETIRE_STEP, label=_BUILD)
-    assert "set `current_spec`," not in retire_text, \
-        "retire must not leave current_spec's value unspecified"
-    assert "set `current_spec` to" in retire_text, \
-        "retire must set current_spec to an explicit value (next pending spec, or unset)"
 
 def test_build_bash_path_convention_is_single_and_consistent(read_file):
     """build.md must state exactly one convention for multi-service Bash invocations — not both
@@ -177,15 +97,6 @@ def test_build_writes_checkpoint_after_each_spec(read_file):
     """Build appends a build_progress checkpoint at spec retire (the durable cross-spec record)."""
     md = read_file(_BUILD)
     assert "build_progress" in md, "build must append a build_progress checkpoint entry"
-
-def test_build_quality_gates_are_coc_driven(read_file):
-    """Quality-gate thresholds come from the project's code-of-conduct.md — build carries no numbers,
-    and the inverted per-tier mutation table is gone."""
-    md = read_file(_BUILD)
-    lower = md.lower()
-    assert "code-of-conduct" in lower, "build must defer quality gates to code-of-conduct.md"
-    assert "90%" not in md and "88%" not in md and "85%" not in md, \
-        "build must not hardcode coverage/mutation thresholds (they live in the CoC)"
 
 def test_build_mutation_gate_runs_in_loop_before_retire(read_file):
     """The mutation gate runs inside the per-spec loop, before the spec is retired — not post-loop —

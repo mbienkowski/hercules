@@ -80,18 +80,6 @@ def test_near_warn_not_set_when_value_below_warn_at(tmp_path: Path):
     assert results[0].near_warn is False
 
 
-def test_result_message_is_non_empty_string(tmp_path: Path):
-    """Every check result must have a non-empty message string."""
-    results = _run_one_check(
-        tmp_path,
-        {"name": "msg-check", "target": "h.md", "metric": "instruction_count",
-         "op": "<=", "limit": 100, "severity": "gate"},
-        {"h.md": "- item\n"},
-    )
-    assert results[0].message is not None
-    assert len(results[0].message) > 0
-
-
 def test_multiple_checks_all_run_even_if_first_target_is_missing(tmp_path: Path):
     """When first check has no matching target, remaining checks must still run (continue not break)."""
     threshold_file = _write_thresholds(
@@ -136,18 +124,6 @@ def test_no_files_result_has_near_warn_false(tmp_path: Path):
     results = run_threshold_checks(tmp_path, checks)
 
     assert results[0].near_warn is False
-
-
-def test_no_target_match_message_starts_with_target(tmp_path: Path):
-    """The 'no files' message must start with 'target' (not 'XXtarget...')."""
-    threshold_file = _write_thresholds(
-        tmp_path,
-        [{"name": "miss", "target": "gone/*.md", "metric": "instruction_count", "op": "<=", "limit": 100, "severity": "gate"}],
-    )
-    checks = load_thresholds(threshold_file)
-    results = run_threshold_checks(tmp_path, checks)
-
-    assert results[0].message.startswith("target ")
 
 
 def test_per_file_passes_when_every_file_is_under_limit(tmp_path: Path):

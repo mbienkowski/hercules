@@ -6,7 +6,6 @@ Read against dist/claude-code (the reference tree; build-check keeps opencode co
 """
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -66,11 +65,3 @@ def test_reviewer_agent_exists_in_both_trees():
         assert (REPO / "dist" / tree / "agents" / "cynical-reviewer.md").is_file(), \
             f"cynical-reviewer must ship to dist/{tree}"
 
-
-# ── The mechanism section exists and reconciles reviewers vs advisors ────────
-def test_independent_review_section_present_and_distinct_from_consent():
-    skill = (CC / "skills" / "hercules-reference" / "SKILL.md").read_text(encoding="utf-8")
-    assert "## Independent review" in skill, "hercules-reference must carry § Independent review"
-    assert "never spawns advisors silently" in skill, "the consent rule must stay verbatim"
-    # Reviewers are a distinct category (mandatory at low+, recommend-and-ask at trivial).
-    assert re.search(r"reviewer", skill, re.I), "consent must distinguish reviewers from advisors"

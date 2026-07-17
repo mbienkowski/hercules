@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.build.cli import build_target
+from scripts.build.cli import _dir_diff, build_target
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PLUGIN = REPO_ROOT / "dist" / "claude-code"
@@ -37,23 +37,25 @@ def test_claude_code_matches_plugin_byte_identical(tmp_path):
     assert diffs == [], f"dist/claude-code drifts from plugin/: {diffs}"
 
 
-def test_diff_catches_same_size_same_mtime_content_change(tmp_path):
+def test_dir_diff_catches_same_size_same_mtime_content_change(tmp_path):
     """A same-size edit with a matching mtime must still be caught (content compare, not stat).
 
     This is the case a shallow (stat-signature) compare would miss: identical size + identical
-    mtime → "same" without ever reading the bytes. The drift gate must not be foolable this way.
+    mtime -> "same" without ever reading the bytes. Exercises the real production
+    ``scripts.build.cli._dir_diff`` (not a local reimplementation) so a regression in that
+    function — e.g. someone dropping ``shallow=False`` — is actually caught here.
     """
     a, b = tmp_path / "a", tmp_path / "b"
     build_target("claude-code", a)
     build_target("claude-code", b)
-    assert _diff(a, b) == []  # two clean builds agree
+    assert _dir_diff(a, b) == []  # two clean builds agree
     rel = "CLAUDE.md"
     ref, tam = a / rel, b / rel
     text = tam.read_text(encoding="utf-8")
     tam.write_text(("Z" if text[0] != "Z" else "Q") + text[1:], encoding="utf-8")  # flip 1 char, size kept
-    os.utime(tam, (ref.stat().st_atime, ref.stat().st_mtime))  # equalise mtime → stat compare says "same"
+    os.utime(tam, (ref.stat().st_atime, ref.stat().st_mtime))  # equalise mtime -> stat compare says "same"
     assert ref.stat().st_size == tam.stat().st_size
-    assert rel in _diff(a, b), "same-size, same-mtime content change must be detected"
+    assert rel in _dir_diff(a, b), "same-size, same-mtime content change must be detected"
 
 
 @pytest.mark.skipif(not PLUGIN.exists(), reason="dist/claude-code/ retired (post-cutover)")

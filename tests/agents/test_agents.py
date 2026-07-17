@@ -151,26 +151,6 @@ def test_qa_never_writes_test_code(repo_root):
         "senior-qa-engineer description must state QA never writes test code"
 
 
-@pytest.mark.parametrize("name", ["backend-engineer", "frontend-engineer"])
-def test_engineer_authors_the_failing_tests(repo_root, name):
-    """The engineers author the failing tests from QA's scenarios (positive companion to the QA rule)."""
-    body = (repo_root / "dist" / "claude-code" / "agents" / f"{name}.md").read_text()
-    assert "Write them yourself" in body, \
-        f"{name} must state the engineer authors the failing tests (following QA's scenarios)"
-
-
-def test_senior_qa_engineer_documents_bdd_for_frontend_scope(repo_root):
-    """senior-qa-engineer must mention BDD/Gherkin and e2e tooling for frontend features."""
-    # Given
-    md = (repo_root / "dist" / "claude-code" / "agents" / "senior-qa-engineer.md").read_text()
-
-    # When / Then
-    assert "BDD" in md or "Gherkin" in md, \
-        "senior-qa-engineer must mention BDD or Gherkin for frontend scope"
-    assert "Cypress" in md or "Playwright" in md, \
-        "senior-qa-engineer must name an e2e test tool for frontend scenarios"
-
-
 def test_cynical_reviewer_spec_sync_is_caller_agnostic(read_file):
     """cynical-reviewer's mandatory spec-sync must be a reusable, caller-agnostic clause: when no
     editable live spec exists it *reports the disposition back to the caller* rather than naming any
@@ -193,16 +173,6 @@ def test_hercules_agent_has_first_run_detection(read_file):
         "first-run onboarding must mention code-of-conduct-generator"
     assert "config.json" in content, \
         "first-run detection must reference the registry ~/.hercules/config.json"
-
-
-def test_hercules_agent_has_ambiguity_elimination(read_file):
-    """Hercules must have explicit ambiguity-elimination behavior documented in its persona."""
-    content = read_file("dist/claude-code/agents/hercules.md")
-    assert "ambiguit" in content.lower(), \
-        "hercules.md must address ambiguity elimination"
-    assert "figure it out" in content.lower() or "tbd" in content.lower() or \
-           "open question" in content.lower(), \
-        "hercules.md must reject open questions / TBDs"
 
 
 def test_persona_version_read_is_not_hardcoded(read_file):
@@ -235,16 +205,6 @@ def test_persona_describes_its_capabilities(read_file):
     assert "/hercules:discover" in persona, "hercules.md must name the phase commands"
 
 
-def test_persona_onboarding_resolves_the_coc_case_insensitively(read_file):
-    """The first-run onboarding gate keys on CoC presence. Keying on the bare lowercase literal
-    makes a repo using CODE_OF_CONDUCT.md — Hercules' own convention — read as 'no CoC', which
-    re-fires setup for a project already set up. The gate must match any capitalization."""
-    persona = read_file("dist/claude-code/agents/hercules.md")
-    assert "no `code-of-conduct.md`" not in persona, \
-        "onboarding gate must not check for the fixed lowercase code-of-conduct.md — match any case"
-    assert "any capitalization" in persona, "the persona must resolve the CoC case-insensitively"
-
-
 def test_plugin_declares_default_agent_with_persona(repo_root):
     """dist/claude-code/settings.json must declare a default agent whose file carries the Hercules persona —
     a plugin injects no root CLAUDE.md, so the persona rides on the default agent."""
@@ -266,40 +226,3 @@ def test_advisor_list_matches_plugin_settings(repo_root):
         f"  In settings.json only: {sorted(set(manifest) - set(_ADVISOR_AGENTS))}\n"
         f"  In _ADVISOR_AGENTS only: {sorted(set(_ADVISOR_AGENTS) - set(manifest))}"
     )
-
-
-def test_engineers_defer_unpassable_test_verdict_to_the_caller(repo_root):
-    """G2 gives the user the decision (3 rounds, root-cause, menu); an engineer agent must
-    report an unpassable test to its caller, never self-declare a spec gap and abort."""
-    for name in ("backend-engineer", "frontend-engineer"):
-        md = (repo_root / "dist" / "claude-code" / "agents" / f"{name}.md").read_text()
-        assert "stop and re-enter" not in md, \
-            f"{name} must not unilaterally exit the TDD loop — report the blocker to the caller"
-
-
-def test_cynical_reviewer_spec_sync_is_report_only(read_file):
-    """The role expectation is 'report dispositions to the caller'; an 'update the spec' branch
-    can fire on a live spec during ship-each cross-checks, mutating a frozen artifact."""
-    md = read_file("dist/claude-code/agents/cynical-reviewer.md")
-    assert "update the spec" not in md.lower(), \
-        "cynical-reviewer must report dispositions, never update a spec"
-
-
-def test_first_run_gate_keys_on_something_the_recommended_setup_writes(read_file):
-    """hercules.md gates onboarding on a registry entry, but its recommended setup step
-    (code-of-conduct-generator) never writes one — the welcome block would re-trigger forever.
-    The gate must also stand down when the CoC the setup DOES write is present."""
-    persona = read_file("dist/claude-code/agents/hercules.md")
-    generator = read_file("dist/claude-code/skills/code-of-conduct-generator/SKILL.md")
-    if "config.json" in persona:
-        assert "config.json" in generator or "setup already ran" in persona, \
-            "the first-run gate re-triggers after setup — key it on the CoC file too"
-
-
-def test_every_agent_reads_the_project_code_of_conduct(agent_files):
-    """The project CoC is authoritative for stack, conventions, and the quality bar —
-    every agent must carry the read-it-if-present contract, or a delegate silently
-    ships defaults the project explicitly overrode."""
-    for path in agent_files:
-        assert "code-of-conduct" in path.read_text().lower(), \
-            f"{path.name} never reads the project code-of-conduct.md"

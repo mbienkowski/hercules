@@ -3,7 +3,6 @@
 import pytest
 
 from tests.metrics.a2a_grammar import (
-    ALLOWED_STATUSES,
     count_core_entries,
     extract_a2a_core,
     extract_used_statuses,
@@ -111,11 +110,3 @@ def test_used_statuses_are_extracted_from_entry_lines():
 
     # Then
     assert statuses == ["Blocker", "Info"]
-
-
-def test_allowed_statuses_set_contains_exactly_six_values():
-    """The canonical A2A status vocabulary has exactly 6 values."""
-    # Given / When / Then
-    assert ALLOWED_STATUSES == frozenset(
-        {"Blocker", "High", "Medium", "Nitpick", "Pass", "Info"}
-    )

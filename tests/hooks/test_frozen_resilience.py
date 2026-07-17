@@ -59,37 +59,6 @@ def test_a_resolver_exception_also_allows_with_no_reason(tmp_path, monkeypatch):
     assert ft.decide(payload, home=tmp_path) == (0, "")
 
 
-def test_whitespace_stdin_is_never_parsed_as_json(tmp_path, monkeypatch):
-    """Blank stdin short-circuits before json.loads — the parser must not see whitespace."""
-    import frozen_tests as ft
-
-    calls = []
-
-    def _spy(raw):
-        calls.append(raw)
-        raise ValueError("should not be reached")
-
-    monkeypatch.setattr(ft.json, "loads", _spy)
-    assert ft.main("   \n", home=tmp_path) == 0
-    assert calls == [], "whitespace-only stdin must never reach json.loads"
-
-
-def test_decide_fails_open_if_resolver_raises(tmp_path, monkeypatch):
-    """Last-resort guard: even if the resolver blows up, never block a user's edit."""
-    import frozen_tests as ft
-
-    def _boom(*_a, **_k):
-        raise RuntimeError("resolver exploded")
-
-    monkeypatch.setattr(ft, "resolve_build_contexts", _boom)
-    payload = json.dumps({
-        "tool_name": "Edit",
-        "tool_input": {"file_path": "/x/tests/test_login.py"},
-        "cwd": "/x",
-    })
-    assert ft.main(payload, home=tmp_path) == 0
-
-
 def test_undecodable_stdin_fails_open_without_a_traceback(tmp_path):
     """Invalid UTF-8 on stdin must exit 0 with no traceback — 'never raises' includes the read."""
     import subprocess

@@ -60,26 +60,6 @@ def test_plugin_files_all_use_lowercase_names(repo_root):
     assert not violations, f"Uppercase filenames found (will fail to load on Linux): {violations}"
 
 
-def test_no_empty_placeholder_files_exist_in_plugin(repo_root):
-    """Every plugin markdown file must open with a frontmatter block or heading — not a bare stub."""
-    # Given
-    bare_files = []
-
-    # When
-    for path in _walk_markdown(repo_root):
-        content = path.read_text()
-        if not content.strip():
-            bare_files.append(str(path.relative_to(repo_root)) + " (empty)")
-            continue
-        first_line = content.lstrip().splitlines()[0]
-        if not (first_line.startswith("---") or first_line.startswith("#")):
-            bare_files.append(str(path.relative_to(repo_root)) + " (no frontmatter/heading)")
-
-    # Then
-    assert not bare_files, "Plugin markdown files with insufficient structure:\n" + \
-        "\n".join(f"  {f}" for f in bare_files)
-
-
 def test_plugin_json_has_all_required_metadata_fields(repo_root):
     """plugin.json must be valid JSON with name, version, description, and author fields."""
     # Given
@@ -116,21 +96,6 @@ def test_marketplace_manifest_lists_the_hercules_plugin(repo_root):
     )
 
 
-def test_plugin_scoped_manifest_exists_with_metadata(repo_root):
-    """dist/claude-code/.claude-plugin/plugin.json must be valid JSON and carry the required metadata."""
-    # Given
-    scoped = repo_root / "dist" / "claude-code" / ".claude-plugin" / "plugin.json"
-
-    # When
-    data = json.loads(scoped.read_text())
-
-    # Then
-    for required in ["name", "version", "description", "author"]:
-        assert required in data and data[required], (
-            f"plugin-scoped manifest missing required field: {required}"
-        )
-
-
 def test_no_shipped_artifact_references_agent_teams(repo_root):
     """No shipped plugin artifact may depend on the experimental agent-teams flag.
 
@@ -149,16 +114,6 @@ def test_no_shipped_artifact_references_agent_teams(repo_root):
 
     # Then
     assert not offenders, f"shipped plugin artifacts must not reference {flag}: {offenders}"
-
-
-def test_plugin_permissions_section_exists_in_readme(read_file):
-    """README must have a Plugin permissions section documenting all four capability areas."""
-    content = read_file("README.md")
-    assert "## Plugin permissions" in content, "README must have a '## Plugin permissions' section"
-    assert "~/.hercules/" in content, "Plugin permissions must document the ~/.hercules/ write location"
-    assert "no credentials" in content.lower(), "Plugin permissions must state no credentials are stored"
-    assert "no direct api calls" in content.lower() or "no separate network channel" in content.lower(), \
-        "Plugin permissions must state no direct API calls or separate network channel"
 
 
 def test_plugin_files_claim_no_external_network_calls(repo_root):

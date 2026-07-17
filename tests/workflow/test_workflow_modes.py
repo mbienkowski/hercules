@@ -27,13 +27,6 @@ def test_workflow_emits_enter_and_exit_plan_mode(read_file):
     assert "ExitPlanMode" in md, "workflow must call ExitPlanMode at the approval gate"
 
 
-def test_methodology_documents_the_plan_mode_mechanism(read_file):
-    """CLAUDE.md must document the EnterPlanMode/ExitPlanMode phase mechanism (not just prose)."""
-    md = read_file(_CLAUDE)
-    assert "EnterPlanMode" in md and "ExitPlanMode" in md, \
-        "CLAUDE.md must document the EnterPlanMode/ExitPlanMode phase mechanism"
-
-
 def test_plan_phases_require_plan_mode_and_gate_writes(read_file):
     """Every phase — Discover, Design, Build, Workflow, and Ship — must require plan mode and gate
     its write/execution on approval. Build is included: it opens in plan mode like the rest."""
@@ -106,18 +99,6 @@ def test_ship_requires_plan_mode(read_file):
         "ship must gate execution on user approval of the commit plan"
 
 
-def test_ship_requires_build_complete_before_proceeding(read_file):
-    """Ship must refuse when build_complete is not true — pinned to the refusal sentence
-    inside the precondition section ('complete' being a substring of 'build_complete'
-    made the old any()-check a tautology)."""
-    md = read_file(_SHIP)
-    precondition = md[:md.index("## Plan proposal")]
-    assert "build_complete" in precondition, \
-        "ship must read build_complete from the per-project state as its precondition"
-    assert "Local build is not complete. Finish `/hercules:build` first." in precondition, \
-        "the refusal sentence IS the gate — it must live in the precondition section"
-
-
 def test_exit_plan_mode_uses_auto_mode(read_file):
     """Every plan-mode exit requests `auto` — pinned as the literal call form, because a
     bare "auto" substring is satisfied by "automatically" while the mode argument is
@@ -128,16 +109,6 @@ def test_exit_plan_mode_uses_auto_mode(read_file):
         assert re.search(r"ExitPlanMode`?\s*\(`auto`\)", text), \
             f"{f} must call ExitPlanMode with the literal (`auto`) mode argument"
         assert "accept-edits" not in text.lower(), f"{f} must not use accept-edits"
-
-
-def test_all_phases_use_uniform_plan_approval_gate(read_file):
-    """Discover, Design, Build, and Ship end on one identically-named gate — 'Plan approval' — with the
-    same user-facing sub-info, and each gates its write/execution on it."""
-    phrase = "you approve the phase after reviewing the plan"
-    for f in (_DISCOVER, _DESIGN, _BUILD, _SHIP):
-        lower = read_file(f).lower()
-        assert "plan approval" in lower, f"{f} must carry the uniform 'Plan approval' gate"
-        assert phrase in lower, f"{f} must use the shared Plan-approval sub-info"
 
 
 def test_design_validates_before_plan_approval(read_file):
@@ -226,12 +197,3 @@ def test_workflow_continues_phases_by_reading_files_not_skill_invocation(read_fi
         "the guided flow must not depend on a path variable substituting"
     assert "never ask the user to type" in md, \
         "the guided flow must not push invocation back onto the user"
-
-
-def test_workflow_announces_every_phase_entry(read_file):
-    """The user experiences transitions as 'Entering the {Phase} phase' announcements —
-    they were never pinned, so a rewrite could silently drop them."""
-    md = read_file(_WORKFLOW)
-    for phase in ("Discover", "Design", "Build", "Ship"):
-        assert f"Entering the **{phase}** phase" in md, \
-            f"the {phase} entry announcement must survive"

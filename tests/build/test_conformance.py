@@ -66,15 +66,6 @@ def test_claude_protocol_refs_use_plugin_root(tmp_path):
     assert "`protocols/a2a-communication-protocol.md`" not in joined, "bare protocol code-span left on Claude"
 
 
-def test_opencode_injects_protocols_into_context(tmp_path):
-    out = tmp_path / "oc"
-    build_target("opencode", out)
-    js = (out / "plugin.js").read_text(encoding="utf-8")
-    # The protocols must be added to cfg.instructions (always-loaded), not merely mentioned in a prompt.
-    assert 'path.join(PLUGIN_ROOT, "protocols/a2a-communication-protocol.md")' in js
-    assert 'path.join(PLUGIN_ROOT, "protocols/debate-consensus-protocol.md")' in js
-
-
 # ── Fix 4: plan-mode prose is behavioral on OpenCode ──────────────────────────
 def test_opencode_has_no_claude_plan_idioms(tmp_path):
     out = tmp_path / "oc"

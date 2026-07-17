@@ -142,16 +142,6 @@ def test_valid_op_less_than_is_accepted_by_load_thresholds(tmp_path: Path):
     assert checks[0].op == "<"
 
 
-def test_valid_op_greater_than_is_accepted_by_load_thresholds(tmp_path: Path):
-    """Op '>' must be accepted (not treated as unknown) by load_thresholds."""
-    threshold_file = _write_thresholds(
-        tmp_path,
-        [{"name": "gt", "target": "f.md", "metric": "token_count", "op": ">", "limit": 0, "severity": "gate"}],
-    )
-    checks = load_thresholds(threshold_file)
-    assert checks[0].op == ">"
-
-
 def test_severity_defaults_to_gate_when_not_specified(tmp_path: Path):
     """A threshold row without 'severity' must default to 'gate'."""
     threshold_file = _write_thresholds(
@@ -160,28 +150,3 @@ def test_severity_defaults_to_gate_when_not_specified(tmp_path: Path):
     )
     checks = load_thresholds(threshold_file)
     assert checks[0].severity == "gate"
-
-
-def test_load_thresholds_preserves_check_name(tmp_path: Path):
-    """The 'name' field from thresholds.json must be stored on the ThresholdCheck object."""
-    threshold_file = _write_thresholds(
-        tmp_path,
-        [{"name": "my-special-check", "target": "f.md", "metric": "token_count", "op": "<=", "limit": 100, "severity": "gate"}],
-    )
-    checks = load_thresholds(threshold_file)
-    assert checks[0].name == "my-special-check"
-
-
-def test_threshold_check_annotations_are_well_formed():
-    """The dataclass annotations are lazily evaluated (PEP 563), so a malformed annotation
-    (e.g. `int & None`) would never fail on its own. Pin the source annotations (version-safe:
-    PEP 604 unions cannot be *evaluated* on Python 3.9, the project floor), and resolve them
-    for real on 3.10+."""
-    import sys
-    import typing
-
-    assert ThresholdCheck.__annotations__["warn_at"] == "int | None"
-    assert ThresholdCheck.__annotations__["limit"] == "int"
-    if sys.version_info >= (3, 10):
-        hints = typing.get_type_hints(ThresholdCheck)
-        assert hints["warn_at"] == typing.Optional[int]

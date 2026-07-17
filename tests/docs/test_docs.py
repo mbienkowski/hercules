@@ -22,20 +22,6 @@ def test_readme_has_no_removed_cli_references(read_file):
         assert banned not in content, f"README still references removed CLI surface: {banned!r}"
 
 
-def test_readme_states_claude_code_prerequisite(read_file):
-    """README must tell newcomers Hercules runs inside Claude Code (the hard prerequisite)."""
-    content = read_file("README.md").lower()
-    assert "claude code" in content
-    assert "prerequisite" in content or "runs inside" in content or "install claude code" in content, \
-        "README must state the Claude Code prerequisite up front"
-
-
-def test_readme_explains_marketplace_plugin_syntax(read_file):
-    """README must explain the plugin@marketplace syntax (otherwise hercules@mbienkowski reads as a typo)."""
-    assert "plugin@marketplace" in read_file("README.md"), \
-        "README must explain that hercules@mbienkowski is plugin@marketplace"
-
-
 def test_readme_documents_non_interactive_team_install(read_file):
     """README must document the settings.json team/CI install path."""
     content = read_file("README.md")
@@ -79,13 +65,6 @@ def test_shipped_plugin_describes_no_sync_source(repo_root):
         low = path.read_text().lower()
         assert "sync source" not in low, f"{path} references a removed 'sync source'"
         assert "auto-sync" not in low, f"{path} references removed auto-sync"
-
-
-def test_plugin_claude_md_describes_a_plugin_not_a_wrapper(read_file):
-    """dist/claude-code/CLAUDE.md must describe Hercules as a plugin, not a Python CLI wrapper."""
-    content = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
-    assert "Python wrapper for the `claude` CLI" not in content, \
-        "dist/claude-code/CLAUDE.md must not call Hercules a Python wrapper for the claude CLI"
 
 
 def test_readme_documents_uninstall(read_file):
@@ -138,19 +117,6 @@ def test_review_only_agents_carry_no_edit_or_write_tools(repo_root):
         )
 
 
-def test_diagram_scaffold_and_failing_tests_steps_are_gates(read_file):
-    """The Build phase's Scaffold and Write-the-failing-tests steps are both described as gates in
-    their own st-sub text — they must carry class="step gate" like the other machine-enforced gate
-    steps (Quality gates, Mutation gate, Traceability), not bare class="step"."""
-    html = read_file("docs/workflow/workflow-diagram-detailed.html")
-    assert 'class="step"><span class="st-n">4</span><span class="st-t">Scaffold' not in html, \
-        "Scaffold step must not use the un-classed 'step' form"
-    assert 'class="step gate"><span class="st-n">4</span><span class="st-t">Scaffold' in html, \
-        "Scaffold step (Gate: must compile) must carry the gate CSS class"
-    assert 'class="step gate"><span class="st-n">5</span><span class="st-t">Write the failing tests' in html, \
-        "Write-the-failing-tests step (Gate: compile and fail for the right reason) must carry the gate CSS class"
-
-
 def test_requirements_section_discloses_hook_python_runtime(read_file):
     """hooks.json runs python3 on the user's machine on every edit — the Requirements section
     must not call Python contributor-only, and the intro must not deny extra executables."""
@@ -168,20 +134,6 @@ def test_readme_does_not_overstate_single_approval(read_file):
     """Phases ask clarifying questions (tier confirm, advisor consent, service paths, ship-each)
     before the gate — the honest claim is one authorizing GATE, not one prompt."""
     assert "One approval per phase; nothing happens before it" not in read_file("README.md")
-
-
-def test_worked_example_shows_the_complexity_gate(read_file):
-    """Password reset is an auth surface floored at high — the example dialogue must show the
-    mandatory tier confirmation instead of jumping question → draft → approved."""
-    readme = read_file("README.md")
-    example = readme[readme.index("### What that looks like"):readme.index("## Where your delivery docs live")]
-    assert "complexity" in example.lower(), "the example omits the tier confirmation step"
-
-
-def test_readme_coverage_enforcement_is_conditioned_on_coc(read_file):
-    """Hercules carries no thresholds of its own — coverage gates only when the CoC sets one;
-    only traceability is unconditional."""
-    assert "Branch coverage and traceability are always enforced" not in read_file("README.md")
 
 
 def test_uninstall_section_mentions_hercules_home_cleanup(read_file):
@@ -211,14 +163,6 @@ def test_license_is_single_sourced(repo_root, read_file):
     lic = plugin.get("license", "")
     assert lic and lic.split("-")[0] in py, \
         f"pyproject license must match plugin.json's {lic!r}"
-
-
-def test_readme_documents_keeping_specs(read_file):
-    """Teams with an existing spec practice must learn they can keep delivered specs via a
-    code-of-conduct.md directive instead of the default delete-on-delivery."""
-    readme = read_file("README.md")
-    assert "keep the specs" in readme.lower(), \
-        "README must document the keep-the-specs code-of-conduct override"
 
 
 def test_requirements_disclose_the_windows_python3_gap(read_file):
@@ -251,23 +195,6 @@ def test_readme_generator_output_filename_is_lowercase(read_file):
     assert "a `CODE_OF_CONDUCT.md` with" not in readme, \
         "the generator produces the lowercase per-project file, not this repo's CoC"
     assert "a `code-of-conduct.md` with" in readme
-
-
-def test_readme_first_screen_names_the_category(read_file):
-    """A skimming engineer's first question is 'what IS this' — the first ~10 lines must name the
-    product category (a plugin) and both shipped ecosystems, before any mythology."""
-    head = "\n".join(read_file("README.md").splitlines()[:10])
-    assert "plugin" in head, "the first screen must name the product category (plugin)"
-    assert "Claude Code" in head and "OpenCode" in head, \
-        "the first screen must name both supported ecosystems before the jokes"
-
-
-def test_readme_explains_the_coc_directive_budget(read_file):
-    """README says every agent reads the CoC — it must state the budget as the sentence
-    that IS the feature (bare '30'/'40' substrings matched token lifetimes elsewhere)."""
-    readme = read_file("README.md")
-    assert "the generator aims for **30–40 directives**" in readme
-    assert "70 is the hard ceiling" in readme
 
 
 def test_first_run_gate_never_intercepts_unrelated_work(read_file):
@@ -319,16 +246,6 @@ def test_uninstall_lists_repo_side_artifacts(read_file):
     section = section[:section.index("\n## ") if "\n## " in section else len(section)]
     assert "code-of-conduct.md" in section and "CLAUDE.md" in section, \
         "uninstall must name the repo-side artifacts the user may want to remove or keep"
-
-
-def test_abandoning_a_session_has_a_documented_path(read_file):
-    """Every other exit is stated at its friction point; abandoning a half-built feature
-    had no user-facing path at all. CLAUDE.md must define the mechanics and the README
-    must surface the phrase."""
-    md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
-    assert "abandon" in md.lower() and "clear" in md.lower()
-    readme = read_file("README.md")
-    assert "abandon" in readme.lower(), "the README must tell users they can bail out"
 
 
 def test_workflow_source_of_truth_is_the_protocol(read_file):

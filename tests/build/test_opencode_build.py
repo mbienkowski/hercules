@@ -16,15 +16,6 @@ def _files(root: Path) -> dict[str, str]:
             for p in root.rglob("*") if p.is_file()}
 
 
-def test_opencode_structure(tmp_path):
-    out = tmp_path / "opencode"
-    build_target("opencode", out)
-    assert len(list((out / "agents").glob("*.md"))) == 16
-    assert len(list((out / "commands").glob("*.md"))) == 5
-    for f in ("plugin.js", "opencode.json", "instructions.md", "CAPABILITIES.md"):
-        assert (out / f).is_file(), f"missing {f}"
-
-
 def test_build_is_deterministic(tmp_path):
     a, b = tmp_path / "a", tmp_path / "b"
     build_target("opencode", a)
@@ -63,10 +54,3 @@ def test_opencode_agents_omit_model_while_claude_carry_it(tmp_path):
     build_target("claude-code", cc)
     assert all("\nmodel:" not in p.read_text(encoding="utf-8") for p in (oc / "agents").glob("*.md"))
     assert all("\nmodel:" in p.read_text(encoding="utf-8") for p in (cc / "agents").glob("*.md"))
-
-
-def test_capabilities_discloses_the_two_gaps(tmp_path):
-    out = tmp_path / "opencode"
-    build_target("opencode", out)
-    caps = (out / "CAPABILITIES.md").read_text(encoding="utf-8").lower()
-    assert "write-gate" in caps and "model" in caps

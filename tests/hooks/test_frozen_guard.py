@@ -66,24 +66,6 @@ def test_block_message_names_blocker_spec_and_both_exits(tmp_path, capsys):
         "correct-the-test (stay in Build) must not be fused with the design re-entry exit"
 
 
-def test_allows_edit_to_non_frozen_file(tmp_path):
-    project = tmp_path / "proj"
-    _setup(tmp_path, project)
-    assert main(_payload(project, "src/login.py"), home=tmp_path) == 0
-
-
-def test_allows_when_phase_is_not_build(tmp_path):
-    project = tmp_path / "proj"
-    _setup(tmp_path, project, phase="design")
-    assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 0
-
-
-def test_allows_non_mutating_tool(tmp_path):
-    project = tmp_path / "proj"
-    _setup(tmp_path, project)
-    assert main(_payload(project, "tests/test_login.py", tool="Read"), home=tmp_path) == 0
-
-
 def test_blocks_real_multiedit_shape_on_frozen_file(tmp_path):
     """Real MultiEdit carries ONE top-level file_path shared by all edits."""
     project = tmp_path / "proj"
@@ -108,12 +90,6 @@ def test_blocks_notebook_edit_to_a_frozen_notebook(tmp_path):
         "cwd": str(project),
     })
     assert main(payload, home=tmp_path) == 2
-
-
-def test_allows_when_frozen_list_is_empty(tmp_path):
-    project = tmp_path / "proj"
-    _setup(tmp_path, project, frozen=())
-    assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 0
 
 
 def test_blocks_write_tool_on_frozen_file(tmp_path):

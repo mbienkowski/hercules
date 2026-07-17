@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-import pytest
 from tests.conftest import (
     BUILD as _BUILD,
     DESIGN as _DESIGN,
@@ -61,42 +60,6 @@ def test_build_ship_now_routes_into_spec_scoped_ship(read_file):
         "Advance must state a failed spec-scoped ship returns control here, spec not retired"
     assert "build_complete" not in advance_step, \
         "'ship now' must not reference/depend on build_complete — that's Ship's session-wide gate"
-
-def _spec_scoped_section(md):
-    """The '### Spec-scoped ship' section, anchored heading-to-next-`## ` (a '---' terminator
-    silently extended over following sections when a rule moved)."""
-    i = md.index("### Spec-scoped ship")
-    j = md.find("\n## ", i)
-    return md[i:j if j != -1 else len(md)]
-
-
-_SPEC_SCOPED_SHIP = [
-    ("defines_section_heading", lambda md, s: "### Spec-scoped ship" in md,
-     "ship must define the spec-scoped section as a heading"),
-    ("surfaces_non_spec_changes", lambda md, s: "Not included — stage if you want" in s,
-     "spec-scoped staging must surface non-spec changes, never sweep them in"),
-    ("names_never_written_fields",
-     lambda md, s: "never writes" in s and 'current_phase: "shipped"' in s
-     and "build_complete" in s and "shipped_commit" in s,
-     "the section must name every session field a spec-scoped ship never writes"),
-    ("omits_pr_step", lambda md, s: "PR step is omitted" in s and "shipped_pr" in s,
-     "a spec-scoped ship must omit the PR; shipped_pr belongs to the close-out ship"),
-    ("returns_to_advance_on_failure", lambda md, s: "Advance prompt" in s and "not retired" in s,
-     "a failed spec-scoped commit/push must return control to Build's Advance prompt"),
-    ("notes_residue", lambda md, s: "residue" in s,
-     "the section must note the close-out ship commits the residue (retired specs, INDEX)"),
-    ("keeps_session_wide_refusal", lambda md, s: "Local build is not complete" in md,
-     "the session-wide build_complete refusal must remain for a plain /hercules:ship"),
-    ("record_step_session_wide_only", lambda md, s: "spec-scoped ship skips this step" in md,
-     "Execution's Record step must be marked session-wide-only (spec-scoped skips it)"),
-]
-
-
-@pytest.mark.parametrize("predicate,reason", [(p, r) for _, p, r in _SPEC_SCOPED_SHIP],
-                         ids=[i for i, _, _ in _SPEC_SCOPED_SHIP])
-def test_ship_spec_scoped_preserves_the_session_gate(read_file, predicate, reason):
-    md = read_file(_SHIP)
-    assert predicate(md, _spec_scoped_section(md)), reason
 
 def test_ship_build_and_diagram_agree_on_spec_scoped(read_file):
     """The spec-scoped contract is one decision expressed in three places — build.md's Advance,

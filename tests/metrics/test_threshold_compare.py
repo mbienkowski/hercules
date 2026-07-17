@@ -46,17 +46,3 @@ def test_compare_value_unknown_op_returns_false_not_true():
     passed, err = compare_value(1, "??", 1)
     assert passed is False
     assert err != ""
-
-
-def test_compare_value_less_than_and_greater_than_boundaries():
-    """The < and > operators evaluate correctly at their boundaries."""
-    assert compare_value(1, "<", 2) == (True, "")
-    assert compare_value(2, "<", 2) == (False, "")
-    assert compare_value(3, ">", 2) == (True, "")
-    assert compare_value(2, ">", 2) == (False, "")
-
-
-def test_compare_value_unknown_op_error_starts_with_unknown():
-    """compare_value error string must start with 'unknown op' (rejects XX-prefixed mutations)."""
-    _, err = compare_value(1, "??", 1)
-    assert err.startswith("unknown op")

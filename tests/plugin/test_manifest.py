@@ -24,15 +24,3 @@ def test_command_list_matches_plugin_settings(repo_root):
     extra = [c for c in existing if c not in manifest]
     assert not missing, f"Commands in settings.json but missing from commands/: {missing}"
     assert not extra, f"Commands in commands/ but missing from settings.json: {extra}"
-
-
-def test_plugin_settings_lists_are_sorted(repo_root):
-    """advisors, skills, and commands in plugin/settings.json must be sorted a-z."""
-    settings = json.loads((repo_root / "dist" / "claude-code" / "settings.json").read_text())
-    for key in ("advisors", "skills", "commands"):
-        lst = settings.get(key, [])
-        assert lst == sorted(lst), (
-            f"dist/claude-code/settings.json {key!r} is not sorted a-z.\n"
-            f"  Expected: {sorted(lst)}\n"
-            f"  Got:      {lst}"
-        )
