@@ -418,7 +418,8 @@ Read [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) first — it defines the rules f
 agents, and skills, plus how to run the tests.
 
 1. Fork and create a branch (use hyphens, no slashes)
-2. Add or edit files in `plugin/commands/`, `plugin/agents/`, or `plugin/skills/`
+2. Add or edit files in `src/content/commands/`, `src/content/agents/`, or `src/content/skills/`, then
+   run `make build` to regenerate `dist/` (never edit `dist/` by hand)
 3. Test the plugin locally: add **your local checkout** as a marketplace —
    `/plugin marketplace add /path/to/your/checkout`. Its `marketplace.json` declares the name
    `mbienkowski`, so `/plugin install hercules@mbienkowski` then resolves to **your checkout**. If
@@ -472,7 +473,7 @@ When you're done, remove the entry and restart again to go back to the released 
 ## Plugin permissions
 
 Hercules is mostly Markdown — commands, agents, and skills — interpreted by Claude Code, plus a small
-set of local enforcement **hooks** (`plugin/hooks/*.py`, dependency-free standard-library Python). What
+set of local enforcement **hooks** (`src/targets/claude-code/hooks/*.py`, dependency-free standard-library Python). What
 it can do is exactly what Claude Code can do in your session:
 
 - **Project files** — reads your project files to understand context; writes to `docs/` (or wherever
@@ -496,7 +497,7 @@ it can do is exactly what Claude Code can do in your session:
 - **Network** — none. All model calls go through your existing Claude Code session and API key.
   Hercules makes no direct API calls and opens no separate network channel — hooks included.
 
-You can audit the full plugin source in the `plugin/` directory of this repository.
+You can audit the full plugin source in the `src/` directory of this repository (built plugins land in `dist/`).
 
 ---
 
