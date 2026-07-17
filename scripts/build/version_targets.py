@@ -11,9 +11,14 @@ import re
 from pathlib import Path
 
 # (relative path, format) — the format selects the write/read regex pair below.
+# Every entry must be a build *source*, never a build *output*: ``cli.build_target`` regenerates
+# ``dist/`` from ``src/`` on each build, so versioning a ``dist/`` file would be silently reverted on
+# the next rebuild (and fail the drift gate). The Claude manifest is therefore versioned at its
+# source ``src/targets/claude-code/plugin.json`` — the file the build copies into
+# ``dist/claude-code/.claude-plugin/plugin.json``.
 VERSION_TARGETS: list[tuple[str, str]] = [
     ("pyproject.toml", "toml"),
-    ("dist/claude-code/.claude-plugin/plugin.json", "json"),
+    ("src/targets/claude-code/plugin.json", "json"),
     ("package.json", "json"),
 ]
 

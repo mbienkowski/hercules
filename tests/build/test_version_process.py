@@ -7,6 +7,7 @@ Frozen for spec-05-ci-release-integration.
 """
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -23,6 +24,7 @@ from scripts.set_version import set_version
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CI = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+RELEASE = (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
 
 
 # ── The canonical version list: writer + reader pinned at both ends ──────────
@@ -68,6 +70,51 @@ def test_committed_manifests_agree_at_the_default_root(monkeypatch):
     monkeypatch.chdir(REPO_ROOT)
     check_in_sync()  # no root arg → Path(".")
     assert len(set(read_versions().values())) == 1
+
+
+def test_write_version_raises_when_a_version_line_is_missing(tmp_path):
+    # If a canonical file has no version line, the bump fails loudly rather than silently no-op.
+    _seed(tmp_path, "0.1.0")
+    rel = VERSION_TARGETS[0][0]
+    (tmp_path / rel).write_text('[project]\nname = "hercules"\n', encoding="utf-8")  # strip version
+    with pytest.raises(SystemExit):
+        write_version("1.0.0", tmp_path)
+
+
+# ── B1: the versioned Claude manifest must be a build SOURCE, not a build OUTPUT ──
+def test_versioned_claude_manifest_is_the_build_source_not_output(tmp_path):
+    """A release bump must survive the next rebuild.
+
+    Regression: ``VERSION_TARGETS`` used to name the *built* ``dist/claude-code/.claude-plugin/
+    plugin.json``, which ``build_target`` overwrites from ``src/`` on every build — so a release
+    bump was silently reverted on the next rebuild (and then failed the drift gate). The versioned
+    Claude manifest must be the *source* file the build copies FROM.
+    """
+    version_paths = [rel for rel, _ in VERSION_TARGETS]
+    assert "src/targets/claude-code/plugin.json" in version_paths
+    assert not any(rel.startswith("dist/") for rel in version_paths), (
+        "a build OUTPUT must never be a version target — it is regenerated from src on every build"
+    )
+    # Behavioural: the version in the (source) target file is exactly what a fresh build emits.
+    src_version = read_versions(REPO_ROOT)["src/targets/claude-code/plugin.json"]
+    out = tmp_path / "claude-code"
+    cli.build_target("claude-code", out)
+    built = json.loads((out / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    assert built["version"] == src_version
+
+
+def test_release_rebuilds_dist_after_version_bump_and_stages_it():
+    """release.yml must rebuild dist/ AFTER bumping the (source) version and stage it in the commit.
+
+    Without the rebuild, the committed/published dist/ keeps the old version and the drift gate
+    fails on the next unrelated push. (Companion to B1's version_targets change.)
+    """
+    set_idx = RELEASE.find("set_version.py")
+    build_idx = RELEASE.find("scripts.build.cli")
+    assert set_idx != -1, "release must bump the version via set_version.py"
+    assert build_idx != -1, "release must rebuild dist/ (python -m scripts.build.cli)"
+    assert build_idx > set_idx, "the dist/ rebuild must run AFTER the version bump"
+    assert re.search(r"git add[^\n]*\bdist\b", RELEASE), "release must stage dist/ in the bump commit"
 
 
 # ── CI job graph invariants (build precedes test/validate) ───────────────────
