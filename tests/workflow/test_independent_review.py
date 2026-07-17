@@ -4,6 +4,8 @@ producing session. Pins the swap so a green suite can't hide a lingering self-re
 
 Read against dist/claude-code (the reference tree; build-check keeps opencode consistent).
 """
+from __future__ import annotations
+
 import re
 from pathlib import Path
 

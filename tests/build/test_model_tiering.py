@@ -2,6 +2,8 @@
 
 Frozen for spec-02-claude-code-target.
 """
+from __future__ import annotations
+
 import json
 import re
 from pathlib import Path

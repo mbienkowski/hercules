@@ -5,6 +5,8 @@ reader (CI ``validate``), and the drift/determinism gates can never silently dis
 
 Frozen for spec-05-ci-release-integration.
 """
+from __future__ import annotations
+
 import re
 from pathlib import Path
 
