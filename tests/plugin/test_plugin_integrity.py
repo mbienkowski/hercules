@@ -145,6 +145,11 @@ def test_plugin_only_external_write_location_is_hercules_dir(repo_root, read_fil
         f"{set(home_writes) - {'~/.hercules/'}}"
     )
 
+    assert "no credentials" in perms_section, \
+        "Plugin permissions must state no credentials are stored"
+    assert "no direct api calls" in perms_section or "no separate network channel" in perms_section, \
+        "Plugin permissions must state no direct API calls or separate network channel"
+
 
 def test_agent_frontmatter_name_uses_only_lowercase_characters(repo_root, agent_files):
     """Agent frontmatter `name:` values must be lowercase (used as URL-safe identifiers)."""

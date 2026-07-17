@@ -155,6 +155,16 @@ def test_mutation_gates_behind_both_quick_checks():
         "mutation must need both test and validate"
 
 
+def test_ci_has_an_untracked_dist_guard_step():
+    # dist/ must be tracked, not silently git-ignored (a tag would then snapshot an empty tree).
+    # Anchored to the named step, not a bare "porcelain"/"dist" substring search over the whole
+    # file, so an unrelated line elsewhere in the workflow can't false-satisfy this.
+    m = re.search(r"Untracked-dist guard.*?\n((?:.+\n)+?)\n", CI)
+    assert m, "CI must have an 'Untracked-dist guard' step"
+    assert "git status --porcelain" in m.group(1) and "dist" in m.group(1), \
+        "the untracked-dist guard step must actually check git status on dist/"
+
+
 # ── Determinism: two builds are byte-identical ───────────────────────────────
 def _files(root: Path) -> dict[str, str]:
     return {p.relative_to(root).as_posix(): p.read_text(encoding="utf-8")

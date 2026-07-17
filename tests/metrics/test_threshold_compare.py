@@ -42,7 +42,8 @@ def test_compare_value_operator_boundaries(value, op, limit, expected):
 
 
 def test_compare_value_unknown_op_returns_false_not_true():
-    """compare_value with unknown op must return (False, err) — not (True, err)."""
+    """compare_value with unknown op must return (False, err) — not (True, err) — and the
+    error must name the actual unrecognized op, not just be non-empty."""
     passed, err = compare_value(1, "??", 1)
     assert passed is False
-    assert err != ""
+    assert err.startswith("unknown op")

@@ -2,7 +2,6 @@
 
 Frozen for spec-02-claude-code-target.
 """
-import filecmp
 import os
 from pathlib import Path
 
@@ -14,26 +13,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PLUGIN = REPO_ROOT / "dist" / "claude-code"
 
 
-def _diff(a: Path, b: Path, ignore=("__pycache__",)) -> list[str]:
-    """Relative paths that differ between *a* and *b*, compared by CONTENT (``shallow=False``)."""
-    def _rel_files(root: Path) -> set[str]:
-        return {
-            p.relative_to(root).as_posix()
-            for p in root.rglob("*")
-            if p.is_file() and not any(part in ignore for part in p.parts) and not p.name.endswith(".pyc")
-        }
-    a_files, b_files = _rel_files(a), _rel_files(b)
-    out = sorted(a_files ^ b_files)
-    out += [rel for rel in sorted(a_files & b_files)
-            if not filecmp.cmp(a / rel, b / rel, shallow=False)]
-    return out
-
-
 @pytest.mark.skipif(not PLUGIN.exists(), reason="dist/claude-code/ retired (post-cutover)")
 def test_claude_code_matches_plugin_byte_identical(tmp_path):
     out = tmp_path / "claude-code"
     build_target("claude-code", out)
-    diffs = _diff(PLUGIN, out)
+    diffs = _dir_diff(PLUGIN, out)
     assert diffs == [], f"dist/claude-code drifts from plugin/: {diffs}"
 
 
