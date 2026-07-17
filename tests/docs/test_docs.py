@@ -112,7 +112,7 @@ def test_readme_discloses_the_enforcement_hooks_honestly(read_file):
     content = read_file("README.md")
     low = content.lower()
     assert "no executable code of its own" not in low, \
-        "README must not claim the plugin has no executable code — it ships plugin/hooks/*.py"
+        "README must not claim the plugin has no executable code — it ships src/targets/claude-code/hooks/*.py"
     assert "hook" in low, "README 'Plugin permissions' must disclose the enforcement hooks"
     assert "pretooluse" in low, "README must name the PreToolUse hook surface"
     # The three safety properties a reader relies on before trusting a shipped hook:
@@ -332,7 +332,7 @@ def test_abandoning_a_session_has_a_documented_path(read_file):
 
 
 def test_workflow_source_of_truth_is_the_protocol(read_file):
-    """The workflow's source of truth is plugin/protocols/workflow-protocol.md — NOT the commands
+    """The workflow's source of truth is dist/claude-code/protocols/workflow-protocol.md — NOT the commands
     or CLAUDE.md. This exact inversion shipped twice in the CoC; this product pin guards the
     concept (which file owns the workflow) so a third re-inversion fails CI. It is scoped to the
     inverted phrasing, so legitimate 'source of truth' mentions about code/state still pass."""

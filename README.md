@@ -106,7 +106,7 @@ governance. This file merges with any existing Claude Code settings — it does 
 <details>
 <summary><b>OpenCode</b></summary>
 
-Hercules also works in [OpenCode](https://opencode.ai). **Install from the GitHub repo** — add it to your `opencode.json`:
+Hercules also works in [OpenCode](https://opencode.ai). **The canonical install is from the GitHub repo** — add it to your `opencode.json`:
 
 ```json
 {
@@ -114,7 +114,22 @@ Hercules also works in [OpenCode](https://opencode.ai). **Install from the GitHu
 }
 ```
 
+OpenCode resolves the package via its `package.json` `main` (`dist/opencode/plugin.js`) and runs the `config` hook that registers the agents, commands, and instructions.
+
 Then restart OpenCode. Hercules becomes the default agent and the `/hercules:*` commands (`/hercules:discover`, `/hercules:design`, `/hercules:build`, `/hercules:ship`, `/hercules:workflow`) are available.
+
+<details>
+<summary><i>Alternative: npm</i></summary>
+
+The plugin is also published to npm as `hercules` (published automatically on release when an `NPM_TOKEN` is configured). If you prefer npm, install it and reference the package name:
+
+```json
+{
+  "plugin": ["hercules"]
+}
+```
+
+</details>
 
 </details>
 

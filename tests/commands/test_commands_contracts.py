@@ -27,7 +27,7 @@ def test_documentation_lists_exactly_the_commands_that_exist(repo_root, read_fil
     for name in doc_commands:
         cmd_file = repo_root / "dist" / "claude-code" / "commands" / f"{name}.md"
         assert cmd_file.exists(), (
-            f"CLAUDE.md names /hercules:{name} but plugin/commands/{name}.md does not exist"
+            f"CLAUDE.md names /hercules:{name} but dist/claude-code/commands/{name}.md does not exist"
         )
 
     for step_file in [_DISCOVER, _DESIGN, _BUILD]:

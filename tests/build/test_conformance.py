@@ -4,6 +4,7 @@ Two ecosystem-specialist audits (vs current Claude Code + OpenCode docs / v1.18.
 runtime-misfiring content defects. These tests pin each fix so it can't regress.
 """
 from pathlib import Path
+import re
 
 from scripts.build.cli import build_target
 
@@ -80,7 +81,12 @@ def test_opencode_has_no_claude_plan_idioms(tmp_path):
     build_target("opencode", out)
     joined = "\n".join(_files(out).values())
     assert "(`auto`)" not in joined, "Claude ExitPlanMode '(auto)' leaked into OpenCode"
-    assert "call `plan mode`" not in joined.lower(), "non-existent OpenCode 'plan mode' call"
+    # Tighter anchor: the Claude idiom is "call `EnterPlanMode`" / "call `ExitPlanMode`" — a bare
+    # "call `plan mode`" (case-insensitive) is a non-existent OpenCode tool call. Match the specific
+    # "call" + backticked "plan mode" phrase rather than lowercasing the whole tree, which would
+    # also flag innocent prose that happens to contain those two words apart.
+    assert not re.search(r"call\s+`plan mode`", joined, re.IGNORECASE), \
+        "non-existent OpenCode 'plan mode' tool call"
     assert "`approval`" not in joined, "non-existent OpenCode 'approval' tool"
 
 

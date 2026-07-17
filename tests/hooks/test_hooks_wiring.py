@@ -1,7 +1,7 @@
 """Structural wiring tests for the plugin's hooks manifest.
 
-`plugin/hooks/hooks.json` auto-loads by convention at the plugin root (no plugin.json key
-needed). These tests pin that it is valid, registers the frozen-tests guard on the mutating
+`src/targets/claude-code/hooks/hooks.json` auto-loads by convention at the plugin root (no plugin.json
+key needed). These tests pin that it is valid, registers the frozen-tests guard on the mutating
 tools, and that every referenced command path resolves to a real script under the package —
 a hooks.json that points at a missing script is a dead guard.
 """
@@ -52,7 +52,7 @@ def test_frozen_guard_uses_exec_form(hooks):
 
 
 def test_every_hook_script_has_a_test():
-    """Every shipped `plugin/hooks/*.py` must be exercised by a test under `tests/hooks/` — the CoC
+    """Every shipped `src/targets/claude-code/hooks/*.py` must be exercised by a test under `tests/hooks/` — the CoC
     invariant 'every shipped artifact has an owning test', enforced for hook code specifically."""
     scripts = {p.stem for p in (_PLUGIN / "hooks").glob("*.py")}
     tests_src = " ".join(

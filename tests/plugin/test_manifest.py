@@ -1,4 +1,4 @@
-"""Tests that verify plugin/settings.json structure and stays in sync with the filesystem."""
+"""Tests that verify dist/claude-code/settings.json structure and stays in sync with the filesystem."""
 
 import json
 
@@ -16,7 +16,7 @@ def test_plugin_settings_has_required_keys(repo_root):
 
 
 def test_command_list_matches_plugin_settings(repo_root):
-    """dist/claude-code/settings.json commands[] must match files in plugin/commands/."""
+    """dist/claude-code/settings.json commands[] must match files in dist/claude-code/commands/."""
     existing = {p.stem for p in (repo_root / "dist" / "claude-code" / "commands").glob("*.md")}
     settings = json.loads((repo_root / "dist" / "claude-code" / "settings.json").read_text())
     manifest = settings.get("commands", [])
