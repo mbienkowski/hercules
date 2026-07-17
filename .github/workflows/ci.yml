@@ -85,7 +85,7 @@ jobs:
         env:
           TIKTOKEN_CACHE_DIR: /home/runner/.cache/tiktoken
 
-  # ── Mutation testing — every commit on PR branches (+ main), after tests ────
+  # ── Mutation testing — every commit on PR branches (+ main), after the quick gates ────
   # Runs mutmut against the pure build layer (scripts/build/*) + hooks + tests/metrics/ and gates on a 90% kill rate. Runs on the
   # pull_request event (every commit pushed to a branch with an open PR) and on
   # main pushes (post-merge) — so feature-branch commits without a PR don't
@@ -93,7 +93,10 @@ jobs:
   # separately by release.yml on every merge to main.
   mutation:
     name: Mutation
-    needs: [test]
+    # Gate the expensive (~40 min) job behind BOTH quick gates — a red test or a red
+    # validate stops it before it burns minutes, and release (which needs the whole
+    # workflow green) is unaffected.
+    needs: [test, validate]
     if: >-
       github.event_name == 'pull_request' ||
       github.ref == 'refs/heads/main'

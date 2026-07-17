@@ -147,6 +147,14 @@ def test_build_precedes_test_and_validate():
     assert "build" in jobs.get("validate", []), "validate must run after build"
 
 
+def test_mutation_gates_behind_both_quick_checks():
+    # The expensive (~40 min) mutation job must wait for BOTH quick gates, so a red test or a red
+    # validate stops it before it burns minutes.
+    jobs = _job_needs(CI)
+    assert {"test", "validate"} <= set(jobs.get("mutation", [])), \
+        "mutation must need both test and validate"
+
+
 def test_ci_guards_against_untracked_dist():
     assert "git status --porcelain" in CI and "dist" in CI, "CI must guard against untracked dist/"
 
