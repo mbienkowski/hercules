@@ -1,0 +1,110 @@
+name: Nightly ecosystem smoke (@latest)
+
+# The blocking smoke in ci.yml pins each CLI to a verified version so a transient upstream break
+# can't red the merge pipeline. This nightly runs the SAME smokes against each CLI's @latest so a
+# real upstream regression — or our pins going stale (Dependabot can't bump CLI pins in smoke.json)
+# — is surfaced as a VISIBLE, non-blocking signal instead of rotting silently. It reports; it does
+# not gate. A red run here means "investigate whether to bump the pin in src/targets/<eco>/smoke.json
+# or file an upstream bug", not "block a merge".
+on:
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC daily
+  workflow_dispatch: # allow a manual run from the Actions tab
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Same registry-driven discovery as ci.yml, so adding an ecosystem auto-extends the nightly too.
+  discover:
+    name: Discover ecosystems
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - id: matrix
+        name: Assemble the ecosystem smoke matrix from src/targets/*/smoke.json
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import glob, json, sys
+          legs = []
+          for path in sorted(glob.glob("src/targets/*/smoke.json")):
+              cfg = json.load(open(path))
+              legs.append({
+                  "target": path.split("/")[2],
+                  "npm_package": cfg["npm_package"],
+                  "cli": cfg["cli"],
+                  "test": cfg["test"],
+              })
+          if not legs:
+              sys.exit("no src/targets/*/smoke.json ecosystems discovered")
+          print("matrix=" + json.dumps({"include": legs}))
+          PY
+
+  smoke-latest:
+    name: Smoke @latest — ${{ matrix.target }}
+    needs: [discover]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Install Python dependencies
+        run: pip install -e ".[dev]"
+
+      # @latest on purpose — the whole point is to catch a newer CLI that breaks the shipped plugin.
+      - name: Install ${{ matrix.cli }}@latest
+        env:
+          NPM_PACKAGE: ${{ matrix.npm_package }}
+          CLI: ${{ matrix.cli }}
+        run: |
+          npm install -g "$NPM_PACKAGE@latest"
+          "$CLI" --version
+
+      - name: Run ${{ matrix.target }} smoke against @latest
+        env:
+          TEST: ${{ matrix.test }}
+          TARGET: ${{ matrix.target }}
+          DISABLE_AUTOUPDATER: "1"
+          CLAUDE_CODE_ENABLE_TELEMETRY: "0"
+        run: |
+          pytest "$TEST" -v -rs 2>&1 | tee "smoke-latest-$TARGET.txt"
+          grep -qE '[0-9]+ passed' "smoke-latest-$TARGET.txt" || {
+            echo "::error::$TARGET @latest smoke produced no passing checks — the real CLI must run"
+            exit 1
+          }
+
+      - name: Annotate a red nightly
+        if: failure()
+        env:
+          TARGET: ${{ matrix.target }}
+          CLI: ${{ matrix.cli }}
+        run: |
+          echo "::warning::$TARGET smoke FAILED against $CLI@latest while the pinned version in src/targets/$TARGET/smoke.json still passes CI. Either $CLI shipped a breaking change (file upstream / adapt the plugin) or the pin is simply stale (bump it). Non-blocking — this nightly never gates a merge."
+
+      - name: Upload @latest smoke results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: smoke-latest-${{ matrix.target }}
+          path: smoke-latest-${{ matrix.target }}.txt

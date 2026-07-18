@@ -235,7 +235,16 @@ jobs:
           TARGET: ${{ matrix.target }}
           DISABLE_AUTOUPDATER: "1"
           CLAUDE_CODE_ENABLE_TELEMETRY: "0"
-        run: pytest "$TEST" -v -rs 2>&1 | tee "smoke-results-$TARGET.txt"
+        run: |
+          pytest "$TEST" -v -rs 2>&1 | tee "smoke-results-$TARGET.txt"
+          # Fail CLOSED if the gate silently degraded to all-skipped: the CLI install above ends in
+          # `$CLI --version` (so an absent binary already fails the job), but this makes the gate
+          # self-contained — a real run reports "N passed"; an all-skipped run reports only
+          # "N skipped", and would otherwise exit 0 and read as a green gate that checked nothing.
+          grep -qE '[0-9]+ passed' "smoke-results-$TARGET.txt" || {
+            echo "::error::$TARGET smoke produced no passing checks (all skipped?) — the real CLI must run in CI, the gate did not actually load the plugin"
+            exit 1
+          }
 
       - name: Annotate a red run
         if: failure()
