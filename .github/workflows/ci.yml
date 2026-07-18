@@ -2,13 +2,16 @@ name: CI
 
 # Two triggers, two meanings — not a duplicate: a push run tests the BRANCH TIP on every
 # commit (instant feedback, PR or not), a pull_request run tests the MERGE PREVIEW (the
-# branch merged into main — catches conflict-adjacent breakage the tip can't show).
+# branch merged into its PR base — catches conflict-adjacent breakage the tip can't show).
+# Deliberately NOT restricted to `branches: [main]`: this repo stacks PRs (feature -> feature
+# -> main), and a merge-preview check is exactly as valuable at an intermediate stack level as
+# it is at the final one — restricting it to main-based PRs would silently skip pull_request-
+# gated jobs (mutation, smoke) on every stacked PR, which is most of them.
 # The expensive mutation job stays gated to pull_request/main below.
 on:
   push:
     branches: ["**"]
   pull_request:
-    branches: [main]
 
 # Cancel in-progress runs for the same branch/PR.
 concurrency:
