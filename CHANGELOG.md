@@ -1,3 +1,9 @@
+## v1.7.0 (2026-07-18)
+
+* feat: release 1.7.0 — universal multi-ecosystem plugin + release-gate hardening (#19)
+* fix(release): invoke set_version as a module so the 1.7.0 release can run (#18)
+* Universal plugin: author once in src/, compile per-ecosystem to dist/ (Claude Code + OpenCode) (#12)
+
 ## v1.6.0 (2026-07-08)
 
 * feat(coc): state the single-match branch in code-of-conduct resolution (#10)
