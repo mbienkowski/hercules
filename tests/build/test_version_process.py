@@ -134,6 +134,23 @@ def test_the_release_process_rebuilds_and_commits_the_output_after_bumping_the_v
     assert re.search(r"git add[^\n]*\bdist\b", RELEASE), "release must stage dist/ in the bump commit"
 
 
+def test_release_acts_only_on_the_ci_validated_commit():
+    """The release runs on a ``workflow_run`` event, whose checkout resolves to main's CURRENT tip
+    -- which can advance past the commit whose CI actually passed. Releasing that unvalidated tree
+    would defeat the green-CI gate. Guard the fix so it cannot silently regress: the release job
+    must EITHER pin the checkout ref to ``github.event.workflow_run.head_sha``, OR contain a step
+    that compares ``git rev-parse HEAD`` to that sha and exits non-zero on mismatch."""
+    head_sha = "github.event.workflow_run.head_sha"
+    pinned = f"ref: ${{{{ {head_sha} }}}}" in RELEASE
+    guarded = ("rev-parse HEAD" in RELEASE) and (head_sha in RELEASE) and ("exit 1" in RELEASE)
+    assert pinned or guarded, (
+        "release must act only on the CI-validated commit: pin the checkout ref to "
+        "${{ github.event.workflow_run.head_sha }}, or add a step comparing `git rev-parse HEAD` "
+        "to that sha that exits non-zero on mismatch (workflow_run checks out the branch tip, "
+        "which can advance past the validated commit)"
+    )
+
+
 # ── CI job graph invariants (build precedes test/validate) ───────────────────
 def _job_needs(text: str) -> dict[str, list[str]]:
     """Parse ``jobs.<name>.needs`` from a workflow (inline ``needs: [a, b]`` form)."""
