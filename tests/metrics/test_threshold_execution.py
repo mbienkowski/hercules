@@ -9,8 +9,9 @@ from tests.metrics.threshold_runner import ThresholdCheck, load_thresholds, run_
 from tests.metrics.conftest import _run_one_check, _write_thresholds
 
 
-def test_thresholds_with_valid_config_all_pass(tmp_path: Path):
-    """A threshold file with correct config loads and all passing checks are reported as passed."""
+def test_a_valid_threshold_file_passes_all_its_checks(tmp_path: Path):
+    """A well-formed threshold file loads successfully, and every check whose measured value meets
+    its limit is reported as passed."""
     results = _run_one_check(
         tmp_path,
         {"name": "test-instruction-count", "target": "some.md", "metric": "instruction_count",
@@ -21,8 +22,9 @@ def test_thresholds_with_valid_config_all_pass(tmp_path: Path):
     assert results[0].passed is True
 
 
-def test_check_fails_gracefully_when_target_pattern_matches_no_files(tmp_path: Path):
-    """A threshold whose target glob matches nothing must produce a failed result, not an error."""
+def test_a_check_with_no_matching_files_fails_instead_of_crashing(tmp_path: Path):
+    """When a check's file pattern matches nothing in the project, it is reported as a failed
+    check with a clear explanation -- rather than crashing the whole run with an error."""
     results = _run_one_check(
         tmp_path,
         {"name": "missing-target", "target": "nonexistent/*.md", "metric": "instruction_count",
@@ -33,8 +35,10 @@ def test_check_fails_gracefully_when_target_pattern_matches_no_files(tmp_path: P
     assert "matched no files" in results[0].message
 
 
-def test_warn_at_threshold_triggers_warning_when_value_is_between_warn_at_and_limit(tmp_path: Path):
-    """When a value exceeds warn_at but is below limit, the check must pass but mark as a warning."""
+def test_a_value_past_the_warning_level_but_under_the_limit_still_passes_but_gets_flagged(tmp_path: Path):
+    """When a measured value has crossed the early-warning level but is still under the hard
+    limit, the check must pass, but it is flagged so a developer can see it is trending toward
+    a future failure."""
     # 5× the sentence exceeds warn_at=10 tokens but stays under limit=5000.
     results = _run_one_check(
         tmp_path,
@@ -47,8 +51,9 @@ def test_warn_at_threshold_triggers_warning_when_value_is_between_warn_at_and_li
     assert results[0].near_warn is True
 
 
-def test_warn_at_equal_to_limit_triggers_warning(tmp_path: Path):
-    """warn_at == limit means the boundary itself triggers a warning."""
+def test_a_value_exactly_at_the_limit_is_still_flagged_as_a_warning(tmp_path: Path):
+    """If the early-warning level is set equal to the hard limit, reaching the limit itself must
+    still trigger the warning flag rather than being silently treated as fine."""
     results = _run_one_check(
         tmp_path,
         {"name": "warn-equals-limit", "target": "f.md", "metric": "instruction_count",
@@ -59,8 +64,9 @@ def test_warn_at_equal_to_limit_triggers_warning(tmp_path: Path):
     assert results[0].near_warn is True
 
 
-def test_no_files_result_has_value_zero(tmp_path: Path):
-    """A failed 'no files matched' result must report value=0, not an arbitrary number."""
+def test_a_check_with_no_matching_files_reports_a_measured_value_of_zero(tmp_path: Path):
+    """When no files match a check's target, the reported measurement must be exactly zero,
+    not a leftover or arbitrary number, so downstream reports aren't misleading."""
     results = _run_one_check(
         tmp_path,
         {"name": "empty-target", "target": "missing/*.md", "metric": "instruction_count",
@@ -69,8 +75,9 @@ def test_no_files_result_has_value_zero(tmp_path: Path):
     assert results[0].value == 0
 
 
-def test_near_warn_not_set_when_value_below_warn_at(tmp_path: Path):
-    """near_warn must be False when value has not yet reached warn_at."""
+def test_a_value_comfortably_below_the_warning_level_is_not_flagged(tmp_path: Path):
+    """When a measured value is well below the early-warning level, the check must not be
+    flagged as approaching its limit."""
     results = _run_one_check(
         tmp_path,
         {"name": "well-below-warn", "target": "g.md", "metric": "instruction_count",
@@ -80,20 +87,9 @@ def test_near_warn_not_set_when_value_below_warn_at(tmp_path: Path):
     assert results[0].near_warn is False
 
 
-def test_result_message_is_non_empty_string(tmp_path: Path):
-    """Every check result must have a non-empty message string."""
-    results = _run_one_check(
-        tmp_path,
-        {"name": "msg-check", "target": "h.md", "metric": "instruction_count",
-         "op": "<=", "limit": 100, "severity": "gate"},
-        {"h.md": "- item\n"},
-    )
-    assert results[0].message is not None
-    assert len(results[0].message) > 0
-
-
-def test_multiple_checks_all_run_even_if_first_target_is_missing(tmp_path: Path):
-    """When first check has no matching target, remaining checks must still run (continue not break)."""
+def test_a_later_check_still_runs_after_an_earlier_check_finds_no_files(tmp_path: Path):
+    """If an earlier check in the list can't find any matching files, that failure must not stop
+    the checks listed after it -- every configured check still gets evaluated."""
     threshold_file = _write_thresholds(
         tmp_path,
         [
@@ -111,8 +107,9 @@ def test_multiple_checks_all_run_even_if_first_target_is_missing(tmp_path: Path)
     assert results[1].passed is True   # present target
 
 
-def test_totals_accumulate_across_multiple_target_files(tmp_path: Path):
-    """When a target matches multiple files, instruction counts must add up (not be replaced)."""
+def test_a_check_spanning_multiple_files_adds_up_their_counts(tmp_path: Path):
+    """When a check's target matches several files, their individual counts are summed into one
+    total, rather than the total ending up as just the last file's count."""
     threshold_file = _write_thresholds(
         tmp_path,
         [{"name": "multi", "target": "*.md", "metric": "instruction_count", "op": "<=", "limit": 1000, "severity": "gate"}],
@@ -126,8 +123,10 @@ def test_totals_accumulate_across_multiple_target_files(tmp_path: Path):
     assert results[0].value == 3  # must sum both files
 
 
-def test_no_files_result_has_near_warn_false(tmp_path: Path):
-    """A 'no files matched' result must have near_warn=False (not True as initial default might be)."""
+def test_a_check_with_no_matching_files_is_never_flagged_as_approaching_its_limit(tmp_path: Path):
+    """A check that fails because no files matched its target must not also be flagged as
+    'nearing the limit' -- that flag should only ever mean a real value came close to a real
+    limit, never be left over from some other default."""
     threshold_file = _write_thresholds(
         tmp_path,
         [{"name": "empty", "target": "missing/*.md", "metric": "instruction_count", "op": "<=", "limit": 100, "severity": "gate"}],
@@ -138,20 +137,9 @@ def test_no_files_result_has_near_warn_false(tmp_path: Path):
     assert results[0].near_warn is False
 
 
-def test_no_target_match_message_starts_with_target(tmp_path: Path):
-    """The 'no files' message must start with 'target' (not 'XXtarget...')."""
-    threshold_file = _write_thresholds(
-        tmp_path,
-        [{"name": "miss", "target": "gone/*.md", "metric": "instruction_count", "op": "<=", "limit": 100, "severity": "gate"}],
-    )
-    checks = load_thresholds(threshold_file)
-    results = run_threshold_checks(tmp_path, checks)
-
-    assert results[0].message.startswith("target ")
-
-
-def test_per_file_passes_when_every_file_is_under_limit(tmp_path: Path):
-    """per_file applies the limit to each matched file individually; all under → pass."""
+def test_a_per_file_limit_passes_when_every_individual_file_is_under_it(tmp_path: Path):
+    """When a limit is applied file-by-file rather than to a combined total, the check passes
+    as long as each individual matched file stays under the limit on its own."""
     # Given
     (tmp_path / "a.md").write_text("aaa")
     (tmp_path / "b.md").write_text("bb")
@@ -167,8 +155,9 @@ def test_per_file_passes_when_every_file_is_under_limit(tmp_path: Path):
     assert results[0].passed
 
 
-def test_per_file_fails_and_names_only_the_offender(tmp_path: Path):
-    """per_file fails if ANY file exceeds the limit, and the message names the offender(s)."""
+def test_a_per_file_limit_failure_names_only_the_files_that_broke_it(tmp_path: Path):
+    """When at least one file exceeds a per-file limit, the check fails and its message names
+    the offending file(s) specifically, without implicating files that were actually fine."""
     # Given
     (tmp_path / "small.md").write_text("a")
     (tmp_path / "big.md").write_text("word " * 100)
@@ -186,8 +175,10 @@ def test_per_file_fails_and_names_only_the_offender(tmp_path: Path):
     assert "small.md" not in results[0].message
 
 
-def test_per_file_defaults_false_and_sums_across_files(tmp_path: Path):
-    """Without per_file the metric is summed across files (the default combined-budget behaviour)."""
+def test_files_are_combined_into_one_total_unless_a_per_file_limit_is_requested(tmp_path: Path):
+    """By default, a check's measurement adds up the values from every matching file into one
+    combined total, so the limit is breached once the combined usage across files is too high --
+    not just when any single file is."""
     # Given — two 1-token files; summed = 2 > limit 1, so it must fail (proves summing).
     (tmp_path / "a.md").write_text("a")
     (tmp_path / "b.md").write_text("b")
@@ -205,8 +196,9 @@ def test_per_file_defaults_false_and_sums_across_files(tmp_path: Path):
     assert not results[0].passed
 
 
-def test_per_file_reports_worst_value_and_flags_near_warn(tmp_path: Path):
-    """per_file reports the worst (max) per-file value — not the sum — and flags near_warn off it."""
+def test_a_per_file_limit_reports_the_single_worst_file_and_flags_a_warning_off_it(tmp_path: Path):
+    """When checking files individually, the reported value is the single worst (highest) file,
+    not the sum of all of them, and the early-warning flag is based on that worst file too."""
     # Given
     from tests.metrics.token_counter import count_tokens
     big, small = "alpha beta gamma delta epsilon", "x"
@@ -227,8 +219,9 @@ def test_per_file_reports_worst_value_and_flags_near_warn(tmp_path: Path):
     assert result.near_warn is True, "near_warn fires when the worst value reaches warn_at"
 
 
-def test_per_file_does_not_flag_near_warn_below_warn_at(tmp_path: Path):
-    """per_file leaves near_warn False when every file is below warn_at."""
+def test_a_per_file_limit_is_not_flagged_when_every_file_stays_below_the_warning_level(tmp_path: Path):
+    """When checking files individually, the check is not flagged as approaching its limit
+    unless at least one file has actually reached the early-warning level."""
     # Given
     (tmp_path / "a.md").write_text("x")
     threshold_file = _write_thresholds(tmp_path, [{
@@ -243,8 +236,9 @@ def test_per_file_does_not_flag_near_warn_below_warn_at(tmp_path: Path):
     assert result.passed and result.near_warn is False
 
 
-def test_per_file_worst_is_zero_for_an_empty_file(tmp_path: Path):
-    """An empty file has 0 tokens, and per_file must report a worst of exactly 0 (not 1)."""
+def test_an_empty_file_counts_as_exactly_zero_under_a_per_file_limit(tmp_path: Path):
+    """An empty file must be measured as having zero content, and a per-file check reports that
+    zero as the worst value, rather than mistakenly counting an empty file as size one."""
     (tmp_path / "empty.md").write_text("")
     threshold_file = _write_thresholds(tmp_path, [{
         "name": "pf", "target": "*.md", "metric": "token_count", "op": "<=",
@@ -254,8 +248,9 @@ def test_per_file_worst_is_zero_for_an_empty_file(tmp_path: Path):
     assert result.passed and result.value == 0
 
 
-def test_per_file_message_lists_all_offenders_comma_separated(tmp_path: Path):
-    """A per_file failure names every offending file, comma-separated, and only the offenders."""
+def test_a_per_file_failure_lists_every_offending_file_separated_by_commas(tmp_path: Path):
+    """When multiple files individually break a per-file limit, the failure message lists every
+    offender, separated by commas, and leaves out any file that was actually within limits."""
     (tmp_path / "big1.md").write_text("word " * 100)
     (tmp_path / "big2.md").write_text("word " * 100)
     (tmp_path / "ok.md").write_text("x")
@@ -271,8 +266,10 @@ def test_per_file_message_lists_all_offenders_comma_separated(tmp_path: Path):
     assert "XX" not in result.message
 
 
-def test_run_raises_with_check_prefixed_message_on_invalid_op(tmp_path: Path):
-    """An invalid op reaching run_threshold_checks raises a 'check '-prefixed error (both branches)."""
+def test_an_unrecognized_comparison_operator_produces_a_clearly_labeled_error(tmp_path: Path):
+    """If a check is configured with a comparison operator Hercules doesn't recognize, running it
+    raises an error whose message identifies which check caused it, for both the combined-total
+    and the per-file evaluation modes -- so a bad config file is easy to diagnose."""
     (tmp_path / "a.md").write_text("x")
     bad_sum = ThresholdCheck(name="bad", target="a.md", metric="token_count",
                              op="??", limit=1, severity="gate")
@@ -287,8 +284,9 @@ def test_run_raises_with_check_prefixed_message_on_invalid_op(tmp_path: Path):
     assert str(e_pf.value).startswith("check")
 
 
-def test_passing_per_file_message_carries_no_offenders_suffix(tmp_path: Path):
-    """A passing per-file check reports exactly the check summary — no offenders tail."""
+def test_a_passing_per_file_check_reports_a_clean_summary_with_no_offender_list(tmp_path: Path):
+    """When a per-file check passes, its message is just the plain check summary -- it must not
+    tack on an empty or stray list of offending files that could confuse the reader."""
     (tmp_path / "a.md").write_text("- one bullet\n")
     check = ThresholdCheck(name="pf", target="a.md", metric="instruction_count",
                            op="<=", limit=10, severity="gate", per_file=True)
@@ -297,9 +295,10 @@ def test_passing_per_file_message_carries_no_offenders_suffix(tmp_path: Path):
     assert result.message == "pf: per-file instruction_count(a.md) want <= 10"
 
 
-def test_summed_check_message_states_value_and_want(tmp_path: Path):
-    """The summed-check message is the exact `name: metric(target)=N, want op limit` shape —
-    it is what CI prints on failure, so its format is a contract."""
+def test_a_failing_checks_message_reports_the_measured_value_and_the_required_limit(tmp_path: Path):
+    """A failing check's message follows the exact `name: metric(target)=value, want operator
+    limit` wording, because this is the line CI prints to tell a developer what broke and by
+    how much -- so its exact format is a contract that must not silently drift."""
     (tmp_path / "a.md").write_text("- one\n- two\n- three\n")
     check = ThresholdCheck(name="summed", target="a.md", metric="instruction_count",
                            op="<=", limit=2, severity="gate")

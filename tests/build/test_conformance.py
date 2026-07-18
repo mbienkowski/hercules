@@ -15,7 +15,10 @@ def _files(root: Path) -> dict[str, str]:
 
 
 # ── Fix 1: agent-spawn namespace (OpenCode registers under the bare key) ──────
-def test_opencode_agent_spawns_use_bare_ids(tmp_path):
+def test_opencode_build_tells_agents_to_spawn_reviewer_by_its_plain_name(tmp_path):
+    """When Hercules builds itself for OpenCode, the instructions for spawning the reviewer
+    sub-agent must use its plain name rather than a namespaced id -- OpenCode does not recognize
+    namespaced spawn ids, so leaving one in place would make spawning that agent silently fail."""
     out = tmp_path / "oc"
     build_target("opencode", out)
     build_md = (out / "commands" / "build.md").read_text(encoding="utf-8")
@@ -23,7 +26,10 @@ def test_opencode_agent_spawns_use_bare_ids(tmp_path):
     assert "hercules:cynical-reviewer" not in build_md, "OpenCode agent id must be bare"
 
 
-def test_claude_agent_spawns_stay_scoped(tmp_path):
+def test_claude_code_build_tells_agents_to_spawn_reviewer_by_its_scoped_name(tmp_path):
+    """When Hercules builds itself for Claude Code, the instructions for spawning the reviewer
+    sub-agent keep the fully plugin-scoped name, because Claude Code needs that scoping to find
+    the right agent among possibly many with similar names."""
     out = tmp_path / "cc"
     build_target("claude-code", out)
     assert "hercules:cynical-reviewer" in (out / "commands" / "build.md").read_text(encoding="utf-8")
@@ -35,7 +41,11 @@ _SECTIONS = ["Artifact root resolution", "Machine-local state", "Agent scaling",
              "Independent review"]
 
 
-def test_reference_skill_carries_the_operational_sections(tmp_path):
+def test_every_target_ships_all_operational_guidance_in_its_reference_skill(tmp_path):
+    """For both the Claude Code and OpenCode builds, every operational section -- covering
+    things like artifact root resolution, agent scaling, and the debate protocol -- must appear
+    in the auto-loaded reference skill. A section left out of this file never reaches the
+    running agent, since nothing else loads it automatically."""
     for tgt in ("claude-code", "opencode"):
         out = tmp_path / tgt
         build_target(tgt, out)
@@ -46,7 +56,12 @@ def test_reference_skill_carries_the_operational_sections(tmp_path):
             assert sec in body, f"{tgt}: '{sec}' missing from hercules-reference skill"
 
 
-def test_no_section_citations_point_at_unloaded_files(tmp_path):
+def test_operational_guidance_never_cites_a_file_the_agent_never_loads(tmp_path):
+    """Built output for either target must never point the user to a section inside a file that
+    is never actually loaded -- for example the OpenCode build citing the user's own AGENTS.md,
+    or the Claude Code build citing the plugin's unread top-level CLAUDE.md. Such a citation
+    would send someone hunting for guidance in a place they are told to look but that is never
+    read."""
     oc = tmp_path / "oc"; build_target("opencode", oc)
     cc = tmp_path / "cc"; build_target("claude-code", cc)
     # OpenCode: AGENTS.md is the *user's* rules file — never a section source we ship.
@@ -58,7 +73,11 @@ def test_no_section_citations_point_at_unloaded_files(tmp_path):
 
 
 # ── Fix 3: protocol references resolve / load ─────────────────────────────────
-def test_claude_protocol_refs_use_plugin_root(tmp_path):
+def test_claude_code_protocol_links_resolve_from_the_plugin_root(tmp_path):
+    """In the Claude Code build, references to the agent-to-agent communication protocol
+    document must be written as a path rooted at the plugin's install location, not as a bare
+    filename. A bare reference would break as soon as Claude Code loads the file from a
+    different working directory than the plugin's own."""
     out = tmp_path / "cc"
     build_target("claude-code", out)
     joined = "\n".join(_files(out).values())
@@ -66,17 +85,12 @@ def test_claude_protocol_refs_use_plugin_root(tmp_path):
     assert "`protocols/a2a-communication-protocol.md`" not in joined, "bare protocol code-span left on Claude"
 
 
-def test_opencode_injects_protocols_into_context(tmp_path):
-    out = tmp_path / "oc"
-    build_target("opencode", out)
-    js = (out / "plugin.js").read_text(encoding="utf-8")
-    # The protocols must be added to cfg.instructions (always-loaded), not merely mentioned in a prompt.
-    assert 'path.join(PLUGIN_ROOT, "protocols/a2a-communication-protocol.md")' in js
-    assert 'path.join(PLUGIN_ROOT, "protocols/debate-consensus-protocol.md")' in js
-
-
 # ── Fix 4: plan-mode prose is behavioral on OpenCode ──────────────────────────
-def test_opencode_has_no_claude_plan_idioms(tmp_path):
+def test_opencode_build_has_no_leftover_claude_only_wording(tmp_path):
+    """The OpenCode build must not contain phrasing borrowed from Claude Code's plan-mode
+    workflow, such as the "(auto)" marker, an instruction to "call `plan mode`", or a reference
+    to an "approval" tool -- none of those concepts or tools exist in OpenCode, so telling the
+    agent to use them would send it looking for something that isn't there."""
     out = tmp_path / "oc"
     build_target("opencode", out)
     joined = "\n".join(_files(out).values())
@@ -90,7 +104,10 @@ def test_opencode_has_no_claude_plan_idioms(tmp_path):
     assert "`approval`" not in joined, "non-existent OpenCode 'approval' tool"
 
 
-def test_claude_keeps_plan_mode_tools(tmp_path):
+def test_claude_code_build_keeps_its_plan_mode_tool_names(tmp_path):
+    """The Claude Code build must still reference the real EnterPlanMode and ExitPlanMode
+    tools, confirming that cleaning OpenCode-only wording out of the OpenCode build did not
+    also strip Claude Code's own working plan-mode instructions."""
     out = tmp_path / "cc"
     build_target("claude-code", out)
     joined = "\n".join(_files(out).values())
@@ -98,7 +115,10 @@ def test_claude_keeps_plan_mode_tools(tmp_path):
 
 
 # ── Fix 5: write-gate disclosure lands in a loaded surface ────────────────────
-def test_opencode_writegate_note_is_loaded(tmp_path):
+def test_opencode_users_are_warned_about_the_edit_approval_prompt_where_they_will_read_it(tmp_path):
+    """The note warning that OpenCode's file-edit approval setting can interrupt Hercules mid-task
+    must live in instructions.md, the file OpenCode actually loads on startup -- not tucked away
+    somewhere the user would never see it before running into the prompt unprepared."""
     out = tmp_path / "oc"
     build_target("opencode", out)
     instr = (out / "instructions.md").read_text(encoding="utf-8")

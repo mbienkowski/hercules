@@ -9,10 +9,17 @@ from scripts.build.cli import main
 from scripts.build.layout import discover_sources
 
 
-def test_check_runs_and_reports_in_sync_on_empty_tree():
+def test_check_command_reports_in_sync_when_project_has_no_content_yet():
+    """Running the build's "--check" command on a brand-new project -- one with no
+    built output and no source content yet -- must report everything as already
+    in sync (a clean success) instead of failing, so setting up a new project
+    doesn't start with a false alarm."""
     # No dist/ committed yet and the src/content scaffold is empty → in sync (exit 0).
     assert main(["--target", "claude-code", "--check"]) == 0
 
 
-def test_discover_sources_missing_dir_is_empty():
+def test_scanning_a_missing_content_folder_finds_no_sources_without_erroring():
+    """If the folder where source content is supposed to live doesn't exist on disk,
+    scanning for content must simply report that there is none, rather than crashing --
+    so a fresh checkout or a not-yet-created content directory doesn't break the build."""
     assert discover_sources(Path("/no/such/content/root")) == []

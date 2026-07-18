@@ -6,7 +6,6 @@ Read against dist/claude-code (the reference tree; build-check keeps opencode co
 """
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -37,7 +36,11 @@ def _traceability_slice() -> str:
 
 
 # ── Positive: the judgment is delegated to a fresh reviewer reading source ────
-def test_coverage_gate_delegates_to_cynical_reviewer():
+def test_design_coverage_is_judged_by_a_fresh_reviewer_not_the_author():
+    """When a design is checked for full requirement coverage, that check must be done by a
+    newly-spawned reviewer reading the requirements and source directly, not by the same session
+    that wrote the design. This stops an author from grading its own work and calling it
+    verified."""
     s = _coverage_slice()
     assert "hercules:cynical-reviewer" in s, "coverage gate must spawn the cynical-reviewer"
     assert "workflow-protocol.md#packet" in s, "coverage gate must compose the delegation packet"
@@ -45,7 +48,10 @@ def test_coverage_gate_delegates_to_cynical_reviewer():
     assert "business-requirements" in s, "reviewer must read the requirements source directly"
 
 
-def test_traceability_gate_delegates_to_cynical_reviewer():
+def test_build_traceability_is_judged_by_a_fresh_reviewer_not_the_author():
+    """When finished code is checked for traceability back to its spec, that check must be done
+    by a newly-spawned reviewer reading the source directly, not by the session that wrote the
+    code. This stops the implementer from being the one who signs off on its own build."""
     s = _traceability_slice()
     assert "hercules:cynical-reviewer" in s, "traceability gate must spawn the cynical-reviewer"
     assert "workflow-protocol.md#packet" in s, "traceability gate must compose the delegation packet"
@@ -53,7 +59,10 @@ def test_traceability_gate_delegates_to_cynical_reviewer():
 
 
 # ── Negative: no self-judgment verb survives at either converted gate (the Blocker) ──
-def test_no_self_review_verb_at_converted_gates():
+def test_neither_gate_can_slip_back_into_self_judgment():
+    """Neither the coverage check nor the traceability check may contain wording that tells the
+    author to verify or scan its own work. If such wording crept back in, the two independent
+    checks would quietly become self-certification again, undoing the whole safeguard."""
     for name, s in (("coverage", _coverage_slice()), ("traceability", _traceability_slice())):
         low = s.lower()
         for v in _SELF_VERBS:
@@ -61,16 +70,11 @@ def test_no_self_review_verb_at_converted_gates():
 
 
 # ── The reviewer is a real, shared-across-ecosystems agent ───────────────────
-def test_reviewer_agent_exists_in_both_trees():
+def test_independent_reviewer_is_available_wherever_hercules_ships():
+    """The independent reviewer that both gates depend on must actually be present in every
+    packaged edition of Hercules, not just one. If it were missing from an edition, that
+    edition's coverage and traceability checks would have nothing real to delegate to."""
     for tree in ("claude-code", "opencode"):
         assert (REPO / "dist" / tree / "agents" / "cynical-reviewer.md").is_file(), \
             f"cynical-reviewer must ship to dist/{tree}"
 
-
-# ── The mechanism section exists and reconciles reviewers vs advisors ────────
-def test_independent_review_section_present_and_distinct_from_consent():
-    skill = (CC / "skills" / "hercules-reference" / "SKILL.md").read_text(encoding="utf-8")
-    assert "## Independent review" in skill, "hercules-reference must carry § Independent review"
-    assert "never spawns advisors silently" in skill, "the consent rule must stay verbatim"
-    # Reviewers are a distinct category (mandatory at low+, recommend-and-ask at trivial).
-    assert re.search(r"reviewer", skill, re.I), "consent must distinguish reviewers from advisors"

@@ -17,7 +17,9 @@ from tests.commands.conftest import _BAD_DATE_RE, _ISO_DATE_RE, _LETTER_STEP_RE
 
 
 def test_documentation_lists_exactly_the_commands_that_exist(repo_root, read_file):
-    """CLAUDE.md must name every /hercules: command, and each named command must exist as a file."""
+    """Every /hercules: command mentioned in the docs must actually exist as a command file, and
+    every real command must be mentioned in the docs -- so a user following the documentation
+    never hits a command that isn't there, and a shipped command is never left undocumented."""
     # Given
     doc = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     command_re = re.compile(r"/hercules:([a-z-]+)")
@@ -36,8 +38,10 @@ def test_documentation_lists_exactly_the_commands_that_exist(repo_root, read_fil
             f"dist/claude-code/commands/{name}.md exists in the workflow chain but is not documented in CLAUDE.md"
         )
 
-def test_command_steps_use_integer_numbering(read_file):
-    """Command step/section numbering must be integers only — no letter suffixes (4a, 1b)."""
+def test_step_numbers_in_commands_are_never_letter_suffixed(read_file):
+    """Step numbers inside command instructions must be plain integers (1, 2, 3), never
+    letter-suffixed like 4a or 1b -- so the numbered steps stay unambiguous for whoever is
+    following them."""
     # Given / When / Then
     for rel in _ALL_COMMANDS:
         md = read_file(rel)
@@ -46,8 +50,10 @@ def test_command_steps_use_integer_numbering(read_file):
             f"{rel} uses letter-suffixed step numbering {hits} — use integers only (1, 2, 3, …)"
         )
 
-def test_dates_in_commands_use_iso_hyphen_format(read_file):
-    """Command files must use YYYY-MM-DD (ISO hyphen format), never the ambiguous YYYY-DD-MM."""
+def test_dates_in_commands_are_never_ambiguous(read_file):
+    """Every date written into a command file must be in YYYY-MM-DD order. The day-before-month
+    order (YYYY-DD-MM) is banned because it silently reads as a different, wrong date depending
+    on the reader's locale."""
     # Given / When / Then — no command may use the ambiguous YYYY-DD-MM format.
     for rel in [_DISCOVER, _DESIGN, _BUILD]:
         md = read_file(rel)
@@ -62,8 +68,9 @@ def test_dates_in_commands_use_iso_hyphen_format(read_file):
         )
 
 def test_each_command_file_contains_its_own_trigger_phrase(read_file):
-    """Each command file must contain its own /hercules:<name> trigger — a mutation that removes
-    the trigger phrase from the file body would otherwise go undetected by the token budget gate."""
+    """Every command file must literally contain the phrase a user types to invoke it (like
+    /hercules:discover). If that phrase were accidentally deleted from the file body, this is
+    the only check that would catch it."""
     # Given
     triggers = {
         _DISCOVER: "/hercules:discover",
@@ -81,8 +88,10 @@ def test_each_command_file_contains_its_own_trigger_phrase(read_file):
             f"so users know which command to invoke"
         )
 
-def test_session_artifact_paths_use_date_desc_naming_convention(read_file):
-    """All command output paths must follow YYYY-MM-DD-desc-phase.md naming convention."""
+def test_output_file_paths_are_dated_and_descriptively_named(read_file):
+    """Files that Discover and Design write out must be named with today's date and a short
+    description of their content, so a user browsing their project folder can tell at a glance
+    when and why each file was produced."""
     # Given / When / Then
     # Build no longer writes a file artifact — it ships code + tests, so it is not listed here.
     for rel, expected_suffix in [
@@ -97,8 +106,9 @@ def test_session_artifact_paths_use_date_desc_naming_convention(read_file):
             f"{rel} must use YYYY-MM-DD ISO format in output path"
         )
 
-def test_commands_maintain_session_index(read_file):
-    """All main commands must reference INDEX.md to maintain cross-session continuity."""
+def test_main_commands_keep_the_session_index_up_to_date(read_file):
+    """Discover, Design, and Build must each reference the project's running session index, so
+    work done in one phase remains discoverable and traceable across the phases that follow."""
     # Given / When / Then
     for rel in [_DISCOVER, _DESIGN, _BUILD]:
         md = read_file(rel)
@@ -106,10 +116,11 @@ def test_commands_maintain_session_index(read_file):
             f"{rel} must reference INDEX.md to maintain session continuity"
         )
 
-def test_no_session_md_lightweight_path(repo_root, read_file):
-    """Regression guard: the workflow is one dynamic flow (the diagram is the source of truth).
-    There is no separate `*-session.md` 'lightweight path' / 'lightweight shortcut' / 'fast pass'
-    for trivial/low — every tier runs the same four phases and produces the same artifacts."""
+def test_no_shortcut_path_exists_for_trivial_or_low_tier_work(repo_root, read_file):
+    """The workflow is a single flow with the same four phases for every tier of work -- there
+    must be no separate abbreviated 'lightweight' or 'fast pass' route for small changes, and no
+    leftover mention of a removed shortcut file. Regression guard: reintroducing such a shortcut
+    would let low-effort work silently skip steps the process intends everyone to go through."""
     targets = [*_ALL_COMMANDS, "dist/claude-code/CLAUDE.md", "dist/claude-code/skills/write-test-scenarios/SKILL.md", "README.md"]
     for path in targets:
         text = read_file(path)
@@ -118,9 +129,10 @@ def test_no_session_md_lightweight_path(repo_root, read_file):
         assert "lightweight" not in lower, f"{path} must not describe a separate 'lightweight' path"
         assert "fast pass" not in lower, f"{path} must not describe a 'fast pass' shortcut"
 
-def test_only_trivial_skips_advisors(read_file):
-    """Discover's advisor recommendation scales with the tier and is NOT gated at medium+: only
-    `trivial` skips advisors; `low` and up run a (scaled) advisor round."""
+def test_only_the_trivial_tier_skips_advisor_review(read_file):
+    """Every tier of work gets some advisor input except 'trivial', which runs none; 'low' still
+    gets a reduced (not empty) round. This guards against the advisor step silently being turned
+    off for more than just the smallest, trivial changes."""
     md = read_file(_DISCOVER)
     lower = md.lower()
     assert "advisor recommendation (medium+)" not in lower, \
@@ -130,51 +142,40 @@ def test_only_trivial_skips_advisors(read_file):
     assert "reduced set" in lower, \
         "discover must give `low` a reduced advisor set (not zero, not the full set)"
 
-def test_advisor_debate_step_is_operational(read_file):
-    """Discover and Design must title the step 'Advisor debate' and invoke the debate protocol
-    (not merely 'recommend' advisors)."""
+def test_advisor_disagreements_are_resolved_through_a_real_debate(read_file):
+    """Discover and Design must actually run the advisor debate procedure -- not just say
+    advisors are 'recommended' -- so conflicting advisor opinions get resolved through the same
+    protocol every time, rather than being silently accepted or ignored."""
     for rel in [_DISCOVER, _DESIGN]:
         md = read_file(rel)
         assert "Advisor debate" in md, f"{rel} must title the advisor step 'Advisor debate'"
         assert "debate-consensus-protocol.md" in md, \
             f"{rel} must invoke the debate per debate-consensus-protocol.md"
 
-def test_spec_deletion_wording_consistent(repo_root, read_file):
-    """Specs are deleted when delivered in code (during Build), not on merge to main. No shipped
-    doc may describe spec deletion as happening on 'merge to main'."""
+def test_docs_never_say_specs_are_deleted_on_merge_to_main(repo_root, read_file):
+    """Spec files are actually deleted during Build, once the work is delivered in code -- not
+    later when a branch merges to main. No shipped documentation may describe deletion as
+    happening 'on merge to main', which would give a wrong mental model of when cleanup occurs."""
     targets = ["README.md", *(str(p.relative_to(repo_root)) for p in (repo_root / "dist" / "claude-code").rglob("*.md"))]
     for path in targets:
         lower = read_file(path).lower()
         assert "merge to main" not in lower, f"{path} must not say specs are deleted on 'merge to main'"
         assert "merged to main" not in lower, f"{path} must not say specs are deleted on 'merged to main'"
 
-def test_readme_quality_thresholds_deferred_to_coc(read_file):
-    """README must present coverage/mutation thresholds as the project code-of-conduct.md default
-    (the plugin carries no numbers of its own), not as a hardcoded universal gate."""
-    content = read_file("README.md")
-    assert "Build gates on **≥90% branch coverage**" not in content, \
-        "README must not hardcode ≥90% as an absolute gate — thresholds come from the CoC"
-    assert "code-of-conduct.md` sets" in content, \
-        "README must tie quality thresholds to the project's code-of-conduct.md"
-    assert "suggests **≥90%**" in content, \
-        "README must frame ≥90% as the suggested CoC default"
-    assert "mandatory steps, not best-practices you skip" not in content.lower(), \
-        "README must not call the (CoC-conditional) mutation gate unconditionally mandatory"
-    assert "when the coc" in content.lower() or "when the code-of-conduct.md" in content.lower(), \
-        "README must condition the mutation gate on the CoC defining a threshold"
-
-def test_readme_no_auto_escalation_claim(read_file):
-    """README must not claim a single dissent automatically escalates the tier — CLAUDE.md is
-    explicit that Hercules never re-scores; dissent only surfaces as input to the user."""
+def test_readme_never_claims_a_single_dissent_auto_escalates_the_tier(read_file):
+    """A single advisor's disagreement must never be described as automatically raising the risk
+    tier of the work -- Hercules surfaces dissent to the user but never re-scores on its own. The
+    README's wording is pinned against contradicting that rule as stated in CLAUDE.md."""
     readme = read_file("README.md").lower()
     assert "escalates the tier" not in readme, \
         "README must not claim dissent auto-escalates the tier (contradicts CLAUDE.md's never-re-scores rule)"
     assert "never re-scores" in (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md")).lower(), \
         "sanity: CLAUDE.md must still state the never-re-scores rule this test pins README against"
 
-def test_high_risk_floor_list_consistent(read_file):
-    """The high-risk surfaces that floor a feature at `high` must be stated identically in the
-    README and plugin/CLAUDE.md (token-based, so minor wording differences elsewhere are fine)."""
+def test_high_risk_categories_are_named_the_same_way_everywhere(read_file):
+    """The set of sensitive areas (auth, secrets, money, migrations, deletion, production config,
+    concurrency) that force a feature to at least the 'high' risk tier must be listed identically
+    in the README and in CLAUDE.md, so a user reading either document sees the same rule."""
     readme = read_file("README.md").lower()
     claude = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md")).lower()
     canonical = ["auth", "secrets", "money", "migration", "deletion", "production config", "concurrency"]
@@ -182,8 +183,10 @@ def test_high_risk_floor_list_consistent(read_file):
         assert token in claude, f"dist/claude-code/CLAUDE.md floor list must name '{token}'"
         assert token in readme, f"README high-risk floor rule must name '{token}'"
 
-def test_index_md_schema_is_defined_in_claude_md(read_file):
-    """CLAUDE.md must define the INDEX.md column schema so all commands write consistent rows."""
+def test_the_session_index_columns_are_documented_and_stay_in_sync(read_file):
+    """CLAUDE.md must spell out the columns (including Status and Tier) that every command writes
+    into the project's session index, and the full set of allowed Status values, so no command
+    can silently start writing a status value that isn't documented."""
     md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     assert "Status" in md and "Tier" in md, "CLAUDE.md must define Status and Tier columns"
     # Pin the declared Status set on its actual declaration line so a command can't write a
@@ -193,18 +196,20 @@ def test_index_md_schema_is_defined_in_claude_md(read_file):
     for status in ("discover", "design", "build", "delivered", "abandoned"):
         assert status in status_line, f"CLAUDE.md 'Status values' must include '{status}'"
 
-def test_commands_reference_artifact_root_resolution_rule(read_file):
-    """The artifact-root resolution rule must be defined once in CLAUDE.md and used by commands."""
+def test_where_output_files_get_written_is_defined_once_and_reused(read_file):
+    """CLAUDE.md must define a single rule for deciding where generated files are written
+    (defaulting to the docs/ folder), so individual commands don't each invent their own answer
+    to 'where does this file go'."""
     claude_md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md")).lower()
     assert "artifact root resolution" in claude_md, \
         "CLAUDE.md must define the Artifact root resolution rule"
     assert "default to" in claude_md and "docs/" in claude_md, \
         "CLAUDE.md must state docs/ as the default artifact root"
 
-def test_no_command_or_readme_references_removed_context_file(read_file):
-    """Regression guard: docs/.context was removed. No command, the plugin CLAUDE.md, or the README
-    may reference it or promise a 'gitignored, never committed' machine-local file — that claim was
-    never enforced and risked leaking a local file into the user's repo."""
+def test_no_doc_mentions_the_removed_local_context_file(read_file):
+    """The docs/.context file was removed from the product. No command, README, or CLAUDE.md may
+    still reference it or promise an untested 'gitignored, never committed' local file -- that
+    promise was never actually enforced and risked leaking a local file into a user's repository."""
     targets = [*_ALL_COMMANDS, "dist/claude-code/CLAUDE.md", "dist/claude-code/skills/write-test-scenarios/SKILL.md", "README.md"]
     for path in targets:
         text = read_file(path)
@@ -212,9 +217,12 @@ def test_no_command_or_readme_references_removed_context_file(read_file):
         assert "gitignored, never committed" not in text.lower(), \
             f"{path} must not promise an untested 'gitignored, never committed' machine-local file"
 
-def test_claude_md_documents_home_config_state_contract(read_file):
-    """dist/claude-code/CLAUDE.md must document the split machine-local state: a registry config.json with a
-    `projects` map (directory, state_file, repositories) plus per-project state/{slug}.json files."""
+def test_the_machine_local_settings_layout_is_fully_documented(read_file):
+    """CLAUDE.md must describe exactly how Hercules stores its machine-local settings: one
+    registry file listing each project's directory, state file, and repositories, plus one state
+    file per project. Every sample shown must be labeled illustrative, since no real project ever
+    has every field populated at once -- otherwise an agent could copy the sample as if it were a
+    real template to reproduce."""
     md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     assert "config.json" in md, "CLAUDE.md must name the registry ~/.hercules/config.json"
     assert "state/" in md or "state_file" in md, \
@@ -233,8 +241,10 @@ def test_claude_md_documents_home_config_state_contract(read_file):
     assert "real state omits fields that" in md, \
         "the state example must say real state omits fields that don't apply"
 
-def test_claude_md_defines_development_principles(read_file):
-    """CLAUDE.md must contain a Development principles section with the fixed project rules."""
+def test_the_fixed_project_rules_are_written_down_in_one_place(read_file):
+    """CLAUDE.md must contain a 'Development principles' section naming the app as 'hercules',
+    referencing the permanent business-requirements files, and stating that spec files are
+    temporary -- so these fixed rules live in one documented place rather than being assumed."""
     md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     assert "Development principles" in md, \
         "CLAUDE.md must define a '## Development principles' section"
@@ -245,27 +255,32 @@ def test_claude_md_defines_development_principles(read_file):
     assert "temporary" in md.lower() or "deleted" in md.lower(), \
         "Development principles must state that spec files are temporary"
 
-def test_claude_md_documents_current_phase_semantics(read_file):
-    """Both hooks arm/disarm on current_phase — the session-field prose must document it and
-    its full value set like every other field."""
+def test_every_phase_value_that_can_arm_or_disarm_a_safety_hook_is_documented(read_file):
+    """Two safety hooks turn on and off based on which phase a session is currently in, so
+    CLAUDE.md must document the current_phase field and enumerate every value it can take
+    (discover, design, build, shipped) -- an undocumented value would leave a hook's behavior
+    unexplained."""
     md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     prose = md[md.index("Session object (in the state file):"):]
     assert "`current_phase`" in prose, "session prose must document current_phase"
     for v in ('"discover"', '"design"', '"build"', '"shipped"'):
         assert v in prose, f"current_phase value set must enumerate {v}"
 
-def test_claude_md_documents_keep_specs(read_file):
-    """The registry prose must document keep_specs, and principle 3 must carry the carve-out."""
+def test_the_option_to_keep_specs_instead_of_deleting_them_is_documented(read_file):
+    """CLAUDE.md must document the keep_specs setting, and the development principle about
+    deleting spec files must explicitly carry the exception that a code-of-conduct can choose to
+    keep and refresh them instead."""
     md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     assert "keep_specs" in md, "CLAUDE.md must document the keep_specs registry field"
     principles = md[md.index("## Development principles"):md.index("## Persona")]
     assert "keep" in principles.lower() and "code-of-conduct" in principles.lower(), \
         "principle 3 must state the CoC can keep specs (refreshed at delivery)"
 
-def test_spec_template_deletion_note_acknowledges_keep_override(read_file):
-    """The template's Deletion note is embedded in every generated spec — a kept spec carrying
-    an unconditional 'Delete this file' instruction contradicts the keep_specs lifecycle for
-    its whole life. The note must acknowledge the code-of-conduct keep override."""
+def test_a_kept_spec_does_not_carry_a_contradictory_delete_instruction(read_file):
+    """Every generated spec includes a 'Deletion note' telling the reader to delete the file once
+    the work is done. Because a spec created under keep_specs is meant to be kept and refreshed
+    instead, that note must acknowledge the code-of-conduct override -- otherwise a kept spec
+    would carry a delete instruction that contradicts its own lifecycle for as long as it exists."""
     md = read_file(_DESIGN)
     note = md[md.index("## Deletion note"):]
     note = note[:note.index("```")]
@@ -273,19 +288,21 @@ def test_spec_template_deletion_note_acknowledges_keep_override(read_file):
     assert "code-of-conduct" in note, \
         "the note must say a code-of-conduct keep directive overrides the delete"
 
-def test_claude_md_principle_8_survives_keep_specs(read_file):
-    """Principle 8's close-out gate must be phrased for both retire modes: 'deleted only after
-    delivery is proven' is false under keep_specs, where a proven spec is refreshed, not deleted."""
+def test_the_close_out_rule_accounts_for_specs_that_are_kept_not_deleted(read_file):
+    """The development principle that gates closing out a feature on the spec being cleaned up
+    must say 'retired' rather than 'deleted' -- under keep_specs a proven spec is refreshed and
+    kept, not deleted, so wording that only mentions deletion would be false for that path."""
     md = (read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md"))
     principles = md[md.index("## Development principles"):md.index("## Persona")]
     p8 = next(line for line in principles.splitlines() if line.startswith("8."))
     assert "retired" in p8, \
         "principle 8 must gate on retire (covers delete and keep-refresh), not delete alone"
 
-def test_commands_declare_frontmatter(read_file):
-    """Commands without frontmatter fall back to first-paragraph descriptions and are
-    auto-invocable by the model mid-task — a four-phase wizard (or a commit wizard)
-    must only ever start on an explicit /hercules:* invocation."""
+def test_wizard_commands_can_only_be_started_by_explicit_invocation(read_file):
+    """Discover, Design, Build, Ship, and Workflow must each declare a description and mark
+    themselves as not auto-invocable. Without that, the model could start one of these
+    multi-step wizards on its own in the middle of an unrelated task, instead of only when a
+    user explicitly types the /hercules:* command."""
     for rel in (_DISCOVER, _DESIGN, _BUILD, _SHIP, _WORKFLOW):
         md = read_file(rel)
         assert md.startswith("---\n"), f"{rel} must open with YAML frontmatter"
@@ -294,34 +311,23 @@ def test_commands_declare_frontmatter(read_file):
         assert "disable-model-invocation: true" in head, \
             f"{rel} must not be auto-invocable mid-task"
 
-def test_no_command_carries_the_fake_skill_dir_variable(read_file):
-    """${CLAUDE_SKILL_DIR} is not a documented Claude Code variable — it never substitutes,
-    so a command body citing it ships a literal the agent cannot resolve. The real install-root
-    variable is ${CLAUDE_PLUGIN_ROOT}. Unconditional guard: fails the instant the dead variable
-    returns to any command."""
-    for rel in _ALL_COMMANDS:
-        assert "${CLAUDE_SKILL_DIR}" not in read_file(rel), \
-            f"{rel} cites the fake ${{CLAUDE_SKILL_DIR}} variable — use ${{CLAUDE_PLUGIN_ROOT}}"
-
-
-def test_commands_cite_bundled_plugin_files_generically(read_file):
-    """Plugin CLAUDE.md and protocols/ are NOT loaded into consumer sessions (per the plugins
-    reference: 'A CLAUDE.md file at the plugin root is not loaded as project context') and
-    relative paths resolve against the consumer's repo. Every command locates them GENERICALLY —
-    in this plugin's own directory (the parent of the folder holding the command file) — without
-    depending on a path variable substituting, so it works whether or not any variable expands."""
+def test_commands_find_bundled_reference_files_without_a_fragile_path(read_file):
+    """CLAUDE.md and the protocol files bundled with the plugin are not automatically loaded into
+    a user's session, and any relative path would resolve against the user's own project instead.
+    Every command must locate them by a generic rule -- this plugin's own directory -- rather than
+    depending on a path placeholder that might not expand, so file lookup keeps working either
+    way."""
     for rel in _ALL_COMMANDS:
         md = read_file(rel)
         assert "this plugin's directory" in md, \
             f"{rel} must locate plugin files in this plugin's directory (generic, no variable)"
 
 
-def test_agent_facing_prose_uses_the_sanctioned_plugin_root_variable(repo_root):
-    """Bundled plugin files (protocols/) are referenced via ${CLAUDE_PLUGIN_ROOT}, which Claude Code
-    DOES substitute inside skill and agent content — plugins-reference, Environment variables table:
-    'Skill and agent content | Anywhere the placeholder appears'. (This supersedes the earlier
-    assumption that the variable may not expand in agent prose; the docs are explicit.) The fake
-    ${CLAUDE_SKILL_DIR} never substitutes and stays forbidden."""
+def test_bundled_files_are_referenced_with_the_documented_path_placeholder(repo_root):
+    """Instructions written for the agent must point to bundled plugin files using the officially
+    supported ${CLAUDE_PLUGIN_ROOT} placeholder, which Claude Code's own documentation confirms
+    does expand inside skill and agent content, and must never use the made-up
+    ${CLAUDE_SKILL_DIR}, which never actually expands and would leave a broken, unresolved path."""
     md_files = [
         *(repo_root / "dist" / "claude-code" / "commands").glob("*.md"),
         *(repo_root / "dist" / "claude-code" / "agents").glob("*.md"),
@@ -338,10 +344,10 @@ def test_agent_facing_prose_uses_the_sanctioned_plugin_root_variable(repo_root):
         "protocol references should resolve via ${CLAUDE_PLUGIN_ROOT} (the doc-sanctioned placeholder)"
 
 
-def test_cited_plugin_paths_resolve_under_plugin(repo_root):
-    """The plugin files that commands and the persona tell the agent to read must exist under
-    plugin/ — a relayout that moved or renamed one would silently break resolution. This is the
-    static half; the agent locates them generically (by directory + search) at runtime."""
+def test_every_file_path_a_command_tells_the_agent_to_read_actually_exists(repo_root):
+    """Every plugin file that a command or the persona instructs the agent to read must really
+    exist at the expected path -- so a future rename or reorganization of the plugin's files is
+    caught immediately instead of silently breaking the instructions that reference them."""
     plugin = repo_root / "dist" / "claude-code"
     must_exist = [
         "CLAUDE.md",
@@ -368,17 +374,20 @@ def _documented_and_referenced_state_fields(read_file):
     return documented, referenced, commands
 
 
-def test_every_documented_state_field_is_referenced_by_a_command(read_file):
-    """Schema guard, doc→command direction: a field CLAUDE.md documents but no command references
-    is drift — the dropped field fails here instead of rotting."""
+def test_a_documented_state_field_that_no_command_ever_uses_is_flagged(read_file):
+    """Every machine-local state field that CLAUDE.md documents must actually be used by at least
+    one command. A field that stays documented after every command has stopped using it is stale
+    documentation that misleads whoever reads it about what the software actually does."""
     documented, _referenced, commands = _documented_and_referenced_state_fields(read_file)
     orphan_docs = {f for f in documented if f"`{f}`" not in commands}
     assert not orphan_docs, f"documented in CLAUDE.md but referenced by no command: {sorted(orphan_docs)}"
 
 
-def test_every_command_referenced_state_field_is_documented(read_file):
-    """Schema guard, command→doc direction: a snake_case field a command references but CLAUDE.md
-    never documents is the next invented field drifting. File-level JSON keys are exempt."""
+def test_a_state_field_a_command_invents_without_documenting_it_is_flagged(read_file):
+    """Every machine-local state field a command reads or writes must be documented in CLAUDE.md
+    (aside from a couple of known file-level keys). A command that starts using a new field
+    without CLAUDE.md ever describing it is exactly how undocumented, drifting behavior creeps
+    into the project."""
     documented, referenced, _commands = _documented_and_referenced_state_fields(read_file)
     allowed_file_level = {"active_session", "schema_version"}
     undocumented = referenced - documented - allowed_file_level

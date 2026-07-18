@@ -3,8 +3,10 @@
 from tests.metrics.markdown_metrics import count_instructions, count_status_table_rows
 
 
-def test_fenced_code_regions_are_not_counted_as_instructions():
-    """Instructions inside fenced blocks are invisible to users and must not be counted."""
+def test_instructions_shown_only_as_a_code_example_are_not_counted():
+    """When an instruction appears inside a fenced code example (shown to illustrate the
+    format, not as a real instruction to follow), it must not be counted. Otherwise the
+    same instruction would be counted twice -- once as the example, once for real."""
     # Given
     md = (
         "1. real instruction\n"
@@ -25,8 +27,10 @@ def test_fenced_code_regions_are_not_counted_as_instructions():
     assert count == 3  # "1.", "- a bullet", "2." — table + fenced excluded
 
 
-def test_table_rows_are_not_counted_as_instructions():
-    """Markdown table rows start with | and must be excluded from instruction counts."""
+def test_rows_of_a_table_are_not_mistaken_for_instructions():
+    """A table's rows are data, not action items, so they must not be counted alongside
+    numbered or bulleted instructions -- otherwise a document with a table would report
+    more instructions than it actually contains."""
     # Given
     md = "| col1 | col2 |\n|---|---|\n| val1 | val2 |\n- bullet after table"
 
@@ -37,8 +41,10 @@ def test_table_rows_are_not_counted_as_instructions():
     assert count == 1  # only the bullet
 
 
-def test_status_table_row_count_returns_the_number_of_data_rows():
-    """Data rows below the separator are counted; header and separator are not."""
+def test_counting_a_status_table_reports_only_its_data_entries():
+    """A status table has a header row and a separator line before its real entries begin.
+    The count must reflect only those entries -- including the header or separator would
+    overstate how many statuses were actually reported."""
     # Given
     md = (
         "prose\n"
@@ -56,8 +62,10 @@ def test_status_table_row_count_returns_the_number_of_data_rows():
     assert count == 2
 
 
-def test_status_table_row_count_returns_minus_one_when_table_is_absent():
-    """When no STATUS | Meaning | ACTION header exists, -1 signals 'no table found'."""
+def test_a_document_with_no_status_table_is_reported_as_such():
+    """When the text contains no status table (no STATUS / Meaning / ACTION header) at all,
+    the count must clearly signal 'no table found' rather than reporting zero -- so a caller
+    can tell the difference between 'no table present' and 'table present but empty'."""
     # Given
     md = "no table here"
 
@@ -68,8 +76,10 @@ def test_status_table_row_count_returns_minus_one_when_table_is_absent():
     assert count == -1
 
 
-def test_status_table_row_count_returns_minus_one_for_non_status_table():
-    """A table without STATUS | Meaning | ACTION headers must return -1, not count its rows."""
+def test_a_table_with_different_column_headers_is_not_mistaken_for_the_status_table():
+    """A table that looks like a table but uses different column headers is not the status
+    table, so it must be reported as 'no status table found' rather than having its rows
+    counted as if they were status entries."""
     # Given — a valid markdown table but with different column names
     md = (
         "| Name | Value | Description |\n"
@@ -85,8 +95,9 @@ def test_status_table_row_count_returns_minus_one_for_non_status_table():
     assert count == -1
 
 
-def test_status_table_counting_stops_at_non_table_row():
-    """Row counting must stop at the first line that doesn't start with '|'."""
+def test_counting_stops_at_the_end_of_the_status_table_even_if_another_one_follows():
+    """Once the status table ends, counting must stop there -- so if the document later
+    contains a second status table, its rows are never folded into the first table's count."""
     # Given
     md = (
         "| STATUS | Meaning | ACTION |\n"

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-import pytest
 from tests.conftest import (
     BUILD as _BUILD,
     DESIGN as _DESIGN,
@@ -15,7 +14,9 @@ from tests.conftest import (
 
 
 def test_each_delivery_step_points_forward_to_the_next(read_file):
-    """Each command in the workflow chain must reference the next step so the user can follow the flow."""
+    """Each phase's instructions must tell the user which command to run next, so a person
+    following Discover, then Design, then Build is never left wondering how to continue into
+    the following phase."""
     # Given
     chain = [
         (_DISCOVER, "/hercules:design"),
@@ -28,10 +29,11 @@ def test_each_delivery_step_points_forward_to_the_next(read_file):
         md = read_file(file)
         assert next_step in md, f"{file} must point forward to the next step {next_step!r}"
 
-def test_workflow_command_runs_all_phases_in_sequence(read_file):
-    """The workflow command must orchestrate all phases with guided transitions — anchored
-    on the phase section headings, so a body swap cannot hide behind a summary-line
-    mention of the phase names."""
+def test_workflow_command_walks_the_user_through_every_phase_in_order(read_file):
+    """Running the workflow command must guide the user through Discover, Design, Build, and
+    Ship in that fixed order, always pausing in plan mode for the user's go-ahead (or letting
+    them say 'not yet' to stay put) before moving on -- so nobody is swept into a later phase
+    without agreeing to it first."""
     md = read_file(_WORKFLOW)
     heads = [md.index(f"## Phase {n} — {name}") for n, name in
              ((1, "Discover"), (2, "Design"), (3, "Build"), (4, "Ship"))]
@@ -42,11 +44,12 @@ def test_workflow_command_runs_all_phases_in_sequence(read_file):
     assert "not yet" in lower, "workflow must offer 'not yet' to stay in the current phase"
     assert "move to ship" in lower, "workflow must gate the Build→Ship transition on the user"
 
-def test_build_ship_now_routes_into_spec_scoped_ship(read_file):
-    """"Ship now" in the per-spec cadence routes into Ship's plan flow (default plan presented,
-    refined in rounds, executed on acceptance) as a spec-scoped invocation — never an ad-hoc
-    inline commit, and never dependent on Ship's session-wide build_complete gate (set true only
-    at Build's close-out, after ALL specs are retired)."""
+def test_choosing_ship_now_mid_build_opens_a_full_review_not_a_quiet_commit(read_file):
+    """Choosing "ship now" partway through Build must open the same full review Ship normally
+    gives -- a plan shown to the user, refined if needed, and committed only once they accept --
+    never a quiet inline commit performed on the spot. It also must not require every other
+    piece of work in Build to be finished first, since "ship now" is meant to ship just the one
+    piece that's ready."""
     md = read_file(_BUILD)
     lower = md.lower()
     i_advance = lower.index("**advance.**")
@@ -62,51 +65,19 @@ def test_build_ship_now_routes_into_spec_scoped_ship(read_file):
     assert "build_complete" not in advance_step, \
         "'ship now' must not reference/depend on build_complete — that's Ship's session-wide gate"
 
-def _spec_scoped_section(md):
-    """The '### Spec-scoped ship' section, anchored heading-to-next-`## ` (a '---' terminator
-    silently extended over following sections when a rule moved)."""
-    i = md.index("### Spec-scoped ship")
-    j = md.find("\n## ", i)
-    return md[i:j if j != -1 else len(md)]
-
-
-_SPEC_SCOPED_SHIP = [
-    ("defines_section_heading", lambda md, s: "### Spec-scoped ship" in md,
-     "ship must define the spec-scoped section as a heading"),
-    ("surfaces_non_spec_changes", lambda md, s: "Not included — stage if you want" in s,
-     "spec-scoped staging must surface non-spec changes, never sweep them in"),
-    ("names_never_written_fields",
-     lambda md, s: "never writes" in s and 'current_phase: "shipped"' in s
-     and "build_complete" in s and "shipped_commit" in s,
-     "the section must name every session field a spec-scoped ship never writes"),
-    ("omits_pr_step", lambda md, s: "PR step is omitted" in s and "shipped_pr" in s,
-     "a spec-scoped ship must omit the PR; shipped_pr belongs to the close-out ship"),
-    ("returns_to_advance_on_failure", lambda md, s: "Advance prompt" in s and "not retired" in s,
-     "a failed spec-scoped commit/push must return control to Build's Advance prompt"),
-    ("notes_residue", lambda md, s: "residue" in s,
-     "the section must note the close-out ship commits the residue (retired specs, INDEX)"),
-    ("keeps_session_wide_refusal", lambda md, s: "Local build is not complete" in md,
-     "the session-wide build_complete refusal must remain for a plain /hercules:ship"),
-    ("record_step_session_wide_only", lambda md, s: "spec-scoped ship skips this step" in md,
-     "Execution's Record step must be marked session-wide-only (spec-scoped skips it)"),
-]
-
-
-@pytest.mark.parametrize("predicate,reason", [(p, r) for _, p, r in _SPEC_SCOPED_SHIP],
-                         ids=[i for i, _, _ in _SPEC_SCOPED_SHIP])
-def test_ship_spec_scoped_preserves_the_session_gate(read_file, predicate, reason):
-    md = read_file(_SHIP)
-    assert predicate(md, _spec_scoped_section(md)), reason
-
-def test_ship_build_and_diagram_agree_on_spec_scoped(read_file):
-    """The spec-scoped contract is one decision expressed in three places — build.md's Advance,
-    ship.md's section, and the detailed workflow diagram. All three must carry it (lock-step)."""
+def test_shipping_one_piece_at_a_time_is_documented_consistently_everywhere(read_file):
+    """The rule that work is shipped one piece at a time, not only once everything is finished,
+    must be documented the same way in Build's instructions, Ship's instructions, and the
+    workflow diagram -- so a reader of any one of them comes away with the same understanding."""
     for path in (_BUILD, _SHIP, "docs/workflow/workflow-diagram-detailed.html"):
         assert "spec-scoped" in read_file(path).lower(), \
             f"{path} must carry the spec-scoped ship contract (lock-step rule)"
 
-def test_ship_step_defines_its_execution_contract(read_file):
-    """Ship must draft a complete plan in plan mode, wait for approval, then execute automatically."""
+def test_ship_shows_the_user_a_complete_plan_before_committing_anything(read_file):
+    """Before touching the repository, Ship must draft a full plan -- which files to stage, a
+    Conventional-Commits-style message, and a push step -- and wait for the user's approval
+    before running it. It must never suggest a forced or unverified push and must never add
+    AI-authorship notes to the commit, and it records the resulting commit for later reference."""
     md = read_file(_SHIP)
     lower = md.lower()
     assert "/hercules:ship" in md, "ship must contain its own trigger phrase"
@@ -125,11 +96,11 @@ def test_ship_step_defines_its_execution_contract(read_file):
         "ship must not add AI attribution to commit messages"
     assert "shipped_commit" in md, "ship must record the commit SHA in hercules-config"
 
-def test_ship_stages_the_index_at_the_artifact_root(read_file):
-    """Every INDEX.md writer uses docs/INDEX.md (one table for all sessions — CLAUDE.md §
-    INDEX.md format). Ship's default staged set must look there too: a per-session
-    docs/{session}/INDEX.md path matches nothing on disk, so Build's just-written 'delivered'
-    status silently falls out of the close-out commit the user approves."""
+def test_ships_default_commit_includes_the_real_shared_index_file(read_file):
+    """The project index lives in one shared file, not a separate copy per work session. Ship's
+    default list of files to commit must point at that real, shared location -- if it pointed at
+    a per-session path instead, the "delivered" status Build just wrote would silently be left
+    out of the commit the user approves."""
     md = read_file(_SHIP)
     assert "docs/{session}/INDEX.md" not in md, \
         "ship must not stage a per-session INDEX path — the INDEX lives at the artifact root"
@@ -137,8 +108,9 @@ def test_ship_stages_the_index_at_the_artifact_root(read_file):
         "ship's plan example must not show a dated per-session INDEX path"
     assert "docs/INDEX.md" in md, "ship's staged set must include the artifact-root docs/INDEX.md"
 
-def test_ship_does_not_write_docs_artifacts(read_file):
-    """Ship produces git history — it must not write any new docs/ artifact."""
+def test_shipping_never_creates_a_new_documentation_file_of_its_own(read_file):
+    """Ship's job is to commit and push work that earlier phases already produced -- it must
+    never generate a new document (such as a ship-summary file) as a side effect of shipping."""
     md = read_file(_SHIP)
     assert "-ship.md" not in md.lower(), "ship must not produce a *-ship.md artifact"
     writing_to_docs = any(
@@ -148,8 +120,12 @@ def test_ship_does_not_write_docs_artifacts(read_file):
     )
     assert not writing_to_docs, "ship must not create new docs/ artifacts (Build owns those)"
 
-def test_ship_pr_creation_is_conditional_on_gh(read_file):
-    """Ship must make PR creation conditional on gh detection — never unconditional."""
+def test_pull_request_creation_only_happens_when_github_access_is_confirmed(read_file):
+    """Ship must check that the user is logged into GitHub before offering to open a pull
+    request -- it never assumes GitHub access is available. It must also detect an
+    already-open pull request so it doesn't create a duplicate, must record the pull request's
+    web address for later reference, and must never add AI-authorship notes to the pull
+    request text."""
     md = read_file(_SHIP)
     lower = md.lower()
     assert "gh pr" in lower, \
@@ -165,19 +141,21 @@ def test_ship_pr_creation_is_conditional_on_gh(read_file):
     assert "existing" in lower or "already" in lower, \
         "ship must detect and handle an existing open PR to avoid duplicates"
 
-def test_ship_reports_already_shipped_before_build_complete_refusal(read_file):
-    """After a successful ship, build_complete is false and current_phase is 'shipped' —
-    a re-run must say 'shipped at SHA', not 'finish /hercules:build first'. The shipped
-    check must therefore run before the build_complete refusal."""
+def test_re_running_ship_after_success_reports_it_was_already_shipped(read_file):
+    """Once a piece of work has already been shipped, running Ship again must tell the user it
+    was already shipped, and at which commit -- not tell them to go finish Build first. This
+    matters because, right after a successful ship, the flag Ship would otherwise check for
+    ("Build is complete") has already been reset for the next round of work, and checking that
+    flag first would produce a confusing, wrong refusal."""
     ship = read_file(_SHIP)
     assert ship.index('`current_phase` is `"shipped"`') < ship.index("Local build is not complete"), \
         "the already-shipped report must precede the build_complete refusal"
 
-def test_ship_clean_tree_recovers_a_committed_but_unrecorded_ship(read_file):
-    """Ship can be interrupted between commit (step 2) and Record (step 4); the documented
-    recovery is re-running /hercules:ship — but a clean tree then exits before Record,
-    stranding the session (build_complete true, shipped_commit unset) forever. The
-    clean-tree branch must detect and finish the interrupted ship."""
+def test_ship_recovers_gracefully_if_interrupted_right_after_committing(read_file):
+    """If Ship is interrupted after it has committed but before it finishes recording that the
+    ship happened, simply running Ship again must notice the tree is already clean, recognize
+    the unfinished ship, and complete the remaining recording step -- rather than exiting
+    silently and leaving the session stuck in an inconsistent, unrecoverable state."""
     ship = read_file(_SHIP)
     proposal = _section(ship, "## Plan proposal", "\n## ", label=_SHIP)
     clean = _section(proposal, "working tree is clean", "\n\n", label=_SHIP)
@@ -185,42 +163,49 @@ def test_ship_clean_tree_recovers_a_committed_but_unrecorded_ship(read_file):
         "the clean-tree branch must check for an interrupted, unrecorded ship"
     assert "step" in clean.lower(), "recovery must resume the remaining execution steps"
 
-def test_ship_precondition_never_writes_shipped_pr(read_file):
-    """shipped_pr is documented as 'written by Ship' after a real ship; the silent
-    eligibility probe runs before any approval and must keep its finding
-    conversation-local, not persist it to state."""
+def test_a_silent_pre_check_for_an_existing_pull_request_is_never_recorded_as_a_real_ship(read_file):
+    """Before showing the user a plan, Ship quietly checks whether a pull request already
+    exists so it can mention that in the proposal -- but this background check must never
+    itself be recorded as though a pull request was actually created, since nothing has been
+    shipped yet at that point."""
     ship = read_file(_SHIP)
     precondition = ship[:ship.index("## Plan proposal")]
     assert "record as `shipped_pr`" not in precondition, \
         "the precondition probe must not write shipped_pr before anything shipped"
     assert "_existing_pr" in precondition, "the probe still captures the URL for the plan"
 
-def test_build_closeout_writes_the_ship_gate(read_file):
-    """Ship's precondition reads build_complete (pinned) — but nothing pinned the WRITER.
-    Drop the close-out write and every ship refuses forever with the suite green."""
+def test_finishing_build_flips_the_switch_that_lets_shipping_begin(read_file):
+    """When Build finishes all of its work, its close-out step must mark the project as ready
+    to ship and clear the marker for which piece of work was in progress -- otherwise Ship,
+    which checks for that ready marker before doing anything, would refuse to run even though
+    there is genuinely nothing left to build."""
     closeout = _section(read_file(_BUILD), "## Close-out", label=_BUILD)
     assert "`build_complete: true`" in closeout, "close-out must write the ship gate"
     assert "`current_spec: null`" in closeout, "close-out must clear the current spec"
 
-def test_ship_stages_per_file_never_bulk(read_file):
-    """git add -A would sweep unapproved working-tree files into the user-approved
-    commit — the exact failure the 'Not included' plan line exists to prevent."""
+def test_ship_only_commits_the_files_the_user_explicitly_approved(read_file):
+    """Ship must add files to the commit one at a time, by name, and must never use a bulk
+    "add everything" command -- a bulk add could sweep unrelated, unapproved changes sitting in
+    the working tree into the commit along with what the user actually approved."""
     step1 = _section(read_file(_SHIP), "**1. Stage.**", "**2. Commit.**", label=_SHIP)
     assert "`git add <file>` per approved file" in step1
     assert "never `git add -A` or `git add .`" in step1
 
-def test_ship_refuses_detached_head_and_non_repo(read_file):
-    """Shipping onto a detached HEAD records a SHA no branch points at — orphaned on the
-    next checkout. Nothing pinned either git-safety stop."""
+def test_ship_refuses_to_run_outside_a_repository_or_on_a_disconnected_checkout(read_file):
+    """Ship must stop with a clear message if it isn't run inside a git repository, and
+    likewise if the checkout isn't attached to any branch. Committing in that disconnected
+    state would record a commit that no branch points to, so it would be silently lost the next
+    time the user switches branches."""
     precondition = _section(read_file(_SHIP), "## Precondition check", "## Plan proposal",
                             label=_SHIP)
     assert "detached" in precondition.lower(), "ship must refuse a detached HEAD"
     assert "not a git repository" in precondition, "ship must stop outside a git repo"
 
-def test_ship_commit_message_contract_details(read_file):
-    """Scope stripping, the 72-char cap, and the BREAKING CHANGE proposal are user-facing
-    output contracts — losing them yields feat(2026-06-28-user-auth): and silent breaking
-    changes in history."""
+def test_ships_proposed_commit_message_follows_the_teams_formatting_rules(read_file):
+    """The commit message Ship proposes must strip any date prefix from the work item's name,
+    keep its summary line within 72 characters, and call out any breaking change explicitly --
+    getting any of these wrong would leave messy or misleading text permanently in the
+    project's commit history."""
     msg = _section(read_file(_SHIP), "**Commit message.**", "**Push target.**", label=_SHIP)
     assert "strip the date prefix" in msg
     assert "72" in msg

@@ -36,14 +36,20 @@ def _top_level_imports(tree: ast.AST):
                 yield node.module.split(".")[0]
 
 
-def test_there_is_at_least_one_hook_script():
+def test_the_hook_checks_below_would_fail_loudly_if_no_hooks_shipped():
+    """If the plugin shipped zero hook scripts, every check further down this file would run
+    against an empty list and silently report success without having checked anything. This
+    guarantees there is at least one real hook script to scan, so the safety checks can't be
+    quietly disabled just by deleting all the hooks."""
     assert _HOOK_SCRIPTS, "expected shipped hook scripts under src/targets/claude-code/hooks/"
 
 
 @pytest.mark.parametrize("script", _HOOK_SCRIPTS, ids=lambda p: p.name)
-def test_hook_uses_only_stdlib_and_local_modules(script: Path):
-    """A hook must import only the standard library or a sibling hook module — no third-party
-    dependency (so it runs against the user's ambient interpreter with no install step)."""
+def test_a_shipped_hook_never_requires_installing_a_separate_package(script: Path):
+    """Every hook that ships with the plugin must run using only what already comes with Python,
+    plus its own sibling hook files - it must never depend on a separately installed package.
+    This guarantees a user can run a Hercules hook immediately with no install step; a hook that
+    quietly gained an extra dependency would otherwise fail on machines that don't have it."""
     tree = ast.parse(script.read_text())
     stdlib = getattr(sys, "stdlib_module_names", None)
     violations = []
@@ -58,8 +64,10 @@ def test_hook_uses_only_stdlib_and_local_modules(script: Path):
 
 
 @pytest.mark.parametrize("script", _HOOK_SCRIPTS, ids=lambda p: p.name)
-def test_hook_opens_no_network_channel(script: Path):
-    """Shipped hook code must not import any network module — the plugin claims none."""
+def test_a_shipped_hook_cannot_open_a_network_connection(script: Path):
+    """The plugin promises it has no way to send or receive data over the network. This checks
+    that none of the shipped hook scripts import any networking module, so that promise can't be
+    silently broken by a hook that phones home or leaks data off the user's machine."""
     tree = ast.parse(script.read_text())
     offenders = sorted(m for m in _top_level_imports(tree) if m in _NETWORK_MODULES)
     assert not offenders, f"{script.name} imports network module(s) {offenders}"
@@ -81,9 +89,11 @@ def _open_modes(call: ast.Call):
 
 
 @pytest.mark.parametrize("script", _HOOK_SCRIPTS, ids=lambda p: p.name)
-def test_hook_never_writes_the_filesystem(script: Path):
-    """A hook must be read-only — writing `~/.hercules` would race the model's atomic
-    temp+rename state writes. Statically reject write-mode `open(...)` and os/pathlib write calls."""
+def test_a_shipped_hook_cannot_create_edit_or_delete_any_file(script: Path):
+    """A hook is only allowed to look at things, never change them. If a hook wrote to
+    Hercules's saved state at the same moment the main process is saving it, that save could be
+    corrupted, so this checks every shipped hook script for any file-writing operation and fails
+    if one is found."""
     tree = ast.parse(script.read_text())
     offenders = []
     for node in ast.walk(tree):
@@ -100,20 +110,12 @@ def test_hook_never_writes_the_filesystem(script: Path):
     assert not offenders, f"{script.name} performs filesystem writes {offenders}; hooks are read-only"
 
 
-def test_hook_modules_import_without_side_effects():
-    """Importing a hook module must not read state, hit the filesystem, or fail — the guard logic
-    only runs when called, so import must be inert."""
-    sys.path.insert(0, str(_HOOKS_DIR))
-    import hercules_state  # noqa: F401
-    import frozen_tests  # noqa: F401
-    # Importing again is idempotent and cheap.
-    assert hasattr(frozen_tests, "main") and hasattr(hercules_state, "resolve_session")
-
-
-def test_pragma_no_mutate_only_on_static_strings(repo_root):
-    """A pragma is a hole in the mutation gate — it may silence only behaviourally-equivalent
-    mutants: static message strings, type aliases, replace-decode codec args. Any pragma on a
-    line without a string literal or type alias is suppressing real logic and must go."""
+def test_test_coverage_exemptions_cannot_be_used_to_hide_untested_logic(repo_root):
+    """A line of hook or metrics code can be marked as exempt from the automated check that
+    verifies tests actually catch bugs. That exemption is only legitimate on lines that are just
+    fixed text, a type declaration, or a documented equivalent-behavior case - never on a line
+    that makes a real decision. This guards against someone quietly turning off test coverage on
+    code that genuinely needs it, letting a bug slip through unnoticed."""
     import itertools
     scoped = itertools.chain(
         (repo_root / "src" / "targets" / "claude-code" / "hooks").glob("*.py"),

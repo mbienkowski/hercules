@@ -10,25 +10,36 @@ for (const asset of ["instructions.md", "protocols/a2a-communication-protocol.md
   }
 }
 
-module.exports = async () => {
-  return {
-    config: (cfg) => {
-      cfg.default_agent = "hercules";
-      // Persona + protocols are always-loaded so their `§`/path references resolve
-      // (OpenCode has no ${CLAUDE_PLUGIN_ROOT}; the plugin injects absolute paths here).
-      cfg.instructions = [
-        ...(cfg.instructions || []),
-        path.join(PLUGIN_ROOT, "instructions.md"),
+// A bare `module.exports = <function>` breaks OpenCode's real (Bun-compiled) loader: Bun's
+// CJS/ESM interop spreads a plain function's own `length`/`name` properties into the imported
+// module's namespace object alongside the function itself, and the loader iterates every value
+// in that namespace, throwing on the first one that isn't a valid plugin export. Exporting a
+// plain object instead avoids this entirely, and matches OpenCode's own documented
+// `PluginModule` shape (`{ id, server: Plugin }`) rather than relying on its bare-function
+// fallback. `id` is required in practice for a path-installed plugin (the loader rejects a
+// path plugin with "must export id" even though the type marks it optional).
+// See https://github.com/mbienkowski/hercules/issues/15 for the full diagnosis.
+module.exports = {
+  id: "hercules",
+  server: async () => {
+    return {
+      config: (cfg) => {
+        cfg.default_agent = "hercules";
+        // Persona + protocols are always-loaded so their `§`/path references resolve
+        // (OpenCode has no ${CLAUDE_PLUGIN_ROOT}; the plugin injects absolute paths here).
+        cfg.instructions = [
+          ...(cfg.instructions || []),
+          path.join(PLUGIN_ROOT, "instructions.md"),
         path.join(PLUGIN_ROOT, "protocols/a2a-communication-protocol.md"),
         path.join(PLUGIN_ROOT, "protocols/debate-consensus-protocol.md"),
         path.join(PLUGIN_ROOT, "protocols/workflow-protocol.md")
-      ];
-      cfg.skills = cfg.skills || {};
-      cfg.skills.paths = [
-        ...(cfg.skills.paths || []),
-        path.join(PLUGIN_ROOT, "skills"),
-      ];
-      cfg.agent = { ...(cfg.agent || {}), ...{
+        ];
+        cfg.skills = cfg.skills || {};
+        cfg.skills.paths = [
+          ...(cfg.skills.paths || []),
+          path.join(PLUGIN_ROOT, "skills"),
+        ];
+        cfg.agent = { ...(cfg.agent || {}), ...{
           "backend-engineer": {
             description: "Implements server-side code — APIs, business logic, data access, integrations — strictly per the approved spec. Use in the Build phase for backend coding. Carries no default stack; infers it from code-of-conduct and the existing codebase, and asks when unknown.",
             mode: "subagent",
@@ -110,7 +121,7 @@ module.exports = async () => {
             prompt: "# UX/UI Designer\n\nYou own the user's experience of the change: the flow, the states, and how it fits the existing design language.\n\n## Responsibilities\n- **User flow:** describe the complete journey in plain language — entry, happy path, empty/loading/error states, and exit. Name every state the UI must handle.\n- **Consistency:** the change reuses existing components, patterns, and tokens; new patterns are justified and named.\n- **Clarity:** progressive disclosure over overload; intent-revealing labels; sensible defaults; reversible actions where feasible.\n- **Accessibility:** meets WCAG AA — sufficient contrast, keyboard reachability, focus order, adequate touch targets, and information never conveyed by colour alone.\n- **Content:** microcopy is clear and consistent; error messages tell the user what happened and what to do next.\n\n## Project standards\nRead the project's code-of-conduct file (any capitalization) if present; its design system, component library, accessibility target, and tone override these defaults. If absent, infer conventions from existing screens and state the assumption.\n\n## Output\nReplies follow the A2A Communication Protocol § Agent-Injected Core (`protocols/a2a-communication-protocol.md`): `[DESIGNER] STATUS | CONTENT | ACTION`.",
           },
         } };
-      cfg.command = { ...(cfg.command || {}), ...{
+        cfg.command = { ...(cfg.command || {}), ...{
           "hercules:build": {
             description: "Build phase — plan the delivery, then execute approved specs with TDD",
             agent: "hercules",
@@ -137,6 +148,7 @@ module.exports = async () => {
             template: "# /hercules:workflow\n\nGuided end-to-end delivery: all four phases in one flow. Plugin-file citations (`hercules-reference §…`, `protocols/…`) live in this plugin's directory.\n\n**Plan mode — required across all four phases.** Open each phase in plan mode; present a full inline proposal; at the **Plan approval** gate, on the user's \"approved\", leave plan mode — the phase then writes or executes without further prompts — then re-enter plan mode for the next phase. Iterate freely; write only on approval. Never patch sections — always regenerate the complete draft.\n\nGuided end-to-end delivery: **Discover → Design → Build → Ship**. Runs all four phases in sequence with a human-approved transition between each. The more detail you put in early, the better the outcome.\n\nPhase commands are user-invoked skills, so on each transition run the phase by reading its file from the same directory as this file — `{discover,design,build,ship}.md` beside it — and executing its steps inline. Announce each entry (\"Entering the **{Phase}** phase\") and never ask the user to type a `/hercules:*` command to continue the guided flow.\n\n---\n\n## Opening\n\n> Welcome to Hercules. We'll build this together, one phase at a time.\n> Four phases: **Discover → Design → Build → Ship**\n>\n> Discovery is where we invest the most time — the better the requirements, the smoother the build.\n> Bring everything you have: PRDs, ADRs, Figma links, QA scenarios. One sentence or ten pages.\n> Let's start. 🔍 Entering the **Discover** phase.\n\n---\n\n## Phase 1 — Discover\n\n*Purpose: pin the real need, not the first thing you said.*\n\nRun the full `/hercules:discover` flow (Steps 0–7). When all five discovery groups (Goal, Users, Scope, Constraints, Success criteria) are covered, complexity is classified, and the `*-business-requirements.md` draft is approved and saved, pause:\n\n> I think we have a clear picture of what you want to build.\n> Before we move on — is there anything else you'd like to add or change here?\n> This is the right moment — after this, requirement changes need a fresh Discover pass.\n>\n> Say **\"move to Design\"** or **\"not yet\"** to keep going here.\n\nOn \"move to Design\": announce \"📐 Entering the **Design** phase.\" and continue.\n\n---\n\n## Phase 2 — Design\n\n*Purpose: turn the requirement into one or more self-contained specs and a delivery sequence.*\n\nRun the full `/hercules:design` flow (Steps 1–9), reading the `*-business-requirements.md` written in Phase 1. When the design is approved, stakeholder review is complete (or skipped), coverage gate passes, and the sub-spec files are saved, pause:\n\n> The specs and delivery sequence are solid. Before we move on — any final thoughts or changes here?\n> After this, spec changes go through `/hercules:design` again.\n>\n> Say **\"move to Build\"** or **\"not yet\"** to keep going here.\n\nOn \"move to Build\": announce \"⚒ Entering the **Build** phase.\" and continue.\n\n---\n\n## Phase 3 — Build\n\n*Purpose: present the delivery plan, then write failing tests, implement, validate, and deliver each spec.*\n\nRun the full `/hercules:build` flow, reading `*-business-requirements.md` and the numbered spec files. Build opens in plan mode with a **delivery plan** (which specs, the requirement each satisfies, the order and grouping) — you approve it and set the cadence (deliver all in one pass, or ship each), then it auto-executes. When delivery is complete and `docs/INDEX.md` is marked delivered:\n\n> ✓ Build complete — tests green, traced, delivered.\n>\n> Review the diff, run the tests, make any final adjustments. When ready:\n> Say **\"move to Ship\"** or run `/hercules:ship` directly.\n\nOn \"move to Ship\": announce \"🚀 Entering the **Ship** phase.\" and continue.\n\n---\n\n## Phase 4 — Ship\n\n*Purpose: commit the delivered work and push to the remote.*\n\nRun the full `/hercules:ship` flow (Ship will draft its own plan — files to stage, commit\nmessage, push target — and wait for your approval). When complete:\n\n> ✓ Shipped. Commit: [conventional commit one-liner]\n> Run `/hercules:workflow` any time to start the next feature.",
           },
         } };
-    },
-  };
+      },
+    };
+  },
 };

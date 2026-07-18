@@ -33,10 +33,6 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       !startsWith(github.event.workflow_run.head_commit.message, 'chore(release):')
     runs-on: ubuntu-latest
-    # Exposed at job level so the npm-publish steps can gate on its presence in `if:`
-    # (secrets aren't directly readable in step conditions).
-    env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -64,7 +60,11 @@ jobs:
       # 1. Compute the next version + changelog from conventional commits (no tag yet).
       - name: Compute next version
         id: bump
-        uses: mathieudutour/github-tag-action@v6.2
+        # Pinned to the full COMMIT SHA (not the mutable v6.2 tag) — this job holds contents:write
+        # and can push to main, so a re-pointed upstream tag must not become code execution here.
+        # NB: v6.2 is an ANNOTATED tag, so the pin must be `git rev-parse v6.2^{commit}`
+        # (a22cf08), NOT `git rev-parse v6.2` (d28fa2c, the tag OBJECT — Actions can't resolve it).
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: minor
@@ -108,7 +108,8 @@ jobs:
 
       # 5. Publish the GitHub Release with the aggregated notes.
       - name: GitHub Release
-        uses: ncipollo/release-action@v1
+        # Pinned to a full commit SHA (not the mutable v1 major tag) — same supply-chain reason.
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
         with:
           tag: ${{ steps.bump.outputs.new_tag }}
           name: ${{ steps.bump.outputs.new_tag }}
@@ -117,15 +118,30 @@ jobs:
       # 6. Publish the OpenCode plugin to npm (primary channel). The working tree is at the
       #    bumped commit, so package.json already carries the new version. `files: ["dist/opencode"]`
       #    scopes the tarball. Skipped automatically if NPM_TOKEN is not configured.
+      #
+      #    Presence is checked in its OWN step (emitting only a boolean output) rather than a
+      #    job-level `env: NPM_TOKEN`, so the credential is never in scope for the third-party
+      #    tag/release actions above — only this check and the publish step below see it.
+      - name: Check npm publish credentials
+        id: npm
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "enabled=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Node for npm publish
-        if: ${{ env.NPM_TOKEN != '' }}
+        if: steps.npm.outputs.enabled == 'true'
         uses: actions/setup-node@v5
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
 
       - name: npm publish
-        if: ${{ env.NPM_TOKEN != '' }}
+        if: steps.npm.outputs.enabled == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public

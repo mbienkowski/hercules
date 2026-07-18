@@ -4,6 +4,9 @@ Adapted from PR #11's ``scripts/generate_opencode.py`` (``escape_ts_string``, ``
 ``generate_plugin_js``, ``generate_opencode_json``). The one behavioural change: the plugin entry now
 lives **inside** ``dist/opencode/`` (not one level up), so ``PLUGIN_ROOT = path.resolve(__dirname)``
 and asset paths are relative to it, plus a startup assertion that the assets exist.
+
+The generated entry exports ``{ server: fn }`` rather than a bare function -- see the comment
+inline in ``_PLUGIN_JS_TEMPLATE`` and https://github.com/mbienkowski/hercules/issues/15.
 """
 from __future__ import annotations
 
@@ -52,25 +55,37 @@ for (const asset of [__ASSET_LIST__]) {
   }
 }
 
-module.exports = async () => {
-  return {
-    config: (cfg) => {
-      cfg.default_agent = __DEFAULT_AGENT__;
-      // Persona + protocols are always-loaded so their `§`/path references resolve
-      // (OpenCode has no ${CLAUDE_PLUGIN_ROOT}; the plugin injects absolute paths here).
-      cfg.instructions = [
-        ...(cfg.instructions || []),
-        __INSTRUCTION_JOINS__
-      ];
-      cfg.skills = cfg.skills || {};
-      cfg.skills.paths = [
-        ...(cfg.skills.paths || []),
-        path.join(PLUGIN_ROOT, __SKILLS_PATH__),
-      ];
-      cfg.agent = { ...(cfg.agent || {}), ...__AGENT_ENTRIES__ };
-      cfg.command = { ...(cfg.command || {}), ...__COMMAND_ENTRIES__ };
-    },
-  };
+// A bare `module.exports = <function>` breaks OpenCode's real (Bun-compiled) loader: Bun's
+// CJS/ESM interop spreads a plain function's own `length`/`name` properties into the imported
+// module's namespace object alongside the function itself, and the loader iterates every value
+// in that namespace, throwing on the first one that isn't a valid plugin export. Exporting a
+// plain object instead avoids this entirely, and matches OpenCode's own documented
+// `PluginModule` shape (`{ id, server: Plugin }`) rather than relying on its bare-function
+// fallback. `id` is required in practice for a path-installed plugin (the loader rejects a
+// path plugin with "must export id" even though the type marks it optional).
+// See https://github.com/mbienkowski/hercules/issues/15 for the full diagnosis.
+module.exports = {
+  id: "hercules",
+  server: async () => {
+    return {
+      config: (cfg) => {
+        cfg.default_agent = __DEFAULT_AGENT__;
+        // Persona + protocols are always-loaded so their `§`/path references resolve
+        // (OpenCode has no ${CLAUDE_PLUGIN_ROOT}; the plugin injects absolute paths here).
+        cfg.instructions = [
+          ...(cfg.instructions || []),
+          __INSTRUCTION_JOINS__
+        ];
+        cfg.skills = cfg.skills || {};
+        cfg.skills.paths = [
+          ...(cfg.skills.paths || []),
+          path.join(PLUGIN_ROOT, __SKILLS_PATH__),
+        ];
+        cfg.agent = { ...(cfg.agent || {}), ...__AGENT_ENTRIES__ };
+        cfg.command = { ...(cfg.command || {}), ...__COMMAND_ENTRIES__ };
+      },
+    };
+  },
 };
 """
 
