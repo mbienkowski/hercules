@@ -6,8 +6,8 @@ name: Release
 #   - anything else                 → MINOR   (default_bump: minor)
 #   - a BREAKING change             → MAJOR   (only when flagged: a `!` after the type, e.g. `feat!:`,
 #                                              or a `BREAKING CHANGE:` footer — never a plain `feat:`)
-# The new version is written into BOTH pyproject.toml and the plugin
-# manifest, committed back with [skip ci], tagged v{version}, and published as a
+# The new version is written into every canonical manifest (pyproject.toml, the Claude plugin
+# manifest, and package.json), committed back with [skip ci], tagged v{version}, and published as a
 # GitHub Release whose notes are the aggregated commits since the previous release.
 #
 # Notes:

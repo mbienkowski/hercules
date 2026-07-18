@@ -5,7 +5,7 @@ Adapted from PR #11's ``scripts/generate_opencode.py`` (``escape_ts_string``, ``
 lives **inside** ``dist/opencode/`` (not one level up), so ``PLUGIN_ROOT = path.resolve(__dirname)``
 and asset paths are relative to it, plus a startup assertion that the assets exist.
 
-The generated entry exports ``{ server: fn }`` rather than a bare function -- see the comment
+The generated entry exports ``{ id, server }`` rather than a bare function -- see the comment
 inline in ``_PLUGIN_JS_TEMPLATE`` and https://github.com/mbienkowski/hercules/issues/15.
 """
 from __future__ import annotations

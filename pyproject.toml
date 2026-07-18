@@ -20,7 +20,7 @@ dev = [
     "mutmut>=2.4,<3",
 ]
 
-# No package is shipped — the deliverable is the Claude Code plugin under plugin/.
+# No package is shipped — the deliverable is the compiled plugin tree under dist/claude-code/.
 # The editable install exists only to pull in the dev/test toolchain.
 [tool.setuptools]
 py-modules = []
