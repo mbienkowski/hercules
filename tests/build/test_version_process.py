@@ -39,7 +39,10 @@ def _seed(root: Path, version: str = "0.1.0") -> None:
             p.write_text(f'{{\n  "name": "hercules",\n  "version": "{version}"\n}}\n', encoding="utf-8")
 
 
-def test_set_version_bumps_every_canonical_file(tmp_path):
+def test_bumping_the_version_updates_every_canonical_file(tmp_path):
+    """Running the version bump writes the new version number into every file that is supposed
+    to track it, not just some of them. If any canonical file were missed, that file would
+    silently keep announcing the old, wrong version to users or tooling."""
     _seed(tmp_path)
     set_version("9.9.9", root=tmp_path)
     # Parametrized over the list itself: adding a file to VERSION_TARGETS auto-extends the apply check.
@@ -47,7 +50,11 @@ def test_set_version_bumps_every_canonical_file(tmp_path):
 
 
 @pytest.mark.parametrize("target_rel", [rel for rel, _ in VERSION_TARGETS])
-def test_validate_flags_a_hand_edited_drift_in_any_file(tmp_path, target_rel):
+def test_editing_one_version_file_by_hand_is_caught_no_matter_which_file(tmp_path, target_rel):
+    """If someone manually edits the version number in any single one of the tracked files so
+    it no longer matches the rest, the sync check must catch the mismatch -- regardless of which
+    file was touched. This guarantees a partial, out-of-band edit can never slip through
+    unnoticed."""
     _seed(tmp_path, "1.0.0")
     check_in_sync(tmp_path)  # in sync → no raise
     # Hand-edit exactly one file out of sync — validate must catch it, whichever file it is.
@@ -57,14 +64,20 @@ def test_validate_flags_a_hand_edited_drift_in_any_file(tmp_path, target_rel):
         check_in_sync(tmp_path)
 
 
-def test_check_in_sync_enforces_the_expected_tag(tmp_path):
+def test_sync_check_rejects_a_version_that_doesnt_match_the_expected_release_tag(tmp_path):
+    """When a specific version is expected (for example, a release tag), the sync check passes
+    only if every file actually carries that exact version, and fails otherwise. This stops a
+    build from being tagged and shipped under the wrong version number."""
     _seed(tmp_path, "2.0.0")
     check_in_sync(tmp_path, expected="2.0.0")  # equals tag → ok
     with pytest.raises(SystemExit, match="expected"):
         check_in_sync(tmp_path, expected="2.0.1")
 
 
-def test_committed_manifests_agree_at_the_default_root(monkeypatch):
+def test_the_real_repositorys_committed_files_all_report_the_same_version(monkeypatch):
+    """Running the sync check against the actual project (the same way the CI job does) confirms
+    that every committed file which records a version currently agrees on one single value. This
+    is the live guardrail that keeps the real repository's release files from drifting apart."""
     # Exercises the production default-root path (what CI `validate` runs) against the real repo:
     # every committed manifest must already carry one identical version.
     monkeypatch.chdir(REPO_ROOT)
@@ -72,7 +85,10 @@ def test_committed_manifests_agree_at_the_default_root(monkeypatch):
     assert len(set(read_versions().values())) == 1
 
 
-def test_write_version_raises_when_a_version_line_is_missing(tmp_path):
+def test_bumping_the_version_fails_loudly_if_a_file_has_no_version_line(tmp_path):
+    """If one of the canonical files is missing its version line entirely, attempting to bump the
+    version stops with an error instead of silently doing nothing. A silent no-op here would leave
+    that file frozen on a stale version forever."""
     # If a canonical file has no version line, the bump fails loudly rather than silently no-op.
     _seed(tmp_path, "0.1.0")
     rel = VERSION_TARGETS[0][0]
@@ -82,14 +98,12 @@ def test_write_version_raises_when_a_version_line_is_missing(tmp_path):
 
 
 # ── B1: the versioned Claude manifest must be a build SOURCE, not a build OUTPUT ──
-def test_versioned_claude_manifest_is_the_build_source_not_output(tmp_path):
-    """A release bump must survive the next rebuild.
-
-    Regression: ``VERSION_TARGETS`` used to name the *built* ``dist/claude-code/.claude-plugin/
-    plugin.json``, which ``build_target`` overwrites from ``src/`` on every build — so a release
-    bump was silently reverted on the next rebuild (and then failed the drift gate). The versioned
-    Claude manifest must be the *source* file the build copies FROM.
-    """
+def test_a_release_version_bump_survives_the_next_build(tmp_path):
+    """A version number bumped during a release must still be in place after the project is
+    rebuilt from source. Regression: the version used to be recorded only in a generated build
+    output, which gets overwritten from source on every build -- so a release bump was silently
+    erased by the very next build, and then flagged as drifted. The fix keeps the version
+    recorded in the source file the build reads from, not in a file the build overwrites."""
     version_paths = [rel for rel, _ in VERSION_TARGETS]
     assert "src/targets/claude-code/plugin.json" in version_paths
     assert not any(rel.startswith("dist/") for rel in version_paths), (
@@ -103,12 +117,11 @@ def test_versioned_claude_manifest_is_the_build_source_not_output(tmp_path):
     assert built["version"] == src_version
 
 
-def test_release_rebuilds_dist_after_version_bump_and_stages_it():
-    """release.yml must rebuild dist/ AFTER bumping the (source) version and stage it in the commit.
-
-    Without the rebuild, the committed/published dist/ keeps the old version and the drift gate
-    fails on the next unrelated push. (Companion to B1's version_targets change.)
-    """
+def test_the_release_process_rebuilds_and_commits_the_output_after_bumping_the_version():
+    """The release workflow must rebuild the distributable build output after bumping the
+    version, and include that rebuilt output in the release commit. Skipping the rebuild would
+    leave the shipped build carrying the old version number, causing the very next unrelated
+    change to fail the version-sync check."""
     set_idx = RELEASE.find("set_version.py")
     build_idx = RELEASE.find("scripts.build.cli")
     assert set_idx != -1, "release must bump the version via set_version.py"
@@ -140,14 +153,20 @@ def _job_needs(text: str) -> dict[str, list[str]]:
     return jobs
 
 
-def test_build_precedes_test_and_validate():
+def test_automated_checks_only_run_against_a_freshly_built_project():
+    """The continuous-integration pipeline runs its test and validation checks only after the
+    project has been built, never before. Running these checks against a stale or missing build
+    would let real problems slip through undetected."""
     jobs = _job_needs(CI)
     assert "build" in jobs, "CI must declare a build job"
     assert "build" in jobs.get("test", []), "test must run after build (drift gate first)"
     assert "build" in jobs.get("validate", []), "validate must run after build"
 
 
-def test_mutation_gates_behind_both_quick_checks():
+def test_the_slow_mutation_check_waits_for_both_quick_checks_to_pass_first():
+    """The expensive, long-running mutation check only starts after both the fast test run and
+    the fast validation check have succeeded. This way a quick, obvious failure stops the
+    pipeline immediately instead of wasting around 40 minutes running the slow check anyway."""
     # The expensive (~40 min) mutation job must wait for BOTH quick gates, so a red test or a red
     # validate stops it before it burns minutes.
     jobs = _job_needs(CI)
@@ -155,7 +174,10 @@ def test_mutation_gates_behind_both_quick_checks():
         "mutation must need both test and validate"
 
 
-def test_ci_has_an_untracked_dist_guard_step():
+def test_the_pipeline_fails_if_the_build_output_is_not_committed_to_source_control():
+    """The continuous-integration pipeline includes a dedicated check that fails the build if
+    the generated output folder is left untracked by version control. Without this guard, a
+    release tag could silently capture an empty or missing build."""
     # dist/ must be tracked, not silently git-ignored (a tag would then snapshot an empty tree).
     # Anchored to the named step, not a bare "porcelain"/"dist" substring search over the whole
     # file, so an unrelated line elsewhere in the workflow can't false-satisfy this.
@@ -171,14 +193,20 @@ def _files(root: Path) -> dict[str, str]:
             for p in root.rglob("*") if p.is_file()}
 
 
-def test_claude_build_is_deterministic(tmp_path):
+def test_building_the_project_twice_produces_byte_identical_output(tmp_path):
+    """Running the build process twice from the same source must produce exactly the same
+    files, byte for byte. If two builds could differ, released artifacts would not be
+    reproducible and could not be trusted to match their source."""
     a, b = tmp_path / "a", tmp_path / "b"
     cli.build_target("claude-code", a)
     cli.build_target("claude-code", b)
     assert _files(a) == _files(b)
 
 
-def test_build_check_prints_make_build_remedy_on_stale_dist(tmp_path, monkeypatch, capsys):
+def test_a_stale_build_output_is_reported_with_instructions_to_fix_it(tmp_path, monkeypatch, capsys):
+    """When the committed build output no longer matches what a fresh build would produce, the
+    check step fails and prints the exact command the developer needs to run to fix it. This
+    turns a confusing drift failure into an actionable, one-line remedy."""
     committed = tmp_path / "claude-code"
     cli.build_target("claude-code", committed)
     (committed / "CLAUDE.md").write_text("STALE", encoding="utf-8")

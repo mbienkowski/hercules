@@ -40,8 +40,10 @@ _STACK_LITERAL_PATTERNS = [
 _BARE_SUBCOMMAND_RE = re.compile(r"hercules\s+(origin-trace|sessions)\b")
 
 
-def test_all_listed_skills_are_present(repo_root):
-    """Every skill in the canonical list must have a corresponding SKILL.md in skills/."""
+def test_shipped_skill_directories_match_the_documented_list(repo_root):
+    """The skills listed as available to users must exactly match the skill folders actually
+    shipped in the plugin. If they drift, users get pointed at a skill that doesn't exist, or a
+    shipped skill goes undocumented and invisible."""
     # Given
     existing = {p.parent.name for p in (repo_root / "dist" / "claude-code" / "skills").glob("*/SKILL.md")}
 
@@ -57,8 +59,11 @@ def test_all_listed_skills_are_present(repo_root):
 
 
 @pytest.mark.parametrize("path", _SKILL_PATHS, ids=lambda p: p.parent.name)
-def test_each_skill_file_declares_its_purpose_and_preconditions(path):
-    """Every skill declares its use-case; active skills also define a precondition hard-stop clause."""
+def test_every_skill_explains_when_to_use_it_and_active_ones_declare_a_stop_condition(path):
+    """Each skill file must state, in its own description, when a user should reach for it, and
+    skills that actively drive a workflow must also declare a hard-stop condition. Without this,
+    a skill could fire at the wrong moment or run past a point where it should have halted for
+    missing information."""
     md = path.read_text()
     lower = md.lower()
     name = path.parent.name
@@ -78,8 +83,10 @@ def test_each_skill_file_declares_its_purpose_and_preconditions(path):
         assert re.search(r"\bstop\b", lower), f"{name}/SKILL.md (active skill) must hard-stop on precondition miss"
 
 
-def test_skills_carry_no_framework_assumptions(repo_root, skill_files):
-    """No shipped skill must name a concrete framework or stack — skills stay generic."""
+def test_skills_stay_usable_with_any_tech_stack(repo_root, skill_files):
+    """None of the shipped skills may hard-code the name of a specific framework or library
+    (for example React, Django, or Spring). Doing so would make the skill's advice wrong or
+    irrelevant for a project built on a different stack."""
     # Given
     violations = []
 
@@ -98,9 +105,11 @@ def test_skills_carry_no_framework_assumptions(repo_root, skill_files):
 
 
 @pytest.mark.parametrize("path", _DOC_FILES, ids=lambda p: p.stem)
-def test_plugin_doc_uses_double_dash_subcommand_prefix(path):
-    """All plugin docs (commands/, skills/, agents/) must use 'hercules --<subcommand>', never the
-    bare form — the bare form is forwarded to claude as a prompt instead of running natively."""
+def test_documentation_always_shows_the_working_form_of_a_hercules_command(path):
+    """Every command, skill, and agent doc must show hercules subcommands with the '--' prefix
+    (e.g. 'hercules --origin-trace'), never the bare form. The bare form is silently forwarded to
+    the underlying assistant as a plain prompt instead of running the command, so a doc using it
+    would teach users a command that doesn't actually work."""
     hit = _BARE_SUBCOMMAND_RE.search(path.read_text())
     assert hit is None, \
         f"{path.name} uses the bare subcommand form {hit.group()!r} — write 'hercules --<name>'"
@@ -109,8 +118,10 @@ def test_plugin_doc_uses_double_dash_subcommand_prefix(path):
 
 
 
-def test_skill_list_matches_plugin_settings(repo_root):
-    """_SKILL_LIST and plugin/settings.json skills[] must stay in sync."""
+def test_the_advertised_skill_list_matches_the_installed_plugin_configuration(repo_root):
+    """The skill names declared in the plugin's settings file must be exactly the same set as the
+    canonical skill list maintained in code. If they fall out of sync, a skill could be installed
+    but undocumented, or documented but never actually enabled for users."""
     settings = json.loads((repo_root / "dist" / "claude-code" / "settings.json").read_text())
     manifest = settings.get("skills", [])
     assert sorted(manifest) == sorted(_SKILL_LIST), (
@@ -123,8 +134,10 @@ def test_skill_list_matches_plugin_settings(repo_root):
 _COC_GENERATOR = "dist/claude-code/skills/code-of-conduct-generator/SKILL.md"
 
 
-def test_code_of_conduct_generator_uses_plan_mode(repo_root):
-    """code-of-conduct-generator must use plan mode so the user reviews the full CoC before it is written."""
+def test_code_of_conduct_generator_lets_the_user_review_the_draft_before_writing_it(repo_root):
+    """Generating a code of conduct must open plan mode first and only write the file after the
+    user explicitly approves the plan, so the user always sees and can correct the full draft
+    before it becomes a real file in their repo."""
     md = (repo_root / _COC_GENERATOR).read_text()
     assert "EnterPlanMode" in md, \
         "code-of-conduct-generator must call EnterPlanMode to present the CoC draft for review"
@@ -132,10 +145,11 @@ def test_code_of_conduct_generator_uses_plan_mode(repo_root):
         "code-of-conduct-generator must call ExitPlanMode after the user approves"
 
 
-def test_skills_read_the_coc_case_insensitively(skill_files):
-    """A skill that reads the project code-of-conduct must find it at any capitalization — a
-    'Read `code-of-conduct.md`' / '`code-of-conduct.md` if present' instruction misses
-    CODE_OF_CONDUCT.md on Linux (the same file). Naming references are not matched here."""
+def test_looking_up_the_project_code_of_conduct_works_regardless_of_filename_case(skill_files):
+    """A skill that checks for an existing code-of-conduct file must recognize it whatever case
+    the filename uses. An instruction pinned to the lowercase name alone would miss
+    CODE_OF_CONDUCT.md, a common uppercase convention on the same filesystem, and wrongly
+    conclude no code of conduct exists."""
     forbidden = ("`code-of-conduct.md` if present", "Read `code-of-conduct.md`", "read `code-of-conduct.md`")
     for path in skill_files:
         text = path.read_text()
@@ -144,10 +158,11 @@ def test_skills_read_the_coc_case_insensitively(skill_files):
                 f"{path.parent.name}/SKILL.md: '{pat}' is a fixed-lowercase CoC read — use 'any capitalization'"
 
 
-def test_coc_generator_creates_lowercase_by_default(read_file):
-    """When NO code-of-conduct exists, the generator defaults the new file to the lowercase
-    `code-of-conduct.md` (uppercase CODE_OF_CONDUCT.md is GitHub's community-doc convention,
-    which would self-inflict the two-file collision). It never proposes uppercase unprompted."""
+def test_a_new_code_of_conduct_is_created_with_a_lowercase_filename_unless_asked_otherwise(read_file):
+    """When no code-of-conduct file exists yet, the generator must default to creating the
+    lowercase `code-of-conduct.md` rather than proposing the uppercase `CODE_OF_CONDUCT.md`
+    (GitHub's community-doc convention). Proposing uppercase unprompted risks ending up with two
+    conflicting files if a lowercase one is added later."""
     skill = read_file("dist/claude-code/skills/code-of-conduct-generator/SKILL.md")
     assert "→ `CODE_OF_CONDUCT.md`" not in skill, \
         "generator must not PROPOSE an uppercase output filename by default"
@@ -155,9 +170,10 @@ def test_coc_generator_creates_lowercase_by_default(read_file):
         "the default create name must be the lowercase code-of-conduct.md"
 
 
-def test_learnings_skill_names_the_phase_that_invokes_it(read_file):
-    """build.md invokes learnings at Build close-out (every tier); a 'ship time' trigger routes
-    the model to Ship — which never invokes it and runs prompt-free — so nothing gets written."""
+def test_the_learnings_skill_only_promises_to_run_at_a_phase_that_actually_calls_it(read_file):
+    """If the learnings skill tells the model it fires at 'ship time', the ship phase's own
+    instructions must actually invoke it. Otherwise a user is told their learnings get captured
+    at ship time, but the ship command runs without ever writing them."""
     skill = read_file("dist/claude-code/skills/learnings/SKILL.md")
     if "ship time" in skill.lower():
         assert "learnings" in read_file("dist/claude-code/commands/ship.md"), \
@@ -180,27 +196,33 @@ def _cmap_flat(read_file):
     return " ".join(read_file(_COC_MAP).split())
 
 
-def test_coc_generator_enters_plan_mode_and_offers_modes(read_file):
-    """Plan mode opens before any scan, with a roadmap, and Quick vs Thorough keeps a small repo
-    out of the full ceremony."""
+def test_coc_generator_offers_a_quick_option_before_committing_to_a_full_scan(read_file):
+    """The generator must enter plan mode before scanning anything, present the user a roadmap,
+    and offer a Quick versus Thorough choice, so a small, low-stakes repo isn't forced through
+    the full scan ceremony when a lighter pass would do."""
     flat = _coc_flat(read_file)
     assert "call `EnterPlanMode` first, before any scanning" in flat
     assert "chat summary of the" in flat
     assert "Quick" in flat and "Thorough" in flat and "low-stakes" in flat
 
 
-def test_coc_generator_spine_points_to_companion_sections(read_file):
-    """The lean spine delegates detail to the companion's Scan-playbook and Output-format
-    sections — keeping SKILL.md's instruction load low."""
+def test_the_generators_main_instructions_defer_details_to_its_companion_reference_doc(read_file):
+    """The generator's main instructions stay short by pointing readers to the detailed scan and
+    output-format guidance in its companion reference file rather than repeating it inline,
+    keeping the primary instructions easy to follow while the fine detail stays available on
+    demand."""
     flat = _coc_flat(read_file)
     assert "§ Scan playbook" in flat and "§ Output format" in flat
     assert "coverage-map.md" in flat
     assert "this file is the spine" in flat
 
 
-def test_coc_generator_find_guard_and_target_resolution(read_file):
-    """Case-insensitive detection, multi-match confirm, the behavioural-Covenant guard, and
-    target-repo resolution (ask when ambiguous)."""
+def test_coc_generator_confirms_which_repo_and_file_before_writing_anything(read_file):
+    """Before generating anything, the skill must detect any existing code-of-conduct file
+    regardless of capitalization, ask the user when more than one match is found, refuse to treat
+    a generic template as an already-adequate standard, and confirm which repo the document is
+    for when that's ambiguous, so it never ends up creating two conflicting code-of-conduct files
+    in the same repo."""
     flat = _coc_flat(read_file)
     assert "any capitalization" in flat and "case-insensitiv" in flat.lower()
     assert "More than one" in flat and "never silently" in flat
@@ -210,10 +232,11 @@ def test_coc_generator_find_guard_and_target_resolution(read_file):
     assert "one CoC per repo, never merged" in flat
 
 
-def test_coc_generator_questions_and_quality_bar(read_file):
-    """A single batch with a raised floor — the main agent picks the count each run but never fewer
-    than 5–8 questions (minimum 5), plus accept/decline per recommended gate and the AI-assisted
-    quality bar recommended in chat."""
+def test_coc_generator_asks_a_substantial_batch_of_questions_and_holds_a_quality_bar(read_file):
+    """The generator must ask its clarifying questions in one batch of at least five to eight,
+    never trickling them in one at a time, let the user accept or decline each recommended rule,
+    and recommend a real quality bar (branch coverage, mutation testing where available) rather
+    than a token one."""
     flat = _coc_flat(read_file)
     assert "no trickle" in flat and "never asks fewer than 5–8 questions" in flat
     assert "minimum 5" in flat
@@ -223,8 +246,11 @@ def test_coc_generator_questions_and_quality_bar(read_file):
         or "mutation gate where a mutation tool exists" in flat
 
 
-def test_coc_generator_steps_are_in_execution_order(read_file):
-    """Structural: the nine numbered steps appear in order — a reshuffled spine fails."""
+def test_coc_generator_walks_through_its_nine_steps_in_the_documented_order(read_file):
+    """The generator's nine numbered steps (plan mode, find existing, scan, questions, draft, gap
+    pass, gate, approve, review) must appear in the file in that same order. A reshuffled step
+    list would mislead anyone following the workflow, even though nothing enforces the order at
+    runtime."""
     skill = read_file(_COC_GENERATOR)
     labels = ["1. **Plan mode", "2. **Find existing", "3. **Scan", "4. **Questions",
               "5. **Draft", "6. **Gap pass", "7. **Gate", "8. **Approve", "9. **Review"]
@@ -234,9 +260,11 @@ def test_coc_generator_steps_are_in_execution_order(read_file):
 
 # ── coverage-map companion: the relocated Scan-playbook and Output-format detail ──
 
-def test_coverage_map_gate_is_strict_and_executed(read_file):
-    """The relocated Step-6b gate: four criteria, an objective (not reviewer-judgment) check, an
-    auditable citation appendix, and each cited check dry-run against the repo."""
+def test_the_coverage_gate_requires_objective_checks_not_just_reviewer_opinion(read_file):
+    """The quality gate documented in the coverage-map companion must require each rule to read
+    one way, not conflict with any other rule, name a mechanical check that isn't just "it looks
+    nice", and be dry-run against the real repo with results kept in an auditable record, so a
+    rule can't pass the gate on a reviewer's say-so alone."""
     flat = _cmap_flat(read_file)
     assert "reads exactly one way" in flat and "conflicts with no other" in flat
     assert '"it looks nice"' in flat and "is not proof" in flat

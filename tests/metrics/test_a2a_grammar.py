@@ -11,10 +11,11 @@ from tests.metrics.a2a_grammar import (
 )
 
 
-def test_a2a_core_block_is_correctly_extracted_from_protocol_markdown():
-    """The injected Core block is the first fenced code block in the protocol file.
+def test_only_the_first_core_section_is_extracted_when_multiple_exist():
+    """The Core section of the A2A protocol document is the first fenced block in the file.
 
-    When a file has two fenced blocks, only the content of the first one is returned.
+    When the document contains additional fenced blocks after it, they are ignored and only
+    the first section's content is returned.
     """
     # Given
     md = "intro\n```\nline a\nline b\n```\ntrailer\n```\nsecond\n```\n"
@@ -27,8 +28,10 @@ def test_a2a_core_block_is_correctly_extracted_from_protocol_markdown():
     assert core == "line a\nline b"
 
 
-def test_a2a_core_extraction_returns_false_when_no_fenced_block_exists():
-    """A protocol file with no fenced block has no A2A Core — extraction must signal this clearly."""
+def test_a_protocol_document_missing_its_core_section_is_clearly_flagged():
+    """When the protocol document doesn't contain a Core section at all, extraction must report
+    failure and return an empty result rather than silently succeeding with nothing -- so
+    callers can tell "no data" apart from "missing data"."""
     # Given
     md = "just prose, no fences"
 
@@ -40,8 +43,10 @@ def test_a2a_core_extraction_returns_false_when_no_fenced_block_exists():
     assert core == "", "no fenced block must return an empty core string"
 
 
-def test_numbered_entries_are_counted_excluding_continuation_lines():
-    """Core entry count covers only top-level numbered lines, not indented continuations."""
+def test_only_top_level_numbered_entries_are_counted_not_their_continuation_lines():
+    """Counting entries in the Core section only counts the numbered lines themselves;
+    indented continuation text that wraps under an entry, and lines like "Example:", are
+    not counted as separate entries."""
     # Given
     core = "0. zero\n   continuation (indented, not counted)\n1. one\n2. two\nExample: not an entry"
 
@@ -52,8 +57,10 @@ def test_numbered_entries_are_counted_excluding_continuation_lines():
     assert count == 3
 
 
-def test_entry_lines_are_returned_with_their_role_and_status():
-    """find_core_entry_lines returns every [ROLE] STATUS | CONTENT | ACTION line in the text."""
+def test_every_role_status_content_action_line_is_found_and_other_text_is_ignored():
+    """Scanning the Core section text picks out every line formatted as
+    [ROLE] STATUS | CONTENT | ACTION, in order, while ordinary prose lines mixed in
+    between them are skipped."""
     # Given
     text = (
         "[QA] Blocker | something is broken | fix it\n"
@@ -70,8 +77,10 @@ def test_entry_lines_are_returned_with_their_role_and_status():
     assert lines[1].startswith("[ARCH] Pass")
 
 
-def test_entry_matching_a2a_format_is_accepted():
-    """A valid entry has exactly two ' | ' separators — three fields total."""
+def test_a_valid_entry_line_is_recognized_even_with_a_pipe_inside_its_content():
+    """An entry line is recognized as valid when it has exactly the three fields separated
+    by ' | ' -- role/status, content, and action. A stray '|' character inside the content
+    field alone does not stop it from being recognized."""
     # Given
     valid_entries = [
         "[QA] Blocker | something is wrong | fix it",
@@ -84,8 +93,10 @@ def test_entry_matching_a2a_format_is_accepted():
         assert matches_a2a_entry_format(line) is True, f"Should be valid: {line!r}"
 
 
-def test_entry_missing_required_separators_is_rejected():
-    """An entry with the wrong number of ' | ' separators must be rejected."""
+def test_an_entry_with_the_wrong_number_of_fields_is_rejected():
+    """An entry line is rejected as invalid when it doesn't have exactly three fields
+    separated by ' | ' -- whether it's missing a field or has an extra one -- so a
+    malformed entry can't slip through and be treated as real data."""
     # Given
     invalid_entries = [
         "[QA] Blocker | only two fields",           # one separator
@@ -97,10 +108,10 @@ def test_entry_missing_required_separators_is_rejected():
         assert matches_a2a_entry_format(line) is False, f"Should be invalid: {line!r}"
 
 
-def test_used_statuses_are_extracted_from_entry_lines():
-    """extract_used_statuses returns only statuses that appear in valid entry lines.
-
-    Lines with unknown statuses are not captured because they don't match the entry regex.
+def test_only_statuses_from_correctly_formatted_entries_are_collected():
+    """Collecting the set of statuses actually used in the document only picks up statuses
+    from lines that are properly formatted as entries; a status-like word sitting in a
+    malformed or unrecognized line is not counted, since it isn't a real entry.
     """
     # Given
     md = "[QA] Blocker | x | y\n[ARCH] Info | z | none\n[OLD] Bogus | a | b"

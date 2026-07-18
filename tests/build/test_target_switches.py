@@ -25,7 +25,12 @@ def _valid_names() -> set[str]:
     return names
 
 
-def test_every_target_switch_names_a_known_target():
+def test_content_files_never_reference_an_unknown_target_switch():
+    """Documentation content uses ``${target:NAME}`` markers to show or hide text depending on
+    which AI tool (Claude, opencode, etc.) is reading it. Every such marker must name a real
+    target -- a misspelled name (e.g. ``opencde`` instead of ``opencode``) would silently make
+    that content disappear for every reader with no error raised, so this check fails the build
+    the moment a typo like that is introduced."""
     valid = _valid_names()
     offenders: list[str] = []
     for md in sorted(SRC_CONTENT.rglob("*.md")):

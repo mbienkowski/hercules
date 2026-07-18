@@ -22,7 +22,11 @@ def _standalone_fields(kind: str, name: str, tokens: dict, models: dict) -> tupl
     return meta, body.strip()
 
 
-def test_opencode_agents_mirror_plugin_js_entries():
+def test_every_opencode_agent_matches_its_human_readable_reference_copy():
+    """Each OpenCode agent actually runs from the compiled data baked into plugin.js, but a
+    separate, human-readable copy of the same agent is also kept on disk for people to review.
+    This checks every agent's description, mode, and instructions are identical in both places,
+    so someone reading the reference copy never gets misled about what actually runs."""
     tokens, models = cli._load_tokens("opencode"), cli._load_models()
     agents, _ = cli._opencode_agents_and_commands(tokens)
     assert agents, "expected OpenCode agent entries"
@@ -33,7 +37,11 @@ def test_opencode_agents_mirror_plugin_js_entries():
         assert sbody == body, f"{name}: body diverged"
 
 
-def test_opencode_commands_mirror_plugin_js_entries():
+def test_every_opencode_command_matches_its_human_readable_reference_copy():
+    """Each OpenCode command actually runs from the compiled data baked into plugin.js, but a
+    separate, human-readable copy of the same command is also kept on disk for people to review.
+    This checks every command's description, assigned agent, and instructions are identical in
+    both places, so someone reading the reference copy never gets misled about what actually runs."""
     tokens, models = cli._load_tokens("opencode"), cli._load_models()
     _, commands = cli._opencode_agents_and_commands(tokens)
     assert commands, "expected OpenCode command entries"

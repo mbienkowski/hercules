@@ -14,21 +14,21 @@ PLUGIN = REPO_ROOT / "dist" / "claude-code"
 
 
 @pytest.mark.skipif(not PLUGIN.exists(), reason="dist/claude-code/ retired (post-cutover)")
-def test_claude_code_matches_plugin_byte_identical(tmp_path):
+def test_building_claude_code_reproduces_the_published_plugin_exactly(tmp_path):
+    """Rebuilding the claude-code target from source must produce output that is byte-for-byte
+    identical to the plugin already checked into the repo. If it ever drifts, the published
+    plugin a user installs would no longer match what the build actually produces."""
     out = tmp_path / "claude-code"
     build_target("claude-code", out)
     diffs = _dir_diff(PLUGIN, out)
     assert diffs == [], f"dist/claude-code drifts from plugin/: {diffs}"
 
 
-def test_dir_diff_catches_same_size_same_mtime_content_change(tmp_path):
-    """A same-size edit with a matching mtime must still be caught (content compare, not stat).
-
-    This is the case a shallow (stat-signature) compare would miss: identical size + identical
-    mtime -> "same" without ever reading the bytes. Exercises the real production
-    ``scripts.build.cli._dir_diff`` (not a local reimplementation) so a regression in that
-    function — e.g. someone dropping ``shallow=False`` — is actually caught here.
-    """
+def test_a_content_edit_is_detected_even_when_file_size_and_timestamp_match(tmp_path):
+    """If a file's text changes but its size and last-modified time happen to stay the same,
+    the drift check must still notice the change instead of assuming the files are identical.
+    A comparison that trusted size and timestamp alone would silently miss real edits, letting
+    a broken build pass as matching the published plugin."""
     a, b = tmp_path / "a", tmp_path / "b"
     build_target("claude-code", a)
     build_target("claude-code", b)
@@ -43,7 +43,10 @@ def test_dir_diff_catches_same_size_same_mtime_content_change(tmp_path):
 
 
 @pytest.mark.skipif(not PLUGIN.exists(), reason="dist/claude-code/ retired (post-cutover)")
-def test_every_plugin_file_has_a_generated_counterpart(tmp_path):
+def test_the_build_produces_every_file_the_published_plugin_has(tmp_path):
+    """Every file present in the published plugin must also appear in a freshly built copy, with
+    no extras and nothing missing. A gap here would mean a user installing the built plugin ends
+    up with an incomplete or mismatched set of files compared to what was published."""
     out = tmp_path / "claude-code"
     build_target("claude-code", out)
     want = {p.relative_to(PLUGIN).as_posix() for p in PLUGIN.rglob("*") if p.is_file() and "__pycache__" not in p.parts}

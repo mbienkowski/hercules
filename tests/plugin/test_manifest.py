@@ -3,8 +3,11 @@
 import json
 
 
-def test_plugin_settings_has_required_keys(repo_root):
-    """dist/claude-code/settings.json must declare all required manifest keys with correct types."""
+def test_installed_plugin_declares_its_agent_advisors_skills_and_commands(repo_root):
+    """The plugin package that ships to users must describe itself completely: an agent name,
+    plus non-empty lists of advisors, skills, and commands. If any of these is missing or the
+    wrong type, Claude Code would install a plugin that silently lacks capabilities the user
+    expects."""
     settings = json.loads((repo_root / "dist" / "claude-code" / "settings.json").read_text())
     assert isinstance(settings.get("agent"), str), "agent must be a string"
     assert isinstance(settings.get("advisors"), list), "advisors must be a list"
@@ -15,8 +18,11 @@ def test_plugin_settings_has_required_keys(repo_root):
     assert settings["commands"], "commands must not be empty"
 
 
-def test_command_list_matches_plugin_settings(repo_root):
-    """dist/claude-code/settings.json commands[] must match files in dist/claude-code/commands/."""
+def test_every_shipped_command_file_is_listed_and_vice_versa(repo_root):
+    """Every command file placed in the plugin's commands folder must be listed in the plugin's
+    manifest, and every command named in the manifest must have a matching file. A mismatch
+    would leave a shipped command invisible to users, or advertise a command that doesn't
+    actually exist."""
     existing = {p.stem for p in (repo_root / "dist" / "claude-code" / "commands").glob("*.md")}
     settings = json.loads((repo_root / "dist" / "claude-code" / "settings.json").read_text())
     manifest = settings.get("commands", [])

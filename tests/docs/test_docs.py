@@ -8,31 +8,38 @@ import re
 from tests.conftest import ALL_COMMANDS, section
 
 
-def test_readme_documents_marketplace_install(read_file):
-    """README must document the native marketplace install path."""
+def test_readme_explains_how_to_install_via_the_marketplace(read_file):
+    """New users reading the README must find the exact commands for adding the marketplace
+    and installing the plugin, so they can get Hercules running without guessing at command
+    names."""
     content = read_file("README.md")
     assert "/plugin marketplace add" in content, "README must show the marketplace-add command"
     assert "/plugin install" in content, "README must show the plugin-install command"
 
 
-def test_readme_has_no_removed_cli_references(read_file):
-    """README must not reference the removed auto-sync CLI surface."""
+def test_readme_never_mentions_the_removed_auto_sync_cli(read_file):
+    """The README must not mention the auto-sync CLI flags and schedule that were removed
+    from the product; a leftover reference would send users hunting for commands that no
+    longer exist."""
     content = read_file("README.md")
     for banned in ["--sync", "--branch", "auto-sync", "every 30 min"]:
         assert banned not in content, f"README still references removed CLI surface: {banned!r}"
 
 
-def test_readme_documents_non_interactive_team_install(read_file):
-    """README must document the settings.json team/CI install path."""
+def test_readme_explains_how_teams_can_install_without_clicking_through_prompts(read_file):
+    """Teams and CI pipelines need to install Hercules by editing settings.json rather than
+    answering interactive prompts; the README must show that settings.json block (marketplace
+    entry plus enabled plugin) so automated setups aren't left guessing."""
     content = read_file("README.md")
     assert "enabledPlugins" in content and "extraKnownMarketplaces" in content, \
         "README must show the settings.json team install block (extraKnownMarketplaces + enabledPlugins)"
 
 
-def test_readme_has_no_misleading_auto_update_claim(read_file):
-    """Auto-update exists but is OFF by default for third-party marketplaces — the README must
-    document the manual procedure (per-plugin update + reload) and present auto-update only as
-    the opt-in it is, never as an unconditional given."""
+def test_readme_never_implies_updates_happen_automatically_by_default(read_file):
+    """Auto-update exists but is off by default for third-party marketplaces, so the README
+    must describe the manual update steps (the per-plugin update command, then reloading
+    plugins) and present automatic updates only as an opt-in feature -- never as something
+    that just happens on its own."""
     content = read_file("README.md")
     assert "keeps the plugin updated" not in content.lower(), \
         "README must not present auto-update as unconditional — it is opt-in per marketplace"
@@ -46,8 +53,10 @@ def test_readme_has_no_misleading_auto_update_claim(read_file):
         "README must document the opt-in per-marketplace auto-update path"
 
 
-def test_plugin_version_is_single_sourced(repo_root, read_file):
-    """pyproject version must equal the shipped plugin manifest version (no drift)."""
+def test_the_published_version_number_matches_across_packaging_files(repo_root, read_file):
+    """The version number declared for the Python package and the version shipped inside the
+    plugin manifest must always agree, so users and package managers never see two different
+    version numbers for the same release."""
     py = read_file("pyproject.toml")
     m = re.search(r'(?m)^version\s*=\s*"([^"]+)"', py)
     assert m, "pyproject.toml must declare a version"
@@ -59,23 +68,28 @@ def test_plugin_version_is_single_sourced(repo_root, read_file):
     )
 
 
-def test_shipped_plugin_describes_no_sync_source(repo_root):
-    """No shipped plugin content may describe the removed sync source / auto-sync CLI."""
+def test_shipped_documentation_never_mentions_the_removed_sync_feature(repo_root):
+    """None of the documentation files packaged with the plugin may describe the removed
+    'sync source' or 'auto-sync' feature; a stray mention would describe functionality that
+    no longer exists and mislead anyone reading the shipped docs."""
     for path in (repo_root / "dist" / "claude-code").rglob("*.md"):
         low = path.read_text().lower()
         assert "sync source" not in low, f"{path} references a removed 'sync source'"
         assert "auto-sync" not in low, f"{path} references removed auto-sync"
 
 
-def test_readme_documents_uninstall(read_file):
-    """README must document how to uninstall the plugin and remove its marketplace entry."""
+def test_readme_explains_how_to_fully_uninstall_the_plugin(read_file):
+    """Users who want to remove Hercules must be able to find the uninstall command and
+    instructions for removing the marketplace entry in the README's Uninstalling section."""
     content = read_file("README.md")
     assert "/plugin uninstall" in content, "README must show the /plugin uninstall command"
     assert "## Uninstalling" in content, "README must have an Uninstalling section"
 
 
-def test_readme_documents_onboarding_skill(read_file):
-    """README must document the code-of-conduct-generator onboarding step for new repos."""
+def test_readme_explains_the_one_time_setup_step_for_new_projects(read_file):
+    """New repositories need a one-time onboarding step that generates a code of conduct;
+    the README must mention this skill by name and explain that it is a one-time per-repo
+    step, so users don't miss it or think it needs to run every session."""
     content = read_file("README.md")
     assert "code-of-conduct-generator" in content, \
         "README must mention the code-of-conduct-generator skill"
@@ -83,11 +97,13 @@ def test_readme_documents_onboarding_skill(read_file):
         "README must explain the one-time per-repo onboarding step"
 
 
-def test_readme_discloses_the_enforcement_hooks_honestly(read_file):
-    """The plugin now ships executable hooks, so 'Plugin permissions' must disclose them truthfully:
-    they exist, they run before edits (PreToolUse), they are read-only over ~/.hercules, make no
-    network calls, and fail open. A prior README claimed the plugin had 'no executable code of its
-    own' — this pins that the claim can never silently return alongside shipped hook code."""
+def test_readme_truthfully_discloses_that_the_plugin_runs_code_automatically(read_file):
+    """The plugin ships executable hooks that run automatically before every edit, so the
+    'Plugin permissions' section must disclose this plainly and state the three safety
+    guarantees users rely on: the hooks only read (never write) files, make no network calls,
+    and fail safely (never block work) rather than crash. An older README claimed the plugin
+    had 'no executable code of its own' -- this guarantees that false claim can never quietly
+    return alongside the shipped hooks."""
     content = read_file("README.md")
     low = content.lower()
     assert "no executable code of its own" not in low, \
@@ -103,10 +119,11 @@ def test_readme_discloses_the_enforcement_hooks_honestly(read_file):
         "README must state the hooks make no network calls"
 
 
-def test_review_only_agents_carry_no_edit_or_write_tools(repo_root):
-    """Review/architecture agents find and decide; they do not author code. Their tool lists must
-    never carry Edit/Write — a positive, ongoing guard so a future edit can't quietly grant a
-    reviewer write access (the same risk the QA-role test pins for senior-qa-engineer)."""
+def test_review_and_architecture_agents_can_never_be_granted_edit_permissions(repo_root):
+    """The agents whose job is to review and decide, not to write code, must never be granted
+    edit or write permissions in their configuration -- otherwise a future change could
+    quietly let a reviewer start authoring code instead of only judging it (the same risk
+    already guarded for the senior-qa-engineer role)."""
     agents = repo_root / "dist" / "claude-code" / "agents"
     for name in ("cynical-reviewer", "lead-architect"):
         md = (agents / f"{name}.md").read_text()
@@ -117,9 +134,10 @@ def test_review_only_agents_carry_no_edit_or_write_tools(repo_root):
         )
 
 
-def test_requirements_section_discloses_hook_python_runtime(read_file):
-    """hooks.json runs python3 on the user's machine on every edit — the Requirements section
-    must not call Python contributor-only, and the intro must not deny extra executables."""
+def test_readme_admits_the_safety_hooks_need_python_installed_to_run(read_file):
+    """The safety hooks run a Python script on the user's machine every time a file is edited,
+    so the Requirements section must not claim Python is only needed by contributors, and the
+    introduction must not claim no extra software is required."""
     assert "python3" in read_file("dist/claude-code/hooks/hooks.json")
     readme = read_file("README.md")
     start = readme.index("## Requirements")
@@ -130,33 +148,43 @@ def test_requirements_section_discloses_hook_python_runtime(read_file):
         "python3 is an extra executable the hooks use"
 
 
-def test_readme_does_not_overstate_single_approval(read_file):
-    """Phases ask clarifying questions (tier confirm, advisor consent, service paths, ship-each)
-    before the gate — the honest claim is one authorizing GATE, not one prompt."""
+def test_readme_does_not_claim_only_one_approval_happens_per_phase(read_file):
+    """Phases actually ask several clarifying questions (tier confirmation, advisor consent,
+    service paths, ship-each) before reaching their approval gate, so the README must not
+    claim a single approval is the only thing that happens -- overstating it would mislead
+    users about how much they'll be asked along the way."""
     assert "One approval per phase; nothing happens before it" not in read_file("README.md")
 
 
-def test_uninstall_section_mentions_hercules_home_cleanup(read_file):
-    """~/.hercules (project paths + delivery state) survives /plugin uninstall — disclose it."""
+def test_uninstall_instructions_mention_that_saved_project_data_survives(read_file):
+    """Uninstalling the plugin does not delete the user's saved project paths and delivery
+    history stored outside the plugin; the Uninstalling section must disclose that this data
+    survives, so users aren't caught off guard by leftover state after they thought they'd
+    removed everything."""
     readme = read_file("README.md")
     start = readme.index("## Uninstalling")
     assert ".hercules" in readme[start:readme.index("## ", start + 3)]
 
 
-def test_readme_discloses_index_and_learnings_artifacts(read_file):
-    """Commands write docs/INDEX.md and docs/learnings.md into the user's repo — say so."""
+def test_readme_discloses_that_commands_write_files_into_the_users_repository(read_file):
+    """Running commands creates docs/INDEX.md and docs/learnings.md inside the user's own
+    repository; the README must mention both files so users aren't surprised to find new
+    files added by the tool."""
     readme = read_file("README.md")
     assert "INDEX.md" in readme and "learnings" in readme.lower()
 
 
-def test_readme_advisor_consent_is_consistent(read_file):
-    """The board is a recommendation the user approves ('never automatic') — no sentence may
-    claim non-trivial tiers run it unconditionally."""
+def test_readme_never_claims_the_advisory_board_runs_without_approval(read_file):
+    """The advisory board is only ever a recommendation the user must approve -- the README
+    must not contain a sentence claiming it runs unconditionally on other tiers, which would
+    misrepresent it as fully automatic."""
     assert "every other tier runs it" not in read_file("README.md")
 
 
-def test_license_is_single_sourced(repo_root, read_file):
-    """pyproject and the plugin manifest must declare the same license as LICENSE ships."""
+def test_the_declared_license_matches_across_packaging_files(repo_root, read_file):
+    """The license named in the Python package metadata and the license named in the shipped
+    plugin manifest must agree, so the license a user sees on installation matches what is
+    actually shipped."""
     import json as _json
     py = read_file("pyproject.toml")
     plugin = _json.loads((repo_root / "dist" / "claude-code" / ".claude-plugin" / "plugin.json").read_text())
@@ -165,10 +193,11 @@ def test_license_is_single_sourced(repo_root, read_file):
         f"pyproject license must match plugin.json's {lic!r}"
 
 
-def test_requirements_disclose_the_windows_python3_gap(read_file):
-    """Stock Windows ships python/py, not python3 — there the guard silently never arms
-    (fail-open). A README that claims python3 portability without the caveat oversells
-    the flagship guard to Windows users."""
+def test_readme_warns_windows_users_the_safety_guard_may_silently_never_activate(read_file):
+    """Stock Windows installs ship 'python' or 'py' but not a 'python3' command, so on those
+    machines the safety guard can silently never turn on. The README's Python requirement
+    must call out this Windows-specific gap, or Windows users would believe they have
+    protection they don't actually have."""
     readme = read_file("README.md")
     req = readme[readme.index("**Python 3"):]
     req = req[:req.index("\n\n")]
@@ -176,10 +205,11 @@ def test_requirements_disclose_the_windows_python3_gap(read_file):
         "the python3 requirement must name the Windows gap (python/py, no python3 alias)"
 
 
-def test_hooks_disclosure_scopes_the_guard_to_editing_tools(read_file):
-    """The hook matches Claude Code's editing tools; a shell edit (sed -i) bypasses it and
-    is caught by Build's pre-advance git diff instead. Saying the criteria 'can't be
-    silently weakened' without that split overstates the hook."""
+def test_readme_explains_that_shell_edits_are_covered_by_a_different_safeguard(read_file):
+    """The safety hook only watches the built-in editing tools, so an edit made through a
+    shell command (like sed) can slip past it; that gap is closed instead by a separate
+    git-diff check before a phase advances. The README must name that backstop, or it would
+    overstate the hook as catching every possible edit."""
     readme = read_file("README.md")
     hooks = readme[readme.index("**Hooks**"):]
     hooks = hooks[:hooks.index("- **Shell**")]
@@ -187,40 +217,43 @@ def test_hooks_disclosure_scopes_the_guard_to_editing_tools(read_file):
         "the disclosure must name the git-diff backstop that covers shell-side edits"
 
 
-def test_readme_generator_output_filename_is_lowercase(read_file):
-    """The README lectures on the CODE_OF_CONDUCT.md-vs-code-of-conduct.md distinction and
-    the generator skill hard-rules lowercase — the README's own description of the
-    generator's output must not contradict both."""
+def test_readme_correctly_describes_the_generated_file_as_lowercase_named(read_file):
+    """The README explains the difference between the uppercase CODE_OF_CONDUCT.md and the
+    lowercase code-of-conduct.md, and the generator is required to produce the lowercase
+    file -- the README's own description of what the generator creates must not contradict
+    that rule."""
     readme = read_file("README.md")
     assert "a `CODE_OF_CONDUCT.md` with" not in readme, \
         "the generator produces the lowercase per-project file, not this repo's CoC"
     assert "a `code-of-conduct.md` with" in readme
 
 
-def test_first_run_gate_never_intercepts_unrelated_work(read_file):
-    """The persona is the default agent for EVERY session — an onboarding block that fires
-    on any turn in an un-set-up repo hijacks unrelated work and contradicts the README's
-    'Optional'. It must apply only to Hercules-directed requests."""
+def test_the_first_run_setup_prompt_never_interrupts_unrelated_work(read_file):
+    """The persona runs on every session, so the one-time setup prompt for un-configured
+    repositories must explicitly promise never to interrupt unrelated requests and must limit
+    itself to requests actually directed at Hercules -- otherwise it would hijack ordinary
+    work and contradict the README's promise that onboarding is optional."""
     agent = read_file("dist/claude-code/agents/hercules.md")
     gate = agent[agent.index("**First-run onboarding.**"):]
     assert "unrelated" in gate, "the gate must promise never to intercept unrelated work"
     assert "/hercules:" in gate, "the gate must scope itself to Hercules-directed requests"
 
 
-def test_persona_model_defaults_to_opus(read_file):
-    """The default persona declares its default model as the `opus` alias — version-flexible,
-    and (unlike a raw `claude-...` id) the exact-match regex here also pins it to the alias.
-    Whether `/model` overrides it at runtime is Claude Code behaviour this static check can't
-    prove; it is verified empirically in the PR."""
+def test_the_default_persona_is_configured_to_use_the_opus_model(read_file):
+    """The persona's configuration must declare 'opus' as its default model, using the
+    version-flexible alias rather than a pinned model id, so the assistant runs on the
+    intended model out of the box. Whether a user's runtime `/model` override actually takes
+    effect is separately verified by hand, not by this check."""
     agent = read_file("dist/claude-code/agents/hercules.md")
     head = agent[:agent.index("\n---", 3)]
     assert re.search(r"(?m)^model:\s*opus\s*$", head), \
         "hercules.md frontmatter must declare `model: opus`"
 
 
-def test_readme_documents_opus_default_and_override(read_file):
-    """The user-facing half of the fix: the Plugin permissions Models bullet must say the
-    persona defaults to opus and can be changed with `/model`, or the doc silently regresses."""
+def test_readme_tells_users_the_default_model_is_opus_and_how_to_change_it(read_file):
+    """The 'Plugin permissions' Models bullet must state that the persona defaults to the
+    opus model and that users can switch models with the /model command -- without this,
+    users would have no documented way to discover or change which model they're running."""
     readme = read_file("README.md")
     match = re.search(r"## Plugin permissions\n(.*?)(?=\n## |\Z)", readme, re.DOTALL)
     assert match, "README must have a '## Plugin permissions' section"
@@ -230,17 +263,21 @@ def test_readme_documents_opus_default_and_override(read_file):
     assert "/model" in perms, "Models bullet must document the /model override"
 
 
-def test_readme_citation_doi_is_the_real_paper(read_file):
-    """The one load-bearing citation must resolve — a 404 on LinkedIn day flips the whole
-    evidence section from rigor to decoration."""
+def test_readme_cites_the_correct_published_paper_not_a_dead_link(read_file):
+    """The README's one evidence citation must point to the real, resolvable paper (Cheng et
+    al., Science 2026) and must not still contain the old identifier that resolves to
+    nothing -- a dead citation would turn the README's evidence section from genuine support
+    into empty decoration."""
     readme = read_file("README.md")
     assert "science.aec8352" in readme, "cite Cheng et al., Science 2026 (aec8352)"
     assert "adp9289" not in readme, "the old DOI resolves to nothing"
 
 
-def test_uninstall_lists_repo_side_artifacts(read_file):
-    """Uninstalling only mentions ~/.hercules — but the generator wrote code-of-conduct.md
-    and an @-line into the user's CLAUDE.md, which keep steering sessions after uninstall."""
+def test_uninstall_instructions_mention_files_left_behind_in_the_repository(read_file):
+    """Onboarding writes a code-of-conduct.md file and a reference line into the user's
+    CLAUDE.md; those keep influencing sessions even after the plugin is uninstalled. The
+    Uninstalling section must name both files, not just the separate saved-state data, so
+    users know everything they may want to remove for a clean break."""
     readme = read_file("README.md")
     section = readme[readme.index("## Uninstalling"):]
     section = section[:section.index("\n## ") if "\n## " in section else len(section)]
@@ -248,11 +285,12 @@ def test_uninstall_lists_repo_side_artifacts(read_file):
         "uninstall must name the repo-side artifacts the user may want to remove or keep"
 
 
-def test_workflow_source_of_truth_is_the_protocol(read_file):
-    """The workflow's source of truth is dist/claude-code/protocols/workflow-protocol.md — NOT the commands
-    or CLAUDE.md. This exact inversion shipped twice in the CoC; this product pin guards the
-    concept (which file owns the workflow) so a third re-inversion fails CI. It is scoped to the
-    inverted phrasing, so legitimate 'source of truth' mentions about code/state still pass."""
+def test_the_workflow_protocol_document_is_named_the_single_authority_on_the_workflow(read_file):
+    """The workflow protocol file, not the commands or CLAUDE.md, must be the one place
+    declared as the authority on how the workflow works, and the code of conduct must point
+    to it as such. This exact reversal (crowning a command as the authority instead) has
+    shipped twice before, so this check also scans the code of conduct and every command for
+    that specific wrong phrasing and fails if it reappears a third time."""
     # Positive: the protocol crowns itself, and the CoC names it as the owner.
     protocol = read_file("dist/claude-code/protocols/workflow-protocol.md").lower()
     assert "source of truth" in protocol and "workflow" in protocol, \
@@ -271,9 +309,11 @@ def test_workflow_source_of_truth_is_the_protocol(read_file):
             f"{rel} crowns the commands as the workflow's source of truth (the twice-shipped inversion)"
 
 
-def test_claude_md_defines_code_of_conduct_resolution(read_file):
-    """The CoC is resolved by a matcher in the correct repo — defined once in CLAUDE.md so every
-    phase resolves it the same way, never a fixed filename and never the path-nearest file."""
+def test_claude_md_defines_one_consistent_way_to_find_the_code_of_conduct_file(read_file):
+    """Every phase must locate a project's code of conduct file the same way: matching its
+    name case-insensitively within the correct repository, never assuming a fixed filename
+    and never grabbing whichever copy happens to be nearest on disk. This resolution rule
+    must be defined once in CLAUDE.md."""
     resolution = section((read_file("dist/claude-code/CLAUDE.md") + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md")),
                          "## Code-of-conduct resolution", "\n## ", label="CLAUDE.md")
     low = resolution.lower()
@@ -291,8 +331,10 @@ def test_claude_md_defines_code_of_conduct_resolution(read_file):
         "resolution must state the single-match branch: exactly one match → use it, no extra prompt"
 
 
-def test_build_service_coc_read_uses_the_matcher_not_a_fixed_name(read_file):
-    """Build's service-scoped CoC read must resolve by matcher (any capitalization), not a fixed
-    lowercase {service-path}/code-of-conduct.md that would miss CODE_OF_CONDUCT.md on Linux."""
+def test_build_looks_up_the_service_code_of_conduct_by_matching_not_a_fixed_path(read_file):
+    """If Build assumed a fixed lowercase path like {service-path}/code-of-conduct.md, it
+    would miss a real code of conduct file named CODE_OF_CONDUCT.md on case-sensitive
+    filesystems like Linux. Build's instructions must resolve the file by name-matching
+    instead of a hardcoded filename."""
     assert "{service-path}/code-of-conduct.md" not in read_file("dist/claude-code/commands/build.md"), \
         "build must not read a fixed-lowercase service CoC path — resolve it by matcher"

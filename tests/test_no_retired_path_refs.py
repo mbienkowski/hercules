@@ -28,7 +28,11 @@ def _test_files() -> list[Path]:
     return sorted(p for p in TESTS_ROOT.rglob("test_*.py") if p.name != "test_no_retired_path_refs.py")
 
 
-def test_no_test_references_retired_plugin_or_opencode_paths():
+def test_old_project_folder_names_dont_linger_in_test_documentation():
+    """After `plugin/` and `.opencode/` were renamed to `dist/claude-code/` and `dist/opencode/`,
+    no test file's explanatory text or error messages may still mention the old folder names.
+    A leftover mention would send someone chasing a failure, or searching for a file, at a path
+    that no longer exists."""
     offenders: list[tuple[str, int, str]] = []
     for path in _test_files():
         rel = path.relative_to(TESTS_ROOT.parent).as_posix()

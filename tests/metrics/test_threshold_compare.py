@@ -7,8 +7,10 @@ import pytest
 from tests.metrics.threshold_runner import compare_value
 
 
-def test_compare_value_evaluates_all_supported_operators():
-    """compare_value must handle ==, <=, >=, <, > correctly and reject unknown operators."""
+def test_every_supported_comparison_rule_gives_the_right_pass_fail_verdict():
+    """Each way a metric can be checked against a limit -- equals, at most, at least, strictly
+    less than, strictly greater than -- must produce the correct pass/fail result, and a rule
+    that isn't recognized at all must be reported as an error rather than silently accepted."""
     # Given / When / Then
     assert compare_value(7, "==", 7) == (True, "")
     assert compare_value(8, "==", 7) == (False, "")
@@ -36,14 +38,17 @@ def test_compare_value_evaluates_all_supported_operators():
     (11, ">", 10, True),    # strictly above
     (10, ">", 10, False),   # at limit — must fail for strict >
 ])
-def test_compare_value_operator_boundaries(value, op, limit, expected):
-    """All comparison operators must handle boundary cases correctly."""
+def test_a_metric_exactly_at_its_limit_is_judged_consistently(value, op, limit, expected):
+    """A metric that lands exactly on its allowed threshold must be judged the same way
+    every time, whether the rule is 'at least' or 'at most' -- an off-by-one here would let
+    a failing metric through or reject a passing one."""
     assert compare_value(value, op, limit) == (expected, "")
 
 
-def test_compare_value_unknown_op_returns_false_not_true():
-    """compare_value with unknown op must return (False, err) — not (True, err) — and the
-    error must name the actual unrecognized op, not just be non-empty."""
+def test_an_unrecognized_comparison_rule_fails_safe_with_a_clear_reason():
+    """If a threshold check names a comparison rule the system doesn't know, that check must
+    come back as failed (never mistakenly treated as passed), and the reason given must
+    actually name the unrecognized rule so someone debugging it isn't left guessing."""
     passed, err = compare_value(1, "??", 1)
     assert passed is False
     assert err.startswith("unknown op")
