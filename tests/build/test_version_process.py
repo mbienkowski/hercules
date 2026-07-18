@@ -122,9 +122,13 @@ def test_the_release_process_rebuilds_and_commits_the_output_after_bumping_the_v
     version, and include that rebuilt output in the release commit. Skipping the rebuild would
     leave the shipped build carrying the old version number, causing the very next unrelated
     change to fail the version-sync check."""
-    set_idx = RELEASE.find("set_version.py")
+    set_idx = RELEASE.find("-m scripts.set_version")
     build_idx = RELEASE.find("scripts.build.cli")
-    assert set_idx != -1, "release must bump the version via set_version.py"
+    assert set_idx != -1, (
+        "release must bump the version via `python -m scripts.set_version` \u2014 the module "
+        "form, so its `from scripts.build...` import resolves in the release job (the file-path "
+        "form `python scripts/set_version.py` raises ModuleNotFoundError and aborts the bump)"
+    )
     assert build_idx != -1, "release must rebuild dist/ (python -m scripts.build.cli)"
     assert build_idx > set_idx, "the dist/ rebuild must run AFTER the version bump"
     assert re.search(r"git add[^\n]*\bdist\b", RELEASE), "release must stage dist/ in the bump commit"

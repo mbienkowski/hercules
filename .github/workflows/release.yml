@@ -75,7 +75,7 @@ jobs:
       # 2. Write the new version into EVERY canonical (source) manifest (pyproject.toml,
       #    src/targets/claude-code/plugin.json, package.json) — the single-source list.
       - name: Bump version files
-        run: python scripts/set_version.py "${{ steps.bump.outputs.new_version }}"
+        run: python -m scripts.set_version "${{ steps.bump.outputs.new_version }}"
 
       # 2b. Regenerate dist/ so the built + published artifacts carry the new version. The version
       #     lives in src/ (see VERSION_TARGETS); without this rebuild the committed dist/ would keep
