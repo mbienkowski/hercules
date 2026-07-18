@@ -117,15 +117,19 @@ def generate_plugin_js(default_agent, agents, commands, instructions_path="instr
     instruction_paths = [instructions_path, *protocols]
     asset_list = ", ".join(escape_ts_string(p) for p in (*instruction_paths, skills_path))
     instruction_joins = ",\n        ".join(f"path.join(PLUGIN_ROOT, {escape_ts_string(p)})" for p in instruction_paths)
-    return (
-        _PLUGIN_JS_TEMPLATE
-        .replace("__DEFAULT_AGENT__", escape_ts_string(default_agent))
-        .replace("__ASSET_LIST__", asset_list)
-        .replace("__INSTRUCTION_JOINS__", instruction_joins)
-        .replace("__SKILLS_PATH__", escape_ts_string(skills_path))
-        .replace("__AGENT_ENTRIES__", ts_object_literal(agent_entries))
-        .replace("__COMMAND_ENTRIES__", ts_object_literal(command_entries))
-    )
+    # Single pass over the template: every placeholder is filled from `values` computed up front, so
+    # an inserted value can never be re-scanned and have a *later* placeholder (e.g. a prompt that
+    # literally contains "__COMMAND_ENTRIES__") rewritten inside it. Unknown `__X__` tokens pass
+    # through unchanged, matching the old sequential-.replace() behaviour.
+    values = {
+        "__DEFAULT_AGENT__": escape_ts_string(default_agent),
+        "__ASSET_LIST__": asset_list,
+        "__INSTRUCTION_JOINS__": instruction_joins,
+        "__SKILLS_PATH__": escape_ts_string(skills_path),
+        "__AGENT_ENTRIES__": ts_object_literal(agent_entries),
+        "__COMMAND_ENTRIES__": ts_object_literal(command_entries),
+    }
+    return re.sub(r"__[A-Z_]+__", lambda m: values.get(m.group(0), m.group(0)), _PLUGIN_JS_TEMPLATE)
 
 
 def generate_opencode_json(default_agent="hercules", instructions="instructions.md", skills_path="skills") -> dict:

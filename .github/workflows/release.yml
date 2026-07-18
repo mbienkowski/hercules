@@ -103,7 +103,10 @@ jobs:
           FILES=$(python -c "from scripts.build.version_targets import VERSION_TARGETS; print(' '.join(rel for rel, _ in VERSION_TARGETS))")
           git add $FILES dist CHANGELOG.md
           git commit -m "chore(release): ${{ steps.bump.outputs.new_version }} [skip ci]"
-          git tag "${{ steps.bump.outputs.new_tag }}"
+          # Annotated (not lightweight): `git push --follow-tags` only pushes annotated tags, so
+          # this makes git itself push the tag at the exact release commit — rather than relying on
+          # the release step below to create it at the remote branch tip.
+          git tag -a -m "Release ${{ steps.bump.outputs.new_tag }}" "${{ steps.bump.outputs.new_tag }}"
           git push --follow-tags
 
       # 5. Publish the GitHub Release with the aggregated notes.
