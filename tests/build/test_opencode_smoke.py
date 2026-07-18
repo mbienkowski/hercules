@@ -3,18 +3,22 @@ tool, not just in a Node `require()` probe?
 
 `test_opencode_entrypoint.py` proves the generated plugin.js is internally self-consistent
 (config() populates the right agent/command/skill counts) by requiring it directly in Node. That
-is NOT the same as proving OpenCode's own plugin loader accepts the file -- and it doesn't:
+is NOT the same as proving OpenCode's own plugin loader accepts the file. It didn't, twice over:
 manually installing the real `opencode-ai` CLI and pointing it at this repo's built plugin.js
-reproduces a real, reproducible failure ("Plugin export is not a function") that the Node-based
-probe cannot see, because Node's CJS/ESM interop for a bare `module.exports = <function>` differs
-from Bun's (which is what the real `opencode` binary is compiled with) -- see
-https://github.com/mbienkowski/hercules/issues/15 for the full root-cause diagnosis.
+reproduced two real, reproducible failures the Node-based probe could not see --
+https://github.com/mbienkowski/hercules/issues/15 has the full root-cause diagnosis for both:
 
-This test is intentionally `xfail(strict=True)`: it documents the CURRENT, real, diagnosed
-failure rather than skipping or silently passing on a broken plugin. `strict=True` means it will
-turn into a hard failure the moment someone fixes the underlying export shape without also
-removing this marker -- which is the point: an accidental fix must not go unnoticed, the same
-false-security gap that let this bug hide behind the Node-only probe for as long as it did.
+1. "Plugin export is not a function" -- Node's CJS/ESM interop for a bare
+   `module.exports = <function>` differs from Bun's (which is what the real `opencode` binary is
+   compiled with): Bun spreads the function's own `length`/`name` properties into the imported
+   module's namespace, and the loader throws on the first one that isn't a valid plugin export.
+2. Once fixed to export `{ server: fn }` instead, a second, previously-unknown failure surfaced
+   only by running the real binary: "must export id" -- a path-installed plugin also requires a
+   top-level `id` field that the Node probe never exercised.
+
+Both are now fixed in `scripts/build/manifests.py`'s `_PLUGIN_JS_TEMPLATE` (exports
+`{ id: "hercules", server: fn }`), verified against the real installed `opencode` binary before
+this test's `xfail` marker was removed.
 """
 from __future__ import annotations
 
@@ -56,15 +60,6 @@ def opencode_project_with_plugin_installed(tmp_path: Path, monkeypatch: pytest.M
     return project
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="github.com/mbienkowski/hercules/issues/15 -- OpenCode's real loader iterates every "
-           "value in the module namespace object and Bun's CJS interop spreads the exported "
-           "function's own length/name properties into that namespace alongside it, so the "
-           "loader throws on the second entry. Fix tracked separately; this flips to a pass "
-           "(and must then have this marker removed) once the compiler emits "
-           "`module.exports = { server: fn }` instead of a bare function.",
-)
 def test_the_real_opencode_cli_loads_the_plugin_and_lists_its_agents(opencode_project_with_plugin_installed):
     """Running the actual `opencode` binary against a project with this plugin installed must
     successfully list hercules among the available agents -- proving the plugin loads the way a
@@ -76,4 +71,8 @@ def test_the_real_opencode_cli_loads_the_plugin_and_lists_its_agents(opencode_pr
         cwd=opencode_project_with_plugin_installed,
     )
     assert res.returncode == 0, f"stdout={res.stdout}\nstderr={res.stderr}"
-    assert "hercules" in res.stdout.lower(), res.stdout
+    # A loose "hercules" substring check would trivially pass on skill-path noise alone (every
+    # agent's permission dump references the shipped `hercules-reference` skill path); only a
+    # line naming the agent itself proves it actually registered.
+    agent_lines = [ln.strip() for ln in res.stdout.splitlines() if ln.strip().lower().startswith("hercules ")]
+    assert agent_lines, f"no 'hercules' agent line in `opencode agent list` output:\n{res.stdout}"

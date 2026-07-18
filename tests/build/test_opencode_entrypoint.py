@@ -29,7 +29,7 @@ def test_opencode_plugin_starts_up_with_every_agent_and_command_registered(tmp_p
 
     probe = f"""
     const p = require({json.dumps(str(out / "plugin.js"))});
-    p().then(r => {{ const cfg = {{}}; r.config(cfg);
+    p.server().then(r => {{ const cfg = {{}}; r.config(cfg);
       console.log(JSON.stringify({{
         default_agent: cfg.default_agent,
         instructions: cfg.instructions.length,
@@ -57,6 +57,6 @@ def test_opencode_plugin_refuses_to_start_if_its_bundled_files_are_missing(tmp_p
     out = tmp_path / "opencode"
     build_target("opencode", out)
     (out / "instructions.md").unlink()
-    res = subprocess.run(["node", "-e", f"require({json.dumps(str(out / 'plugin.js'))})()"],
+    res = subprocess.run(["node", "-e", f"require({json.dumps(str(out / 'plugin.js'))}).server()"],
                          capture_output=True, text=True)
     assert res.returncode != 0 and "missing asset" in res.stderr
