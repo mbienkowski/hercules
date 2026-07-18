@@ -25,6 +25,40 @@ CI proves the artifacts are valid, in-sync, and regression-checked — it **cann
 loads and behaves inside a live tool (no ecosystem offers a headless load-and-assert harness). Before
 announcing a release, run this by hand and record the result (date, version, tester) in the release notes.
 
+### What's automated now
+
+The `smoke` CI job (and `make test-smoke` locally) runs the real `claude` and `opencode` binaries
+against a built plugin — no tokens spent, no login required, seconds not minutes — and covers the
+first line of each checklist below: does the plugin actually **install and get recognized** by the
+real tool. Everything past that first line (does it *behave* correctly once loaded — the agent
+answers in character, a slash command drives a real workflow, a hook actually blocks a write) still
+needs a live, paid session and stays a manual, release-gating check.
+
+| # | Claude Code item | Status |
+|---|---|---|
+| 1 | Install from the marketplace | ✅ automated (`test_the_plugin_installs_from_a_local_checkout_and_shows_up_enabled`) |
+| 2 | `hercules` is the default agent, answers in character | manual |
+| 3 | `/hercules:workflow` drives Discover → Design → Build → Ship | manual |
+| 4 | Write-gate hook blocks/allows | manual |
+| 5 | A specialist advisor spawns, replies in A2A format | manual |
+| 6 | `hercules-reference` skill loads, `§` sections available | manual (component *presence* is automated via `test_the_installed_plugin_declares_its_full_component_inventory`; loading behavior is not) |
+| 7 | A fresh `cynical-reviewer` spawns at the coverage gate | manual |
+| 8 | A command's `${CLAUDE_PLUGIN_ROOT}/protocols/…` path resolves | manual |
+
+| # | OpenCode item | Status |
+|---|---|---|
+| 1 | `config` hook fires (agents/commands register) | ⚠️ blocked — [issue #15](https://github.com/mbienkowski/hercules/issues/15): the real OpenCode loader rejects the built `plugin.js` today, so this is encoded as an `xfail(strict=True)` smoke test rather than a pass; it flips to a hard failure (forcing the marker's removal) the moment the loader bug is actually fixed |
+| 2 | `plugin.js` loads with no missing-asset throw | ⚠️ blocked — same root cause as #1 |
+| 3 | `default_agent` is `hercules`; a subagent spawns | manual |
+| 4 | `/hercules:discover` resolves and runs | manual |
+| 5 | A skill auto-fires from its description | manual |
+| 6 | Command prompts show no leaked YAML frontmatter | manual |
+| 7 | "Which version are you?" reports the package version | manual |
+| 8 | `CAPABILITIES.md` discloses the write-gate/model-tier gaps | manual |
+| 9 | Build phase's Spec-Sync spawns the bare `cynical-reviewer` id | manual |
+| 10 | Protocol references resolve into `cfg.instructions` | manual |
+| 11 | `hercules-reference` skill is model-invoked | manual |
+
 ### Claude Code
 
 - [ ] Install from the marketplace (`.claude-plugin/marketplace.json` → `dist/claude-code`).

@@ -2,13 +2,16 @@ name: CI
 
 # Two triggers, two meanings — not a duplicate: a push run tests the BRANCH TIP on every
 # commit (instant feedback, PR or not), a pull_request run tests the MERGE PREVIEW (the
-# branch merged into main — catches conflict-adjacent breakage the tip can't show).
+# branch merged into its PR base — catches conflict-adjacent breakage the tip can't show).
+# Deliberately NOT restricted to `branches: [main]`: this repo stacks PRs (feature -> feature
+# -> main), and a merge-preview check is exactly as valuable at an intermediate stack level as
+# it is at the final one — restricting it to main-based PRs would silently skip pull_request-
+# gated jobs (mutation, smoke) on every stacked PR, which is most of them.
 # The expensive mutation job stays gated to pull_request/main below.
 on:
   push:
     branches: ["**"]
   pull_request:
-    branches: [main]
 
 # Cancel in-progress runs for the same branch/PR.
 concurrency:
@@ -132,6 +135,75 @@ jobs:
         with:
           name: mutmut-results
           path: mutmut-results.txt
+
+  # ── Ecosystem smoke checks — do the built plugins actually install/load in the real ─────
+  # Claude Code and OpenCode binaries, not just look correct on disk? Exploratory: same trigger
+  # scope as mutation (every PR commit + main, not every WIP branch push) so it doesn't burn
+  # minutes where it isn't needed yet, and continue-on-error so a CLI-side regression or an
+  # upstream network hiccup can never block a merge — read the uploaded smoke-results artifact
+  # to see the raw claude/opencode subprocess output behind a red run.
+  smoke:
+    name: Ecosystem smoke checks
+    needs: [build]
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Install Python dependencies
+        run: pip install -e ".[dev]"
+
+      # Pinned to the exact versions verified locally when these checks were written, so a
+      # breaking release upstream can't turn this exploratory job red without warning.
+      - name: Install Claude Code CLI
+        run: |
+          for i in 1 2 3; do
+            timeout 120 npm install -g @anthropic-ai/claude-code@2.1.214 && break
+            echo "::warning::npm install of claude-code failed (attempt $i/3), retrying..."
+            sleep $((i * 5))
+          done
+          claude --version
+
+      - name: Install OpenCode CLI
+        run: |
+          for i in 1 2 3; do
+            timeout 120 npm install -g opencode-ai@1.18.3 && break
+            echo "::warning::npm install of opencode-ai failed (attempt $i/3), retrying..."
+            sleep $((i * 5))
+          done
+          opencode --version
+
+      - name: Run live CLI smoke checks
+        run: make test-smoke 2>&1 | tee smoke-results.txt
+        env:
+          DISABLE_AUTOUPDATER: "1"
+          CLAUDE_CODE_ENABLE_TELEMETRY: "0"
+
+      - name: Annotate a red run
+        if: failure()
+        run: |
+          echo "::error::Ecosystem smoke checks failed — a built plugin did not install/load the way a real CLI session would. Download the smoke-results artifact for the raw claude/opencode subprocess output. If the failure mentions issues/15, that's the known, already-diagnosed OpenCode loader bug flipping from xfail to a real failure (i.e. it's either newly fixed and the xfail marker needs removing, or it's a new regression in the same area) — anything else is an unreviewed finding."
+
+      - name: Upload smoke check results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: smoke-results
+          path: smoke-results.txt
 
   # ── Validate the plugin package — manifests + single-source version ─────────
   # Gates packaging itself (marketplace-validate + version-check). Runs without a

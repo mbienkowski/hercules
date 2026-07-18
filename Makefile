@@ -1,4 +1,4 @@
-.PHONY: test test-mutation install build build-check
+.PHONY: test test-mutation test-smoke install build build-check
 
 install:
 	pip install -e ".[dev]"
@@ -16,3 +16,9 @@ test-mutation:
 	mutmut run || true
 	mutmut results | tee mutmut-results.txt
 	python scripts/check_mutation_gate.py
+
+# Live CLI smoke checks — do the built plugins actually install/load in the real Claude Code
+# and OpenCode binaries? Skips silently if a given CLI isn't installed locally; install both
+# with `npm install -g @anthropic-ai/claude-code opencode-ai` to run the whole set.
+test-smoke: build-check
+	python -m pytest tests/build/test_claude_code_smoke.py tests/build/test_opencode_smoke.py -v
