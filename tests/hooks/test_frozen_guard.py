@@ -45,7 +45,11 @@ def _allow_case_project_opt_out(tmp_path, project):
     return _payload(project, FROZEN_TEST)
 
 
-def test_block_message_names_blocker_spec_and_both_exits(tmp_path, capsys):
+def test_blocked_edit_message_tells_user_exactly_how_to_proceed(tmp_path, capsys):
+    """When an edit to a frozen test is blocked, the message shown to the user must clearly say
+    who blocked it, which spec is involved, the plain-language way a person can unblock it, the
+    separate path for an agent's recorded override, and the per-project opt-out -- and it must
+    never blur the safe 'fix the test' option together with the destructive 'start over' reset."""
     # Given a frozen test edited mid-Build
     project = build_project(tmp_path)
     # When the hook blocks the write
@@ -66,26 +70,10 @@ def test_block_message_names_blocker_spec_and_both_exits(tmp_path, capsys):
         "correct-the-test (stay in Build) must not be fused with the design re-entry exit"
 
 
-def test_allows_edit_to_non_frozen_file(tmp_path):
-    project = tmp_path / "proj"
-    _setup(tmp_path, project)
-    assert main(_payload(project, "src/login.py"), home=tmp_path) == 0
-
-
-def test_allows_when_phase_is_not_build(tmp_path):
-    project = tmp_path / "proj"
-    _setup(tmp_path, project, phase="design")
-    assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 0
-
-
-def test_allows_non_mutating_tool(tmp_path):
-    project = tmp_path / "proj"
-    _setup(tmp_path, project)
-    assert main(_payload(project, "tests/test_login.py", tool="Read"), home=tmp_path) == 0
-
-
-def test_blocks_real_multiedit_shape_on_frozen_file(tmp_path):
-    """Real MultiEdit carries ONE top-level file_path shared by all edits."""
+def test_editing_a_frozen_test_through_a_multi_part_change_is_blocked(tmp_path):
+    """A single change that bundles several edits together, all aimed at one frozen test file,
+    is still recognized and stopped -- so a frozen test can't be changed piecemeal by bundling
+    edits instead of making one."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     payload = json.dumps({
@@ -99,7 +87,9 @@ def test_blocks_real_multiedit_shape_on_frozen_file(tmp_path):
     assert main(payload, home=tmp_path) == 2
 
 
-def test_blocks_notebook_edit_to_a_frozen_notebook(tmp_path):
+def test_editing_a_frozen_notebook_is_blocked(tmp_path):
+    """A notebook file that has been frozen as a test gets the same protection as a frozen
+    script -- an attempt to edit it is stopped rather than silently allowed."""
     project = tmp_path / "proj"
     _setup(tmp_path, project, frozen=("tests/test_flow.ipynb",))
     payload = json.dumps({
@@ -110,21 +100,19 @@ def test_blocks_notebook_edit_to_a_frozen_notebook(tmp_path):
     assert main(payload, home=tmp_path) == 2
 
 
-def test_allows_when_frozen_list_is_empty(tmp_path):
-    project = tmp_path / "proj"
-    _setup(tmp_path, project, frozen=())
-    assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 0
-
-
-def test_blocks_write_tool_on_frozen_file(tmp_path):
-    """Write can clobber a frozen test wholesale — it must be guarded like Edit."""
+def test_overwriting_a_frozen_file_entirely_is_blocked(tmp_path):
+    """A frozen test can be replaced wholesale, not just partially edited -- this scenario
+    confirms a full-file rewrite of a frozen test is stopped exactly like a smaller edit would
+    be, so a wholesale overwrite can't be used to sneak around the protection."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     assert main(_payload(project, "tests/test_login.py", tool="Write"), home=tmp_path) == 2
 
 
-def test_blocks_per_edit_file_path_shape(tmp_path):
-    """The defensive per-edit `edits[].file_path` shape (no top-level file_path) is honoured."""
+def test_editing_a_frozen_test_is_blocked_even_without_a_shared_file_location(tmp_path):
+    """Some edit requests list the target location separately for each individual change instead
+    of once for the whole request. This scenario confirms a frozen test is still recognized and
+    the edit is still blocked in that case."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     payload = json.dumps({
@@ -135,10 +123,10 @@ def test_blocks_per_edit_file_path_shape(tmp_path):
     assert main(payload, home=tmp_path) == 2
 
 
-def test_reason_falls_back_when_spec_fields_missing(tmp_path, capsys):
-    """A build session without current_spec/current_spec_round still blocks, with readable
-    fallbacks in the reason ('the current spec'; the round displays as 1 — a literal '?/3'
-    in a red error box screenshots as a bug)."""
+def test_block_message_stays_readable_when_spec_details_are_missing(tmp_path, capsys):
+    """If the current session has no recorded spec name or round number, the block message still
+    reads cleanly -- it names 'the current spec' and shows round 1 -- instead of showing a
+    broken placeholder like '?/3' that would look like a bug to the person seeing it."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     hh = tmp_path / ".hercules"
@@ -160,7 +148,11 @@ def test_reason_falls_back_when_spec_fields_missing(tmp_path, capsys):
     _allow_case_live_override_grant,
     _allow_case_project_opt_out,
 ], ids=lambda f: f.__name__.removeprefix("_allow_case_"))
-def test_every_allow_path_returns_no_reason(tmp_path, make_payload):
+def test_every_situation_that_permits_the_edit_gives_no_leftover_block_reason(tmp_path, make_payload):
+    """Across every scenario where the edit is expected to go through -- an unrelated tool, a
+    file that isn't frozen, a phase other than Build, no frozen tests configured, an agent's
+    recorded override, or a project opt-out -- the edit is allowed with no stray block reason
+    attached that a future caller could mistakenly print."""
     # Given one of the ways the hook lets a write through
     import frozen_tests as ft
     project = tmp_path / "proj"
@@ -170,17 +162,19 @@ def test_every_allow_path_returns_no_reason(tmp_path, make_payload):
     assert ft.decide(payload, home=tmp_path) == (0, "")
 
 
-def test_blocks_first_of_multiple_frozen_files(tmp_path):
-    """Frozen candidates accumulate across ALL entries — a match on any earlier entry blocks
-    (a last-entry-wins bug would let every other frozen file through)."""
+def test_any_frozen_file_in_a_list_triggers_a_block(tmp_path):
+    """When several test files are frozen, editing any one of them blocks the edit, not just the
+    last one checked -- a bug that only checked the last entry would let every other frozen file
+    be edited freely."""
     project = tmp_path / "proj"
     _setup(tmp_path, project, frozen=("tests/test_a.py", "tests/test_b.py"))
     assert main(_payload(project, "tests/test_a.py"), home=tmp_path) == 2
 
 
-def test_hook_runs_as_a_script_end_to_end(tmp_path):
-    """The real deployment shape: `python3 frozen_tests.py` with a PreToolUse payload on stdin
-    and HOME pointing at the state tree — frozen edit exits 2, non-frozen exits 0."""
+def test_the_guard_works_when_run_as_the_real_deployed_program(tmp_path):
+    """Running the guard exactly the way Hercules deploys it -- as a standalone program fed the
+    real tool-use request and pointed at the project's saved state -- still blocks edits to
+    frozen tests and allows edits to everything else."""
     import subprocess
 
     project = tmp_path / "proj"
@@ -199,17 +193,19 @@ def test_hook_runs_as_a_script_end_to_end(tmp_path):
     assert allowed.returncode == 0
 
 
-def test_hook_imports_its_own_state_resolver_first(tmp_path, fresh_hook_over_decoy_state):
-    """frozen_tests.py must front-load its OWN directory on sys.path — a same-named hercules_state
-    earlier on the path must never shadow the real resolver (so a frozen edit still blocks)."""
+def test_guard_still_blocks_a_frozen_edit_even_when_a_conflicting_helper_could_shadow_it(tmp_path, fresh_hook_over_decoy_state):
+    """If another, unrelated piece of code with the same internal name could be picked up first,
+    the guard must still use its own correct logic for finding the project's saved state -- not
+    the wrong one -- so a frozen test's edit is still blocked rather than silently let through."""
     project = build_project(tmp_path)
     assert fresh_hook_over_decoy_state.main(_payload(project, FROZEN_TEST), home=tmp_path) == 2, \
         "the hook resolved the decoy hercules_state instead of its own"
 
 
-def test_reason_displays_the_actual_round(tmp_path, capsys):
-    """The round in the block reason must be the session's real counter — a lookup that
-    silently falls back to 1 misinforms the user about how close the round limit is."""
+def test_block_message_shows_the_true_current_round_number(tmp_path, capsys):
+    """The build round shown in a block message must match the session's actual recorded round
+    -- if it silently defaulted to round 1 instead, the user would misjudge how close they are
+    to the round limit."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     hh = tmp_path / ".hercules"

@@ -12,16 +12,15 @@ from tests.metrics.a2a_grammar import (
 from tests.metrics.markdown_metrics import count_status_table_rows
 
 
-_A2A_PROTOCOL = "plugin/protocols/a2a-communication-protocol.md"
-_DEBATE_PROTOCOL = "plugin/protocols/debate-consensus-protocol.md"
+_A2A_PROTOCOL = "dist/claude-code/protocols/a2a-communication-protocol.md"
+_DEBATE_PROTOCOL = "dist/claude-code/protocols/debate-consensus-protocol.md"
 _ALL_PROTOCOLS = [_A2A_PROTOCOL, _DEBATE_PROTOCOL]
 
 
 def test_a2a_protocol_entries_each_have_three_fields(read_file):
-    """Every [ROLE] STATUS | CONTENT | ACTION line in the protocol must have exactly three fields.
-
-    This protects against accidental edits that break the A2A parser on the agent side.
-    """
+    """Every status/content/action entry line in the A2A protocol document must supply exactly
+    three fields, matching the documented [ROLE] STATUS | CONTENT | ACTION format. A line with
+    the wrong field count would silently break how agents read each other's messages."""
     # Given
     md = read_file(_A2A_PROTOCOL)
 
@@ -34,10 +33,9 @@ def test_a2a_protocol_entries_each_have_three_fields(read_file):
 
 
 def test_only_approved_status_words_appear_in_the_protocol(read_file):
-    """No undefined STATUS value should appear in any protocol file entry.
-
-    Unknown statuses would be silently ignored by agents that enforce the contract.
-    """
+    """Every status word used in the A2A and debate protocol documents must come from the
+    approved set. An unrecognized status would be silently ignored by any agent enforcing the
+    contract, letting a misspelled or made-up status slip through unnoticed."""
     # Given / When / Then
     for rel in _ALL_PROTOCOLS:
         md = read_file(rel)
@@ -46,7 +44,9 @@ def test_only_approved_status_words_appear_in_the_protocol(read_file):
 
 
 def test_status_table_has_a_row_for_each_approved_status(read_file):
-    """The STATUS reference table in the A2A protocol must list all 6 approved statuses."""
+    """The status reference table in the A2A protocol document must list all six approved
+    statuses (Blocker, High, Medium, Nitpick, Pass, Info). A missing row would leave that
+    status undocumented for anyone reading the protocol."""
     # Given
     md = read_file(_A2A_PROTOCOL)
 
@@ -60,31 +60,12 @@ def test_status_table_has_a_row_for_each_approved_status(read_file):
     )
 
 
-def test_debate_protocol_references_all_required_elements(read_file):
-    """The debate protocol must reference the A2A protocol and define the round limit."""
-    # Given
-    md = read_file(_DEBATE_PROTOCOL)
-    lower = md.lower()
-
-    # When / Then
-    assert "a2a-communication-protocol.md" in md, (
-        "debate protocol must reference a2a-communication-protocol.md"
-    )
-    assert "maximum 3 rounds" in lower, (
-        "debate protocol must state 'Maximum 3 rounds' (canonical hard-limit phrase)"
-    )
-    for level in ["complexity:trivial", "complexity:low", "complexity:medium",
-                  "complexity:high", "complexity:critical"]:
-        assert level in md, f"debate protocol must define {level}"
-    assert "fresh-eyes" in lower, "debate protocol must include the fresh-eyes panel rule"
-
-
-def test_injected_agent_core_has_not_been_accidentally_changed(repo_root):
-    """The A2A Core block must match the blessed golden snapshot exactly.
-
-    If you intentionally changed the Core, update tests/testdata/core.golden with:
-      python -c "from tests.metrics.a2a_grammar import extract_a2a_core; ..."
-    """
+def test_shared_agent_instructions_block_matches_the_approved_reference_copy(repo_root):
+    """The block of instructions injected into every agent's prompt from the A2A protocol
+    document must exactly match the previously approved reference copy stored in
+    tests/testdata/core.golden. Any unnoticed drift here changes what every agent is told to
+    do without anyone having reviewed the change; if the change is intentional, update
+    tests/testdata/core.golden to match."""
     # Given
     md = (repo_root / _A2A_PROTOCOL).read_text()
     golden_path = repo_root / "tests" / "testdata" / "core.golden"

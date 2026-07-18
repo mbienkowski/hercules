@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-_HOOKS_DIR = Path(__file__).resolve().parents[2] / "plugin" / "hooks"
+_HOOKS_DIR = Path(__file__).resolve().parents[2] / "src" / "targets" / "claude-code" / "hooks"
 if str(_HOOKS_DIR) not in sys.path:
     sys.path.insert(0, str(_HOOKS_DIR))  # same dir the test module inserts — idempotent
 from frozen_tests import main  # noqa: E402

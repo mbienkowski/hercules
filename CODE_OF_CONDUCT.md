@@ -2,11 +2,27 @@
 
 Hercules enforces spec-driven discipline on its users; it holds itself to the same bar. This document
 is for **contributors** — the rules for extending Hercules itself. How a user *runs* Hercules (the
-workflow, phases, and artifact conventions) lives in [`plugin/CLAUDE.md`](plugin/CLAUDE.md).
+workflow, phases, and artifact conventions) lives in the built plugin's `CLAUDE.md` and the
+auto-loaded `hercules-reference` skill, authored in [`src/content/`](src/content/).
 
 ---
 
 ## Development
+
+### Repository layout
+
+Hercules is authored once in a neutral **`src/`** tree and compiled to per-ecosystem plugins under
+**`dist/`** (`make build`). **Edit `src/`, never `dist/`** — `dist/` is generated, and CI's drift gate
+fails when it is hand-edited or left stale.
+
+- **`src/content/`** — ecosystem-neutral content: `agents/`, `commands/`, `skills/{name}/SKILL.md`,
+  `protocols/`, and `persona.md` (the project instructions, rendered to each host's convention —
+  Claude Code's `CLAUDE.md`, OpenCode's `instructions.md`).
+- **`src/targets/<ecosystem>/`** — ecosystem-specific files: `plugin.json`, `settings.json`, and
+  `hooks/` for `claude-code`; a `config.json` per target.
+- **`dist/claude-code/`, `dist/opencode/`** — the built plugins (generated; the shipped output).
+
+Paths below name the **source** you edit; the compiler places the built copy under `dist/`.
 
 ### Working principles
 
@@ -20,30 +36,30 @@ workflow, phases, and artifact conventions) lives in [`plugin/CLAUDE.md`](plugin
 
 ### Adding a command
 
-Commands are `plugin/commands/{name}.md` (lowercase — macOS is case-insensitive, Linux is not). Each:
+Commands are `src/content/commands/{name}.md` (lowercase — macOS is case-insensitive, Linux is not). Each:
 
 - Carries its `/hercules:{name}` trigger phrase and uses `YYYY-MM-DD` dates in every artifact path.
 - Opens in plan mode and ends at one **Plan approval** gate, exiting with `ExitPlanMode` (`auto`);
   read-only or utility skills may omit plan mode.
-- Points forward to the next phase at close-out and updates the workflow table in `plugin/CLAUDE.md`.
+- Points forward to the next phase at close-out and updates the workflow table in `src/content/persona.md`.
 - Adds a token-budget row to `tests/testdata/thresholds.json`. Step numbers are integers — no `4a`/`1b`.
 
 ### Changing the workflow
 
 The workflow lives in four files, each owning one thing:
 
-- **protocol** (`plugin/protocols/workflow-protocol.md`) — the source of truth for step order, hard
+- **protocol** (`src/content/protocols/workflow-protocol.md`) — the source of truth for step order, hard
   guardrails, and the delegation packet (`#packet`);
-- **commands** (`plugin/commands/*.md`) — operational prose and state mechanics, composing that packet per spawn;
-- **`plugin/CLAUDE.md`** — the state schema and the user-facing overview;
+- **commands** (`src/content/commands/*.md`) — operational prose and state mechanics, composing that packet per spawn;
+- **`src/content/persona.md`** (user-facing overview) and **`src/content/skills/hercules-reference/SKILL.md`** (the state schema);
 - **diagram** (`docs/workflow/workflow-diagram-detailed.html`) — the picture.
 
 Keep them in lock-step:
 
 - Any change to a phase or step — its definition, wording, or order — lands in the protocol's phase
   list / guardrail registry first, with the command and the detailed diagram never lagging it **in the
-  same change** (CLAUDE.md follows only when the state schema or overview changes). A `hook`-class
-  registry row must match a live `plugin/hooks/hooks.json` matcher (CI-verified).
+  same change** (persona.md follows only when the state schema or overview changes). A `hook`-class
+  registry row must match a live `src/targets/claude-code/hooks/hooks.json` matcher (CI-verified).
 - If the change is visible at the four-phase level, also update the simplified diagram and the README.
 
 ### The execution walk
@@ -60,22 +76,22 @@ agent:
 
 A behaviour change is done when the old meaning is **extinct**, not when the new one is written:
 
-- List every surface stating the old meaning — commands, `plugin/CLAUDE.md`, templates, agents, hook
+- List every surface stating the old meaning — commands, `src/content/persona.md`, templates, agents, hook
   messages, README, diagrams, tests, and protocols — and update each.
 - Grep the **concept**, not the string; old meanings hide in paraphrase.
 
 ### Adding an agent
 
-Agents are `plugin/agents/{name}.md` (lowercase). They carry **no hardcoded stack** (project variance
+Agents are `src/content/agents/{name}.md` (lowercase). They carry **no hardcoded stack** (project variance
 lives in each project's `code-of-conduct.md`) and **no Hercules-internal literals** (`/hercules:*`,
 state fields like `current_spec`/`tier`, `*-spec-NN-*.md`) — that knowledge is injected at call time.
 Exception: `hercules.md`, the orchestrator persona.
 
 - A spec is read-only / write-once / **delete-once** (`git rm` at delivery); under a keep-specs
   code-of-conduct the orchestrator refreshes it once at retire instead. An agent never updates a spec.
-- Replies follow the A2A `§ Agent-Injected Core` (`plugin/protocols/a2a-communication-protocol.md`).
-- Update the roster in **three places** — the agent list in `plugin/CLAUDE.md`, the `advisors[]` array
-  in `plugin/settings.json`, and `_ADVISOR_AGENTS` in `tests/agents/test_agents.py`; a sync test fails
+- Replies follow the A2A `§ Agent-Injected Core` (`src/content/protocols/a2a-communication-protocol.md`).
+- Update the roster in **three places** — the agent list in `src/content/persona.md`, the `advisors[]` array
+  in `src/targets/claude-code/settings.json`, and `_ADVISOR_AGENTS` in `tests/agents/test_agents.py`; a sync test fails
   on drift.
 - **Instruction load is a budget.** Say whose context new content lands in — a delegate's total stays
   under ~150 directives (own file + packet + A2A core + the project CoC). Always-loaded content spends
@@ -84,7 +100,7 @@ Exception: `hercules.md`, the orchestrator persona.
 ### Hooks
 
 Hooks are the plugin's only **hard** enforcement — deterministic code Claude Code runs, which a model
-cannot rationalise past. They live in `plugin/hooks/` and auto-load via `plugin/hooks/hooks.json`.
+cannot rationalise past. They live in `src/targets/claude-code/hooks/` and auto-load via its `hooks.json`.
 
 - **Stdlib-only Python, no shebang** — invoked in hook exec form (`command: python3`, `args:
   ["${CLAUDE_PLUGIN_ROOT}/hooks/<name>.py"]`); no jq/bash dependency, cross-platform.
@@ -99,7 +115,7 @@ cannot rationalise past. They live in `plugin/hooks/` and auto-load via `plugin/
 
 ### Adding a skill
 
-Skills are `plugin/skills/{name}/SKILL.md` — each declares a phase-anchored trigger, a
+Skills are `src/content/skills/{name}/SKILL.md` — each declares a phase-anchored trigger, a
 precondition-then-stop guard, and atomic/idempotent writes, and falls back gracefully when a target
 project has no `code-of-conduct.md`.
 
@@ -124,8 +140,10 @@ Enforced by `tests/` — a change that breaks one fails CI:
 
 - **Every shipped artifact has an owning test.** A new manifest, agent, command, or skill ships only with
   a test that fails when it is missing or malformed.
-- **The plugin version is single-sourced** — `pyproject.toml` and `plugin/.claude-plugin/plugin.json`
-  carry the same version; CI fails on drift.
+- **The plugin version is single-sourced** — `pyproject.toml`, `src/targets/claude-code/plugin.json`, and
+  `package.json` carry the same version (the canonical list is `scripts/build/version_targets.py`); the
+  build propagates it into `dist/` and CI fails on drift. Version targets are build *sources*, never
+  `dist/` outputs (a `dist/` file would be regenerated from `src/` on the next build).
 - **Red first, red possible forever.** A new test is born failing — write it before the feature, watch it
   fail for the right reason, then make it pass. Anchor it so it stays able to fail; `"auto" in lower`
   stays green on "automatically" — that's decoration, not a test.
@@ -144,7 +162,7 @@ and the generated `CHANGELOG.md`.
 - **One reading only** — every sentence admits exactly one interpretation; if it reads two ways, split or reword it.
 - **160-character** hard line cap on new and edited content (table rows, long URLs, the HTML diagram's
   markup, and YAML values are the only exemptions).
-- **Prose is pinned.** Most sentences in `plugin/` are pinned by tests — `grep tests/` for a sentence
+- **Prose is pinned.** Most sentences in `src/content/` are pinned by tests — `grep tests/` for a sentence
   before rewording it; CI fails on silent drift.
 
 ---
@@ -184,7 +202,7 @@ mutation kill rate**, both gated in CI on every PR.
   change end-to-end with a real run before calling it done. The suite can't inspect Claude Code's
   permission mode, so at release time drive `/hercules:workflow` by hand against a throwaway repo and
   confirm the four phases produce their artifacts in order. That manual smoke is a release check, not
-  a CI gate.
+  a CI gate — the full per-ecosystem checklist lives in [`RELEASE.md`](RELEASE.md).
 
 ### Tokens
 

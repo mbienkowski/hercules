@@ -1,33 +1,22 @@
 #!/usr/bin/env python3
-"""Write a single version into pyproject.toml and the plugin manifest (keeps them in sync).
+"""Write one version into every canonical version-bearing file (keeps them in sync).
 
-Used by the release workflow after the next version is computed from conventional commits.
-Edits in place via regex so the surrounding file formatting is preserved exactly.
+Used by the release workflow after the next version is computed from conventional commits. The list
+of files lives in one place — ``scripts/build/version_targets.py`` — shared with CI's ``validate``
+job so the writer and the reader can never disagree about which manifests carry the version.
 """
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 
-
-def _replace_version(path: Path, pattern: str, version: str) -> None:
-    text = path.read_text()
-    new_text, n = re.subn(pattern, rf"\g<1>{version}\g<2>", text, count=1)
-    if n != 1:
-        raise SystemExit(f"set_version: expected exactly one version match in {path}, found {n}")
-    path.write_text(new_text)
+from scripts.build.version_targets import write_version
 
 
 def set_version(version: str, root: Path = Path(".")) -> None:
-    """Set *version* in both pyproject.toml and plugin/.claude-plugin/plugin.json under *root*."""
-    _replace_version(root / "pyproject.toml", r'(?m)^(version\s*=\s*")[^"]+(")', version)
-    _replace_version(
-        root / "plugin" / ".claude-plugin" / "plugin.json",
-        r'("version"\s*:\s*")[^"]+(")',
-        version,
-    )
+    """Set *version* in every file of the canonical list under *root*."""
+    write_version(version, root)
 
 
 if __name__ == "__main__":

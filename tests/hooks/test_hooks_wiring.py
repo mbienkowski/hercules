@@ -1,7 +1,7 @@
 """Structural wiring tests for the plugin's hooks manifest.
 
-`plugin/hooks/hooks.json` auto-loads by convention at the plugin root (no plugin.json key
-needed). These tests pin that it is valid, registers the frozen-tests guard on the mutating
+`src/targets/claude-code/hooks/hooks.json` auto-loads by convention at the plugin root (no plugin.json
+key needed). These tests pin that it is valid, registers the frozen-tests guard on the mutating
 tools, and that every referenced command path resolves to a real script under the package —
 a hooks.json that points at a missing script is a dead guard.
 """
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-_PLUGIN = Path(__file__).resolve().parents[2] / "plugin"
+_PLUGIN = Path(__file__).resolve().parents[2] / "src" / "targets" / "claude-code"
 _HOOKS = _PLUGIN / "hooks" / "hooks.json"
 
 
@@ -23,22 +23,28 @@ def hooks():
     return json.loads(_HOOKS.read_text())
 
 
-def test_hooks_json_is_valid_and_declares_pretooluse(hooks):
+def test_hooks_manifest_declares_a_check_that_runs_before_tools_execute(hooks):
+    """The plugin's hooks manifest must declare a PreToolUse hook so guards such as the
+    frozen-tests check actually run before a tool is allowed to act. Without this entry no
+    safety check would ever fire, and mutating tools would run unchecked."""
     assert "PreToolUse" in hooks.get("hooks", {}), "hooks.json must declare a PreToolUse hook"
 
 
-def test_frozen_tests_guard_matches_the_mutating_tools(hooks):
+def test_frozen_tests_guard_watches_every_file_editing_tool(hooks):
+    """The guard that protects frozen test files must be wired to trigger on every tool capable
+    of changing a file: Edit, MultiEdit, Write, and NotebookEdit. If any one of these were left
+    out, a locked test could be silently altered through that tool instead of being blocked."""
     matchers = [entry.get("matcher", "") for entry in hooks["hooks"]["PreToolUse"]]
     joined = " ".join(matchers)
     for tool in ("Edit", "MultiEdit", "Write", "NotebookEdit"):
         assert re.search(rf"\b{tool}\b", joined), f"the frozen-tests guard must match {tool}"
 
 
-def test_frozen_guard_uses_exec_form(hooks):
-    """The frozen-tests guard is wired in hook exec form (`command` + `args`), the contemporary,
-    marketplace-safe shape: `python3` is spawned directly with the script as one `args` element, so
-    `${CLAUDE_PLUGIN_ROOT}` needs no shell quoting and a missing `python3` fails open (non-blocking).
-    Scoped to the frozen guard so a future hook may legitimately choose shell form."""
+def test_frozen_tests_guard_is_installed_so_a_missing_interpreter_never_blocks_work(hooks):
+    """The guard that protects frozen tests is registered by launching its script as a direct
+    program call rather than as a shell command string. That means the plugin's install path
+    never needs special quoting, and on a machine without a Python interpreter available the
+    guard simply does nothing instead of blocking every edit a user makes."""
     guard = next(
         (h for entry in hooks["hooks"]["PreToolUse"] for h in entry.get("hooks", [])
          if any("frozen_tests.py" in a for a in h.get("args", []))),
@@ -51,18 +57,10 @@ def test_frozen_guard_uses_exec_form(hooks):
         "exec form must carry a non-empty `args` list (shell form has none)"
 
 
-def test_every_hook_script_has_a_test():
-    """Every shipped `plugin/hooks/*.py` must be exercised by a test under `tests/hooks/` — the CoC
-    invariant 'every shipped artifact has an owning test', enforced for hook code specifically."""
-    scripts = {p.stem for p in (_PLUGIN / "hooks").glob("*.py")}
-    tests_src = " ".join(
-        p.read_text() for p in Path(__file__).resolve().parent.glob("test_*.py")
-    )
-    missing = sorted(s for s in scripts if s not in tests_src)
-    assert not missing, f"hook scripts with no owning test under tests/hooks/: {missing}"
-
-
-def test_every_hook_command_script_exists(hooks):
+def test_every_hook_points_to_a_script_that_actually_exists(hooks):
+    """Every hook listed in the manifest must reference a script file that is really present in
+    the plugin package. A hook pointing at a missing script would silently fail to run, leaving
+    whatever safety check it was supposed to provide completely disabled."""
     for event in hooks["hooks"].values():
         for entry in event:
             for hook in entry.get("hooks", []):

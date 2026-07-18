@@ -13,9 +13,10 @@ def canonical_in(roots, project):
     return hs.canon(project) in roots
 
 
-def test_nested_project_roots_resolve_to_the_deepest(tmp_path):
-    """A monorepo project and an inner service project both active: an edit inside the inner tree
-    resolves to the INNER session, so its frozen test is caught (no first-match leak)."""
+def test_an_edit_inside_a_nested_service_is_attributed_to_that_service(tmp_path):
+    """When a monorepo and one of its inner services are both under active development, an edit
+    to a file inside the inner service must be checked against the inner service's own frozen
+    tests, not mistakenly matched to the outer project first."""
     outer = tmp_path / "mono"
     inner = outer / "svc"
     _setup(tmp_path, outer, slug="outer", frozen=("tests/a.py",))
@@ -33,8 +34,10 @@ def test_nested_project_roots_resolve_to_the_deepest(tmp_path):
     assert main(_payload(inner, inner / "tests/b.py", cwd=inner), home=tmp_path) == 2
 
 
-def test_multi_service_frozen_path_is_matched(tmp_path):
-    """A frozen test living under a `repositories.*` path is caught even when cwd differs."""
+def test_a_frozen_test_in_another_repository_is_still_caught(tmp_path):
+    """A protected test can live in a separate repository that the current project references,
+    not just inside the project's own folder. Editing that test must still be blocked even
+    though the user's current working directory is somewhere else entirely."""
     project = tmp_path / "home"
     svc = tmp_path / "svc-auth"
     _setup(tmp_path, project, frozen=("tests/test_token.py",), repositories={"svc-auth": svc})
@@ -44,8 +47,10 @@ def test_multi_service_frozen_path_is_matched(tmp_path):
     assert main(payload, home=tmp_path) == 2
 
 
-def test_registry_iteration_skips_unrelated_projects(tmp_path):
-    """An unrelated project listed BEFORE the matching one must be skipped, not end the scan."""
+def test_an_unrelated_project_listed_first_does_not_stop_the_search(tmp_path):
+    """When Hercules is managing several projects and an unrelated one happens to be listed
+    before the project actually being edited, that unrelated entry must be skipped rather than
+    stopping the search early and letting a real block go undetected."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     hh = tmp_path / ".hercules"
@@ -58,8 +63,10 @@ def test_registry_iteration_skips_unrelated_projects(tmp_path):
     assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
 
 
-def test_custom_state_file_pointer_is_honoured(tmp_path):
-    """A registry entry's explicit state_file (≠ {slug}.json) is the one that gets read."""
+def test_a_projects_custom_state_file_location_is_respected(tmp_path):
+    """A project can be configured to store its progress under a non-default file name. Hercules
+    must read that exact file rather than assuming the usual naming convention, or it would look
+    in the wrong place and miss an active build."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     hh = tmp_path / ".hercules"
@@ -70,8 +77,9 @@ def test_custom_state_file_pointer_is_honoured(tmp_path):
     assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
 
 
-def test_state_file_defaults_to_slug_json(tmp_path):
-    """An entry without a state_file pointer falls back to state/{slug}.json."""
+def test_a_project_without_a_custom_state_file_uses_its_default_location(tmp_path):
+    """When a project's configuration does not specify where its progress is stored, Hercules
+    must fall back to the standard default location instead of failing to find it."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     hh = tmp_path / ".hercules"
@@ -81,9 +89,10 @@ def test_state_file_defaults_to_slug_json(tmp_path):
     assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
 
 
-def test_sessionless_entry_does_not_mask_a_matching_build(tmp_path):
-    """A matching project whose state has no active session is skipped; a later matching
-    entry with a live build still blocks."""
+def test_a_project_with_no_active_work_does_not_hide_a_real_build_elsewhere(tmp_path):
+    """One registered project can have no work in progress at all. That empty entry must not
+    stop Hercules from continuing to check other registered projects, one of which has an
+    active build that should still block the edit."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     hh = tmp_path / ".hercules"
@@ -97,8 +106,10 @@ def test_sessionless_entry_does_not_mask_a_matching_build(tmp_path):
     assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
 
 
-def test_malformed_sibling_state_does_not_mask_a_matching_build(tmp_path):
-    """A matching entry with corrupt state is skipped; the scan continues to the valid one."""
+def test_corrupted_data_for_one_project_does_not_hide_a_real_build_in_another(tmp_path):
+    """If one registered project's saved progress file is unreadable or corrupted, Hercules must
+    skip it and keep checking the remaining projects rather than giving up -- so a genuinely
+    active build elsewhere still gets protected."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     hh = tmp_path / ".hercules"
@@ -112,9 +123,10 @@ def test_malformed_sibling_state_does_not_mask_a_matching_build(tmp_path):
     assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
 
 
-def test_build_session_wins_over_non_build_at_the_same_root(tmp_path):
-    """Two projects registered on the SAME directory — one designing, one building. The build
-    session must be selected (the design one would fail open and disarm the guard)."""
+def test_an_active_build_is_chosen_over_a_design_session_in_the_same_folder(tmp_path):
+    """Two work sessions can be registered against the very same project folder, one still in
+    design and one already building. Hercules must pick the building session -- picking the
+    design one instead would incorrectly let the edit through unguarded."""
     project = tmp_path / "proj"
     # design entry inserted FIRST so a broken tiebreak (stable sort on equal keys) picks it
     _setup(tmp_path, project, slug="designer", phase="design")
@@ -131,19 +143,21 @@ def test_build_session_wins_over_non_build_at_the_same_root(tmp_path):
     assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
 
 
-def test_frozen_entry_blocks_even_before_the_file_exists(tmp_path):
-    """Fail-closed direction: a recorded frozen path is guarded even if nothing exists on disk
-    yet (e.g. a Write that would create it mid-build)."""
+def test_creating_a_new_file_at_a_frozen_test_path_is_still_blocked(tmp_path):
+    """A test file can be recorded as frozen before it has actually been written to disk yet.
+    An attempt to create that file must still be blocked -- otherwise someone could sidestep the
+    freeze simply by deleting the file first and recreating it with different expectations."""
     project = tmp_path / "proj"
     project.mkdir(parents=True, exist_ok=True)
     _setup(tmp_path, project, create=False)
     assert main(_payload(project, "tests/test_login.py", tool="Write"), home=tmp_path) == 2
 
 
-def test_paused_build_session_stays_guarded_when_active_session_moves_on(tmp_path):
-    """Discover for feature B flips active_session; feature A's build (frozen files, phase
-    'build') must STILL block edits to its frozen tests — the guard must not hinge on the
-    single active_session pointer (multi-session is an advertised flow)."""
+def test_switching_to_a_new_feature_does_not_unfreeze_an_earlier_features_tests(tmp_path):
+    """A user can start exploring a second feature while an earlier feature's build is still in
+    progress. Switching focus to the new feature must not unfreeze the earlier feature's tests --
+    working on multiple features at once is a supported flow, and the earlier one's protections
+    must keep holding."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     hh = tmp_path / ".hercules"
@@ -155,10 +169,11 @@ def test_paused_build_session_stays_guarded_when_active_session_moves_on(tmp_pat
     assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
 
 
-def test_deeper_non_build_project_cannot_shadow_an_outer_active_build(tmp_path):
-    """A registry entry for an inner directory (idle, phase discover) must not shadow the
-    outer project's ACTIVE BUILD that froze a file inside that inner tree — a build session
-    outranks a non-build one regardless of registry depth."""
+def test_an_idle_inner_project_cannot_hide_an_active_build_in_the_outer_project(tmp_path):
+    """An inner project folder can be registered but idle (not yet building), while the outer
+    project it sits inside has an active build that froze a file located in that same inner
+    folder. The active build must win and still block the edit, regardless of which project's
+    folder is more specific."""
     outer = tmp_path / "mono"
     inner = outer / "svc"
     _setup(tmp_path, outer, slug="outer", frozen=("svc/tests/test_x.py",))
@@ -171,9 +186,11 @@ def test_deeper_non_build_project_cannot_shadow_an_outer_active_build(tmp_path):
     assert main(_payload(inner, inner / "tests/test_x.py", cwd=inner), home=tmp_path) == 2
 
 
-def test_state_file_pointer_cannot_escape_the_state_dir(tmp_path):
-    """A state_file value like ../../evil.json must be ignored (fail-open), never read —
-    the documented read scope is ~/.hercules only."""
+def test_a_state_file_path_that_tries_to_escape_the_hercules_folder_is_ignored(tmp_path):
+    """If a project's configured progress-file location tries to point outside Hercules's own
+    data folder (e.g. via `../../`), that path must never be read. Hercules only ever reads
+    files inside its own folder, so this project is treated as having no data rather than
+    reading an arbitrary file elsewhere on disk."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     hh = tmp_path / ".hercules"
@@ -186,9 +203,10 @@ def test_state_file_pointer_cannot_escape_the_state_dir(tmp_path):
     assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 0
 
 
-def test_escaping_pointer_skips_only_that_project(tmp_path):
-    """One project with a traversal state_file must be skipped, not end the registry scan —
-    a later matching project with a live build still blocks."""
+def test_one_projects_unsafe_state_file_path_does_not_block_checking_other_projects(tmp_path):
+    """A project configured with an unsafe, path-escaping progress-file location must simply be
+    skipped rather than aborting the whole check -- a different, legitimately registered project
+    with an active build still gets to block the edit."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     hh = tmp_path / ".hercules"
@@ -201,10 +219,11 @@ def test_escaping_pointer_skips_only_that_project(tmp_path):
     assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
 
 
-def test_all_build_sessions_keep_their_guards(tmp_path, capsys):
-    """With two build sessions in one file, BOTH freezes hold — a paused build's frozen
-    tests are still frozen deliverables of a pending spec. The ACTIVE session stays
-    authoritative for attribution: its own frozen file is blocked under its spec's name."""
+def test_two_features_being_built_at_once_both_keep_their_tests_frozen(tmp_path, capsys):
+    """When two features are being built at the same time, both of their frozen tests stay
+    protected -- a paused feature's tests are still pending deliverables, not fair game just
+    because attention has moved elsewhere. The block message names the specific feature whose
+    tests were touched, so the user knows exactly what they can't edit and why."""
     project = tmp_path / "proj"
     _setup(tmp_path, project, frozen=("tests/test_a.py",))
     hh = tmp_path / ".hercules"
@@ -221,9 +240,10 @@ def test_all_build_sessions_keep_their_guards(tmp_path, capsys):
         "the active session's own frozen file is attributed to the active spec"
 
 
-def test_fallback_scan_survives_junk_sessions_listed_first(tmp_path):
-    """When the active session is gone and a junk (non-dict) session precedes the paused build
-    in the file, the fallback must skip the junk and still find the build session."""
+def test_corrupted_session_data_does_not_prevent_finding_a_real_build(tmp_path):
+    """If the record of which session is currently active has gone stale, and unusable, garbled
+    session data sits ahead of a legitimate paused build in the saved file, Hercules must skip
+    over the garbage and still find and protect the real build."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     hh = tmp_path / ".hercules"
@@ -234,10 +254,11 @@ def test_fallback_scan_survives_junk_sessions_listed_first(tmp_path):
     assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
 
 
-def test_nested_projects_in_build_are_both_guarded(tmp_path):
-    """A monorepo project and an inner service project can both be mid-build; the outer
-    build's frozen file living inside the inner tree must stay guarded even when cwd
-    resolves to the inner project — the guard unions all matching build sessions."""
+def test_a_monorepo_and_its_inner_service_can_both_be_mid_build_and_stay_guarded(tmp_path):
+    """A monorepo and one of its inner services can each have their own build in progress at the
+    same time. Even when the edit is being made from inside the inner service, a frozen test that
+    belongs to the OUTER project's build must still be protected -- both builds' protections
+    apply together, not just whichever project the location happens to match most narrowly."""
     mono = tmp_path / "mono"
     svc = mono / "svc"
     _add_project(tmp_path, mono, "mono", frozen=["svc/tests/test_x.py"])
@@ -246,9 +267,10 @@ def test_nested_projects_in_build_are_both_guarded(tmp_path):
     assert main(_payload(svc, str(svc / "tests" / "test_x.py"), cwd=svc), home=tmp_path) == 2
 
 
-def test_two_projects_sharing_a_directory_are_both_guarded(tmp_path):
-    """Two registry entries can point at the same directory (e.g. re-registered under a
-    second slug); the one dict order disfavours must not fail open."""
+def test_two_projects_registered_at_the_same_folder_both_stay_guarded(tmp_path):
+    """A project folder can end up registered under two different names (for example after being
+    re-registered). Both registrations' frozen tests must be protected -- whichever one happens
+    to be checked last must not be silently let through."""
     project = tmp_path / "proj"
     _add_project(tmp_path, project, "alpha", frozen=["tests/test_a.py"])
     _add_project(tmp_path, project, "beta", frozen=["tests/test_b.py"])
@@ -256,9 +278,11 @@ def test_two_projects_sharing_a_directory_are_both_guarded(tmp_path):
     assert main(_payload(project, "tests/test_b.py"), home=tmp_path) == 2
 
 
-def test_one_malformed_frozen_entry_does_not_disarm_the_rest(tmp_path):
-    """Junk elements in frozen_test_files (int, empty, None) are skipped per-item — they
-    must never explode the frozen-set computation and fail the valid entries open."""
+def test_one_bad_entry_in_the_frozen_list_does_not_unfreeze_the_valid_ones(tmp_path):
+    """A saved list of frozen test files can contain junk entries -- numbers, blanks, or missing
+    values -- mixed in with real file paths. Those bad entries must be ignored individually
+    rather than breaking the whole list and accidentally leaving the genuine frozen tests
+    unprotected."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     hh = tmp_path / ".hercules"
@@ -268,10 +292,11 @@ def test_one_malformed_frozen_entry_does_not_disarm_the_rest(tmp_path):
     assert main(_payload(project, "tests/test_login.py"), home=tmp_path) == 2
 
 
-def test_missing_frozen_file_is_guarded_under_every_root(tmp_path):
-    """A frozen file with nothing on disk (deleted mid-build, or not yet created) must be
-    guarded against creation under EVERY project root, not only the first — otherwise a
-    Write under a repositories.* root recreates it unchecked."""
+def test_a_frozen_test_that_no_longer_exists_is_protected_under_every_path_it_can_be_reached_by(tmp_path):
+    """A frozen test file might have been deleted, or never created yet, so nothing sits on disk
+    at that path. Recreating it must still be blocked no matter which of the project's several
+    known locations (including a separate referenced repository) the write targets -- checking
+    only the first location would let it slip back in unprotected through another."""
     project = tmp_path / "proj"
     svc = tmp_path / "svc-auth"
     svc.mkdir()
@@ -282,9 +307,10 @@ def test_missing_frozen_file_is_guarded_under_every_root(tmp_path):
                 home=tmp_path) == 2
 
 
-def test_paused_builds_are_both_guarded_regardless_of_order(tmp_path):
-    """Active session in discover, TWO paused builds in the file: both paused builds'
-    frozen files stay guarded — not whichever one JSON key order happens to yield."""
+def test_two_paused_builds_both_keep_their_frozen_tests_protected_regardless_of_storage_order(tmp_path):
+    """When the current focus has moved on to exploring a new feature, but two other features
+    each have a paused build behind them, both paused features' frozen tests must stay protected
+    -- the order they happen to be saved in must never determine which one gets checked."""
     project = tmp_path / "proj"
     _setup(tmp_path, project, frozen=("tests/test_a.py",))
     hh = tmp_path / ".hercules"
@@ -300,10 +326,11 @@ def test_paused_builds_are_both_guarded_regardless_of_order(tmp_path):
     assert main(_payload(project, "tests/test_b.py"), home=tmp_path) == 2
 
 
-def test_relative_target_path_resolves_against_payload_cwd(tmp_path, monkeypatch):
-    """A relative tool_input path is resolved against the payload's cwd, not wherever the
-    hook process happens to run — Claude Code owns the payload cwd; the process cwd is
-    an accident of spawning."""
+def test_a_relative_file_path_is_resolved_against_the_editors_working_directory(tmp_path, monkeypatch):
+    """When the edit request gives a relative file path, it must be resolved relative to the
+    directory the editor says it's working in, not wherever Hercules's own background process
+    happens to have been started from -- otherwise a correctly relative path could be checked
+    against the wrong project entirely."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     monkeypatch.chdir(tmp_path)  # process cwd deliberately NOT the project
@@ -313,9 +340,10 @@ def test_relative_target_path_resolves_against_payload_cwd(tmp_path, monkeypatch
     assert main(payload, home=tmp_path) == 2
 
 
-def test_canon_case_folds_on_macos_only(monkeypatch):
-    """Default macOS APFS is case-insensitive: Test_Login.py IS test_login.py on disk, so
-    canon must compare them equal on darwin (fail-closed) — and must not fold elsewhere."""
+def test_file_path_comparisons_are_case_insensitive_only_on_macos(monkeypatch):
+    """On a default Mac, `Test_Login.py` and `test_login.py` are literally the same file on disk,
+    so path comparisons must treat them as equal there to stay fail-closed. On other operating
+    systems, where case does distinguish files, they must NOT be treated as equal."""
     import hercules_state as hs
 
     monkeypatch.setattr(hs.sys, "platform", "darwin")
@@ -324,7 +352,10 @@ def test_canon_case_folds_on_macos_only(monkeypatch):
     assert hs.canon("/Foo/Test_Login.py") != hs.canon("/foo/test_login.py")
 
 
-def test_resolve_session_returns_the_single_context_and_exact_shape(tmp_path):
+def test_looking_up_a_projects_active_session_returns_its_spec_and_matching_folders(tmp_path):
+    """Looking up a known project by its folder must return the specification it's currently
+    building, the set of folders that count as part of that project, and the registry
+    information Hercules used to find it -- all three pieces callers depend on."""
     import hercules_state as hs
 
     project = tmp_path / "proj"
@@ -335,17 +366,21 @@ def test_resolve_session_returns_the_single_context_and_exact_shape(tmp_path):
     assert entry["state_file"] == "proj.json"
 
 
-def test_resolve_session_fail_open_shape_when_nothing_matches(tmp_path):
-    """(None, [], None) — exactly; a different falsy shape would crash callers that unpack."""
+def test_looking_up_an_unmanaged_directory_returns_empty_results_instead_of_erroring(tmp_path):
+    """When asked about a directory that isn't part of any Hercules-managed project, the lookup
+    must return a specific empty result rather than raising an error or returning some other
+    shape -- callers rely on that exact empty result to safely conclude there is nothing to
+    guard."""
     import hercules_state as hs
 
     (tmp_path / "empty").mkdir()
     assert hs.resolve_session(str(tmp_path / "empty"), home=tmp_path) == (None, [], None)
 
 
-def test_resolve_session_surfaces_a_non_build_phase(tmp_path):
-    """Callers must be able to SEE a non-build phase (decide() fail-opens on it) — the
-    fallback context is a single row carrying the active session."""
+def test_a_project_thats_still_in_design_is_still_visible_to_callers(tmp_path):
+    """Even when a project hasn't reached the build phase yet, callers must still be able to see
+    what phase it's in -- the guard intentionally lets edits through during design, but only
+    because it can see and recognize that phase, not because the project is invisible to it."""
     import hercules_state as hs
 
     project = tmp_path / "proj"
@@ -355,9 +390,10 @@ def test_resolve_session_surfaces_a_non_build_phase(tmp_path):
     assert contexts[0][0]["current_phase"] == "design"
 
 
-def test_deepest_non_build_project_wins_the_fallback(tmp_path):
-    """Two nested projects, neither building: the fallback context must be the inner
-    (deepest) project's active session, and only that one."""
+def test_the_innermost_of_two_nested_non_building_projects_is_the_one_reported(tmp_path):
+    """A monorepo and an inner service can both be registered but neither is actively building.
+    When checking a file inside the inner service, Hercules must report the inner service's own
+    session -- and only that one -- not the outer project's."""
     import hercules_state as hs
 
     outer = tmp_path / "mono"
@@ -375,9 +411,10 @@ def test_deepest_non_build_project_wins_the_fallback(tmp_path):
     assert contexts[0][0]["current_spec"] == "inner-spec"
 
 
-def test_nested_build_contexts_order_deepest_first(tmp_path):
-    """Attribution contract: contexts[0] (what resolve_session returns, what a block
-    reason names) is the deepest build project when cwd sits inside it."""
+def test_when_a_project_and_its_inner_service_are_both_building_the_inner_services_spec_is_named_first(tmp_path):
+    """When both an outer project and its inner service have active builds, and the edit is being
+    made from inside the inner service, any block message must credit the inner service's own
+    specification first -- attributing the block to the most specific, relevant piece of work."""
     import hercules_state as hs
 
     outer = tmp_path / "mono"
@@ -388,10 +425,11 @@ def test_nested_build_contexts_order_deepest_first(tmp_path):
     assert [c[0]["current_spec"] for c in contexts] == ["spec-svc.md", "spec-mono.md"]
 
 
-def test_contested_frozen_file_is_attributed_to_the_active_spec(tmp_path, capsys):
-    """When the active AND a paused build both freeze the same file, the block stands
-    either way — but the reason must name the ACTIVE session's spec (the one the user is
-    working in), not whichever session the file order yields."""
+def test_when_two_builds_freeze_the_same_test_the_block_names_the_current_work_not_a_paused_one(tmp_path, capsys):
+    """A test file can be frozen by both the feature the user is actively working on and by a
+    separate, paused feature. The edit is blocked either way, but the message shown to the user
+    must credit the feature they're actually working on -- not whichever one happens to be
+    stored first -- so the explanation actually matches what they're doing."""
     project = tmp_path / "proj"
     _setup(tmp_path, project, frozen=("tests/test_shared.py",))
     hh = tmp_path / ".hercules"
@@ -407,9 +445,11 @@ def test_contested_frozen_file_is_attributed_to_the_active_spec(tmp_path, capsys
     assert "spec-99-paused.md" not in err
 
 
-def test_canon_never_raises_on_unresolvable_input(tmp_path):
-    """canon must fall back to the raw string when filesystem resolution fails (e.g. a
-    null byte) — a raising canon would take the whole guard down with it."""
+def test_comparing_a_corrupted_file_path_never_crashes_the_guard(tmp_path):
+    """A file path can contain characters the filesystem can't resolve, such as an embedded null
+    byte. Comparing such a path must fall back to comparing it as plain text instead of raising
+    an error -- a crash here would take down the whole safety guard, leaving nothing checking
+    edits at all."""
     import hercules_state as hs
 
     out = hs.canon("tests/\x00bad")

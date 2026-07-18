@@ -1,0 +1,19 @@
+version: 2
+
+# Keeps the SHA-pinned third-party actions (release.yml) and the `actions/*` refs from rotting
+# silently — a re-pin lands as a reviewable PR instead of a stale, unowned version. Grouped so it
+# opens one PR per week, not one per action.
+#
+# NOTE: the ecosystem CLI pins live in src/targets/<eco>/smoke.json (not a package manifest), so
+# Dependabot cannot bump them. That drift is a separate follow-up (a non-blocking `@latest` smoke
+# leg surfaces it) — see the advisory-board report finding #5.
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: chore

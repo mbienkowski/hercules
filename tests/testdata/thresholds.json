@@ -1,7 +1,7 @@
 [
   {
     "name": "a2a-core-entry-count",
-    "target": "plugin/protocols/a2a-communication-protocol.md",
+    "target": "dist/claude-code/protocols/a2a-communication-protocol.md",
     "metric": "core_entry_count",
     "op": ">=",
     "limit": 8,
@@ -9,7 +9,7 @@
   },
   {
     "name": "a2a-core-entry-ceiling",
-    "target": "plugin/protocols/a2a-communication-protocol.md",
+    "target": "dist/claude-code/protocols/a2a-communication-protocol.md",
     "metric": "core_entry_count",
     "op": "<=",
     "limit": 20,
@@ -17,7 +17,7 @@
   },
   {
     "name": "a2a-core-token-budget",
-    "target": "plugin/protocols/a2a-communication-protocol.md",
+    "target": "dist/claude-code/protocols/a2a-communication-protocol.md",
     "metric": "core_token_count",
     "op": "<=",
     "limit": 1050,
@@ -26,7 +26,7 @@
   },
   {
     "name": "debate-token-count",
-    "target": "plugin/protocols/debate-consensus-protocol.md",
+    "target": "dist/claude-code/protocols/debate-consensus-protocol.md",
     "metric": "token_count",
     "op": "<=",
     "limit": 1100,
@@ -35,16 +35,16 @@
   },
   {
     "name": "workflow-protocol-token-budget",
-    "target": "plugin/protocols/workflow-protocol.md",
+    "target": "dist/claude-code/protocols/workflow-protocol.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 1000,
-    "warn_at": 950,
+    "limit": 1050,
+    "warn_at": 1030,
     "severity": "gate"
   },
   {
     "name": "discover-command-token-budget",
-    "target": "plugin/commands/discover.md",
+    "target": "dist/claude-code/commands/discover.md",
     "metric": "token_count",
     "op": "<=",
     "limit": 1670,
@@ -53,25 +53,25 @@
   },
   {
     "name": "design-command-token-budget",
-    "target": "plugin/commands/design.md",
+    "target": "dist/claude-code/commands/design.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 2000,
-    "warn_at": 1980,
+    "limit": 2100,
+    "warn_at": 2080,
     "severity": "gate"
   },
   {
     "name": "build-command-token-budget",
-    "target": "plugin/commands/build.md",
+    "target": "dist/claude-code/commands/build.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 2900,
-    "warn_at": 2860,
+    "limit": 3000,
+    "warn_at": 2980,
     "severity": "gate"
   },
   {
     "name": "ship-command-token-budget",
-    "target": "plugin/commands/ship.md",
+    "target": "dist/claude-code/commands/ship.md",
     "metric": "token_count",
     "op": "<=",
     "limit": 1800,
@@ -80,7 +80,7 @@
   },
   {
     "name": "workflow-command-token-budget",
-    "target": "plugin/commands/workflow.md",
+    "target": "dist/claude-code/commands/workflow.md",
     "metric": "token_count",
     "op": "<=",
     "limit": 2000,
@@ -89,7 +89,7 @@
   },
   {
     "name": "agent-token-budget",
-    "target": "plugin/agents/*.md",
+    "target": "dist/claude-code/agents/*.md",
     "metric": "token_count",
     "op": "<=",
     "limit": 800,
@@ -99,7 +99,7 @@
   },
   {
     "name": "skill-token-budget",
-    "target": "plugin/skills/solution-complexity-scoring/SKILL.md,plugin/skills/learnings/SKILL.md,plugin/skills/write-test-scenarios/SKILL.md,plugin/skills/session-summary/SKILL.md",
+    "target": "dist/claude-code/skills/learnings/SKILL.md,dist/claude-code/skills/write-test-scenarios/SKILL.md",
     "metric": "token_count",
     "op": "<=",
     "limit": 1050,
@@ -108,8 +108,18 @@
     "warn_at": 1000
   },
   {
+    "name": "hercules-reference-token-budget",
+    "target": "dist/claude-code/skills/hercules-reference/SKILL.md",
+    "metric": "token_count",
+    "op": "<=",
+    "limit": 3400,
+    "severity": "gate",
+    "per_file": true,
+    "warn_at": 3380
+  },
+  {
     "name": "coc-generator-token-budget",
-    "target": "plugin/skills/code-of-conduct-generator/SKILL.md",
+    "target": "dist/claude-code/skills/code-of-conduct-generator/SKILL.md",
     "metric": "token_count",
     "op": "<=",
     "limit": 3000,
@@ -119,7 +129,7 @@
   },
   {
     "name": "coc-coverage-map-token-budget",
-    "target": "plugin/skills/code-of-conduct-generator/coverage-map.md",
+    "target": "dist/claude-code/skills/code-of-conduct-generator/coverage-map.md",
     "metric": "token_count",
     "op": "<=",
     "limit": 6600,

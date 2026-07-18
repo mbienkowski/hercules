@@ -1,6 +1,6 @@
 """The workflow protocol is the source of truth for step order and hard guardrails.
 
-These are structural/policy gates over plugin/protocols/workflow-protocol.md and its wiring:
+These are structural/policy gates over dist/claude-code/protocols/workflow-protocol.md and its wiring:
 anchors resolve, the delegation packet keeps its field order, the guardrail registry stays
 well-formed and bidirectionally anchored to the commands, and the one hook-class row maps to a
 live PreToolUse hook. Tests assert packet/registry TEXT and STRUCTURE — no test can prove an
@@ -14,11 +14,11 @@ import re
 
 import pytest
 
-_PROTOCOL = "plugin/protocols/workflow-protocol.md"
+_PROTOCOL = "dist/claude-code/protocols/workflow-protocol.md"
 _SPAWNING_COMMANDS = [
-    "plugin/commands/discover.md",
-    "plugin/commands/design.md",
-    "plugin/commands/build.md",
+    "dist/claude-code/commands/discover.md",
+    "dist/claude-code/commands/design.md",
+    "dist/claude-code/commands/build.md",
 ]
 
 _ANCHOR_RE = re.compile(r"\{#([a-z0-9-]+)\}")
@@ -57,20 +57,24 @@ def _section(md: str, anchor: str) -> str:
     return rest[: nxt.start()] if nxt else rest
 
 
-def test_protocol_declares_required_sections_with_explicit_anchors(read_file):
-    """Every section the packet composer and these tests slice by must carry an explicit
-    {#kebab} anchor — display text can change freely; anchors cannot."""
+def test_every_core_protocol_section_can_be_linked_to_directly(read_file):
+    """Each key section of the workflow protocol (Discover, Design, Build, Ship, the guardrail
+    registry, the handoff packet, role expectations) must have a stable link target, even though
+    its visible heading text can be reworded freely. Losing one of these link targets would
+    silently break every other document that points into that section."""
     anchors = _declared_anchors(read_file(_PROTOCOL))
     missing = _REQUIRED_ANCHORS - anchors
     assert not missing, f"workflow-protocol.md is missing explicit anchors: {sorted(missing)}"
 
 
-def test_protocol_anchor_references_all_resolve(repo_root, read_file):
-    """Every `workflow-protocol.md#X` reference in the shipped plugin + the CoC resolves to a
-    declared anchor."""
+def test_every_link_to_the_protocol_points_to_a_real_section(repo_root, read_file):
+    """Every place in the shipped plugin or the Code of Conduct that links to a specific section
+    of the workflow protocol must point at a section that actually exists there. A stale link
+    would send a reader (or an agent following the reference) to a section that was renamed or
+    removed."""
     anchors = _declared_anchors(read_file(_PROTOCOL))
     ref_re = re.compile(r"workflow-protocol\.md#([a-z0-9-]+)")
-    targets = [str(p.relative_to(repo_root)) for p in (repo_root / "plugin").rglob("*.md")]
+    targets = [str(p.relative_to(repo_root)) for p in (repo_root / "dist" / "claude-code").rglob("*.md")]
     targets.append("CODE_OF_CONDUCT.md")
     refs = {}
     for rel in targets:
@@ -81,22 +85,27 @@ def test_protocol_anchor_references_all_resolve(repo_root, read_file):
 
 
 @pytest.mark.parametrize("rel", _SPAWNING_COMMANDS)
-def test_spawning_command_composes_the_delegation_packet(read_file, rel):
-    """Every spawning command composes the delegation packet (workflow-protocol.md#packet) at its spawns."""
+def test_each_command_that_hands_off_work_includes_the_handoff_packet(read_file, rel):
+    """Every command that starts a subagent (discover, design, build) must include the standard
+    handoff packet at the point it starts that subagent. Without it, the subagent would be
+    launched without knowing its phase, expectations, guardrails, or context."""
     assert "workflow-protocol.md#packet" in read_file(rel), \
         f"{rel} must compose the delegation packet (workflow-protocol.md#packet) at its spawns"
 
 
-def test_a2a_injection_names_the_delegation_packet(read_file):
-    """The a2a § How to inject must name the delegation packet wrapping the Core."""
-    assert "workflow-protocol.md#packet" in read_file("plugin/protocols/a2a-communication-protocol.md"), \
+def test_agent_handoff_instructions_reference_the_handoff_packet(read_file):
+    """The instructions for how one agent hands work to another must explicitly name the
+    standard handoff packet that wraps the shared agent-to-agent instructions, so anyone
+    following that guidance knows to include it."""
+    assert "workflow-protocol.md#packet" in read_file("dist/claude-code/protocols/a2a-communication-protocol.md"), \
         "a2a § How to inject must name the delegation packet wrapping the Core"
 
 
-def test_delegation_packet_keeps_its_field_order(read_file):
-    """The packet fence (located via the {#packet} heading, not first-fence luck) must declare
-    the full field chain in order: Phase < Expected < Guardrails < Context < [Round < the
-    Core-follows marker. Guardrails before Context is what stops a large slice burying rules."""
+def test_the_handoff_packet_lists_its_fields_in_the_required_order(read_file):
+    """The template for the handoff packet must present its fields in a fixed order: Phase,
+    Expected outcome, Guardrails, Context, optional Round, then the shared instructions. Putting
+    Guardrails before Context matters because a long block of context could otherwise bury the
+    safety rules where a reader skims past them."""
     section = _section(read_file(_PROTOCOL), "packet")
     fence = re.search(r"```\n(.*?)```", section, re.S)
     assert fence, "the {#packet} section must carry a fenced packet template"
@@ -111,9 +120,11 @@ def test_delegation_packet_keeps_its_field_order(read_file):
     assert "verbatim" in section, "the packet must require verbatim registry-row copies"
 
 
-def test_guardrail_registry_rows_are_well_formed(read_file):
-    """Every registry row: unique G-number ID, a phase·step key, a scope, a non-empty rule, and
-    a declared enforcement class from the closed set — the honesty label reviewers rely on."""
+def test_every_guardrail_rule_is_completely_and_correctly_documented(read_file):
+    """Every rule in the guardrail rulebook must have a unique ID, say which phase and step it
+    applies to, state its scope, spell out the actual rule, and honestly label how strictly it
+    is enforced. Reviewers rely on that enforcement label to know which rules are guaranteed
+    versus merely requested, so a missing or malformed row would mislead them."""
     rows = _registry_rows(_section(read_file(_PROTOCOL), "registry"))
     assert len(rows) >= 5, "the registry must carry the workflow's hard rules"
     seen = set()
@@ -135,7 +146,7 @@ def test_guardrail_registry_rows_are_well_formed(read_file):
 def _hook_wiring(repo_root, read_file):
     """(hook-class registry rows, PreToolUse matchers, wired commands) — shared by the hook tests."""
     hook_rows = [r for r in _registry_rows(_section(read_file(_PROTOCOL), "registry")) if r[-1] == "hook"]
-    pre = json.loads((repo_root / "plugin" / "hooks" / "hooks.json").read_text())["hooks"]["PreToolUse"]
+    pre = json.loads((repo_root / "src" / "targets" / "claude-code" / "hooks" / "hooks.json").read_text())["hooks"]["PreToolUse"]
     matchers = [entry["matcher"] for entry in pre]
     # Fold exec-form `args` into the command string — the script path lives in `args` under exec
     # form, in `command` under shell form; joining keeps the wiring checks form-agnostic.
@@ -146,9 +157,11 @@ def _hook_wiring(repo_root, read_file):
     return hook_rows, matchers, commands
 
 
-def test_hook_class_rows_claim_pretooluse_enforcement(repo_root, read_file):
-    """A hook-class registry row claims the strongest thing in the file — runtime enforcement — so at
-    least one ships and each must name the PreToolUse mechanism Claude Code actually blocks."""
+def test_rules_labeled_as_automatically_enforced_actually_name_their_enforcement_mechanism(repo_root, read_file):
+    """A guardrail rule that claims to be automatically enforced (rather than just requested) is
+    making the strongest promise in the rulebook, so at least one such rule must exist, and each
+    one must name the real mechanism that blocks the disallowed action. Otherwise the rulebook
+    would advertise a safety guarantee that nothing actually backs up."""
     hook_rows, _m, _c = _hook_wiring(repo_root, read_file)
     assert hook_rows, "the registry must carry at least one hook-class (runtime-enforced) row"
     for r in hook_rows:
@@ -156,17 +169,23 @@ def test_hook_class_rows_claim_pretooluse_enforcement(repo_root, read_file):
             f"{r[0]} claims class=hook but its rule text names no PreToolUse mechanism"
 
 
-def test_wired_hook_scripts_exist_and_edit_is_matched(repo_root, read_file):
-    """Every wired PreToolUse hook script exists on disk, and Edit is matched (the frozen guard)."""
+def test_the_automatic_safety_checks_are_installed_and_watch_file_edits(repo_root, read_file):
+    """Every automatic safety check that the configuration says should run before a tool
+    executes must actually be present on disk, and file-editing actions specifically must be
+    covered (this is what protects frozen tests from being silently changed). A missing script
+    or an uncovered edit action would leave the safety check advertised but not actually running."""
     _hr, matchers, commands = _hook_wiring(repo_root, read_file)
     assert any("Edit" in m for m in matchers), "PreToolUse must match Edit for the frozen guard"
     for cmd in commands:
         script = cmd.split("${CLAUDE_PLUGIN_ROOT}/")[-1].strip('"')
-        assert (repo_root / "plugin" / script).is_file(), f"hook script missing: {script}"
+        assert (repo_root / "dist" / "claude-code" / script).is_file(), f"hook script missing: {script}"
 
 
-def test_frozen_tests_guard_row_is_wired(repo_root, read_file):
-    """The hook-class row is the frozen-tests guard, and hooks.json wires its script."""
+def test_the_frozen_test_protection_is_actually_installed_and_active(repo_root, read_file):
+    """The rule that claims runtime enforcement must be the one protecting frozen tests from
+    being edited, and the actual protection script it names must be wired up to run. If either
+    were missing, a frozen test could be quietly changed even though the rulebook promises it
+    can't be."""
     hook_rows, _m, commands = _hook_wiring(repo_root, read_file)
     assert next((r for r in hook_rows if "frozen" in " ".join(r).casefold()), None), \
         "the hook-class row must be the frozen-tests guard"
@@ -178,18 +197,22 @@ def test_frozen_tests_guard_row_is_wired(repo_root, read_file):
 # command file that owns the rule — the protocol can neither invent a rule the commands don't
 # carry, nor can a command drop a rule the registry still claims.
 _DRIFT_ANCHORS = [
-    ("G1", "frozen", "plugin/commands/build.md"),
-    ("G2", "3 implementation rounds", "plugin/commands/build.md"),
-    ("G3", "scaffold", "plugin/commands/build.md"),
-    ("G4", "named passing test", "plugin/commands/build.md"),
-    ("G5", "high-risk", "plugin/commands/build.md"),
-    ("G6", "build_complete", "plugin/commands/ship.md"),
-    ("G7", "scored once", "plugin/CLAUDE.md"),
+    ("G1", "frozen", "dist/claude-code/commands/build.md"),
+    ("G2", "3 implementation rounds", "dist/claude-code/commands/build.md"),
+    ("G3", "scaffold", "dist/claude-code/commands/build.md"),
+    ("G4", "named passing test", "dist/claude-code/commands/build.md"),
+    ("G5", "high-risk", "dist/claude-code/commands/build.md"),
+    ("G6", "build_complete", "dist/claude-code/commands/ship.md"),
+    ("G7", "scored once", "dist/claude-code/skills/hercules-reference/SKILL.md"),
 ]
 
 
 @pytest.mark.parametrize("gid,token,command", _DRIFT_ANCHORS)
-def test_registry_rules_anchor_bidirectionally(read_file, gid, token, command):
+def test_a_documented_rule_and_the_command_that_carries_it_stay_in_sync(read_file, gid, token, command):
+    """For each key rule in the guardrail rulebook (e.g. frozen tests, the 3-round build limit),
+    the rulebook's own description and the command file that actually carries that rule out must
+    both mention the same identifying phrase. If one side drifted from the other, the rulebook
+    would be documenting a rule the command no longer enforces, or vice versa."""
     rows = _registry_rows(_section(read_file(_PROTOCOL), "registry"))
     row = next((r for r in rows if r[0] == gid), None)
     assert row, f"registry must carry row {gid}"
@@ -220,24 +243,33 @@ def _assert_tokens_in_order(text, tokens, name):
     assert idxs == sorted(idxs), f"{name} steps out of order: {list(zip(tokens, idxs))}"
 
 
-def test_build_inner_loop_runs_in_order_in_the_protocol(read_file):
-    """The Build inner loop runs in order in the protocol's {#phase-build} chain."""
+def test_the_build_phase_steps_are_documented_in_the_correct_order(read_file):
+    """The workflow protocol's description of the Build phase must present its steps — scaffold,
+    write failing tests, implement, run quality gates, mutation testing, traceability, advance,
+    checkpoint, retire the spec, cross-check — in that exact order, matching how Build actually
+    has to be carried out."""
     proto = _section(read_file(_PROTOCOL), "phase-build").casefold()
     _assert_tokens_in_order(proto, _PROTO_BUILD_TOKENS, "protocol {#phase-build}")
 
 
-def test_build_inner_loop_runs_in_the_same_order_in_build_md(read_file):
-    """build.md's ## Execution section runs the Build inner loop in the same order as the protocol."""
-    build = read_file("plugin/commands/build.md").casefold()
+def test_the_build_commands_steps_follow_the_same_order_as_the_protocol(read_file):
+    """The build command's own execution instructions must walk through the same Build-phase
+    steps, in the same order, as the workflow protocol describes. If the two drifted apart, an
+    agent following the command would end up doing steps out of the order the protocol
+    guarantees."""
+    build = read_file("dist/claude-code/commands/build.md").casefold()
     _assert_tokens_in_order(build[build.index("## execution"):], _BUILD_MD_TOKENS, "build.md ## Execution")
 
 
 @pytest.mark.parametrize("source", ["protocol", "design.md", "diagram"])
-def test_design_reads_the_tier_before_its_questions(read_file, source):
-    """Design reads the tier before its design questions in the protocol, design.md, AND the diagram."""
+def test_the_design_phase_checks_the_project_tier_before_asking_design_questions(read_file, source):
+    """Wherever the Design phase is described — the protocol, the design command, or the
+    workflow diagram — it must determine the project's tier before it starts asking design
+    questions. Asking the questions first would mean tier-specific guidance arrives too late to
+    shape them."""
     text = {
         "protocol": _section(read_file(_PROTOCOL), "phase-design"),
-        "design.md": read_file("plugin/commands/design.md"),
+        "design.md": read_file("dist/claude-code/commands/design.md"),
         "diagram": read_file("docs/workflow/workflow-diagram-detailed.html"),
     }[source].casefold()
     m = re.search(r"read (?:the )?tier", text)
@@ -245,10 +277,12 @@ def test_design_reads_the_tier_before_its_questions(read_file, source):
     assert m.start() < text.index("design questions"), f"{source} must read the tier before the design questions"
 
 
-def test_packet_labels_live_in_the_packet_not_the_golden_core(repo_root, read_file):
-    """The packet WRAPS the a2a Core, never mutates it. Positive: the packet fence declares the
-    Expected/Guardrails labels. Negative: those labels stay out of tests/testdata/core.golden —
-    guarding the sanctioned re-bless path from quietly absorbing packet fields into the Core."""
+def test_handoff_specific_fields_never_leak_into_the_shared_core_instructions(repo_root, read_file):
+    """The handoff packet wraps the shared agent-to-agent instructions but must never change
+    them: the packet template does declare its own Expected/Guardrails fields, but those field
+    labels must never appear inside the reference copy of the shared instructions. If they did,
+    the process used to refresh that reference copy could quietly absorb packet-only fields into
+    instructions every agent shares."""
     section = _section(read_file(_PROTOCOL), "packet")
     assert "Expected:" in section and "Guardrails:" in section
     golden = (repo_root / "tests" / "testdata" / "core.golden").read_text()
@@ -259,12 +293,14 @@ def test_packet_labels_live_in_the_packet_not_the_golden_core(repo_root, read_fi
         )
 
 
-def test_role_slices_use_the_spec_template_vocabulary(read_file):
-    """Every §-section a role slice names must be a heading design.md's spec template actually
-    emits (parsed at test time — the template is the closed vocabulary, not a hardcoded copy)."""
+def test_role_expectations_only_reference_sections_that_exist_in_the_spec_template(read_file):
+    """Every named section that the role-expectations text points a role to (e.g. "read §Scope")
+    must be a heading the design command's spec template actually produces, checked against the
+    template's real current headings rather than a copy that could go stale. A role pointed at a
+    section the template no longer produces would be told to read something that isn't there."""
     template_headings = {
         m.group(1).strip()
-        for m in re.finditer(r"(?m)^## ([A-Z][^\n]*)$", read_file("plugin/commands/design.md"))
+        for m in re.finditer(r"(?m)^## ([A-Z][^\n]*)$", read_file("dist/claude-code/commands/design.md"))
         if not m.group(1).startswith("Step")
     }
     assert "Scope" in template_headings, "sanity: design.md template must carry ## Scope"

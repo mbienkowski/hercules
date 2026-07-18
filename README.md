@@ -2,7 +2,7 @@
 
 Half god, half man — strong enough to wrestle a lion, patient enough to sit through your kickoff meeting.
 
-**Hercules is a Claude Code plugin** that enforces a **spec-first** workflow — **Discover → Design → Build → Ship** — so what you're building ships fast and reliably, without the rework.
+**Hercules is a universal, spec-first delivery plugin** — install it in **Claude Code** or **OpenCode** (Codex & Cursor coming) — that enforces **Discover → Design → Build → Ship** so what you're building ships fast and reliably, without the rework.
 
 ![How Hercules works](docs/workflow/workflow-diagram-simplified.svg)
 
@@ -15,14 +15,14 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
   acceptance criteria are written in plain business language you can sign off; nothing is
   built until you approve the plan.
 - **Solo developers** — move fast without accumulating requirements debt; a built-in advisory
-  board challenges your design before any code; coverage and mutation gates hold the quality
-  bar when there's no reviewer around.
+  board challenges your design before any code; an independent reviewer — plus coverage and
+  mutation gates — holds the quality bar when you're the only human on it.
 - **Teams** — every feature traceable from requirement to merged code; built-in handoff notes
   and checkpoints let anyone pick up mid-build; one shared standard from your
   `code-of-conduct.md`, enforced identically for everyone.
 
 > **New to the terms?**
-> - **Plugin:** an add-on you install into Claude Code.
+> - **Plugin:** an add-on you install into your AI coding tool (Claude Code or OpenCode).
 > - **Marketplace:** a source (here, a GitHub repo) you add plugins from.
 > - **Agent:** a specialist persona Claude can consult.
 > - **Business requirements:** the permanent, plain-language "what & why" doc.
@@ -32,6 +32,11 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
 ---
 
 ## Install
+
+Hercules installs natively in each supported ecosystem — **pick yours**. (Codex & Cursor are coming.)
+
+<details>
+<summary><b>Claude Code</b></summary>
 
 **Prerequisite:** Hercules runs *inside* [Claude Code](https://code.claude.com) — install Claude Code first.
 
@@ -66,12 +71,10 @@ When enabled, Hercules becomes your **default agent** — that's why you can als
 this plugin is enabled — it does not add instructions to Claude sessions where the plugin is off.
 The `/hercules:*` commands run the phases.
 
-### Claude Code Desktop
-Same flow: type the `/plugin` commands in the chat, **or** use the in-app plugin browser (the `+` near
+**Claude Code Desktop** — same flow: type the `/plugin` commands in the chat, **or** use the in-app plugin browser (the `+` near
 the prompt → **Plugins** → add marketplace / install). It is *not* a "Settings → Plugins" page.
 
-### For a team (or CI) — no typing
-Declare it once in `settings.json` (user `~/.claude/settings.json`, project `.claude/settings.json`, or
+**For a team (or CI) — no typing.** Declare it once in `settings.json` (user `~/.claude/settings.json`, project `.claude/settings.json`, or
 local) so everyone gets Hercules on clone:
 
 ```json
@@ -97,6 +100,57 @@ governance. This file merges with any existing Claude Code settings — it does 
 |---|---|
 | Just want the plugin (most people) | **Marketplace** — the steps above |
 | A whole team / CI | **`settings.json`** (`extraKnownMarketplaces` + `enabledPlugins`) |
+
+</details>
+
+<details>
+<summary><b>OpenCode</b></summary>
+
+Hercules also works in [OpenCode](https://opencode.ai). **The canonical install is from the GitHub repo** — add it to your `opencode.json`:
+
+```json
+{
+  "plugin": ["github:mbienkowski/hercules"]
+}
+```
+
+OpenCode resolves the package via its `package.json` `main` (`dist/opencode/plugin.js`) and runs the `config` hook that registers the agents, commands, and instructions.
+
+Then restart OpenCode. Hercules becomes the default agent and the `/hercules:*` commands (`/hercules:discover`, `/hercules:design`, `/hercules:build`, `/hercules:ship`, `/hercules:workflow`) are available.
+
+<details>
+<summary><i>Alternative: npm</i></summary>
+
+The plugin is also published to npm as `hercules` (published automatically on release when an `NPM_TOKEN` is configured). If you prefer npm, install it and reference the package name:
+
+```json
+{
+  "plugin": ["hercules"]
+}
+```
+
+</details>
+
+</details>
+
+<details>
+<summary><b>Building from source (contributors)</b></summary>
+
+All content is authored once in `src/`; the build (`scripts/build/`) generates the plugin trees under `dist/claude-code/` and `dist/opencode/` (generated and committed). After editing `src/`, rebuild and commit the output:
+
+```bash
+make build          # regenerate dist/ for every target
+```
+
+An optional pre-commit hook (`.githooks/pre-commit`) regenerates `dist/` automatically when `src/` or `scripts/build/` changes:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+`make test` builds to a temp directory, verifies the committed `dist/` is in sync (a stale `dist/` fails with a `make build` remedy), then runs the suite against the committed output.
+
+</details>
 
 ---
 
@@ -283,7 +337,7 @@ advisor dissent surfaces as input for you to weigh, never an automatic re-score.
 project's `code-of-conduct.md` sets, and on a **mutation-kill** threshold when the CoC defines one —
 the generator suggests **≥90%** for both as a default, and you can change them. Mutation testing
 checks that your tests actually catch bugs, and a requirement ships only when a **named test** asserts
-it. Traceability is always enforced; branch coverage gates when your CoC sets a threshold, and the mutation gate runs whenever the CoC sets
+it. Traceability is always enforced — decided by an independent reviewer, not the session that wrote the code; branch coverage gates when your CoC sets a threshold, and the mutation gate runs whenever the CoC sets
 a kill-rate threshold — none of this is a best-practice you skip under pressure once it applies.
 
 ---
@@ -310,7 +364,7 @@ later.
   number of advisors (a trivial task runs none). Not because ceremony is the goal, but because
   even a one-line change in production code has a business reason. That reason belongs in
   `business-requirements.md` so six months from now anyone reading the history knows *why*
-  something changed, not just what. The trivial path is fast: fewer advisors, same traceability.
+  something changed, not just what. The trivial path is fast: fewer advisors (the independent reviewer is offered — your call), same traceability.
 - **Human in the loop, by design.** The human decides what is needed. Hercules ensures that
   decision is captured, challenged, and executed faithfully, with tests, traceability, and a
   clean git record. If you want an AI that acts without asking, this is the wrong tool. If you
@@ -379,7 +433,8 @@ Read [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) first — it defines the rules f
 agents, and skills, plus how to run the tests.
 
 1. Fork and create a branch (use hyphens, no slashes)
-2. Add or edit files in `plugin/commands/`, `plugin/agents/`, or `plugin/skills/`
+2. Add or edit files in `src/content/commands/`, `src/content/agents/`, or `src/content/skills/`, then
+   run `make build` to regenerate `dist/` (never edit `dist/` by hand)
 3. Test the plugin locally: add **your local checkout** as a marketplace —
    `/plugin marketplace add /path/to/your/checkout`. Its `marketplace.json` declares the name
    `mbienkowski`, so `/plugin install hercules@mbienkowski` then resolves to **your checkout**. If
@@ -433,7 +488,7 @@ When you're done, remove the entry and restart again to go back to the released 
 ## Plugin permissions
 
 Hercules is mostly Markdown — commands, agents, and skills — interpreted by Claude Code, plus a small
-set of local enforcement **hooks** (`plugin/hooks/*.py`, dependency-free standard-library Python). What
+set of local enforcement **hooks** (`src/targets/claude-code/hooks/*.py`, dependency-free standard-library Python). What
 it can do is exactly what Claude Code can do in your session:
 
 - **Project files** — reads your project files to understand context; writes to `docs/` (or wherever
@@ -457,7 +512,7 @@ it can do is exactly what Claude Code can do in your session:
 - **Network** — none. All model calls go through your existing Claude Code session and API key.
   Hercules makes no direct API calls and opens no separate network channel — hooks included.
 
-You can audit the full plugin source in the `plugin/` directory of this repository.
+You can audit the full plugin source in the `src/` directory of this repository (built plugins land in `dist/`).
 
 ---
 
@@ -480,6 +535,9 @@ complexity and adds none for trivial work).
   advisors keeps each one in its high-adherence range.
 - **Context drifts over long sessions.** The counter: a spec locked before code, and TDD that freezes
   expected behaviour into tests. Fresh advisors re-read the spec, not the chat history.
+- **A session that produced an artifact can't judge it without bias.** The counter: the requirement-
+  coverage and traceability gates are decided by a **fresh independent reviewer** that reads the source
+  directly and never sees the author's reasoning — its findings come back to you, they don't self-approve.
 - **Output volume feeds the drift.** The counter: a terse agent-communication protocol — structured,
   low-noise replies.
 - **The debate costs fewer tokens than reworking a missed spec.** A requirement gap that slips into

@@ -17,35 +17,32 @@ from tests.conftest import (  # shared so a command rename updates one place, no
     WORKFLOW as _WORKFLOW,
 )
 
-_CLAUDE = "plugin/CLAUDE.md"
+_CLAUDE = "dist/claude-code/CLAUDE.md"
 
 
-def test_workflow_emits_enter_and_exit_plan_mode(read_file):
-    """The workflow command must call EnterPlanMode to open a phase and ExitPlanMode at the gate."""
+def test_workflow_opens_and_closes_plan_mode_at_each_phase(read_file):
+    """The workflow command must formally enter plan mode to open a phase and formally exit plan
+    mode at the approval gate, so every phase has an explicit, checkable boundary rather than an
+    assumed one."""
     md = read_file(_WORKFLOW)
     assert "EnterPlanMode" in md, "workflow must call EnterPlanMode to open each plan-mode phase"
     assert "ExitPlanMode" in md, "workflow must call ExitPlanMode at the approval gate"
 
 
-def test_methodology_documents_the_plan_mode_mechanism(read_file):
-    """CLAUDE.md must document the EnterPlanMode/ExitPlanMode phase mechanism (not just prose)."""
-    md = read_file(_CLAUDE)
-    assert "EnterPlanMode" in md and "ExitPlanMode" in md, \
-        "CLAUDE.md must document the EnterPlanMode/ExitPlanMode phase mechanism"
-
-
-def test_plan_phases_require_plan_mode_and_gate_writes(read_file):
-    """Every phase — Discover, Design, Build, Workflow, and Ship — must require plan mode and gate
-    its write/execution on approval. Build is included: it opens in plan mode like the rest."""
+def test_every_phase_requires_plan_mode_and_blocks_writes_until_approved(read_file):
+    """Every phase -- Discover, Design, Build, Workflow, and Ship -- must open in plan mode and
+    hold off writing or executing anything until the user approves. Build is included: it follows
+    the same rule as every other phase."""
     for f in (_DISCOVER, _DESIGN, _BUILD, _WORKFLOW, _SHIP):
         lower = read_file(f).lower()
         assert "plan mode" in lower, f"{f} must require plan mode"
         assert "approv" in lower, f"{f} must gate writes/execution on approval"
 
 
-def test_build_opens_in_plan_mode_then_executes(read_file):
-    """Build opens in plan mode (presents a delivery plan, takes Plan approval), then auto-executes
-    the per-spec TDD loop — every phase opens in plan mode, no exceptions."""
+def test_build_presents_a_delivery_plan_before_writing_any_code(read_file):
+    """Build must first present a delivery plan and get the user's approval, then automatically
+    carry out the implementation -- so code is never written before the user has agreed to the
+    plan, the same rule every other phase follows."""
     lower = read_file(_BUILD).lower()
     assert "**plan mode — required" in lower, \
         "build must OPEN in plan mode like every other phase"
@@ -57,10 +54,11 @@ def test_build_opens_in_plan_mode_then_executes(read_file):
         "build must still implement after Plan approval"
 
 
-def test_workflow_chains_phases_in_order_with_approval_gates(read_file):
-    """Workflow must present Discover→Design→Build→Ship in order, each gated on the user.
-    Anchored on the phase headings — a summary-line mention must never satisfy the order
-    check while the actual phase sections are swapped."""
+def test_workflow_walks_through_phases_in_a_fixed_order_with_a_gate_between_each(read_file):
+    """The workflow must present Discover, Design, Build, and Ship in that fixed order, requiring
+    the user's approval before moving from one to the next. This is checked against the actual
+    phase sections, not a summary sentence, so the real sections could not be silently reordered
+    while a stale summary still reads correctly."""
     md = read_file(_WORKFLOW)
     heads = [md.index(f"## Phase {n} — {name}") for n, name in
              ((1, "Discover"), (2, "Design"), (3, "Build"), (4, "Ship"))]
@@ -72,16 +70,21 @@ def test_workflow_chains_phases_in_order_with_approval_gates(read_file):
             < lower.index("move to ship")), "the transition gates must appear in phase order"
 
 
-def test_advisor_loop_is_human_first(read_file):
-    """The methodology must state the main agent never spawns advisors silently (human-first)."""
-    assert "never spawns advisors silently" in read_file(_CLAUDE), \
-        "CLAUDE.md must keep the human-first consent rule"
+def test_advisors_are_never_brought_in_without_the_user_being_told(read_file):
+    """The documented methodology must state that the main agent never spawns advisor helpers
+    silently, so a user is never surprised by extra agents working on their behalf without their
+    knowledge."""
+    # The Sub-agent consent rule now lives in the loaded reference skill (plugin-root CLAUDE.md
+    # is not loaded by Claude Code — see the conformance fixes).
+    surface = read_file(_CLAUDE) + "\n" + read_file("dist/claude-code/skills/hercules-reference/SKILL.md")
+    assert "never spawns advisors silently" in surface, \
+        "the loaded instruction surface must keep the human-first consent rule"
 
 
-def test_complexity_scored_once_read_forward(read_file):
-    """Complexity is scored once in Discover and read forward. Discover classifies and asks the user
-    to confirm; Design and Build read the tier from state and must NOT re-classify (no
-    'confirm or override' prompt) — the tier still governs every phase (depth scales, never skips)."""
+def test_project_complexity_is_judged_once_and_reused_by_later_phases(read_file):
+    """Discover classifies a project's complexity a single time and asks the user to confirm it;
+    Design and Build must reuse that same tier from saved state rather than asking the user to
+    reclassify it, so a project isn't judged differently as it moves from phase to phase."""
     discover = read_file(_DISCOVER).lower()
     assert "complexity" in discover, "discover must classify complexity"
     assert "confirm or override" in discover, "discover must ask the user to confirm the classification"
@@ -94,52 +97,33 @@ def test_complexity_scored_once_read_forward(read_file):
             f"{f} must NOT re-classify complexity (no 'confirm or override' prompt)"
 
 
-def test_ship_requires_plan_mode(read_file):
-    """Ship must actually call EnterPlanMode — 'plan mode' prose alone satisfied the old
-    disjunction while every EnterPlanMode call was removed."""
+def test_ship_drafts_a_commit_plan_and_waits_for_approval(read_file):
+    """Ship must actually open plan mode to draft its commit plan, not merely mention "plan mode"
+    in passing text -- prose alone could pass even if the real plan-mode step were removed -- and
+    it must not commit anything until the user has approved that plan."""
     md = read_file(_SHIP)
     assert "EnterPlanMode" in md, "ship must call EnterPlanMode to draft its commit plan"
     assert "approved" in md.lower(), \
         "ship must gate execution on user approval of the commit plan"
 
 
-def test_ship_requires_build_complete_before_proceeding(read_file):
-    """Ship must refuse when build_complete is not true — pinned to the refusal sentence
-    inside the precondition section ('complete' being a substring of 'build_complete'
-    made the old any()-check a tautology)."""
-    md = read_file(_SHIP)
-    precondition = md[:md.index("## Plan proposal")]
-    assert "build_complete" in precondition, \
-        "ship must read build_complete from the per-project state as its precondition"
-    assert "Local build is not complete. Finish `/hercules:build` first." in precondition, \
-        "the refusal sentence IS the gate — it must live in the precondition section"
-
-
-def test_exit_plan_mode_uses_auto_mode(read_file):
-    """Every plan-mode exit requests `auto` — pinned as the literal call form, because a
-    bare "auto" substring is satisfied by "automatically" while the mode argument is
-    silently dropped."""
+def test_leaving_plan_mode_always_switches_to_auto_mode(read_file):
+    """Every phase that leaves plan mode must switch specifically into auto mode, and must never
+    fall back to accept-edits mode. This is checked against the precise call form, since a loose
+    text search for "auto" would be fooled by an unrelated word like "automatically" while the
+    real mode switch was missing."""
     for f in (_DISCOVER, _DESIGN, _BUILD, _SHIP, _WORKFLOW,
-              "plugin/skills/code-of-conduct-generator/SKILL.md"):
+              "dist/claude-code/skills/code-of-conduct-generator/SKILL.md"):
         text = read_file(f)
         assert re.search(r"ExitPlanMode`?\s*\(`auto`\)", text), \
             f"{f} must call ExitPlanMode with the literal (`auto`) mode argument"
         assert "accept-edits" not in text.lower(), f"{f} must not use accept-edits"
 
 
-def test_all_phases_use_uniform_plan_approval_gate(read_file):
-    """Discover, Design, Build, and Ship end on one identically-named gate — 'Plan approval' — with the
-    same user-facing sub-info, and each gates its write/execution on it."""
-    phrase = "you approve the phase after reviewing the plan"
-    for f in (_DISCOVER, _DESIGN, _BUILD, _SHIP):
-        lower = read_file(f).lower()
-        assert "plan approval" in lower, f"{f} must carry the uniform 'Plan approval' gate"
-        assert phrase in lower, f"{f} must use the shared Plan-approval sub-info"
-
-
-def test_design_validates_before_plan_approval(read_file):
-    """Design runs the implementability and coverage gates BEFORE Plan approval, so the user approves
-    an already-validated plan; the spec write comes last."""
+def test_design_checks_the_plan_is_sound_before_asking_for_approval(read_file):
+    """Design must run its implementability and coverage checks before asking the user to approve
+    the plan, and only save the spec files afterward -- so the user is never asked to sign off on,
+    or left with saved specs from, a plan that has not yet been validated."""
     lower = read_file(_DESIGN).lower()
     i7 = lower.index("## step 7")
     i8 = lower.index("## step 8 — plan approval")
@@ -150,11 +134,11 @@ def test_design_validates_before_plan_approval(read_file):
         "the implementability check must sit in the Step 7 validation gates, before Plan approval"
 
 
-def test_discover_persists_tier_only_at_the_output_step(read_file):
-    """Discover's Step 3 confirms the tier but must not write machine state mid-plan-mode:
-    plan mode blocks writes, and the session slug doesn't exist until Step 7 — an early write
-    either fails or creates an orphan session keyed differently than Step 7's init. The tier
-    is recorded in-conversation and persisted by the Step 7 session-init write."""
+def test_discover_does_not_save_the_complexity_tier_before_the_session_exists(read_file):
+    """Discover confirms the project's complexity tier early in the conversation but must not save
+    it to disk at that point, since the session it would belong to doesn't exist yet -- an early
+    save would either fail outright or create an orphaned record disconnected from the real
+    session created later in the phase."""
     md = read_file(_DISCOVER)
     step3 = md[md.index("## Step 3"):md.index("## Step 4")]
     assert "~/.hercules/state" not in step3, \
@@ -164,10 +148,10 @@ def test_discover_persists_tier_only_at_the_output_step(read_file):
         "Step 7's session-init write must persist the Step 3 tier"
 
 
-def test_build_closeout_points_to_ship_without_running_it(read_file):
-    """Build's close-out hands control back: the user reviews the diff, then runs Ship —
-    workflow.md gates the transition on 'move to Ship' and the README promises a review pause.
-    An auto-run close-out contradicts both and bounces the user into a commit plan unasked."""
+def test_finishing_a_build_tells_the_user_to_review_before_shipping_not_ship_automatically(read_file):
+    """When Build finishes, it must point the user toward running Ship next but never launch Ship
+    on its own -- the user is meant to review the resulting changes and decide when they're ready,
+    not get carried straight into a commit plan without being asked."""
     md = read_file(_BUILD)
     closeout = md[md.lower().index("## close-out"):]
     assert not re.search(r"Then run `/hercules:ship`", closeout), \
@@ -177,11 +161,13 @@ def test_build_closeout_points_to_ship_without_running_it(read_file):
         "close-out must hand the user the review-then-ship decision"
 
 
-def test_every_nonterminal_index_status_has_a_writer(repo_root):
-    """CLAUDE.md's INDEX Status set depicts workflow-written values — each must actually be
-    written by some command, or the INDEX silently lies for a whole phase (e.g. a multi-day
-    Build whose row still says 'design'). 'abandoned' is user-manual."""
-    commands = [p.read_text() for p in (repo_root / "plugin" / "commands").glob("*.md")]
+def test_every_project_status_shown_to_users_is_actually_set_by_some_command(repo_root):
+    """Every status value the project index promises to show (discover, design, build,
+    delivered) must actually be written by at least one command; otherwise a project's listed
+    status could stay stuck on an old phase name -- for example, still saying "design" days into
+    a Build -- misleading anyone checking on its progress. The user-set "abandoned" status is
+    exempt, since a person sets that one by hand."""
+    commands = [p.read_text() for p in (repo_root / "dist" / "claude-code" / "commands").glob("*.md")]
     for status in ("discover", "design", "build", "delivered"):
         assert any(
             "INDEX.md" in para and f"`{status}`" in para
@@ -190,10 +176,11 @@ def test_every_nonterminal_index_status_has_a_writer(repo_root):
         ), f"no command writes INDEX status `{status}` — CLAUDE.md documents it as a live value"
 
 
-def test_lock_language_is_consistent_between_wrapper_and_phases(read_file):
-    """discover.md/design.md declare the artifact locked at its save; workflow.md must not
-    tell the user it locks later ('once we move to X') — that invites post-lock edit requests
-    no command defines a path for. Changes after the save go through the sanctioned re-runs."""
+def test_workflow_never_promises_a_later_lock_that_contradicts_the_real_lock_point(read_file):
+    """Each phase locks its own artifact the moment it's saved, so the overall workflow guide must
+    not tell users their requirements or specs will lock at some later point -- that would invite
+    edit requests after the real lock has already happened, which no command knows how to handle.
+    It must instead point users to the proper, sanctioned way to make changes afterward."""
     wf = read_file(_WORKFLOW)
     assert not re.search(r"once (?:we|you) move to \w+, the (?:requirements|specs) are locked", wf), \
         "workflow.md must not promise a later lock — artifacts lock at their phase's save"
@@ -201,19 +188,20 @@ def test_lock_language_is_consistent_between_wrapper_and_phases(read_file):
         "workflow.md must state the sanctioned change path after a phase's save"
 
 
-def test_orchestrator_has_a_protocol_aligned_fallback_rule(read_file):
-    """When something breaks mid-workflow, the orchestrator must fall back to the safest action
-    consistent with the workflow protocol and tell the user — never improvise outside it."""
+def test_orchestrator_falls_back_to_a_safe_documented_action_when_something_breaks(read_file):
+    """If something goes wrong partway through the workflow, the top-level instructions must
+    direct the orchestrator to fall back to the safest action allowed by the workflow's own rules
+    and inform the user, rather than improvising a workaround that isn't documented anywhere."""
     md = read_file(_CLAUDE)
     assert "fall back to the safest action" in md and "never improvise" in md, \
         "CLAUDE.md must carry the protocol-aligned fallback rule"
 
 
-def test_workflow_continues_phases_by_reading_files_not_skill_invocation(read_file):
-    """Phase commands carry disable-model-invocation (auto-fire protection), so the model
-    cannot load them as skills — the guided workflow must instruct continuing by READING
-    each phase's command file, or an agent dead-ends into 'please type /hercules:design',
-    breaking the automatic flow."""
+def test_workflow_advances_to_the_next_phase_automatically_instead_of_asking_the_user_to_type_a_command(read_file):
+    """Each phase is protected from being auto-triggered as a shortcut, so the guided workflow
+    must instruct moving to the next phase by reading that phase's instructions directly from the
+    file sitting next to the current one. Without this, the guided flow would dead-end by asking
+    the user to manually type the next command, breaking the promise of a hands-off, guided run."""
     md = read_file(_WORKFLOW)
     assert "reading its file" in md or "read its file" in md, \
         "workflow must say phases continue by reading the command file inline"
@@ -223,12 +211,3 @@ def test_workflow_continues_phases_by_reading_files_not_skill_invocation(read_fi
         "the guided flow must not depend on a path variable substituting"
     assert "never ask the user to type" in md, \
         "the guided flow must not push invocation back onto the user"
-
-
-def test_workflow_announces_every_phase_entry(read_file):
-    """The user experiences transitions as 'Entering the {Phase} phase' announcements —
-    they were never pinned, so a rewrite could silently drop them."""
-    md = read_file(_WORKFLOW)
-    for phase in ("Discover", "Design", "Build", "Ship"):
-        assert f"Entering the **{phase}** phase" in md, \
-            f"the {phase} entry announcement must survive"

@@ -6,8 +6,8 @@ name: Release
 #   - anything else                 → MINOR   (default_bump: minor)
 #   - a BREAKING change             → MAJOR   (only when flagged: a `!` after the type, e.g. `feat!:`,
 #                                              or a `BREAKING CHANGE:` footer — never a plain `feat:`)
-# The new version is written into BOTH pyproject.toml and the plugin
-# manifest, committed back with [skip ci], tagged v{version}, and published as a
+# The new version is written into every canonical manifest (pyproject.toml, the Claude plugin
+# manifest, and package.json), committed back with [skip ci], tagged v{version}, and published as a
 # GitHub Release whose notes are the aggregated commits since the previous release.
 #
 # Notes:
@@ -60,7 +60,11 @@ jobs:
       # 1. Compute the next version + changelog from conventional commits (no tag yet).
       - name: Compute next version
         id: bump
-        uses: mathieudutour/github-tag-action@v6.2
+        # Pinned to the full COMMIT SHA (not the mutable v6.2 tag) — this job holds contents:write
+        # and can push to main, so a re-pointed upstream tag must not become code execution here.
+        # NB: v6.2 is an ANNOTATED tag, so the pin must be `git rev-parse v6.2^{commit}`
+        # (a22cf08), NOT `git rev-parse v6.2` (d28fa2c, the tag OBJECT — Actions can't resolve it).
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: minor
@@ -68,9 +72,16 @@ jobs:
           custom_tag: ${{ steps.meta.outputs.is_first == 'true' && '1.0.0' || '' }}
           dry_run: true
 
-      # 2. Write the new version into pyproject.toml + the plugin manifest.
+      # 2. Write the new version into EVERY canonical (source) manifest (pyproject.toml,
+      #    src/targets/claude-code/plugin.json, package.json) — the single-source list.
       - name: Bump version files
         run: python scripts/set_version.py "${{ steps.bump.outputs.new_version }}"
+
+      # 2b. Regenerate dist/ so the built + published artifacts carry the new version. The version
+      #     lives in src/ (see VERSION_TARGETS); without this rebuild the committed dist/ would keep
+      #     the old version and fail the drift gate on the next unrelated push.
+      - name: Rebuild dist/ to propagate the version
+        run: python -m scripts.build.cli --target all
 
       # 3. Update CHANGELOG.md from git log (all commit subjects, not just conventional).
       #    First release overwrites the file; subsequent releases prepend.
@@ -86,15 +97,54 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pyproject.toml plugin/.claude-plugin/plugin.json CHANGELOG.md
+          # Stage every file the canonical version list touches — no hardcoded manifest paths,
+          # so a new target added to VERSION_TARGETS is committed automatically. Also stage dist/,
+          # regenerated in step 2b so the published artifacts carry the bumped version.
+          FILES=$(python -c "from scripts.build.version_targets import VERSION_TARGETS; print(' '.join(rel for rel, _ in VERSION_TARGETS))")
+          git add $FILES dist CHANGELOG.md
           git commit -m "chore(release): ${{ steps.bump.outputs.new_version }} [skip ci]"
-          git tag "${{ steps.bump.outputs.new_tag }}"
+          # Annotated (not lightweight): `git push --follow-tags` only pushes annotated tags, so
+          # this makes git itself push the tag at the exact release commit — rather than relying on
+          # the release step below to create it at the remote branch tip.
+          git tag -a -m "Release ${{ steps.bump.outputs.new_tag }}" "${{ steps.bump.outputs.new_tag }}"
           git push --follow-tags
 
       # 5. Publish the GitHub Release with the aggregated notes.
       - name: GitHub Release
-        uses: ncipollo/release-action@v1
+        # Pinned to a full commit SHA (not the mutable v1 major tag) — same supply-chain reason.
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
         with:
           tag: ${{ steps.bump.outputs.new_tag }}
           name: ${{ steps.bump.outputs.new_tag }}
           body: ${{ steps.bump.outputs.changelog }}
+
+      # 6. Publish the OpenCode plugin to npm (primary channel). The working tree is at the
+      #    bumped commit, so package.json already carries the new version. `files: ["dist/opencode"]`
+      #    scopes the tarball. Skipped automatically if NPM_TOKEN is not configured.
+      #
+      #    Presence is checked in its OWN step (emitting only a boolean output) rather than a
+      #    job-level `env: NPM_TOKEN`, so the credential is never in scope for the third-party
+      #    tag/release actions above — only this check and the publish step below see it.
+      - name: Check npm publish credentials
+        id: npm
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "enabled=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node for npm publish
+        if: steps.npm.outputs.enabled == 'true'
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: npm publish
+        if: steps.npm.outputs.enabled == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public

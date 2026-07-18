@@ -2,28 +2,85 @@ name: CI
 
 # Two triggers, two meanings — not a duplicate: a push run tests the BRANCH TIP on every
 # commit (instant feedback, PR or not), a pull_request run tests the MERGE PREVIEW (the
-# branch merged into main — catches conflict-adjacent breakage the tip can't show).
+# branch merged into its PR base — catches conflict-adjacent breakage the tip can't show).
+# Deliberately NOT restricted to `branches: [main]`: this repo stacks PRs (feature -> feature
+# -> main), and a merge-preview check is exactly as valuable at an intermediate stack level as
+# it is at the final one — restricting it to main-based PRs would silently skip pull_request-
+# gated jobs (mutation, smoke) on every stacked PR, which is most of them.
 # The expensive mutation job stays gated to pull_request/main below.
 on:
   push:
     branches: ["**"]
   pull_request:
-    branches: [main]
 
 # Cancel in-progress runs for the same branch/PR.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least-privilege by default: CI reads code, holds no secrets, and needs no write scope.
+# A job that ever needs more raises it locally; release.yml owns the privileged path.
+permissions:
+  contents: read
+
 defaults:
   run:
     shell: bash
 
+# Job graph (cheap -> pricey, so a cheap failure fails fast before an expensive job pays out):
+#
+#   build ──┬─> validate ─┐
+#           ├─> test ─────┼─> mutation   (~40 min, PR/main only)
+#           │             └─> smoke      (network + real CLIs, PR/main only, one leg per ecosystem)
+#           └─> discover ───> smoke
+#
+# build/validate are seconds; test is minutes; smoke pays for Node + a real-CLI install; mutation
+# is the long pole. smoke and mutation both wait on `test` so a red unit suite stops them first.
 jobs:
+  # ── Build gate — regenerate dist/ and prove it matches what's committed ──────
+  # Runs FIRST: a src/ edit pushed without a rebuild fails here (drift), before any
+  # test burns minutes. Also proves the build is deterministic (two runs byte-equal)
+  # and that dist/ is tracked, not silently git-ignored.
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+
+      - name: Drift gate — committed dist/ must match a fresh build
+        run: python -m scripts.build.cli --target all --check
+
+      - name: Determinism gate — two builds are byte-identical
+        run: |
+          python -m scripts.build.cli --target all
+          A=$(mktemp -d); cp -a dist "$A/dist"
+          git checkout -- dist
+          python -m scripts.build.cli --target all
+          diff -r "$A/dist" dist && echo "build is deterministic"
+          git checkout -- dist
+
+      - name: Untracked-dist guard — dist/ is tracked, nothing left un-committed
+        run: |
+          if git check-ignore -q dist; then
+            echo "::error::dist/ is git-ignored — tags would snapshot an empty tree"; exit 1
+          fi
+          python -m scripts.build.cli --target all
+          if [ -n "$(git status --porcelain --untracked-files=all dist)" ]; then
+            echo "::error::dist/ has uncommitted output — run 'make build' and commit it"
+            git status --porcelain --untracked-files=all dist; exit 1
+          fi
+
   # ── Tests — always, on every branch ─────────────────────────────────────────
   test:
     name: Test
+    needs: [build]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
 
@@ -37,7 +94,7 @@ jobs:
         run: pip install -e ".[dev]"
 
       - name: Cache tiktoken encodings
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/tiktoken
           key: tiktoken-cl100k
@@ -47,15 +104,175 @@ jobs:
         env:
           TIKTOKEN_CACHE_DIR: /home/runner/.cache/tiktoken
 
-  # ── Mutation testing — every commit on PR branches (+ main), after tests ────
-  # Runs mutmut against plugin/hooks/ + tests/metrics/ and gates on a 90% kill rate. Runs on the
+  # ── Validate the plugin package — manifests + single-source version ─────────
+  # Gates packaging itself (marketplace-validate + version-check). Runs without a
+  # Claude binary; the end-to-end install smoke is the `smoke` job below.
+  validate:
+    name: Validate plugin package
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+
+      - name: Validate manifests and single-source version
+        run: |
+          python - <<'PY'
+          import json
+          from scripts.build.version_targets import check_in_sync, read_versions
+          mk = json.load(open(".claude-plugin/marketplace.json"))
+          assert any(p.get("name") == "hercules" for p in mk["plugins"]), \
+              "marketplace.json must list the hercules plugin"
+          # Single-source version: every canonical manifest agrees (raises on drift).
+          check_in_sync()
+          print("plugin package valid; version", set(read_versions().values()).pop())
+          PY
+
+  # ── Discover ecosystems — build the smoke matrix from src/targets/*/smoke.json ──
+  # Each ecosystem that ships a smoke.json (its npm CLI package + pinned version + the smoke-test
+  # path) becomes one PARALLEL `smoke` leg below. Adding a future ecosystem = drop in a smoke.json
+  # under its src/targets/<eco>/ dir; this workflow needs no edit. A target with no smoke.json
+  # (e.g. one with no installable CLI yet) simply gets no leg.
+  discover:
+    name: Discover ecosystems
+    needs: [build]
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - id: matrix
+        name: Assemble the ecosystem smoke matrix from src/targets/*/smoke.json
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import glob, json, sys
+          legs = []
+          for path in sorted(glob.glob("src/targets/*/smoke.json")):
+              cfg = json.load(open(path))
+              legs.append({
+                  "target": path.split("/")[2],
+                  "npm_package": cfg["npm_package"],
+                  "npm_version": cfg["npm_version"],
+                  "cli": cfg["cli"],
+                  "test": cfg["test"],
+              })
+          # Fail CLOSED: an empty include-matrix expands to zero jobs, which GitHub counts as a
+          # SKIPPED (== success) smoke gate — that would let an ungated build reach release. If the
+          # glob ever finds nothing (a moved dir, a deleted smoke.json), redden discovery instead so
+          # smoke is skipped-because-a-need-failed and CI goes red, not silently green.
+          if not legs:
+              sys.exit("no src/targets/*/smoke.json ecosystems discovered — smoke gate would vanish")
+          print("matrix=" + json.dumps({"include": legs}))
+          PY
+
+  # ── Ecosystem smoke checks — one PARALLEL leg per ecosystem (from `discover`) ─────
+  # Does the built plugin actually install/load in the REAL Claude Code / OpenCode binary, not
+  # just look correct on disk? This is the ONLY job that loads the plugin in a live CLI, so it
+  # GATES: a genuine load regression fails the pipeline (and, on main, blocks the release that
+  # chains off CI success) instead of failing open. A transient registry hiccup is absorbed by
+  # the pinned install's own retry+timeout; a real load failure surfaces as the pytest step going
+  # red. fail-fast:false keeps one ecosystem's result independent of the others'.
+  smoke:
+    name: Smoke — ${{ matrix.target }}
+    needs: [build, test, discover]
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Install Python dependencies
+        run: pip install -e ".[dev]"
+
+      # Pinned to the version verified when the check was written; the retry+timeout absorbs a
+      # transient registry hiccup (a genuine outage, after 3 tries, fails only this ecosystem's
+      # leg). A pin going stale is surfaced by Dependabot — see .github/dependabot.yml.
+      # Matrix values are routed through env (not interpolated into the shell) so a fork PR that
+      # edits a smoke.json can't inject a command into these run: steps.
+      - name: Install ${{ matrix.cli }} (${{ matrix.npm_package }}@${{ matrix.npm_version }})
+        env:
+          NPM_PACKAGE: ${{ matrix.npm_package }}
+          NPM_VERSION: ${{ matrix.npm_version }}
+          CLI: ${{ matrix.cli }}
+        run: |
+          for i in 1 2 3; do
+            timeout 120 npm install -g "$NPM_PACKAGE@$NPM_VERSION" && break
+            echo "::warning::npm install of $NPM_PACKAGE failed (attempt $i/3), retrying..."
+            sleep $((i * 5))
+          done
+          "$CLI" --version
+
+      # bash runs with `-eo pipefail` (GitHub default), so a red pytest propagates through `tee`
+      # and fails the leg — the CLI `--version` above already failed the job if the binary is
+      # absent, so this step can't silently all-skip to green.
+      - name: Run ${{ matrix.target }} smoke check
+        env:
+          TEST: ${{ matrix.test }}
+          TARGET: ${{ matrix.target }}
+          DISABLE_AUTOUPDATER: "1"
+          CLAUDE_CODE_ENABLE_TELEMETRY: "0"
+        run: |
+          pytest "$TEST" -v -rs 2>&1 | tee "smoke-results-$TARGET.txt"
+          # Fail CLOSED if the gate silently degraded to all-skipped: the CLI install above ends in
+          # `$CLI --version` (so an absent binary already fails the job), but this makes the gate
+          # self-contained — a real run reports "N passed"; an all-skipped run reports only
+          # "N skipped", and would otherwise exit 0 and read as a green gate that checked nothing.
+          grep -qE '[0-9]+ passed' "smoke-results-$TARGET.txt" || {
+            echo "::error::$TARGET smoke produced no passing checks (all skipped?) — the real CLI must run in CI, the gate did not actually load the plugin"
+            exit 1
+          }
+
+      - name: Annotate a red run
+        if: failure()
+        env:
+          TARGET: ${{ matrix.target }}
+          CLI: ${{ matrix.cli }}
+        run: |
+          echo "::error::$TARGET ecosystem smoke failed — the built plugin did not install/load the way a real $CLI session would. Download the smoke-results-$TARGET artifact for the raw subprocess output. If $TARGET is opencode and the failure mentions issues/15, that is the known OpenCode loader bug (fixed in scripts/build/manifests.py) regressing — anything else is an unreviewed finding."
+
+      - name: Upload smoke check results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: smoke-results-${{ matrix.target }}
+          path: smoke-results-${{ matrix.target }}.txt
+
+  # ── Mutation testing — every commit on PR branches (+ main), after the quick gates ────
+  # Runs mutmut against the pure build layer (scripts/build/*) + hooks + tests/metrics/ and gates on a 90% kill rate. Runs on the
   # pull_request event (every commit pushed to a branch with an open PR) and on
   # main pushes (post-merge) — so feature-branch commits without a PR don't
   # burn CI minutes, and a SHA is never mutation-tested twice. Releases are cut
   # separately by release.yml on every merge to main.
   mutation:
     name: Mutation
-    needs: [test]
+    # Gate the expensive (~40 min) job behind BOTH quick gates — a red test or a red
+    # validate stops it before it burns minutes, and release (which needs the whole
+    # workflow green) is unaffected.
+    needs: [test, validate]
     if: >-
       github.event_name == 'pull_request' ||
       github.ref == 'refs/heads/main'
@@ -75,7 +292,7 @@ jobs:
         run: pip install -e ".[dev]"
 
       - name: Cache tiktoken encodings
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/tiktoken
           key: tiktoken-cl100k
@@ -87,33 +304,7 @@ jobs:
 
       - name: Upload mutation results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: mutmut-results
           path: mutmut-results.txt
-
-  # ── Validate the plugin package — manifests + single-source version ─────────
-  # Gates packaging itself (marketplace-validate + version-check). Runs without a
-  # Claude binary; the end-to-end install smoke stays an opt-in manual check.
-  validate:
-    name: Validate plugin package
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.9"
-
-      - name: Validate manifests and single-source version
-        run: |
-          python - <<'PY'
-          import json, re
-          mk = json.load(open(".claude-plugin/marketplace.json"))
-          pl = json.load(open("plugin/.claude-plugin/plugin.json"))
-          assert any(p.get("name") == "hercules" for p in mk["plugins"]), \
-              "marketplace.json must list the hercules plugin"
-          version = re.search(r'(?m)^version\s*=\s*"([^"]+)"', open("pyproject.toml").read()).group(1)
-          assert version == pl["version"], f"version drift: pyproject {version} != plugin {pl['version']}"
-          print("plugin package valid; version", version)
-          PY

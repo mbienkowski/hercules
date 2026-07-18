@@ -1,0 +1,9 @@
+#!/bin/sh
+# Optional pre-commit hook: regenerate dist/ when the source or the build tool changes.
+# Enable with: git config core.hooksPath .githooks
+
+if git diff --cached --name-only | grep -qE "^src/|^scripts/build/"; then
+    echo "src/ changed — regenerating dist/ ..."
+    python3 -m scripts.build.cli --target all || exit 1
+    git add dist
+fi

@@ -1,0 +1,15 @@
+{
+  "name": "hercules",
+  "version": "1.6.0",
+  "description": "Methodology & workflow system for software delivery with AI",
+  "license": "AGPL-3.0",
+  "homepage": "https://github.com/mbienkowski/hercules",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mbienkowski/hercules.git"
+  },
+  "main": "dist/opencode/plugin.js",
+  "files": [
+    "dist/opencode"
+  ]
+}
