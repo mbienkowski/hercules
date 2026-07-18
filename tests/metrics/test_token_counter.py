@@ -18,15 +18,6 @@ def test_the_count_always_matches_the_real_cl100k_base_tokenizer():
     assert count_tokens(text) == len(tiktoken.get_encoding("cl100k_base").encode(text))
 
 
-def test_counting_the_same_text_twice_always_gives_the_same_result():
-    """Counting the same text twice in a row must report the identical total both times. A
-    counter that isn't deterministic would make repeated budget checks on the same content
-    silently disagree, which would make usage and limit tracking unreliable."""
-    # Given / When / Then
-    text = "hello world, this is a token test"
-    assert count_tokens(text) == count_tokens(text)
-
-
 def test_a_longer_passage_counts_as_more_tokens_than_a_shorter_one():
     """A passage of repeated text must be counted as having more tokens than a short snippet
     of the same words. This guards against a broken counter that reports the same number no

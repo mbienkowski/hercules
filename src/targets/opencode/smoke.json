@@ -1,0 +1,6 @@
+{
+  "npm_package": "opencode-ai",
+  "npm_version": "1.18.3",
+  "cli": "opencode",
+  "test": "tests/build/test_opencode_smoke.py"
+}
