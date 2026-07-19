@@ -36,10 +36,14 @@ _OPENCODE_CAPABILITIES = """# Hercules on OpenCode — capabilities & disclosed 
 Hercules ships the full Discover → Design → Build → Ship methodology on OpenCode, with two capability
 gaps disclosed here (the "disclose gaps, never hide" principle):
 
-- **No hard write-gate hook.** On Claude Code a PreToolUse hook can deny a premature artifact write;
-  OpenCode has no equivalent, so the approval gate is prompt/permission-mediated — the agent presents
-  the plan and waits, but it is not a runtime-enforced deny. Enable `permission: {edit: "ask"}` in your
-  `opencode.json` for a stronger backstop.
+- **Frozen-test write-gate: enforced (needs `python3`).** The plugin's `tool.execute.before` hook
+  hard-denies an edit to a frozen test file during an active build — a real pre-write veto, matching
+  Claude Code's PreToolUse gate — by invoking the same canonical guard (`hooks/frozen_tests.py`). It
+  requires `python3` on PATH; if `python3` is absent the gate **fails open** (the edit is allowed) and
+  the approval gate falls back to prompt/permission-mediated discipline. Enable
+  `permission: {edit: "ask"}` in your `opencode.json` for an additional backstop. Pin an OpenCode
+  version whose `tool.execute.before` also fires for subagent (`task`-tool) edits, or the gate is
+  bypassable via delegation.
 - **No per-agent model tier.** Every Hercules agent runs on the model you select in OpenCode (the
   build omits per-agent `model:` on purpose). Claude Code assigns a heavier model to the orchestrator
   and lighter models to routine advisors; on OpenCode that tiering is intentionally not applied.
@@ -73,12 +77,30 @@ def _opencode_agents_and_commands(tokens: dict[str, str]):
     return agents, commands
 
 
+# The canonical frozen-test guard lives with the Claude hooks; OpenCode and Cursor ship COPIES of the
+# same files so the write-gate logic has one source of truth across every ecosystem.
+_SHARED_HOOKS_SRC = SRC / "targets" / "claude-code" / "hooks"
+
+
+def _copy_shared_hooks(out_root: Path, names: tuple[str, ...]) -> list[str]:
+    written = []
+    for name in names:
+        dest = out_root / "hooks" / name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(_SHARED_HOOKS_SRC / name, dest)
+        written.append(f"hooks/{name}")
+    return written
+
+
 def _emit_opencode_extras(out_root: Path, tokens: dict[str, str]) -> list[str]:
     agents, commands = _opencode_agents_and_commands(tokens)
     _write(out_root / "plugin.js", generate_plugin_js("hercules", agents, commands))
     _write(out_root / "opencode.json", json.dumps(generate_opencode_json(), indent=2) + "\n")
     _write(out_root / "CAPABILITIES.md", _OPENCODE_CAPABILITIES)
-    return ["plugin.js", "opencode.json", "CAPABILITIES.md"]
+    # The write-gate the generated plugin.js invokes: the canonical Python guard + its state reader.
+    written = ["plugin.js", "opencode.json", "CAPABILITIES.md"]
+    written += _copy_shared_hooks(out_root, ("frozen_tests.py", "hercules_state.py"))
+    return written
 
 
 _CURSOR_CAPABILITIES = """# Hercules on Cursor — capabilities & disclosed gaps
@@ -87,10 +109,15 @@ Hercules ships the full Discover → Design → Build → Ship methodology on Cu
 (`.cursor-plugin/plugin.json`), with three capability gaps disclosed here (the "disclose gaps, never
 hide" principle):
 
-- **No hard write-gate hook.** On Claude Code a PreToolUse hook can deny a premature artifact write;
-  Cursor's `afterFileEdit` hook is notification-only and cannot veto an edit, so the approval gate is
-  honored by the assistant, not blocked by the tool. Turn on Cursor's *ask-before-applying-edits*
-  approval for a stronger backstop.
+- **Frozen-test write-gate: partially enforced (needs `python3`).** Cursor has no pre-file-edit veto
+  (`afterFileEdit` is notification-only), so a Composer edit to a frozen test **cannot be prevented** —
+  but the plugin's hooks (`hooks/hooks.json` → `hooks/hercules_gate.py`, reusing the same canonical
+  guard state) add real teeth: `beforeShellExecution` **hard-denies** a shell command that writes to or
+  commits a frozen test during a build, `beforeReadFile` denies reads of frozen tests, and
+  `afterFileEdit` **reverts** a frozen edit after the fact (a backstop, since it cannot block). The
+  hooks need `python3` on PATH and fail **open** if it is absent. Turn on Cursor's
+  *ask-before-applying-edits* approval for an additional backstop. This is stronger than advisory but
+  weaker than Claude Code's hard pre-write veto — the Composer-edit path is revert-only.
 - **No per-agent model tier.** Every Hercules subagent runs on the model you select in Cursor (the
   build omits per-agent model on purpose). Claude Code assigns a heavier model to the orchestrator and
   lighter models to routine advisors; on Cursor that tiering is intentionally not applied.
@@ -170,6 +197,14 @@ def build_target(target: str, out_root: Path) -> list[str]:
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(tdir / src_rel, dest)
             written.append(dest_rel)
+        # Write-gate hooks: the cursor-specific adapter (hooks.json + hercules_gate.py) + the shared
+        # canonical state reader (hercules_state.py, byte-identical to Claude's).
+        for name in ("hooks.json", "hercules_gate.py"):
+            dest = out_root / "hooks" / name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(tdir / "hooks" / name, dest)
+            written.append(f"hooks/{name}")
+        written += _copy_shared_hooks(out_root, ("hercules_state.py",))
         written += _emit_cursor_extras(out_root)
     elif target == "opencode":
         # The generic loop above also wrote dist/opencode/{agents,commands}/*.md. OpenCode does NOT

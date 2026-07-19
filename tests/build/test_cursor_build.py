@@ -106,7 +106,7 @@ def test_no_stray_dot_md_rules_and_no_flat_top_level_dirs(tmp_path):
             assert p.suffix == ".mdc", f"rules/ must be .mdc only, found {p.name}"
     # The plugin's component dirs are exactly these; nothing leaks elsewhere.
     top = {p.name for p in out.iterdir()}
-    assert top <= {".cursor-plugin", "agents", "commands", "rules", "skills", "protocols",
+    assert top <= {".cursor-plugin", "agents", "commands", "rules", "skills", "protocols", "hooks",
                    "CAPABILITIES.md"}, f"unexpected top-level entries: {top}"
 
 
@@ -136,7 +136,10 @@ def test_cursor_output_contains_no_claude_specific_wording(tmp_path):
     out = _build(tmp_path)
     offenders = {}
     for rel, text in _files(out).items():
-        if rel == "CAPABILITIES.md":
+        # CAPABILITIES.md discloses the cross-ecosystem gaps by name; hooks/ ships the canonical
+        # frozen-guard state reader (hercules_state.py), shared byte-identically with Claude/OpenCode,
+        # whose comments name Claude Code as the reference enforcement — both legitimately say "Claude".
+        if rel == "CAPABILITIES.md" or rel.startswith("hooks/"):
             continue
         hits = CLAUDE_ISM.findall(text)
         if hits:
