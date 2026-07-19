@@ -30,6 +30,15 @@ def test_agent_frontmatter_drops_model_and_tools():
     assert out == "---\nname: backend-engineer\ndescription: Implements server code.\n---\n\nBody here."
 
 
+def test_readonly_set_is_exactly_the_gate_verdict_roles():
+    """Pin the exact read-locked set, not just that its members get readonly:true — otherwise a
+    wrong membership (a verdict-giver dropped, or a name typo'd) ships silently and a mutmut mutation
+    of a name inside the frozenset survives (the per-agent build test reads the same live constant)."""
+    assert CursorSerializer.readonly_agents == {
+        "cynical-reviewer", "security-expert", "source-checker", "senior-qa-engineer", "maintainer",
+    }
+
+
 def test_reviewer_agent_is_read_locked():
     """Review/audit roles ship readonly:true so an isolated reviewer can never become an author —
     the cynical-reviewer especially, since the independent-review gate depends on it."""

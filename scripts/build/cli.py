@@ -1,9 +1,9 @@
 """``hercules-build`` entry point (thin FS boundary).
 
-``--target {claude-code|opencode|all} [--check]``. Without ``--check`` it writes ``dist/<target>/``;
-with ``--check`` it renders to a temp dir and diffs against the committed ``dist/`` (exit non-zero on
-drift). One code path for local dev and CI. Spec 02 lands full Claude-Code generation; OpenCode in
-Spec 03.
+``--target {claude-code|opencode|cursor|all} [--check]``. Without ``--check`` it writes
+``dist/<target>/``; with ``--check`` it renders to a temp dir and diffs against the committed ``dist/``
+(exit non-zero on drift). One code path for local dev and CI. The target list is derived from the
+serializer registry, so ``all`` and the accepted values extend automatically as serializers are added.
 """
 from __future__ import annotations
 

@@ -4,8 +4,9 @@ A ``Serializer`` turns a parsed source artifact into the exact bytes a target ex
 target later = one new ``Serializer`` registered here + one config file — ``parse``/``render``/
 ``model_map``/``cli`` need no change (proven by ``tests/build/test_serialize.py``).
 
-Spec 01 lands the protocol, the registry, and a ``ClaudeCodeSerializer`` agent path (frontmatter emit
-+ byte-preserving body). OpenCode is added in Spec 03.
+Three serializers are registered: ``ClaudeCodeSerializer`` (native ``.claude-plugin`` tree, per-agent
+model tiers, hooks), ``OpenCodeSerializer`` (generated ``plugin.js`` + inlined agent/command maps), and
+``CursorSerializer`` (an official Cursor plugin — subagents, commands, an always-applied persona rule).
 """
 from __future__ import annotations
 
@@ -149,6 +150,13 @@ class OpenCodeSerializer:
         return fm_block + render_body(body, self.target, tokens)
 
 
+# The one source file Cursor relocates: the frontmatter-less persona becomes an always-applied rule.
+# Shared by CursorSerializer.serialize_file (which wraps it) and cursor_dest (which routes it) so the
+# two never disagree.
+_PERSONA_SRC = "persona.md"
+_PERSONA_RULE_DEST = "rules/hercules-persona.mdc"
+
+
 class CursorSerializer:
     """Emit an official Cursor plugin (``.cursor-plugin/plugin.json`` + native component dirs).
 
@@ -169,9 +177,10 @@ class CursorSerializer:
     """
 
     target = "cursor"
-    primary_agent = "hercules"
-    # Review/audit advisors ship read-locked so an isolated reviewer cannot become an author. The
-    # independent-review gate depends on ``cynical-reviewer`` in particular being read-only.
+    # Roles that render a GATE VERDICT on other agents' work ship read-locked, so an isolated reviewer
+    # can never become an author — this is what keeps the independent-review gates independent
+    # (``cynical-reviewer`` above all; the audit roles alongside it). Generative advisors are not
+    # listed: they never write files either, but read-locking is scoped to the verdict-givers.
     readonly_agents = frozenset({
         "cynical-reviewer", "security-expert", "source-checker", "senior-qa-engineer", "maintainer",
     })
@@ -205,7 +214,7 @@ class CursorSerializer:
         return render_frontmatter(out) + "\n\n" + render_body(text, self.target, tokens)
 
     def serialize_file(self, text: str, tokens: dict[str, str], models: dict, rel: str | None = None) -> str:
-        if rel == "persona.md":
+        if rel == _PERSONA_SRC:
             return self.serialize_persona(text, tokens)
         fm_block, body = split_document(text)
         if fm_block is None:  # protocols, skill companion docs, any plain file
@@ -224,10 +233,12 @@ def cursor_dest(rel: str) -> str:
     """Map a ``src/content`` source path to its destination inside the Cursor plugin tree.
 
     Cursor's ``agents/``/``commands/``/``skills/`` dirs match the source layout, so only the
-    frontmatter-less ``persona.md`` is relocated — to an always-applied rule (``.mdc`` extension is
-    load-bearing: a ``.md`` rule is silently ignored by Cursor in agent mode)."""
-    if rel == "persona.md":
-        return "rules/hercules-persona.mdc"
+    frontmatter-less ``persona.md`` is relocated — to an always-applied rule. This lives here (a
+    mutation-covered module) rather than as a ``cli._RENAMES`` entry on purpose: the ``.mdc`` extension
+    is load-bearing (a ``.md`` rule is silently ignored by Cursor in agent mode), so a mutant flipping
+    it must be killed by ``test_cursor_serialize`` — ``cli.py`` is excluded from the mutation gate."""
+    if rel == _PERSONA_SRC:
+        return _PERSONA_RULE_DEST
     return rel
 
 

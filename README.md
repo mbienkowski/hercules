@@ -2,7 +2,7 @@
 
 Half god, half man — strong enough to wrestle a lion, patient enough to sit through your kickoff meeting.
 
-**Hercules is a universal, spec-first delivery plugin** — install it in **Claude Code**, **OpenCode**, or **Cursor** (Codex coming) — that enforces **Discover → Design → Build → Ship** so what you're building ships fast and reliably, without the rework.
+**Hercules is a universal, spec-first delivery plugin** — install it natively in your AI coding tool — that enforces **Discover → Design → Build → Ship** so what you're building ships fast and reliably, without the rework.
 
 ![How Hercules works](docs/workflow/workflow-diagram-simplified.svg)
 
@@ -22,7 +22,7 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
   `code-of-conduct.md`, enforced identically for everyone.
 
 > **New to the terms?**
-> - **Plugin:** an add-on you install into your AI coding tool (Claude Code, OpenCode, or Cursor).
+> - **Plugin:** an add-on you install into your AI coding tool.
 > - **Marketplace:** a source (here, a GitHub repo) you add plugins from.
 > - **Agent:** a specialist persona Claude can consult.
 > - **Business requirements:** the permanent, plain-language "what & why" doc.

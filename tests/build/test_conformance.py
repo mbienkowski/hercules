@@ -42,9 +42,9 @@ _SECTIONS = ["Artifact root resolution", "Machine-local state", "Agent scaling",
 
 
 def test_every_target_ships_all_operational_guidance_in_its_reference_skill(tmp_path):
-    """For both the Claude Code and OpenCode builds, every operational section -- covering
-    things like artifact root resolution, agent scaling, and the debate protocol -- must appear
-    in the auto-loaded reference skill. A section left out of this file never reaches the
+    """For every shipped build (Claude Code, OpenCode, Cursor), every operational section --
+    covering things like artifact root resolution, agent scaling, and the debate protocol -- must
+    appear in the auto-loaded reference skill. A section left out of this file never reaches the
     running agent, since nothing else loads it automatically."""
     for tgt in ("claude-code", "opencode", "cursor"):
         out = tmp_path / tgt
@@ -57,11 +57,11 @@ def test_every_target_ships_all_operational_guidance_in_its_reference_skill(tmp_
 
 
 def test_operational_guidance_never_cites_a_file_the_agent_never_loads(tmp_path):
-    """Built output for either target must never point the user to a section inside a file that
-    is never actually loaded -- for example the OpenCode build citing the user's own AGENTS.md,
-    or the Claude Code build citing the plugin's unread top-level CLAUDE.md. Such a citation
-    would send someone hunting for guidance in a place they are told to look but that is never
-    read."""
+    """Built output for any target must never point the user to a section inside a file that is
+    never actually loaded -- for example the OpenCode or Cursor build citing the user's own
+    AGENTS.md, or the Claude Code build citing the plugin's unread top-level CLAUDE.md. Such a
+    citation would send someone hunting for guidance in a place they are told to look but that is
+    never read."""
     oc = tmp_path / "oc"; build_target("opencode", oc)
     cc = tmp_path / "cc"; build_target("claude-code", cc)
     cur = tmp_path / "cur"; build_target("cursor", cur)
