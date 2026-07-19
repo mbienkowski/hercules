@@ -1,9 +1,10 @@
-"""Hygiene scans for shipped hook code under `src/targets/claude-code/hooks/`.
+"""Hygiene scans for every shipped hook script, across all ecosystems (`src/targets/*/hooks/*.py`).
 
 The plugin claims "no external network channel" and "no credentials"; hooks are the only
 executable Python it ships, so they must be scanned (the markdown-only network scan in
-`test_plugin_integrity` does not cover `.py`). These tests enforce: stdlib-only (portability —
-no third-party install step), no network modules, and no import-time side effects.
+`test_plugin_integrity` does not cover `.py`). These tests enforce, for EVERY ecosystem's hooks
+(Claude Code's PreToolUse guard, Cursor's shell/read/after-edit adapter): stdlib-only (portability —
+no third-party install step), no network modules, and no state-corrupting filesystem writes.
 """
 
 from __future__ import annotations
@@ -14,8 +15,10 @@ from pathlib import Path
 
 import pytest
 
-_HOOKS_DIR = Path(__file__).resolve().parents[2] / "src" / "targets" / "claude-code" / "hooks"
-_HOOK_SCRIPTS = sorted(_HOOKS_DIR.glob("*.py"))
+_TARGETS = Path(__file__).resolve().parents[2] / "src" / "targets"
+# Every ecosystem that ships source hook scripts — Claude Code and Cursor today; a new target's
+# hooks/ dir is picked up automatically, so the scans below can never silently skip a new ecosystem.
+_HOOK_SCRIPTS = sorted(_TARGETS.glob("*/hooks/*.py"))
 
 # Modules that would open a network channel — banned in shipped hook code.
 _NETWORK_MODULES = {
@@ -41,7 +44,7 @@ def test_the_hook_checks_below_would_fail_loudly_if_no_hooks_shipped():
     against an empty list and silently report success without having checked anything. This
     guarantees there is at least one real hook script to scan, so the safety checks can't be
     quietly disabled just by deleting all the hooks."""
-    assert _HOOK_SCRIPTS, "expected shipped hook scripts under src/targets/claude-code/hooks/"
+    assert _HOOK_SCRIPTS, "expected shipped hook scripts under src/targets/*/hooks/"
 
 
 @pytest.mark.parametrize("script", _HOOK_SCRIPTS, ids=lambda p: p.name)
@@ -89,11 +92,13 @@ def _open_modes(call: ast.Call):
 
 
 @pytest.mark.parametrize("script", _HOOK_SCRIPTS, ids=lambda p: p.name)
-def test_a_shipped_hook_cannot_create_edit_or_delete_any_file(script: Path):
-    """A hook is only allowed to look at things, never change them. If a hook wrote to
-    Hercules's saved state at the same moment the main process is saving it, that save could be
-    corrupted, so this checks every shipped hook script for any file-writing operation and fails
-    if one is found."""
+def test_a_shipped_hook_never_writes_hercules_state(script: Path):
+    """No hook performs a DIRECT filesystem write — ``open`` for write/append, an ``os``/``Path``
+    write attribute, or ``shutil``. Those are the operations that could corrupt Hercules's saved
+    state under ``~/.hercules`` by racing the model's atomic writes, so every ecosystem's hooks
+    stay read-only over state. The single sanctioned working-tree mutation — Cursor's disclosed
+    ``git checkout`` revert backstop — goes through ``subprocess``/git, never a direct write, and
+    is bounded separately by ``test_the_after_edit_backstop_is_a_bounded_git_revert``."""
     tree = ast.parse(script.read_text())
     offenders = []
     for node in ast.walk(tree):
@@ -107,7 +112,22 @@ def test_a_shipped_hook_cannot_create_edit_or_delete_any_file(script: Path):
                 offenders.append(f"{fn.attr}()")
     if "import shutil" in script.read_text():
         offenders.append("import shutil")
-    assert not offenders, f"{script.name} performs filesystem writes {offenders}; hooks are read-only"
+    assert not offenders, f"{script.name} performs a direct filesystem write {offenders}; hooks stay read-only over state"
+
+
+def test_the_after_edit_backstop_is_a_bounded_git_revert():
+    """Cursor's ``afterFileEdit`` hook cannot veto an edit (notification-only), so it reverts a
+    frozen-test edit as a disclosed backstop — the ONE working-tree mutation any hook performs.
+    Pin that it is bounded: it shells out only via ``git checkout`` (restore the file), never a
+    broader mutation (``reset --hard``, ``clean``, ``rm``, ``push``), so a widened blast radius
+    can't slip in silently. If Cursor ever ships no such hook, this test is simply vacuous."""
+    gate = _TARGETS / "cursor" / "hooks" / "hercules_gate.py"
+    if not gate.is_file():
+        pytest.skip("no Cursor gate shipped")
+    src = gate.read_text()
+    assert "checkout" in src, "the after-edit backstop must revert via git checkout"
+    for forbidden in ("reset --hard", "clean -", '"push"', "'push'", "rm -"):
+        assert forbidden not in src, f"the after-edit backstop must not run `{forbidden}`"
 
 
 def test_test_coverage_exemptions_cannot_be_used_to_hide_untested_logic(repo_root):
@@ -118,7 +138,7 @@ def test_test_coverage_exemptions_cannot_be_used_to_hide_untested_logic(repo_roo
     code that genuinely needs it, letting a bug slip through unnoticed."""
     import itertools
     scoped = itertools.chain(
-        (repo_root / "src" / "targets" / "claude-code" / "hooks").glob("*.py"),
+        (repo_root / "src" / "targets").glob("*/hooks/*.py"),
         (repo_root / "tests" / "metrics").glob("*.py"),
     )
     for path in scoped:

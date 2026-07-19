@@ -125,6 +125,40 @@ def test_shell_respects_the_frozen_hook_off_opt_out(tmp_path, capsys):
     assert _decide("shell", evt, home, capsys)["permission"] == "allow"
 
 
+@pytest.mark.parametrize("primitive", gate._WRITE_PRIMITIVES)
+def test_shell_denies_every_write_primitive_that_touches_a_frozen_test(primitive, active_build, capsys):
+    """Each write/commit primitive the gate guards must deny when it targets a frozen test — read
+    from the gate's own tuple so this test can never fall out of sync with the guarded set."""
+    home, proj = active_build
+    evt = {"command": f"{primitive.strip()} tests/test_frozen.py", "workspace_roots": [str(proj)]}
+    assert _decide("shell", evt, home, capsys)["permission"] == "deny", \
+        f"a {primitive!r} command on a frozen test must be denied"
+
+
+def test_shell_resolves_cwd_from_the_event_when_no_workspace_roots(active_build, capsys):
+    """With no ``workspace_roots`` the gate falls back to the event ``cwd`` — the freeze must still
+    bite, so the fallback resolves the same build context."""
+    home, proj = active_build
+    evt = {"command": "git add tests/test_frozen.py", "cwd": str(proj)}
+    assert _decide("shell", evt, home, capsys)["permission"] == "deny"
+
+
+def test_read_fails_open_on_malformed_event(tmp_path, capsys):
+    """Garbage on stdin for a read decision must also allow — fail-open covers read, not just shell."""
+    home = tmp_path / "home"
+    home.mkdir()
+    gate.main(["hercules_gate.py", "read"], stdin_text="{not json", home=str(home))
+    assert json.loads(capsys.readouterr().out.strip())["permission"] == "allow"
+
+
+def test_after_edit_is_silent_when_no_build_is_active(tmp_path, capsys):
+    """No active build → empty frozen set → after_edit emits nothing (it neither allows nor reverts)."""
+    home = tmp_path / "empty"
+    home.mkdir()
+    evt = {"file_path": str(tmp_path / "tests" / "test_frozen.py"), "workspace_roots": [str(tmp_path)]}
+    assert _decide("after_edit", evt, home, capsys) == {}
+
+
 # ── read (beforeReadFile) ───────────────────────────────────────────────────────────────────
 def test_read_denies_a_frozen_test_during_a_build(active_build, capsys):
     home, proj = active_build

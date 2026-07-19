@@ -18,9 +18,9 @@ fails when it is hand-edited or left stale.
 - **`src/content/`** — ecosystem-neutral content: `agents/`, `commands/`, `skills/{name}/SKILL.md`,
   `protocols/`, and `persona.md` (the project instructions, rendered to each host's convention —
   Claude Code's `CLAUDE.md`, OpenCode's `instructions.md`).
-- **`src/targets/<ecosystem>/`** — ecosystem-specific files: `plugin.json`, `settings.json`, and
-  `hooks/` for `claude-code`; a `config.json` per target.
-- **`dist/claude-code/`, `dist/opencode/`** — the built plugins (generated; the shipped output).
+- **`src/targets/<ecosystem>/`** — ecosystem-specific files: a versioned manifest, a `config.json` per
+  target, and a `hooks/` dir on any host that supports enforcement (`claude-code`, `cursor`).
+- **`dist/<ecosystem>/`** — the built plugins (generated; the shipped output), one tree per target.
 
 Paths below name the **source** you edit; the compiler places the built copy under `dist/`.
 
@@ -99,19 +99,36 @@ Exception: `hercules.md`, the orchestrator persona.
 
 ### Hooks
 
-Hooks are the plugin's only **hard** enforcement — deterministic code Claude Code runs, which a model
-cannot rationalise past. They live in `src/targets/claude-code/hooks/` and auto-load via its `hooks.json`.
+Hooks are the plugin's **hard** enforcement — deterministic code the host runs, which a model cannot
+rationalise past. They ship **per ecosystem, wherever the host offers an enforcement surface**, all keyed
+off the same frozen-guard state so no logic is reimplemented per target:
 
-- **Stdlib-only Python, no shebang** — invoked in hook exec form (`command: python3`, `args:
-  ["${CLAUDE_PLUGIN_ROOT}/hooks/<name>.py"]`); no jq/bash dependency, cross-platform.
+- **Claude Code** — a `PreToolUse` hook (`src/targets/claude-code/hooks/`, auto-loaded via `hooks.json`)
+  denies a write before it lands. The reference gate.
+- **OpenCode** — a generated `tool.execute.before` hook (in `plugin.js`) throws to abort a frozen edit
+  before disk — a real pre-write veto. It shells to the byte-identical Claude guard, not a re-port.
+- **Cursor** — a `hooks.json` adapter (`src/targets/cursor/hooks/`) that `beforeShellExecution`/
+  `beforeReadFile` **denies** a frozen write/read, and — since `afterFileEdit` is notification-only —
+  reverts a frozen edit after the fact as a disclosed backstop.
+
+Shared rules for every hook, on every ecosystem:
+
+- **Stdlib-only Python, no shebang** — invoked as `python3 <script>` (exec-form `args`, or a `command`
+  string on hosts that require it); no jq/bash dependency, cross-platform. The `${…_PLUGIN_ROOT}` env var
+  is the host's, e.g. `${CLAUDE_PLUGIN_ROOT}` / `${CURSOR_PLUGIN_ROOT}`.
 - **Read-only over `~/.hercules`, fail-open** — a hook never writes state (it would race the model's
   atomic writes) and allows the action whenever no active build resolves — or no `python3` is found. It
-  must never crash a user's edit.
-- **Honest scope.** It reads model-authored state, so it is **runtime-mediated, not tamper-proof** — say
-  so, never "unbypassable." User-granted overrides (`frozen_override`, `frozen_hook: "off"`) are recorded
-  state, not holes.
-- Every hook ships with executable tests under `tests/hooks/` plus a wiring test that its `hooks.json`
-  command/args resolve to a real script.
+  must never crash a user's edit. The **one** sanctioned working-tree mutation is Cursor's disclosed
+  after-edit `git checkout` revert (a host with no pre-write veto); it goes through git, never a direct
+  write, and is bounded to restoring the frozen path.
+- **Honest scope.** A hook reads model-authored state, so it is **runtime-mediated, not tamper-proof** —
+  say so, never "unbypassable"; disclose the per-ecosystem limits in `CAPABILITIES.md` (fail-open without
+  `python3`; Cursor's revert-only Composer path). User-granted overrides (`frozen_override`,
+  `frozen_hook: "off"`) are recorded state, not holes.
+- **Single source of truth.** The frozen-guard state reader (`hercules_state.py`) is authored once and
+  shipped byte-identical to every ecosystem (a build-time copy, pinned by a byte-identity test).
+- Every hook ships with executable tests under `tests/hooks/` (scanned for hygiene across all ecosystems)
+  plus a wiring test that each target's `hooks.json`/`plugin.js` resolves its command to a real script.
 
 ### Adding a skill
 
@@ -140,10 +157,11 @@ Enforced by `tests/` — a change that breaks one fails CI:
 
 - **Every shipped artifact has an owning test.** A new manifest, agent, command, or skill ships only with
   a test that fails when it is missing or malformed.
-- **The plugin version is single-sourced** — `pyproject.toml`, `src/targets/claude-code/plugin.json`, and
-  `package.json` carry the same version (the canonical list is `scripts/build/version_targets.py`); the
-  build propagates it into `dist/` and CI fails on drift. Version targets are build *sources*, never
-  `dist/` outputs (a `dist/` file would be regenerated from `src/` on the next build).
+- **The plugin version is single-sourced** — `pyproject.toml`, `package.json`, and every ecosystem's
+  versioned manifest (`src/targets/<ecosystem>/plugin.json`, e.g. `claude-code`, `cursor`) carry the same
+  version; the canonical list is `scripts/build/version_targets.py`. The build propagates it into `dist/`
+  and CI fails on drift. Version targets are build *sources*, never `dist/` outputs (a `dist/` file would
+  be regenerated from `src/` on the next build).
 - **Red first, red possible forever.** A new test is born failing — write it before the feature, watch it
   fail for the right reason, then make it pass. Anchor it so it stays able to fail; `"auto" in lower`
   stays green on "automatically" — that's decoration, not a test.
