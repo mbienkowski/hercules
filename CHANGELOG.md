@@ -1,3 +1,7 @@
+## v1.9.0 (2026-07-19)
+
+* chore: bump the actions group with 3 updates (#17)
+
 ## v1.8.0 (2026-07-19)
 
 * Hercules findings (#20)
