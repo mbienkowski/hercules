@@ -95,9 +95,16 @@ _DENY_COMMANDS = [
     "dd if=/dev/null of=tests/test_frozen.py",
     "tee tests/test_frozen.py",
     "truncate -s 0 tests/test_frozen.py",
-    "echo x > tests/test_frozen.py",
+    "install /dev/null tests/test_frozen.py",
+    "ln -f /dev/null tests/test_frozen.py",
+    "echo x > tests/test_frozen.py",             # redirection target is the frozen file
     "echo x >> tests/test_frozen.py",
-    "make build | tee tests/test_frozen.py",  # write primitive after a pipe boundary
+    "cat src | tee tests/test_frozen.py",        # write verb after a pipe boundary, targeting frozen
+    "find tests -name test_frozen.py -delete",   # find … -delete carries no rm token
+    "time git add tests/test_frozen.py",         # wrapper prefix: time
+    "env GIT_X=1 git commit -- tests/test_frozen.py",  # wrapper + env assignment
+    "nice -n 10 git rm tests/test_frozen.py",    # wrapper + numeric-arg flag
+    "stdbuf -oL sed -i s/a/b/ tests/test_frozen.py",   # wrapper + flag
 ]
 
 
@@ -106,6 +113,27 @@ def test_shell_denies_each_write_command_on_a_frozen_test(command, active_build,
     home, proj = active_build
     d = _decide("shell", {"command": command, "workspace_roots": [str(proj)]}, home, capsys)
     assert d["permission"] == "deny", f"a write command must be denied: {command!r}"
+
+
+# Legit build commands that NAME a frozen test but do not write to it — must be allowed. Guards the
+# redirect-target and same-pipeline-segment logic against over-blocking a routine test run.
+_ALLOW_COMMANDS = [
+    "cat tests/test_frozen.py",                          # read, no write verb
+    "grep -r mv tests/test_frozen.py",                   # a write *word* as a search term, not a command
+    "pytest tests/test_frozen.py -v > /tmp/out.txt",     # run the frozen test, redirect elsewhere
+    "pytest tests/test_frozen.py 2>&1 | tee /tmp/log",   # run it, tee OUTPUT to a non-frozen file
+    "cat tests/test_frozen.py > /dev/null",              # read it, redirect elsewhere
+    "diff tests/test_frozen.py b.py > d.txt",            # compare it, redirect elsewhere
+    "git add src/feature.py",                            # write verb, unrelated file
+    "find . -name conftest.py -delete",                  # find -delete, but not a frozen file
+]
+
+
+@pytest.mark.parametrize("command", _ALLOW_COMMANDS, ids=lambda c: c.split()[0] + "…")
+def test_shell_allows_legit_commands_that_only_name_a_frozen_test(command, active_build, capsys):
+    home, proj = active_build
+    d = _decide("shell", {"command": command, "workspace_roots": [str(proj)]}, home, capsys)
+    assert d["permission"] == "allow", f"a non-writing command must be allowed: {command!r}"
 
 
 def test_shell_deny_carries_the_exact_pinned_messages(active_build, capsys):
@@ -118,33 +146,12 @@ def test_shell_deny_carries_the_exact_pinned_messages(active_build, capsys):
                                 "active build: rm tests/test_frozen.py")
 
 
-# ── shell allow: no write primitive, unrelated file, quoted mention, no build, phase, opt-out ──
-def test_shell_allows_a_read_only_command_touching_a_frozen_test(active_build, capsys):
-    """The path is named but no write primitive is present — inspecting a frozen test is fine."""
-    home, proj = active_build
-    evt = {"command": "cat tests/test_frozen.py", "workspace_roots": [str(proj)]}
-    assert _decide("shell", evt, home, capsys)["permission"] == "allow"
-
-
-def test_shell_allows_grep_naming_a_write_word_as_an_argument(active_build, capsys):
-    """A write *word* (``mv``) as a search term, not a command, must not trigger a deny — the matcher is
-    anchored to a command boundary."""
-    home, proj = active_build
-    evt = {"command": "grep -r mv tests/test_frozen.py", "workspace_roots": [str(proj)]}
-    assert _decide("shell", evt, home, capsys)["permission"] == "allow"
-
-
+# ── shell allow: quoted mention, no build, phase, opt-out ────────────────────────────────────
 def test_shell_allows_a_commit_whose_message_merely_names_a_frozen_test(active_build, capsys):
     """``git commit -m "fix test_frozen.py"`` names the file only inside the quoted message — not an
     operation on it. Quoted spans are stripped before the frozen-path scan, so this is allowed."""
     home, proj = active_build
     evt = {"command": 'git commit -m "fix flake in test_frozen.py"', "workspace_roots": [str(proj)]}
-    assert _decide("shell", evt, home, capsys)["permission"] == "allow"
-
-
-def test_shell_allows_a_write_to_an_unrelated_file(active_build, capsys):
-    home, proj = active_build
-    evt = {"command": "git add src/feature.py", "workspace_roots": [str(proj)]}
     assert _decide("shell", evt, home, capsys)["permission"] == "allow"
 
 

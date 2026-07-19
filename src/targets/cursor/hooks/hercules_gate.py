@@ -30,13 +30,20 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from frozen_tests import _override_allows  # noqa: E402  (canonical override policy, reused not re-ported)
 from hercules_state import canon, frozen_candidates, resolve_build_contexts  # noqa: E402
 
-# A write/commit command at a shell command boundary, or an output redirection. Coarse by necessity —
-# the hook sees only the raw command string, so this is a guardrail against honest/accidental writes,
-# not a sound sandbox (``python -c``, heredocs, ``sudo`` prefixes evade it, and that is disclosed).
-_WRITE_CMD = re.compile(
-    r"(?:^|[\n;&|(])\s*(?:git\s+(?:add|commit|mv|rm)|sed\s+-i|rm|mv|cp|dd|tee|truncate)\b"
-    r"|>>?"
+# Command wrappers that may precede the real verb — consumed so ``time git add …`` / ``xargs rm …`` /
+# ``env X=1 sed -i …`` are still caught. Covers known wrappers, their flags, env assignments, numbers.
+_WRAP = r"(?:(?:sudo|time|nice|env|stdbuf|xargs|nohup|command|\w+=\S+|-\S+|\d+)\s+)*"
+# A write/delete/commit command at the START of a pipeline segment (after optional wrappers). Coarse by
+# necessity — the hook sees only the raw command string, so this is a guardrail against honest/accidental
+# writes, not a sound sandbox: ``python -c``, heredocs, and cross-segment data flow (e.g.
+# ``find … test_x.py | xargs rm``) still evade it. CAPABILITIES.md discloses this coarseness.
+_SEG_WRITE = re.compile(
+    r"^\s*" + _WRAP +
+    r"(?:git\s+(?:add|commit|mv|rm)|sed\s+-i|rm|mv|cp|dd|tee|truncate|install|ln|patch)\b"
 )
+_FIND_DELETE = re.compile(r"\bfind\b.*\s-delete\b")  # `find … -delete` carries no `rm` token
+_SEGMENT = re.compile(r"[\n;|&()]")                  # shell separators between pipeline segments
+_REDIRECT = re.compile(r">>?\s*(\S+)")               # output redirection and its target
 # Quoted spans are stripped before the frozen-path scan, so a commit message that merely NAMES a frozen
 # test (``git commit -m "fix test_login.py"``) is not mistaken for an operation on that file.
 _QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
@@ -75,12 +82,21 @@ def _deny(user: str, agent: str) -> None:
     print(json.dumps({"permission": "deny", "userMessage": user, "agentMessage": agent}))
 
 
-def _touches(cmd: str, frozen: set) -> bool:
-    """True iff a frozen test's filename appears in *cmd* as an operand (quoted spans — e.g. a commit
-    message — stripped first). Basename-level by design: coarse, disclosed, and enough for the honest
-    write-path this guards (a command bearing the absolute path also bears the basename)."""
+def _writes_frozen(cmd: str, frozen: set) -> bool:
+    """True iff *cmd* plausibly writes to / deletes a frozen test. Coarse and basename-level by design:
+    quoted spans (e.g. a commit message) are stripped first; an output redirection counts only when its
+    TARGET is the frozen file (so ``pytest test_x.py > log`` is allowed); and a write/delete verb counts
+    only when a frozen filename is one of its operands (so ``grep -r mv test_x.py`` is allowed)."""
     unquoted = _QUOTED.sub(" ", cmd)
-    return any(os.path.basename(p) in unquoted for p in frozen)
+    names = {os.path.basename(p) for p in frozen}
+    for m in _REDIRECT.finditer(unquoted):          # (a) a redirection whose target is a frozen file
+        if os.path.basename(m.group(1)) in names:
+            return True
+    for seg in _SEGMENT.split(unquoted):            # (b) a write/delete verb naming a frozen file in
+        if _SEG_WRITE.search(seg) or _FIND_DELETE.search(seg):  # the SAME pipeline segment (so
+            if any(n in seg for n in names):                    # `pytest test_x.py | tee log` — read
+                return True                                     # here, write there — is not a write)
+    return False
 
 
 def decide(mode: str, evt: dict, home=None) -> None:
@@ -93,7 +109,7 @@ def decide(mode: str, evt: dict, home=None) -> None:
         return
     if mode == "shell":
         cmd = evt.get("command", "")
-        if _touches(cmd, frozen) and _WRITE_CMD.search(cmd):
+        if _writes_frozen(cmd, frozen):
             _deny(f"Hercules write-gate: this command writes to a frozen test during an active build: {cmd}",
                   "BLOCKED by Hercules: frozen test files are locked during implementation — do not edit or commit them.")
         else:

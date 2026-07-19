@@ -13,7 +13,9 @@ hide" principle):
   user-granted `frozen_override` ("change test X") lifts the gate for that file this round, exactly as
   on Claude Code and OpenCode. The hooks need `python3` on PATH and fail **open** if it is absent. Turn
   on Cursor's *ask-before-applying-edits* approval for an additional backstop. This is stronger than
-  advisory but weaker than Claude Code's hard pre-write veto — the Composer-edit path is revert-only.
+  advisory but weaker than Claude Code's hard pre-write veto — the Composer-edit path is revert-only, and
+  the shell check is a coarse guardrail against honest/accidental writes (it catches the common
+  write/delete/redirect forms, but not `python -c`, heredocs, or cross-pipe data flow).
 - **No per-agent model tier.** Every Hercules subagent runs on the model you select in Cursor (the
   build omits per-agent model on purpose). Claude Code assigns a heavier model to the orchestrator and
   lighter models to routine advisors; on Cursor that tiering is intentionally not applied.
