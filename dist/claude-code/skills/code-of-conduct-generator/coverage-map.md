@@ -151,6 +151,7 @@ The emitted CoC is enforced-only and formatted for an AI reader:
 - Test-data management [P1] — fixtures/factories → no prod data; factories over shared fixtures. (conv)
 - Property/fuzz [P2][be] — parsers/untrusted input → property-based/fuzz on parsers. (conv)
 - Contract/load/visual [P2] — pact/k6/snapshot → per surface as applicable. (conv)
+- Architecture/dependency rules [P1] — arch-rule tool present → narrow package patterns only; flag broad wildcards (`(*)..`) as a footgun that catches cross-cutting infrastructure packages (config/admin/frontend/commons) which legitimately depend on each other. Exclude dto/entity/exception/config subpackages or accept a freeze-store baseline of pre-existing violations. (conv)
 
 ## K. Observability  (Google SRE Workbook — sre.google/workbook/monitoring)
 - Structured logging [P0] — logger vs print, JSON config → one JSON object per line; required fields. 12-Factor XI + SRE

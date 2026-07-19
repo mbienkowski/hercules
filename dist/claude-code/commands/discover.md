@@ -69,6 +69,8 @@ Do not create the file until formal **Plan approval** in Step 6 (the stakeholder
 
 This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. Before accepting approval, verify all five core sections (Goal, Users, Scope, Constraints, Success criteria) have real content — no placeholders. Design references is optional (omit when no visual scope).
 
+The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback; regenerate the draft, never silently proceed.
+
 (medium+) Share this draft with stakeholders before locking. Say **"stakeholders approved"** or **"skip stakeholder review"** to proceed.
 
 On the user's approval, call `ExitPlanMode` (`auto`), then write (Step 7) — no further prompts.

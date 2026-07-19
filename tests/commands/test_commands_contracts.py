@@ -88,6 +88,32 @@ def test_each_command_file_contains_its_own_trigger_phrase(read_file):
             f"so users know which command to invoke"
         )
 
+def test_every_phase_command_points_at_the_canonical_plan_approval_words(read_file):
+    """Every phase command (Discover, Design, Build, Ship) must point at the canonical set of
+    Plan-approval trigger words defined centrally in persona.md. Without a canonical set, a
+    model has to interpret loose phrases like 'agree' or 'all' as approval — a missed variation
+    loops the gate silently. persona.md owns the list; each phase gate references it so a future
+    edit can't quietly drop a word from one phase without it showing up there."""
+    # Given
+    phase_commands = [_DISCOVER, _DESIGN, _BUILD, _SHIP]
+    persona = read_file("dist/claude-code/CLAUDE.md")  # persona.md renders into CLAUDE.md
+    canonical = ["approved", "approve", "yes", "continue", "proceed", "go", "Accept"]
+
+    # When / Then — persona carries the full list, each phase command references it.
+    for word in canonical:
+        assert word in persona, (
+            f"persona.md must list the Plan-approval trigger word {word!r} — "
+            f"every phase gate accepts this canonical set"
+        )
+    for rel in phase_commands:
+        md = read_file(rel)
+        assert "canonical Plan-approval trigger words" in md, (
+            f"{rel} must reference the canonical Plan-approval trigger words from persona.md"
+        )
+        assert "persona.md § Delivery workflow" in md, (
+            f"{rel} must point at persona.md § Delivery workflow for the trigger-word list"
+        )
+
 def test_output_file_paths_are_dated_and_descriptively_named(read_file):
     """Files that Discover and Design write out must be named with today's date and a short
     description of their content, so a user browsing their project folder can tell at a glance
@@ -287,6 +313,20 @@ def test_a_kept_spec_does_not_carry_a_contradictory_delete_instruction(read_file
     assert "git rm" in note, "deletion must remain the template's stated default"
     assert "code-of-conduct" in note, \
         "the note must say a code-of-conduct keep directive overrides the delete"
+
+def test_the_spec_template_has_a_known_violations_section(read_file):
+    """The spec template must include a '## Known violations' section where architecture/dependency
+    rules that are expected to fail at scaffold time are listed, along with which spec resolves them.
+    This makes the 'known violation → fix → green' pattern visible to the traceability reviewer and
+    the cross-check, instead of leaving it as an implicit understanding between specs."""
+    md = read_file(_DESIGN)
+    template_start = md.index("## Acceptance criteria")
+    template_end = md.index("```", template_start + len("## Acceptance criteria"))
+    template = md[template_start:template_end]
+    assert "## Known violations" in template, \
+        "the spec template must include a '## Known violations' section after Acceptance criteria"
+    assert "architecture" in template.lower() or "dependency" in template.lower(), \
+        "the Known violations section must name architecture/dependency rules as its subject"
 
 def test_the_close_out_rule_accounts_for_specs_that_are_kept_not_deleted(read_file):
     """The development principle that gates closing out a feature on the spec being cleaned up

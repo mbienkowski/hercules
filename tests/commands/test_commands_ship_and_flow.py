@@ -210,3 +210,30 @@ def test_ships_proposed_commit_message_follows_the_teams_formatting_rules(read_f
     assert "strip the date prefix" in msg
     assert "72" in msg
     assert "BREAKING CHANGE" in msg
+
+def test_ship_surfaces_prior_session_uncommitted_changes_before_plan_mode(read_file):
+    """Ship's precondition must surface uncommitted files that didn't come from this session
+    (likely left over from a prior session) and ask before proceeding — rather than barreling
+    into a push that the dirty tree will reject mid-Ship. A `git push` rejection mid-phase is
+    the failure mode this guard prevents."""
+    precondition = _section(read_file(_SHIP), "## Precondition check", "## Plan proposal",
+                            label=_SHIP)
+    assert "git status --porcelain" in precondition, \
+        "ship must classify `git status --porcelain` entries before plan mode"
+    assert "in-session" in precondition and "external" in precondition, \
+        "ship must classify entries as in-session vs external (prior session)"
+    assert "ask before plan mode" in precondition, \
+        "ship must ask about external entries before entering plan mode (not proceed silently)"
+
+def test_ship_asks_once_on_code_of_conduct_conflict_never_silently_edits(read_file):
+    """When a code-of-conduct.md rule blocks an explicit user request (commit, push, PR), Ship
+    must ask once before acting — never silently edit the project's CoC. A casual aside like
+    'deleted that, hercules can push' is NOT consent to edit the standards file."""
+    precondition = _section(read_file(_SHIP), "## Precondition check", "## Plan proposal",
+                            label=_SHIP)
+    assert "ask once" in precondition, "ship must ask once on a CoC conflict"
+    assert "never edit the CoC unprompted" in precondition, \
+        "ship must never edit the CoC without explicit confirmation"
+    persona = read_file("dist/claude-code/CLAUDE.md")
+    assert "asked about once" in persona, \
+        "persona.md must carry the ask-once principle (pinned here so a future edit can't drop it)"

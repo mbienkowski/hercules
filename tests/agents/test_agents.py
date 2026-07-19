@@ -176,6 +176,23 @@ def test_cynical_reviewer_reports_missing_specs_back_to_whoever_called_it(read_f
         "spec-sync must report the disposition back to the caller when no editable spec exists"
 
 
+def test_cynical_reviewer_treats_inline_prompt_content_as_the_spec_at_design_gate(read_file):
+    """At Design Step 7 (coverage gate), spec drafts are passed INLINE in the cynical-reviewer's
+    delegation prompt — the spec files are written only after Plan approval. The reviewer must
+    treat the inline content as the specs under review and must never report 'spec documents
+    not provided' when the spec text is in its prompt. That looping failure mode wasted a full
+    review round in the friction log."""
+    md = read_file("dist/claude-code/agents/cynical-reviewer.md")
+    lower = md.lower()
+    assert "inline" in lower and "design" in lower, \
+        "cynical-reviewer must mention inline spec handling at the Design coverage gate"
+    assert "spec documents not provided" in lower, \
+        "cynical-reviewer must call out the exact looping failure mode ('spec documents not provided') to avoid"
+    assert "treat the inline content" in lower, \
+        "cynical-reviewer must explicitly tell itself to treat inline prompt content as the spec"
+
+
+
 def test_hercules_agent_has_first_run_detection(read_file):
     """The first time Hercules is used in a project, it must recognize this from the user's saved
     configuration and walk them through onboarding, including generating a code-of-conduct file

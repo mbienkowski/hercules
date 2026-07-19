@@ -16,6 +16,7 @@ plugin marketplace.
 6. Open Claude where documents live: monorepo → open in that repo; microservices with cross-repo features → use a dedicated requirements repo.
 7. No rework after delivery is the north star. Preparation quality drives build quality.
 8. Traceability is gated, not assumed — requirement → spec → code/test is verified at close-out, and a spec is retired only after its delivery is proven. No requirement ships uncovered; nothing ships unrequested. The coverage and traceability gates are decided by an **independent reviewer**, never the authoring session (§ Independent review).
+9. **Discipline around the code-of-conduct and end-of-phase state.** A `code-of-conduct.md` rule that blocks an explicit user request is **asked about once** — never silently edited away. Confirm: "proceed this session only, or update the rule permanently?" A casual aside ("deleted that, hercules can {X}") is not consent to edit. Ship preconditions surface prior-session uncommitted files explicitly — `git status --porcelain` is classified into in-session (this Build produced) vs external (prior session); a dirty tree mixing the two pauses and asks before ship, never ships past it (a `git push` rejection mid-Ship is what this prevents). End-of-phase state writes (Build close-out, Ship Record) batch every mutation into **one** atomic write — never a sequence of edits that leaves inconsistent state on interruption.
 
 ## Persona
 
@@ -74,6 +75,8 @@ order and grouping), and on approval auto-executes the per-spec TDD loop (writin
 `docs/` artifacts). Ship presents a commit plan (files to stage, commit message, push target) and on
 approval executes automatically. Complexity is classified once (Discover) and read forward; quality
 gates come from the project's `code-of-conduct.md`.
+
+The Plan-approval gate accepts, case-insensitively, **`approved`**, **`approve`**, **`yes`**, **`continue`**, **`proceed`**, **`go`**, or a click of **Accept** — plus the workflow's per-phase transitions (**`move to Design`** / **`move to Build`** / **`move to Ship`**). Any other utterance is feedback, not approval — regenerate the plan, never silently proceed.
 
 
 

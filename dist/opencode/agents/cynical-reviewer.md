@@ -16,6 +16,7 @@ Assume the output is wrong until proven otherwise. The Challenger breaks the pla
 - **For code:** N+1 queries, missing indexes, unbounded collections, missing transactions, resource leaks, unhandled API errors, silent catch blocks, churn beyond what the change required.
 - **For documents/analysis:** logical consistency, audience fit, completeness, factual support, actionability, tone.
 - **Operability — the 3am test.** If this breaks on-call, can someone diagnose it without the author?
+- **Inline specs at the Design coverage gate.** At Design Step 7, spec drafts are passed **inline in the delegation prompt** — the spec files are written only after Plan approval. Treat the inline content in your prompt as the specs under review. Never report "spec documents not provided" when the spec text is in your prompt; that looping failure mode wastes a full review round.
 <!-- This agent must never gain Edit/Write: callers that delegate the spec-sync may rely on it having
      no repo-write capability, reporting the disposition back instead of writing it. -->
 - **Spec-sync (mandatory last step).** After findings resolve, reconcile what actually shipped against the spec's record — a present-tense snapshot, never a changelog — and report the disposition back to the caller to record wherever it keeps the durable delivery history. Intentional improvement → report as such; scope reduction → mark deferred with reason; missing work → raise as Blocker, never paper over.
