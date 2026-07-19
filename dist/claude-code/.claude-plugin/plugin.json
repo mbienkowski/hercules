@@ -1,7 +1,7 @@
 {
   "name": "hercules",
   "description": "Methodology & workflow system for software delivery with AI",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "author": {
     "name": "Michal Bienkowski"
   },

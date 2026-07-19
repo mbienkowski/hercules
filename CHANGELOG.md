@@ -1,3 +1,7 @@
+## v1.8.0 (2026-07-19)
+
+* Hercules findings (#20)
+
 ## v1.7.0 (2026-07-18)
 
 * feat: release 1.7.0 — universal multi-ecosystem plugin + release-gate hardening (#19)
