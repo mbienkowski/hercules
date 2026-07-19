@@ -3,7 +3,9 @@ description: Guided end-to-end delivery — all four Hercules phases in one flow
 disable-model-invocation: true
 ---
 
+${target:claude}
 # ${ns}workflow
+${target:end}
 
 Guided end-to-end delivery: all four phases in one flow. Plugin-file citations (`hercules-reference §…`, `protocols/…`) live in this plugin's directory.
 

@@ -32,6 +32,11 @@ Translate a source of truth into failing test stubs the test runner will pick up
    Confirm they fail because the implementation is missing (spec/requirements source) or pass as
    pinned behaviour (characterisation source) — never from a syntax or import error. Report the
    output before returning.
+   **Capture actual counts before freezing.** When a test asserts an observable quantity
+   (violation count, error count, list length, status code) that the existing code or runtime can
+   produce, capture the actual value by running the relevant tool before freezing — never guess
+   an expected count and iterate. Guessing leads to 3–4 full edit-test cycles just to converge
+   on the right number; capturing it once eliminates that churn.
 
 ## Preconditions
 Stop and ask before proceeding if:

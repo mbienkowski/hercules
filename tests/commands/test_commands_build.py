@@ -278,3 +278,94 @@ def test_a_new_tests_failure_must_be_a_real_failure_not_a_broken_test_file(read_
     assert "forced failure" in step3
     assert "`current_spec_round: 1`" in step3, \
         "the freeze must literally initialize the round counter (mentions are not writes)"
+
+
+def test_build_close_out_batches_every_state_mutation_into_one_atomic_write(read_file):
+    """Build close-out must collect every end-of-Build state mutation (handed_off, current_spec,
+    pending_specs, build_complete, last_updated) into ONE atomic temp + rename — never a sequence
+    of separate edits. A mid-close-out interruption must leave a consistent state, not a
+    half-advanced one. This was a real friction point: six separate edits left inconsistent state
+    on interruption."""
+    closeout = _section(read_file(_BUILD), "## Close-out", label=_BUILD)
+    assert "all" in closeout.lower() or "**all**" in closeout, \
+        "close-out must collect all end-of-Build mutations together"
+    assert "one" in closeout.lower() or "**one**" in closeout, \
+        "close-out must batch into ONE atomic write"
+    assert "temp + rename" in closeout, "close-out must use the atomic temp + rename pattern"
+
+
+def test_build_allows_merging_traceability_and_cross_check_for_single_spec_deliveries(read_file):
+    """For a single-spec delivery, the Build phase may merge the per-spec traceability review
+    (Step 7) and the post-all-specs cross-check into one cynical-reviewer pass — since both
+    would otherwise re-verify the same single spec minutes apart with nearly identical
+    instructions. For multi-spec deliveries, they stay separate (the cross-check needs every
+    spec's checkpoint). This was a real duplicated-work friction point."""
+    crosscheck = _section(read_file(_BUILD), "## Cross-check validation",
+                          "## Capture learnings", label=_BUILD)
+    assert "single-spec" in crosscheck, \
+        "cross-check must mention the single-spec case"
+    assert "merge" in crosscheck, \
+        "cross-check must allow merging traceability + cross-check for single-spec deliveries"
+    assert "both mandates" in crosscheck, \
+        "merged reviewer must receive both mandates (traceability + cross-check)"
+
+
+def test_build_classifies_change_type_and_skips_scaffold_for_annotation_only(read_file):
+    """Build Step 1 must classify the change type (annotation-only, net-new, refactor, mixed).
+    For annotation-only changes, the scaffold gate is satisfied by existing code — the step
+    should skip directly to writing tests. This eliminates a no-op scaffold phase for changes
+    where every file already exists and compiles."""
+    build = read_file(_BUILD)
+    step1 = _section(build, "1. **Read the spec.**", "2. **Scaffold.**", label=_BUILD)
+    assert "annotation-only" in step1, \
+        "Step 1 must classify annotation-only as a change type"
+    assert "skip to Step 3" in step1 or "skip to Step 3" in step1.lower(), \
+        "annotation-only must skip the scaffold gate (existing code already compiles)"
+    assert "refactor" in step1, "Step 1 must also name refactor as a change type"
+
+
+def test_build_step_3_makes_write_test_scenarios_mandatory(read_file):
+    """Build Step 3 must say 'Mandatory' when invoking write-test-scenarios — not just
+    'Invoke'. Without the mandatory wording, the skill was skipped and all tests were written
+    manually, which is exactly the churn the skill is designed to prevent."""
+    step3 = _section(read_file(_BUILD), "3. **Write failing tests.**", "4. **Implement.**",
+                     label=_BUILD)
+    assert "Mandatory" in step3 or "mandatory" in step3.lower(), \
+        "Step 3 must mark the write-test-scenarios invocation as mandatory"
+
+
+def test_build_step_4_checks_guard_reachability_before_freezing(read_file):
+    """Before freezing tests, Build Step 4 must confirm each new guard/assertion can actually
+    fail against realistic input. If an upstream normalization (constructor default, setter,
+    interceptor) makes the annotation unreachable, it should be surfaced as a warning — not
+    discovered after the test breaks."""
+    step4 = _section(read_file(_BUILD), "4. **Implement.**", "5. **Quality gates.**",
+                     label=_BUILD)
+    assert "before freezing" in step4.lower(), \
+        "Step 4 must check guard reachability before the freeze"
+    assert "unreachable" in step4.lower(), \
+        "Step 4 must warn about unreachable guards (upstream normalization)"
+
+
+def test_build_step_4_runs_test_compile_on_constructor_changes(read_file):
+    """When the implementation changes a constructor or signature of a class with existing tests,
+    Build Step 4 must run test-compile before the full check — not discover the breakage at the
+    full check phase. This catches 8+ test file breakages upfront."""
+    step4 = _section(read_file(_BUILD), "4. **Implement.**", "5. **Quality gates.**",
+                     label=_BUILD)
+    assert "test-compile" in step4.lower(), \
+        "Step 4 must run test-compile after constructor/signature changes"
+    assert "constructor" in step4.lower() or "signature" in step4.lower(), \
+        "Step 4 must name constructor/signature changes as the trigger"
+
+
+def test_build_step_5_verifies_coverage_per_touched_file_not_aggregate(read_file):
+    """Build Step 5 must verify coverage thresholds per touched file (every file in the spec's
+    ## Affected code), not just aggregate project coverage. The aggregate number can hide a file
+    below the threshold — the gate must extract and verify at the file level."""
+    step5 = _section(read_file(_BUILD), "5. **Quality gates.**", "6. **Mutation gate.**",
+                     label=_BUILD)
+    assert "per touched file" in step5.lower(), \
+        "Step 5 must verify coverage per touched file, not just aggregate"
+    assert "affected code" in step5.lower(), \
+        "Step 5 must reference the spec's ## Affected code section as the file list"

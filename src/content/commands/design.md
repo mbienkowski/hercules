@@ -3,7 +3,9 @@ description: Design phase — turn a business requirement into numbered technica
 disable-model-invocation: true
 ---
 
+${target:claude}
 # ${ns}design
+${target:end}
 
 Turn a business requirement into numbered technical specs ready for Build. Plugin-file citations (`hercules-reference §…`, `protocols/…`) live in this plugin's directory.
 
@@ -87,9 +89,9 @@ Synthesise the reviewer's findings (that synthesis is the terminal judgment): if
 ## Step 8 — Plan approval
 
 ${target:claude}
-This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. **Do not write the specs until the user approves.** On approval, call `${plan_exit}` (`auto`), then write (Step 9).
+This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback, not approval. **Do not write the specs until the user approves.** On approval, call `${plan_exit}` (`auto`), then write (Step 9).
 ${target:opencode}
-This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. **Do not write the specs until the user approves.** On approval, leave plan mode, then write (Step 9).
+This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback, not approval. **Do not write the specs until the user approves.** On approval, leave plan mode, then write (Step 9).
 ${target:end}
 
 ## Step 9 — Output
@@ -127,6 +129,9 @@ Key technical decisions, patterns to follow, constraints from code-of-conduct.md
 
 ## Acceptance criteria
 Given / When / Then for each deliverable.
+
+## Known violations
+Architecture/dependency rules expected to fail at scaffold time, and which spec resolves them. Leave empty when none.
 
 ## Deletion note
 Delete this file via `git rm` once its feature is delivered in code (a keep-specs code-of-conduct refreshes it instead). Code is the source of truth after delivery.

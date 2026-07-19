@@ -272,3 +272,30 @@ def test_the_coverage_gate_requires_objective_checks_not_just_reviewer_opinion(r
     assert "reviewer-judgment-only is rejected" in flat
     assert "auditable\n appendix".replace("\n ", " ") in flat or "auditable appendix" in flat
     assert "dry-run each cited check" in flat
+
+def test_the_coverage_map_warns_about_broad_wildcard_architecture_rule_patterns(read_file):
+    """The coverage-map must warn that broad wildcard package patterns in architecture/dependency
+    rules catch infrastructure packages (config, admin, frontend, commons) that legitimately depend
+    on each other — a footgun that produces 100+ false cycles on a Spring Boot monorepo. The
+    coverage-map's Testing section must name this and recommend narrow patterns or subpackage
+    exclusions."""
+    flat = _cmap_flat(read_file)
+    assert "broad wildcard" in flat, \
+        "coverage-map must warn about broad wildcard package patterns in architecture rules"
+    assert "infrastructure" in flat, \
+        "coverage-map must name infrastructure packages as the false-positive source"
+    assert "narrow" in flat, \
+        "coverage-map must recommend narrow patterns as the fix"
+
+
+def test_write_test_scenarios_captures_actual_counts_before_freezing(read_file):
+    """The write-test-scenarios skill must capture actual observable quantities (violation counts,
+    error counts, list lengths, status codes) by running the relevant tool before freezing —
+    never guess an expected count and iterate. Guessing leads to 3–4 full edit-test cycles just
+    to converge on the right number; capturing it once eliminates that churn."""
+    skill = read_file("dist/claude-code/skills/write-test-scenarios/SKILL.md")
+    lower = skill.lower()
+    assert "capture" in lower and "actual" in lower, \
+        "write-test-scenarios must instruct capturing actual counts before freezing"
+    assert "never guess" in lower, \
+        "write-test-scenarios must explicitly forbid guessing expected counts"

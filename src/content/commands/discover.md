@@ -3,7 +3,9 @@ description: Discover phase — turn a rough idea into a clear, approved busines
 disable-model-invocation: true
 ---
 
+${target:claude}
 # ${ns}discover
+${target:end}
 
 Turn a rough idea into a clear, approved business requirement — the foundation every other phase builds on. Plugin-file citations (`hercules-reference §…`, `protocols/…`) live in this plugin's directory.
 
@@ -72,6 +74,8 @@ Do not create the file until formal **Plan approval** in Step 6 (the stakeholder
 ## Step 6 — Plan approval
 
 This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. Before accepting approval, verify all five core sections (Goal, Users, Scope, Constraints, Success criteria) have real content — no placeholders. Design references is optional (omit when no visual scope).
+
+The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback; regenerate the draft, never silently proceed.
 
 (medium+) Share this draft with stakeholders before locking. Say **"stakeholders approved"** or **"skip stakeholder review"** to proceed.
 
