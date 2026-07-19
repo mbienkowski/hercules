@@ -35,17 +35,24 @@ function makeWriteGate(projectDir) {
       const claudeTool = WRITE_TOOLS[input && input.tool];
       if (!claudeTool) return;
       const args = (output && output.args) || {};
-      let filePath = args.filePath || args.file_path;
-      if (!filePath && typeof args.patchText === "string") {
+      const paths = [];
+      const direct = args.filePath || args.file_path;
+      if (direct) paths.push(direct);
+      if (typeof args.patchText === "string") {
+        // apply_patch is multi-file: EVERY "*** ... File: <path>" hunk header is a write target, so
+        // check them all — a frozen file in a later hunk must still block (checking only the first
+        // let an innocuous-first, frozen-second patch slip the veto).
         for (const line of args.patchText.split("\n")) {
           const idx = line.indexOf(" File: ");
-          if (idx !== -1 && line.indexOf("*** ") === 0) { filePath = line.slice(idx + 7).trim(); break; }
+          if (idx !== -1 && line.indexOf("*** ") === 0) paths.push(line.slice(idx + 7).trim());
         }
       }
-      if (!filePath || !fs.existsSync(guard)) return;
-      const payload = JSON.stringify({ tool_name: claudeTool, tool_input: { file_path: filePath }, cwd: projectDir });
-      const r = spawnSync("python3", [guard], { input: payload, encoding: "utf8", timeout: 10000 });
-      if (r && r.status === 2) reason = (r.stderr || "").trim() || "edit to a frozen test file denied during build";
+      if (!paths.length || !fs.existsSync(guard)) return;
+      for (const filePath of paths) {
+        const payload = JSON.stringify({ tool_name: claudeTool, tool_input: { file_path: filePath }, cwd: projectDir });
+        const r = spawnSync("python3", [guard], { input: payload, encoding: "utf8", timeout: 10000 });
+        if (r && r.status === 2) { reason = (r.stderr || "").trim() || "edit to a frozen test file denied during build"; break; }
+      }
     } catch (e) {
       return; // fail open: python3 missing / spawn error must never brick an unrelated edit
     }

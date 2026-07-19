@@ -51,11 +51,12 @@ GATE_EXPECTATIONS: dict[str, dict] = {
     },
     # Cursor: shell/read deny + after-edit revert, keyed off the same frozen state.
     "cursor": {
-        "files": [".cursor-plugin/plugin.json", "hooks/hooks.json", "hooks/hercules_gate.py", _STATE],
+        "files": [".cursor-plugin/plugin.json", "hooks/hooks.json", "hooks/hercules_gate.py",
+                  "hooks/frozen_tests.py", _STATE],
         "manifest_hooks_pointer": ".cursor-plugin/plugin.json",
         "cursor_hooks": {
             "path": "hooks/hooks.json",
-            "modes": ["beforeShellExecution", "beforeReadFile", "afterFileEdit"],
+            "modes": ["beforeShellExecution", "afterFileEdit"],
             "guard": "hercules_gate.py",
         },
     },
@@ -87,6 +88,12 @@ def test_every_registered_target_declares_a_gate():
         f"without frozen-test enforcement")
     stale = declared - registered
     assert not stale, f"GATE_EXPECTATIONS names unregistered target(s): {sorted(stale)}"
+    # A waiver is the only sanctioned way to declare "no gate" — it must carry a real, non-empty reason,
+    # so nobody disables enforcement for a target with an empty ``{"waiver": ""}`` rubber stamp.
+    for target, spec in GATE_EXPECTATIONS.items():
+        if "waiver" in spec:
+            assert isinstance(spec["waiver"], str) and spec["waiver"].strip(), \
+                f"{target}: a gate waiver must state a non-empty reason"
 
 
 # ── Per-target: the declared gate is actually shipped and wired ──────────────────────────────

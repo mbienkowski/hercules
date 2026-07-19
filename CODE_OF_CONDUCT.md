@@ -59,7 +59,9 @@ Keep them in lock-step:
 - Any change to a phase or step — its definition, wording, or order — lands in the protocol's phase
   list / guardrail registry first, with the command and the detailed diagram never lagging it **in the
   same change** (persona.md follows only when the state schema or overview changes). A `hook`-class
-  registry row must match a live `src/targets/claude-code/hooks/hooks.json` matcher (CI-verified).
+  registry row must match a live matcher in the **reference** gate,
+  `src/targets/claude-code/hooks/hooks.json` (CI-verified); each other ecosystem's equivalent gate is
+  pinned by its own wiring test under `tests/hooks/` (see § Hooks).
 - If the change is visible at the four-phase level, also update the simplified diagram and the README.
 
 ### The execution walk

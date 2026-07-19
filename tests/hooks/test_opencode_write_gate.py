@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -19,6 +20,21 @@ from scripts.build.cli import build_target
 from scripts.build.manifests import generate_plugin_js
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_generated_plugin_js_ships_no_network_channel():
+    """Hooks are the only executable code the plugin ships; the Python guards are AST-scanned by
+    test_hook_hygiene, but the hand-written plugin.js — which already `require`s child_process and
+    `spawnSync`s — is not. Pin that it `require`s ONLY an allowlist of stdlib modules and references no
+    network primitive, so the "no external network channel" promise can't be silently broken in JS."""
+    js = generate_plugin_js("hercules", [], [])
+    requires = set(re.findall(r'require\(["\']([^"\']+)["\']\)', js))
+    allowed = {"path", "fs", "os", "child_process"}
+    assert requires <= allowed, f"plugin.js requires unexpected module(s): {sorted(requires - allowed)}"
+    for banned in ("fetch(", "XMLHttpRequest", "WebSocket", "http.request", "https.request",
+                   'require("http', 'require("https', 'require("net', 'require("dns', 'require("tls',
+                   "import("):
+        assert banned not in js, f"plugin.js must not reference {banned!r} — no network egress"
 
 
 def test_generated_plugin_wires_the_write_gate_to_the_canonical_python_guard():
@@ -96,3 +112,43 @@ def test_the_real_plugin_allows_an_edit_to_a_non_frozen_file(opencode_with_activ
     """A non-frozen file must pass — the gate blocks only frozen tests, never unrelated edits."""
     plugin_js, proj, home = opencode_with_active_build
     assert _edit_verdict(plugin_js, proj, home, "src/feature.py") == "ALLOWED"
+
+
+def _patch_verdict(plugin_js: Path, proj: Path, home: Path, patch_text: str) -> str:
+    """Return 'BLOCKED'/'ALLOWED' for an `apply_patch` carrying *patch_text*, via the real node plugin."""
+    js = f"""
+    const p = require({json.dumps(str(plugin_js))});
+    p.server({{directory: {json.dumps(str(proj))}}}).then((r) => {{
+      try {{ r["tool.execute.before"]({{tool: "apply_patch"}}, {{args: {{patchText: {json.dumps(patch_text)}}}}}); }}
+      catch (e) {{ console.log("BLOCKED:" + e.message); return; }}
+      console.log("ALLOWED");
+    }}).catch((e) => {{ console.error(e); process.exit(1); }});
+    """
+    res = subprocess.run(["node", "-e", js], capture_output=True, text=True,
+                         env={**os.environ, "HOME": str(home)}, timeout=30)
+    assert res.returncode == 0, res.stderr
+    return res.stdout.strip().splitlines()[-1]
+
+
+@pytest.mark.skipif(not _HAVE_TOOLS, reason="node + python3 required for the live gate check")
+def test_the_real_plugin_blocks_a_frozen_file_in_a_later_patch_hunk(opencode_with_active_build):
+    """A multi-file apply_patch whose FIRST hunk edits an innocuous file and whose SECOND edits a frozen
+    test must still be blocked — the gate checks every hunk's file, not just the first."""
+    plugin_js, proj, home = opencode_with_active_build
+    patch = ("*** Begin Patch\n"
+             "*** Update File: src/innocuous.py\n@@\n-x\n+y\n"
+             "*** Update File: tests/test_frozen.py\n@@\n-a\n+b\n"
+             "*** End Patch\n")
+    verdict = _patch_verdict(plugin_js, proj, home, patch)
+    assert verdict.startswith("BLOCKED"), f"a frozen file in a later hunk must be denied, got {verdict!r}"
+
+
+@pytest.mark.skipif(not _HAVE_TOOLS, reason="node + python3 required for the live gate check")
+def test_the_real_plugin_allows_a_multi_file_patch_with_no_frozen_file(opencode_with_active_build):
+    """A multi-file patch touching only non-frozen files must pass — no false block."""
+    plugin_js, proj, home = opencode_with_active_build
+    patch = ("*** Begin Patch\n"
+             "*** Update File: src/a.py\n@@\n-x\n+y\n"
+             "*** Update File: src/b.py\n@@\n-a\n+b\n"
+             "*** End Patch\n")
+    assert _patch_verdict(plugin_js, proj, home, patch) == "ALLOWED"

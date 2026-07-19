@@ -136,8 +136,9 @@ tree; the keyed `cursor-agent -p` run is main-only) — confirm live before rele
 
 ### Cross-ecosystem
 
-- [ ] `dist/claude-code/.claude-plugin/plugin.json`, `src/targets/cursor/plugin.json`, `package.json`, and
-      `pyproject.toml` all show the release version (matches the git tag).
+- [ ] `src/targets/claude-code/plugin.json`, `src/targets/cursor/plugin.json`, `package.json`, and
+      `pyproject.toml` — the canonical version sources (`scripts/build/version_targets.py`) — all show the
+      release version (matches the git tag); the build propagates it into every `dist/` tree.
 
 v1 ships **Claude Code + OpenCode + Cursor**. Codex is TBD — add its smoke section when delivered
 (see [CONTRIBUTING.md](CONTRIBUTING.md) § Adding a new target for the proven extension procedure).

@@ -146,10 +146,12 @@ listing on the public Cursor marketplace is a planned follow-up. Once installed,
 (`rules/hercules-persona.mdc`) always applies, the `/discover`, `/design`, `/build`, `/ship`,
 `/workflow` commands appear, and the advisors run as isolated subagents.
 
-**Capability note.** Cursor has no pre-write hook (the frozen-test write-gate is advisory) and cannot
-force a subagent spawn in the IDE, so the independent-review gate is **best-effort** with a mandatory
-reviewer **handshake-or-HALT** — fully forced only when Hercules runs via the headless
-`cursor-agent --agent` CLI. The gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
+**Capability note.** Cursor has no pre-file-edit veto, so a plugin hook **hard-denies** shell commands
+that write to or commit a frozen test and **reverts** a Composer edit after the fact (the edit path is
+revert-only, not blocked). Cursor also cannot force a subagent spawn in the IDE, so the
+independent-review gate is **best-effort** with a mandatory reviewer **handshake-or-HALT** — fully
+forced only when Hercules runs via the headless `cursor-agent --agent` CLI. The gaps are disclosed in
+`dist/cursor/CAPABILITIES.md`.
 
 </details>
 

@@ -7,12 +7,13 @@ hide" principle):
 - **Frozen-test write-gate: partially enforced (needs `python3`).** Cursor has no pre-file-edit veto
   (`afterFileEdit` is notification-only), so a Composer edit to a frozen test **cannot be prevented** —
   but the plugin's hooks (`hooks/hooks.json` → `hooks/hercules_gate.py`, reusing the same canonical
-  guard state) add real teeth: `beforeShellExecution` **hard-denies** a shell command that writes to or
-  commits a frozen test during a build, `beforeReadFile` denies reads of frozen tests, and
-  `afterFileEdit` **reverts** a frozen edit after the fact (a backstop, since it cannot block). The
-  hooks need `python3` on PATH and fail **open** if it is absent. Turn on Cursor's
-  *ask-before-applying-edits* approval for an additional backstop. This is stronger than advisory but
-  weaker than Claude Code's hard pre-write veto — the Composer-edit path is revert-only.
+  guard state AND the same `frozen_override` policy) add real teeth: `beforeShellExecution`
+  **hard-denies** a shell command that writes to or commits a frozen test during a build, and
+  `afterFileEdit` **reverts** a frozen edit after the fact (a backstop, since it cannot block). A
+  user-granted `frozen_override` ("change test X") lifts the gate for that file this round, exactly as
+  on Claude Code and OpenCode. The hooks need `python3` on PATH and fail **open** if it is absent. Turn
+  on Cursor's *ask-before-applying-edits* approval for an additional backstop. This is stronger than
+  advisory but weaker than Claude Code's hard pre-write veto — the Composer-edit path is revert-only.
 - **No per-agent model tier.** Every Hercules subagent runs on the model you select in Cursor (the
   build omits per-agent model on purpose). Claude Code assigns a heavier model to the orchestrator and
   lighter models to routine advisors; on Cursor that tiering is intentionally not applied.

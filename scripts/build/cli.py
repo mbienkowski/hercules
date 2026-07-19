@@ -41,9 +41,10 @@ gaps disclosed here (the "disclose gaps, never hide" principle):
   Claude Code's PreToolUse gate — by invoking the same canonical guard (`hooks/frozen_tests.py`). It
   requires `python3` on PATH; if `python3` is absent the gate **fails open** (the edit is allowed) and
   the approval gate falls back to prompt/permission-mediated discipline. Enable
-  `permission: {edit: "ask"}` in your `opencode.json` for an additional backstop. Pin an OpenCode
-  version whose `tool.execute.before` also fires for subagent (`task`-tool) edits, or the gate is
-  bypassable via delegation.
+  `permission: {edit: "ask"}` in your `opencode.json` for an additional backstop. One host limitation to
+  be aware of (the plugin cannot pin it for you): on OpenCode versions where `tool.execute.before` does
+  **not** also fire for subagent (`task`-tool) edits, a delegated edit bypasses the gate — run a version
+  that fires the hook for subagent edits.
 - **No per-agent model tier.** Every Hercules agent runs on the model you select in OpenCode (the
   build omits per-agent `model:` on purpose). Claude Code assigns a heavier model to the orchestrator
   and lighter models to routine advisors; on OpenCode that tiering is intentionally not applied.
@@ -82,14 +83,22 @@ def _opencode_agents_and_commands(tokens: dict[str, str]):
 _SHARED_HOOKS_SRC = SRC / "targets" / "claude-code" / "hooks"
 
 
-def _copy_shared_hooks(out_root: Path, names: tuple[str, ...]) -> list[str]:
+def _copy_map(tdir: Path, out_root: Path, mapping: dict[str, str]) -> list[str]:
+    """Byte-copy each ``tdir/<src>`` to ``out_root/<dest>``; return the written dest rels."""
     written = []
-    for name in names:
-        dest = out_root / "hooks" / name
+    for src_rel, dest_rel in mapping.items():
+        dest = out_root / dest_rel
         dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(_SHARED_HOOKS_SRC / name, dest)
-        written.append(f"hooks/{name}")
+        shutil.copyfile(tdir / src_rel, dest)
+        written.append(dest_rel)
     return written
+
+
+def _copy_shared_hooks(out_root: Path, names: tuple[str, ...]) -> list[str]:
+    """Copy the canonical guard files (authored once under claude-code/hooks) into a target's hooks/.
+
+    ``_SHARED_HOOKS_SRC`` already IS the hooks dir, so the source key is the bare filename."""
+    return _copy_map(_SHARED_HOOKS_SRC, out_root, {n: f"hooks/{n}" for n in names})
 
 
 def _emit_opencode_extras(out_root: Path, tokens: dict[str, str]) -> list[str]:
@@ -112,12 +121,13 @@ hide" principle):
 - **Frozen-test write-gate: partially enforced (needs `python3`).** Cursor has no pre-file-edit veto
   (`afterFileEdit` is notification-only), so a Composer edit to a frozen test **cannot be prevented** —
   but the plugin's hooks (`hooks/hooks.json` → `hooks/hercules_gate.py`, reusing the same canonical
-  guard state) add real teeth: `beforeShellExecution` **hard-denies** a shell command that writes to or
-  commits a frozen test during a build, `beforeReadFile` denies reads of frozen tests, and
-  `afterFileEdit` **reverts** a frozen edit after the fact (a backstop, since it cannot block). The
-  hooks need `python3` on PATH and fail **open** if it is absent. Turn on Cursor's
-  *ask-before-applying-edits* approval for an additional backstop. This is stronger than advisory but
-  weaker than Claude Code's hard pre-write veto — the Composer-edit path is revert-only.
+  guard state AND the same `frozen_override` policy) add real teeth: `beforeShellExecution`
+  **hard-denies** a shell command that writes to or commits a frozen test during a build, and
+  `afterFileEdit` **reverts** a frozen edit after the fact (a backstop, since it cannot block). A
+  user-granted `frozen_override` ("change test X") lifts the gate for that file this round, exactly as
+  on Claude Code and OpenCode. The hooks need `python3` on PATH and fail **open** if it is absent. Turn
+  on Cursor's *ask-before-applying-edits* approval for an additional backstop. This is stronger than
+  advisory but weaker than Claude Code's hard pre-write veto — the Composer-edit path is revert-only.
 - **No per-agent model tier.** Every Hercules subagent runs on the model you select in Cursor (the
   build omits per-agent model on purpose). Claude Code assigns a heavier model to the orchestrator and
   lighter models to routine advisors; on Cursor that tiering is intentionally not applied.
@@ -131,9 +141,16 @@ hide" principle):
 """
 
 
-def _emit_cursor_extras(out_root: Path) -> list[str]:
+def _emit_cursor_extras(out_root: Path, tdir: Path) -> list[str]:
+    """All non-content Cursor artifacts (mirrors _emit_opencode_extras): the versioned manifest copy, the
+    write-gate hooks (cursor adapter + the shared canonical guard files, from which the adapter reuses the
+    SAME frozen_override policy Claude/OpenCode apply — not a re-port), and CAPABILITIES.md."""
+    written = _copy_map(tdir, out_root, _CURSOR_COPIES)
+    written += _copy_map(tdir, out_root, {f"hooks/{n}": f"hooks/{n}" for n in ("hooks.json", "hercules_gate.py")})
+    written += _copy_shared_hooks(out_root, ("hercules_state.py", "frozen_tests.py"))
     _write(out_root / "CAPABILITIES.md", _CURSOR_CAPABILITIES)
-    return ["CAPABILITIES.md"]
+    written.append("CAPABILITIES.md")
+    return written
 
 
 _CLAUDE_COPIES = {
@@ -184,28 +201,9 @@ def build_target(target: str, out_root: Path) -> list[str]:
         _write(out_root / dest_rel, serialize_file(target, src.read_text(encoding="utf-8"), tokens, models, rel))
         written.append(dest_rel)
     if target == "claude-code":
-        tdir = SRC / "targets" / target
-        for src_rel, dest_rel in _CLAUDE_COPIES.items():
-            dest = out_root / dest_rel
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(tdir / src_rel, dest)
-            written.append(dest_rel)
+        written += _copy_map(SRC / "targets" / target, out_root, _CLAUDE_COPIES)
     elif target == "cursor":
-        tdir = SRC / "targets" / target
-        for src_rel, dest_rel in _CURSOR_COPIES.items():
-            dest = out_root / dest_rel
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(tdir / src_rel, dest)
-            written.append(dest_rel)
-        # Write-gate hooks: the cursor-specific adapter (hooks.json + hercules_gate.py) + the shared
-        # canonical state reader (hercules_state.py, byte-identical to Claude's).
-        for name in ("hooks.json", "hercules_gate.py"):
-            dest = out_root / "hooks" / name
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(tdir / "hooks" / name, dest)
-            written.append(f"hooks/{name}")
-        written += _copy_shared_hooks(out_root, ("hercules_state.py",))
-        written += _emit_cursor_extras(out_root)
+        written += _emit_cursor_extras(out_root, SRC / "targets" / target)
     elif target == "opencode":
         # The generic loop above also wrote dist/opencode/{agents,commands}/*.md. OpenCode does NOT
         # load agents/commands from those files — it reads the inlined cfg.agent/cfg.command maps in
