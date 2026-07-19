@@ -13,6 +13,8 @@ ${target:claude}
 **Plan mode — required.** Build opens in plan mode: call `${plan_enter}`, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
 ${target:opencode}
 **Plan mode — required.** Build opens in plan mode: enter plan mode, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
+${target:cursor}
+**Plan mode — required.** Build opens in plan mode: enter plan mode, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
 ${target:end}
 
 ---
@@ -58,6 +60,8 @@ ${target:claude}
 The single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback; regenerate the plan, never silently proceed. On the user's approval, call `${plan_exit}` (`auto`) first, then set `current_phase: "build"`, `current_spec` to the first pending spec (on resume, the interrupted one), and the approved `cadence` (`"deliver-all"` / `"ship-each"`) in the session's state file (atomic temp + rename) and this session's `Status` to `build` in `docs/INDEX.md`; execution runs automatically per the approved batching and cadence.
 ${target:opencode}
 The single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback; regenerate the plan, never silently proceed. On the user's approval, leave plan mode, then set `current_phase: "build"`, `current_spec` to the first pending spec (on resume, the interrupted one), and the approved `cadence` (`"deliver-all"` / `"ship-each"`) in the session's state file (atomic temp + rename) and this session's `Status` to `build` in `docs/INDEX.md`; execution runs automatically per the approved batching and cadence.
+${target:cursor}
+The single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback; regenerate the plan, never silently proceed. On the user's approval, leave plan mode, then set `current_phase: "build"`, `current_spec` to the first pending spec (on resume, the interrupted one), and the approved `cadence` (`"deliver-all"` / `"ship-each"`) in the session's state file (atomic temp + rename) and this session's `Status` to `build` in `docs/INDEX.md`; execution runs automatically per the approved batching and cadence.
 ${target:end}
 
 ---
@@ -86,7 +90,11 @@ For a spec scoped to a service (named in its `## Scope`): announce `"Now working
 Spawn `${agent_ns}cynical-reviewer` to cross-check the whole delivery — *does what we built match what we set out to build?* Specs are retired, so it reads each spec's `build_progress` checkpoint + the permanent `*-business-requirements.md`. Intentional improvement documented; scope reduction marked deferred; bug or regression is a **blocker**. Requirement traceability & drift with evidence: every requirement maps to a delivered spec and a named passing test (`✓ [requirement] → evidence` / `✗ [requirement] → NOT COVERED`); reverse drift (shipped behaviour with no originating requirement) is surfaced. Drift on a high-risk surface (auth, secrets, money, migration, deletion, prod-config, concurrency) **blocks** until requirement-backed. Depth scales to tier: trivial/low light; medium+ full; high/critical add the domain-expert.
 
 For a single-spec delivery, the cross-check may merge with Step 7's traceability review — spawn `${agent_ns}cynical-reviewer` once with both mandates.
+${target:cursor}
 
+**On ${host}, these reviewers are not runtime-forced** — ${host} exposes no orchestrator-forced spawn, so every `cynical-reviewer` spawn in this phase (Step 7 traceability and the cross-check above) must run as a real, isolated subagent (`@cynical-reviewer`) whose reply is a structured **handshake**: an explicit "I read `<sources>` directly (spec `satisfies:`, `*-business-requirements.md`, the named tests)" attestation plus the traceability matrix. If no such handshake returns — or the mapping appears to have been produced in the authoring context — **HALT and tell the user** the independent-review gate could not be confirmed; never accept a self-produced matrix as the review. (When Hercules runs via the `cursor-agent --agent cynical-reviewer` CLI the spawn is forced and this is automatic.)
+
+${target:end}
 Any undelivered spec or uncovered requirement → do not close out; the user resolves or defers with a reason.
 
 ## Capture learnings (all tiers)

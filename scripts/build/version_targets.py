@@ -19,6 +19,7 @@ from pathlib import Path
 VERSION_TARGETS: list[tuple[str, str]] = [
     ("pyproject.toml", "toml"),
     ("src/targets/claude-code/plugin.json", "json"),
+    ("src/targets/cursor/plugin.json", "json"),
     ("package.json", "json"),
 ]
 

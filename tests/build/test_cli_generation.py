@@ -29,7 +29,7 @@ def test_building_a_non_claude_target_skips_claude_specific_files(tmp_path):
         def serialize_agent(self, frontmatter, body, tokens, models):
             return body
 
-        def serialize_file(self, text, tokens, models):
+        def serialize_file(self, text, tokens, models, rel=None):
             return text
 
     serialize.register(_Stub())

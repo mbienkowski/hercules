@@ -154,16 +154,28 @@ jobs:
         name: Assemble the ecosystem smoke matrix from src/targets/*/smoke.json
         run: |
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import glob, json, sys
+          import glob, json, os, sys
+          # A non-npm CLI (e.g. Cursor's curl installer) is not on a pinned npm registry, so its
+          # install runs unpinned remote code. Keep those legs to main (never fork PRs), where the
+          # runner is trusted; every ecosystem still gets always-on STRUCTURAL coverage in the `test`
+          # job (tests/build/test_<eco>_build.py), which runs on forks.
+          on_main = os.environ.get("GITHUB_REF") == "refs/heads/main"
           legs = []
           for path in sorted(glob.glob("src/targets/*/smoke.json")):
               cfg = json.load(open(path))
+              install = cfg.get("install", {"method": "npm"})
+              method = install.get("method", "npm")
+              if method != "npm" and not on_main:
+                  continue
               legs.append({
                   "target": path.split("/")[2],
-                  "npm_package": cfg["npm_package"],
-                  "npm_version": cfg["npm_version"],
                   "cli": cfg["cli"],
                   "test": cfg["test"],
+                  "install_method": method,
+                  "npm_package": cfg.get("npm_package", ""),
+                  "npm_version": cfg.get("npm_version", ""),
+                  "install_url": install.get("url", ""),
+                  "install_flags": install.get("flags", ""),
               })
           # Fail CLOSED: an empty include-matrix expands to zero jobs, which GitHub counts as a
           # SKIPPED (== success) smoke gate — that would let an ungated build reach release. If the
@@ -213,17 +225,33 @@ jobs:
       # leg). A pin going stale is surfaced by Dependabot — see .github/dependabot.yml.
       # Matrix values are routed through env (not interpolated into the shell) so a fork PR that
       # edits a smoke.json can't inject a command into these run: steps.
-      - name: Install ${{ matrix.cli }} (${{ matrix.npm_package }}@${{ matrix.npm_version }})
+      - name: Install ${{ matrix.cli }}
         env:
+          INSTALL_METHOD: ${{ matrix.install_method }}
           NPM_PACKAGE: ${{ matrix.npm_package }}
           NPM_VERSION: ${{ matrix.npm_version }}
+          INSTALL_URL: ${{ matrix.install_url }}
+          INSTALL_FLAGS: ${{ matrix.install_flags }}
           CLI: ${{ matrix.cli }}
         run: |
-          for i in 1 2 3; do
-            timeout 120 npm install -g "$NPM_PACKAGE@$NPM_VERSION" && break
-            echo "::warning::npm install of $NPM_PACKAGE failed (attempt $i/3), retrying..."
-            sleep $((i * 5))
-          done
+          if [ "$INSTALL_METHOD" = "npm" ]; then
+            for i in 1 2 3; do
+              timeout 120 npm install -g "$NPM_PACKAGE@$NPM_VERSION" && break
+              echo "::warning::npm install of $NPM_PACKAGE failed (attempt $i/3), retrying..."
+              sleep $((i * 5))
+            done
+          else
+            # Non-npm installer (Cursor): DOWNLOAD to a file, then execute — never stream a URL
+            # straight to bash. The URL is a fixed value from the committed smoke.json, routed
+            # through env (not shell-interpolated), and this leg is main-only (see discover). No
+            # pinned checksum exists for a rolling installer; main-only gating is the documented
+            # supply-chain compromise.
+            curl $INSTALL_FLAGS "$INSTALL_URL" -o /tmp/cli-install.sh
+            bash /tmp/cli-install.sh
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+            echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.local/bin:$HOME/.cursor/bin:$PATH"
+          fi
           "$CLI" --version
 
       # bash runs with `-eo pipefail` (GitHub default), so a red pytest propagates through `tee`

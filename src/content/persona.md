@@ -72,6 +72,8 @@ ${target:claude}
 `${plan_enter}`, closed at the single **Plan approval** gate with `${plan_exit}` (`auto`), after which
 ${target:opencode}
 plan mode, closed at the single **Plan approval** gate on the user's approval, after which
+${target:cursor}
+plan mode, closed at the single **Plan approval** gate on the user's approval, after which
 ${target:end}
 the step proceeds without further prompts. Discover and Design present a document draft and write it
 on approval. Build presents a **delivery plan** (which specs, the requirement each satisfies, the
@@ -86,6 +88,10 @@ ${target:opencode}
 **Write-gate on ${host}.** ${host} has no enforced pre-write hook, so the plan/approval gate above is
 honored by the assistant, not blocked by the tool. For a hard backstop that makes edits pause for your
 approval, set `permission: { edit: "ask" }` in your `opencode.json`.
+${target:cursor}
+**Write-gate on ${host}.** ${host}'s `afterFileEdit` hook is notification-only and cannot veto an edit,
+so the plan/approval gate above is honored by the assistant, not blocked by the tool. For a hard backstop
+that makes edits pause for your approval, turn on ${host}'s *ask-before-applying-edits* approval.
 ${target:end}
 
 | Step         | Command               | Reads                                        | Produces                                          |

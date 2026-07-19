@@ -106,10 +106,38 @@ they must be confirmed live before release:
       config-hook mutation to `instructions` is applied before the model runs; documented for skills).
 - [ ] The `hercules-reference` skill is model-invoked and its `§` sections are reachable.
 
+### Cursor
+
+**Install:** Cursor consumes the built plugin at `dist/cursor/` (`.cursor-plugin/plugin.json` + native
+component dirs). Add this repo as a Cursor plugin source (`/add-plugin` in the editor) or point Cursor at
+the `dist/cursor/` directory; a public marketplace listing is a planned follow-up. Requires Cursor ≥ 2.4.
+There is **no registry publish step** — like Claude Code, Cursor is git-consumed.
+
+These load-time behaviours are **not** provable by the build (the always-on structural leg validates the
+tree; the keyed `cursor-agent -p` run is main-only) — confirm live before release:
+
+- [ ] The plugin installs and `rules/hercules-persona.mdc` always-applies (persona is active).
+- [ ] `/discover`, `/design`, `/build`, `/ship`, `/workflow` appear and run.
+- [ ] A specialist advisor spawns as an **isolated subagent** (own context), not a same-context rule.
+- [ ] At the Design coverage / Build traceability gate, the `cynical-reviewer` returns a **handshake**
+      (attests it read `*-business-requirements.md` + a coverage/traceability matrix) — or the flow
+      **HALTS and asks** (never silently self-reviews).
+- [ ] `CAPABILITIES.md` discloses the write-gate, model-tier, and best-effort-independent-review gaps.
+- [ ] "Which version are you?" reports the version from `.cursor-plugin/plugin.json`.
+
+| # | Cursor item | Status |
+|---|---|---|
+| 1 | Real `cursor-agent` binary runs + built plugin is structurally valid | ✅ automated (`test_the_real_cursor_agent_binary_runs_and_the_plugin_is_well_formed`, main-only leg) |
+| 2 | Headless `cursor-agent -p` completes a run | ⚙️ keyed (`CURSOR_API_KEY`; skips on forks) |
+| 3 | Persona rule always-applies; commands appear | manual |
+| 4 | Specialist spawns as an isolated subagent | manual |
+| 5 | Independent-review handshake returns (or HALTs) | manual |
+| 6 | `CAPABILITIES.md` gaps read true | manual |
+
 ### Cross-ecosystem
 
-- [ ] `dist/claude-code/.claude-plugin/plugin.json`, `package.json`, and `pyproject.toml` all show the
-      release version (matches the git tag).
+- [ ] `dist/claude-code/.claude-plugin/plugin.json`, `src/targets/cursor/plugin.json`, `package.json`, and
+      `pyproject.toml` all show the release version (matches the git tag).
 
-v1 ships **Claude Code + OpenCode**. Codex and Cursor are TBD — add their smoke sections when delivered
+v1 ships **Claude Code + OpenCode + Cursor**. Codex is TBD — add its smoke section when delivered
 (see [CONTRIBUTING.md](CONTRIBUTING.md) § Adding a new target for the proven extension procedure).

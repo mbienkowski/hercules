@@ -1,7 +1,7 @@
 # Contributing to Hercules
 
 Hercules is authored once in `src/` and compiled to per-ecosystem trees under `dist/`
-(`claude-code`, `opencode`) by the build pipeline in `scripts/build/`. CI regenerates and
+(`claude-code`, `opencode`, `cursor`) by the build pipeline in `scripts/build/`. CI regenerates and
 drift-checks `dist/` on every push, so `main` always carries an in-sync build.
 
 ## Quick start

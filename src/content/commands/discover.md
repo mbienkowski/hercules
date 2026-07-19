@@ -13,6 +13,8 @@ ${target:claude}
 **Plan mode — required.** Call `${plan_enter}` at the start. Every draft is a full inline proposal. Iterate freely; always regenerate the complete draft — never patch sections; never skip steps. At the **Plan approval** gate, on the user's approval, call `${plan_exit}` (`auto`), then write.
 ${target:opencode}
 **Plan mode — required.** Enter plan mode at the start. Every draft is a full inline proposal. Iterate freely; always regenerate the complete draft — never patch sections; never skip steps. At the **Plan approval** gate, on the user's approval, leave plan mode, then write.
+${target:cursor}
+**Plan mode — required.** Enter plan mode at the start. Every draft is a full inline proposal. Iterate freely; always regenerate the complete draft — never patch sections; never skip steps. At the **Plan approval** gate, on the user's approval, leave plan mode, then write.
 ${target:end}
 
 ## Step 0 — Artifact location & prior context
@@ -82,6 +84,8 @@ The gate accepts the canonical Plan-approval trigger words defined in `persona.m
 ${target:claude}
 On the user's approval, call `${plan_exit}` (`auto`), then write (Step 7) — no further prompts.
 ${target:opencode}
+On the user's approval, leave plan mode, then write (Step 7) — no further prompts.
+${target:cursor}
 On the user's approval, leave plan mode, then write (Step 7) — no further prompts.
 ${target:end}
 

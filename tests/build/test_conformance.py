@@ -46,7 +46,7 @@ def test_every_target_ships_all_operational_guidance_in_its_reference_skill(tmp_
     things like artifact root resolution, agent scaling, and the debate protocol -- must appear
     in the auto-loaded reference skill. A section left out of this file never reaches the
     running agent, since nothing else loads it automatically."""
-    for tgt in ("claude-code", "opencode"):
+    for tgt in ("claude-code", "opencode", "cursor"):
         out = tmp_path / tgt
         build_target(tgt, out)
         skill = out / "skills" / "hercules-reference" / "SKILL.md"
@@ -64,9 +64,11 @@ def test_operational_guidance_never_cites_a_file_the_agent_never_loads(tmp_path)
     read."""
     oc = tmp_path / "oc"; build_target("opencode", oc)
     cc = tmp_path / "cc"; build_target("claude-code", cc)
-    # OpenCode: AGENTS.md is the *user's* rules file — never a section source we ship.
-    for rel, txt in _files(oc).items():
-        assert "AGENTS.md §" not in txt, f"opencode {rel} cites AGENTS.md §"
+    cur = tmp_path / "cur"; build_target("cursor", cur)
+    # OpenCode & Cursor: AGENTS.md is the *user's* rules file — never a section source we ship.
+    for tree in (oc, cur):
+        for rel, txt in _files(tree).items():
+            assert "AGENTS.md §" not in txt, f"{tree.name} {rel} cites AGENTS.md §"
     # Claude: plugin-root CLAUDE.md is not loaded — sections must not be cited from it.
     for rel, txt in _files(cc).items():
         assert "CLAUDE.md §" not in txt, f"claude {rel} cites CLAUDE.md §"
@@ -102,6 +104,27 @@ def test_opencode_build_has_no_leftover_claude_only_wording(tmp_path):
     assert not re.search(r"call\s+`plan mode`", joined, re.IGNORECASE), \
         "non-existent OpenCode 'plan mode' tool call"
     assert "`approval`" not in joined, "non-existent OpenCode 'approval' tool"
+
+
+def test_cursor_build_has_no_leftover_claude_only_wording(tmp_path):
+    """The Cursor build, like OpenCode, must not carry Claude's plan-mode idioms — the ``(auto)``
+    marker, a "call `plan mode`" tool call, or an "approval" tool — none of which exist in Cursor."""
+    out = tmp_path / "cur"
+    build_target("cursor", out)
+    joined = "\n".join(_files(out).values())
+    assert "(`auto`)" not in joined, "Claude ExitPlanMode '(auto)' leaked into Cursor"
+    assert not re.search(r"call\s+`plan mode`", joined, re.IGNORECASE), \
+        "non-existent Cursor 'plan mode' tool call"
+    assert "`approval`" not in joined, "non-existent Cursor 'approval' tool"
+
+
+def test_cursor_protocol_links_resolve_from_the_plugin_root(tmp_path):
+    """The Cursor build must root protocol references at the plugin location (${CURSOR_PLUGIN_ROOT}/),
+    mirroring the Claude guard, so the A2A Agent-Injected Core resolves when a subagent is spawned."""
+    out = tmp_path / "cur"
+    build_target("cursor", out)
+    joined = "\n".join(_files(out).values())
+    assert "${CURSOR_PLUGIN_ROOT}/protocols/a2a-communication-protocol.md" in joined
 
 
 def test_claude_code_build_keeps_its_plan_mode_tool_names(tmp_path):

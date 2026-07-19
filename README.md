@@ -2,7 +2,7 @@
 
 Half god, half man — strong enough to wrestle a lion, patient enough to sit through your kickoff meeting.
 
-**Hercules is a universal, spec-first delivery plugin** — install it in **Claude Code** or **OpenCode** (Codex & Cursor coming) — that enforces **Discover → Design → Build → Ship** so what you're building ships fast and reliably, without the rework.
+**Hercules is a universal, spec-first delivery plugin** — install it in **Claude Code**, **OpenCode**, or **Cursor** (Codex coming) — that enforces **Discover → Design → Build → Ship** so what you're building ships fast and reliably, without the rework.
 
 ![How Hercules works](docs/workflow/workflow-diagram-simplified.svg)
 
@@ -22,7 +22,7 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
   `code-of-conduct.md`, enforced identically for everyone.
 
 > **New to the terms?**
-> - **Plugin:** an add-on you install into your AI coding tool (Claude Code or OpenCode).
+> - **Plugin:** an add-on you install into your AI coding tool (Claude Code, OpenCode, or Cursor).
 > - **Marketplace:** a source (here, a GitHub repo) you add plugins from.
 > - **Agent:** a specialist persona Claude can consult.
 > - **Business requirements:** the permanent, plain-language "what & why" doc.
@@ -33,7 +33,7 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
 
 ## Install
 
-Hercules installs natively in each supported ecosystem — **pick yours**. (Codex & Cursor are coming.)
+Hercules installs natively in each supported ecosystem — **pick yours**. (Codex is coming.)
 
 <details>
 <summary><b>Claude Code</b></summary>
@@ -134,9 +134,29 @@ The plugin is also published to npm as `hercules` (published automatically on re
 </details>
 
 <details>
+<summary><b>Cursor</b></summary>
+
+Hercules ships as a native [Cursor](https://cursor.com) plugin — the compiled plugin lives at
+`dist/cursor/` (`.cursor-plugin/plugin.json` plus `agents/`, `commands/`, `rules/`, `skills/`).
+Requires **Cursor ≥ 2.4** (for the isolated subagents the specialist advisors run as).
+
+**Install (git / local).** Add this repository as a Cursor plugin source and install `hercules`: in the
+editor run **`/add-plugin`** and point it at this repo (or the `dist/cursor/` plugin directory); a
+listing on the public Cursor marketplace is a planned follow-up. Once installed, the persona rule
+(`rules/hercules-persona.mdc`) always applies, the `/discover`, `/design`, `/build`, `/ship`,
+`/workflow` commands appear, and the advisors run as isolated subagents.
+
+**Capability note.** Cursor has no pre-write hook (the frozen-test write-gate is advisory) and cannot
+force a subagent spawn in the IDE, so the independent-review gate is **best-effort** with a mandatory
+reviewer **handshake-or-HALT** — fully forced only when Hercules runs via the headless
+`cursor-agent --agent` CLI. The gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
+
+</details>
+
+<details>
 <summary><b>Building from source (contributors)</b></summary>
 
-All content is authored once in `src/`; the build (`scripts/build/`) generates the plugin trees under `dist/claude-code/` and `dist/opencode/` (generated and committed). After editing `src/`, rebuild and commit the output:
+All content is authored once in `src/`; the build (`scripts/build/`) generates the plugin trees under `dist/claude-code/`, `dist/opencode/`, and `dist/cursor/` (generated and committed). After editing `src/`, rebuild and commit the output:
 
 ```bash
 make build          # regenerate dist/ for every target
