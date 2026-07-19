@@ -83,7 +83,7 @@ Requirements coverage:
 ```
 ${target:cursor}
 
-**On ${host}, this reviewer is not runtime-forced** — ${host} exposes no orchestrator-forced spawn, so run it as a real, isolated subagent (`@cynical-reviewer`) and require its reply to be a structured **handshake**: an explicit "I read `*-business-requirements.md` at `<path>` (N items)" attestation plus the coverage matrix above. If no such handshake returns — or the matrix appears to have been produced in the authoring context — **HALT and tell the user** the independent-review gate could not be confirmed; never accept a self-produced matrix as the review. (When Hercules runs via the `cursor-agent --agent cynical-reviewer` CLI the spawn is forced and this is automatic.)
+**On ${host}, this reviewer is not runtime-forced** — ${host} exposes no orchestrator-forced spawn, so run it as a real, isolated subagent (`@cynical-reviewer`) and require its reply to be a structured **handshake**: an explicit "I read `*-business-requirements.md` at `<path>` (N items)" attestation plus the coverage matrix above. If no such handshake returns — or the matrix appears to have been produced in the authoring context — **HALT and tell the user** the independent-review gate could not be confirmed; never accept a self-produced matrix as the review. (For a genuinely isolated reviewer, run the review packet through the headless `cursor-agent -p` CLI — a fresh agent process with its own context; Cursor's CLI has no flag to select a named subagent, so the packet itself must carry the reviewer's mandate.)
 
 ${target:end}
 Sub-spec ownership — every requirement must map to at least one spec via that spec's `satisfies:` header; a requirement owned by no spec is a ✗ — it would never get built.

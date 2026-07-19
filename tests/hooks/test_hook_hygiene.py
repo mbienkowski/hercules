@@ -115,19 +115,21 @@ def test_a_shipped_hook_never_writes_hercules_state(script: Path):
     assert not offenders, f"{script.name} performs a direct filesystem write {offenders}; hooks stay read-only over state"
 
 
-def test_the_after_edit_backstop_is_a_bounded_git_revert():
+def test_the_after_edit_backstop_is_a_bounded_recoverable_git_stash():
     """Cursor's ``afterFileEdit`` hook cannot veto an edit (notification-only), so it reverts a
-    frozen-test edit as a disclosed backstop — the ONE working-tree mutation any hook performs.
-    Pin that it is bounded: it shells out only via ``git checkout`` (restore the file), never a
-    broader mutation (``reset --hard``, ``clean``, ``rm``, ``push``), so a widened blast radius
-    can't slip in silently. If Cursor ever ships no such hook, this test is simply vacuous."""
+    frozen-test edit as a disclosed backstop — the ONE working-tree mutation any hook performs. Pin that
+    it is bounded AND **recoverable**: it reverts via ``git stash`` (the user can ``git stash pop`` to get
+    their work back), never a **destructive** ``checkout``/``reset --hard``/``clean``/``rm`` that would
+    silently discard the user's edit, so neither a widened blast radius nor data loss can slip in. If
+    Cursor ever ships no such hook, this test is simply vacuous."""
     gate = _TARGETS / "cursor" / "hooks" / "hercules_gate.py"
     if not gate.is_file():
         pytest.skip("no Cursor gate shipped")
     src = gate.read_text()
-    assert "checkout" in src, "the after-edit backstop must revert via git checkout"
-    for forbidden in ("reset --hard", "clean -", '"push"', "'push'", "rm -"):
-        assert forbidden not in src, f"the after-edit backstop must not run `{forbidden}`"
+    assert "stash" in src, "the after-edit backstop must revert via git stash (recoverable)"
+    assert "git stash pop" in src, "the user must be told how to recover the stashed edit"
+    for forbidden in ("reset --hard", "clean -", "rm -", "checkout"):
+        assert forbidden not in src, f"the after-edit backstop must not run a destructive `{forbidden}`"
 
 
 def test_test_coverage_exemptions_cannot_be_used_to_hide_untested_logic(repo_root):

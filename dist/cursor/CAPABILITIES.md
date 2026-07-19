@@ -16,13 +16,17 @@ hide" principle):
   advisory but weaker than Claude Code's hard pre-write veto — the Composer-edit path is revert-only, and
   the shell check is a coarse guardrail against honest/accidental writes (it catches the common
   write/delete/redirect forms, but not `python -c`, heredocs, or cross-pipe data flow).
-- **No per-agent model tier.** Every Hercules subagent runs on the model you select in Cursor (the
-  build omits per-agent model on purpose). Claude Code assigns a heavier model to the orchestrator and
-  lighter models to routine advisors; on Cursor that tiering is intentionally not applied.
+- **No per-agent model tier.** Every Hercules subagent **inherits the model you select in Cursor** — the
+  build omits a per-agent `model:` on purpose (Cursor's `inherit` default), because forcing advisors onto
+  a cheap `fast` tier would degrade the reasoning-heavy reviewers, and Cursor's `model: inherit` is itself
+  unreliable in nested cases. Claude Code assigns a heavier model to the orchestrator and lighter models
+  to routine advisors; on Cursor that tiering is intentionally not applied — your one selected model
+  drives everything.
 - **Independent review is best-effort in the IDE.** The Design coverage and Build traceability gates
   delegate to a fresh, isolated `cynical-reviewer` subagent (Cursor >= 2.4). Cursor exposes **no**
   orchestrator-forced spawn — in-IDE delegation is heuristic or `@`-mention-driven — so Hercules
   requires an explicit reviewer **handshake** (the reviewer attests it read the requirements source and
   returns a coverage/traceability matrix) and **halts and asks you** if that handshake is missing,
-  converting a silent self-review into a loud stop. A genuinely forced, isolated reviewer is available
-  only when Hercules runs via the headless `cursor-agent --agent cynical-reviewer` CLI.
+  converting a silent self-review into a loud stop. The closest to a forced, isolated reviewer is to run
+  the review packet through the headless `cursor-agent -p` CLI — a fresh agent process with its own
+  context; Cursor's CLI has no flag to select a named subagent, so the packet carries the reviewer mandate.

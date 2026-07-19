@@ -32,9 +32,6 @@ CURSOR_HOOKS = REPO_ROOT / "src" / "targets" / "cursor" / "hooks"
 CLAUDE_HOOKS = REPO_ROOT / "src" / "targets" / "claude-code" / "hooks"
 _HAVE_GIT = shutil.which("git") is not None
 
-_DENY_AGENT_MSG = ("BLOCKED by Hercules: frozen test files are locked during implementation — "
-                   "do not edit or commit them.")
-
 
 def _load_gate():
     """Import the adapter in-process. It does ``from frozen_tests/hercules_state import …`` off its own
@@ -136,14 +133,14 @@ def test_shell_allows_legit_commands_that_only_name_a_frozen_test(command, activ
     assert d["permission"] == "allow", f"a non-writing command must be allowed: {command!r}"
 
 
-def test_shell_deny_carries_the_exact_pinned_messages(active_build, capsys):
-    """Pin the deny message text verbatim — otherwise a mutant that blanks it survives (the tests would
-    still see permission==deny)."""
+def test_shell_deny_carries_the_canonical_reason_with_the_escape_hatch(active_build, capsys):
+    """The deny message reuses ``frozen_tests._reason`` — the SAME wording Claude/OpenCode emit — so the
+    'change this test' unblock is present and identical across ecosystems (and both channels carry it)."""
     home, proj = active_build
     d = _decide("shell", {"command": "rm tests/test_frozen.py", "workspace_roots": [str(proj)]}, home, capsys)
-    assert d["agentMessage"] == _DENY_AGENT_MSG
-    assert d["userMessage"] == ("Hercules write-gate: this command writes to a frozen test during an "
-                                "active build: rm tests/test_frozen.py")
+    assert d["agentMessage"] == d["userMessage"], "both channels carry the one canonical reason"
+    assert "is a frozen test for spec-1.md (build round 1/3)" in d["agentMessage"]
+    assert 'saying "change this test' in d["agentMessage"], "the escape hatch must be named in the block"
 
 
 # ── shell allow: quoted mention, no build, phase, opt-out ────────────────────────────────────
@@ -218,8 +215,10 @@ def test_after_edit_does_not_revert_a_sanctioned_override_edit(tmp_path, capsys)
 
 # ── after_edit (afterFileEdit) — notification-only, so revert as a backstop ──────────────────
 @pytest.mark.skipif(not _HAVE_GIT, reason="git required for the live revert check")
-def test_after_edit_reverts_a_frozen_test_edit(active_build, capsys):
-    """afterFileEdit cannot veto, so the adapter must ``git checkout`` the frozen file back and warn."""
+def test_after_edit_stashes_a_frozen_edit_recoverably(active_build, capsys):
+    """afterFileEdit can't veto, so the adapter reverts a frozen edit by ``git stash`` — RECOVERABLE,
+    never a destructive checkout that discards the user's work — and warns with the canonical reason plus
+    how to get the change back."""
     home, proj = active_build
     frozen = proj / "tests" / "test_frozen.py"
     frozen.write_text("original\n", encoding="utf-8")
@@ -233,9 +232,12 @@ def test_after_edit_reverts_a_frozen_test_edit(active_build, capsys):
 
     evt = {"file_path": str(frozen), "workspace_roots": [str(proj)]}
     d = _decide("after_edit", evt, home, capsys)
-    assert d["agentMessage"] == (f"Hercules reverted an edit to frozen test {frozen}; "
-                                 "do not modify frozen tests during the build.")
-    assert frozen.read_text(encoding="utf-8") == "original\n", "the frozen test must be restored"
+    assert "is a frozen test for spec-1.md" in d["agentMessage"], "carries the canonical reason"
+    assert "git stash pop" in d["agentMessage"], "names the recovery path"
+    assert frozen.read_text(encoding="utf-8") == "original\n", "the working tree is reverted"
+    # ...and the user's work is RECOVERABLE, not discarded:
+    subprocess.run(base + ["stash", "pop"], check=True, env=env, capture_output=True)
+    assert frozen.read_text(encoding="utf-8") == "tampered\n", "git stash pop restores the user's edit"
 
 
 def test_after_edit_is_silent_for_a_non_frozen_file(active_build, capsys):
