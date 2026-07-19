@@ -52,28 +52,10 @@ jobs:
         with:
           python-version: "3.9"
 
-      - name: Drift gate — committed dist/ must match a fresh build
-        run: python -m scripts.build.cli --target all --check
-
-      - name: Determinism gate — two builds are byte-identical
-        run: |
-          python -m scripts.build.cli --target all
-          A=$(mktemp -d); cp -a dist "$A/dist"
-          git checkout -- dist
-          python -m scripts.build.cli --target all
-          diff -r "$A/dist" dist && echo "build is deterministic"
-          git checkout -- dist
-
-      - name: Untracked-dist guard — dist/ is tracked, nothing left un-committed
-        run: |
-          if git check-ignore -q dist; then
-            echo "::error::dist/ is git-ignored — tags would snapshot an empty tree"; exit 1
-          fi
-          python -m scripts.build.cli --target all
-          if [ -n "$(git status --porcelain --untracked-files=all dist)" ]; then
-            echo "::error::dist/ has uncommitted output — run 'make build' and commit it"
-            git status --porcelain --untracked-files=all dist; exit 1
-          fi
+      # Drift (committed dist/ == fresh build), determinism (two builds byte-equal), and the
+      # untracked-dist guard — all in scripts/ci/build_gates.sh.
+      - name: Build gates (drift, determinism, tracked)
+        run: make ci-build
 
   # ── Tests — always, on every branch ─────────────────────────────────────────
   test:
@@ -91,7 +73,7 @@ jobs:
           cache-dependency-path: "pyproject.toml"
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: make install
 
       - name: Cache tiktoken encodings
         uses: actions/cache@v6
@@ -120,17 +102,7 @@ jobs:
           python-version: "3.9"
 
       - name: Validate manifests and single-source version
-        run: |
-          python - <<'PY'
-          import json
-          from scripts.build.version_targets import check_in_sync, read_versions
-          mk = json.load(open(".claude-plugin/marketplace.json"))
-          assert any(p.get("name") == "hercules" for p in mk["plugins"]), \
-              "marketplace.json must list the hercules plugin"
-          # Single-source version: every canonical manifest agrees (raises on drift).
-          check_in_sync()
-          print("plugin package valid; version", set(read_versions().values()).pop())
-          PY
+        run: make validate
 
   # ── Discover ecosystems — build the smoke matrix from src/targets/*/smoke.json ──
   # Each ecosystem that ships a smoke.json (its npm CLI package + pinned version + the smoke-test
@@ -152,39 +124,7 @@ jobs:
 
       - id: matrix
         name: Assemble the ecosystem smoke matrix from src/targets/*/smoke.json
-        run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import glob, json, os, sys
-          # A non-npm CLI (e.g. Cursor's curl installer) is not on a pinned npm registry, so its
-          # install runs unpinned remote code. Keep those legs to main (never fork PRs), where the
-          # runner is trusted; every ecosystem still gets always-on STRUCTURAL coverage in the `test`
-          # job (tests/build/test_<eco>_build.py), which runs on forks.
-          on_main = os.environ.get("GITHUB_REF") == "refs/heads/main"
-          legs = []
-          for path in sorted(glob.glob("src/targets/*/smoke.json")):
-              cfg = json.load(open(path))
-              install = cfg.get("install", {"method": "npm"})
-              method = install.get("method", "npm")
-              if method != "npm" and not on_main:
-                  continue
-              legs.append({
-                  "target": path.split("/")[2],
-                  "cli": cfg["cli"],
-                  "test": cfg["test"],
-                  "install_method": method,
-                  "npm_package": cfg.get("npm_package", ""),
-                  "npm_version": cfg.get("npm_version", ""),
-                  "install_url": install.get("url", ""),
-                  "install_flags": install.get("flags", ""),
-              })
-          # Fail CLOSED: an empty include-matrix expands to zero jobs, which GitHub counts as a
-          # SKIPPED (== success) smoke gate — that would let an ungated build reach release. If the
-          # glob ever finds nothing (a moved dir, a deleted smoke.json), redden discovery instead so
-          # smoke is skipped-because-a-need-failed and CI goes red, not silently green.
-          if not legs:
-              sys.exit("no src/targets/*/smoke.json ecosystems discovered — smoke gate would vanish")
-          print("matrix=" + json.dumps({"include": legs}))
-          PY
+        run: make smoke-matrix
 
   # ── Ecosystem smoke checks — one PARALLEL leg per ecosystem (from `discover`) ─────
   # Does the built plugin actually install/load in the REAL Claude Code / OpenCode binary, not
@@ -218,7 +158,7 @@ jobs:
           node-version: "22"
 
       - name: Install Python dependencies
-        run: pip install -e ".[dev]"
+        run: make install
 
       # Pinned to the version verified when the check was written; the retry+timeout absorbs a
       # transient registry hiccup (a genuine outage, after 3 tries, fails only this ecosystem's
@@ -233,26 +173,7 @@ jobs:
           INSTALL_URL: ${{ matrix.install_url }}
           INSTALL_FLAGS: ${{ matrix.install_flags }}
           CLI: ${{ matrix.cli }}
-        run: |
-          if [ "$INSTALL_METHOD" = "npm" ]; then
-            for i in 1 2 3; do
-              timeout 120 npm install -g "$NPM_PACKAGE@$NPM_VERSION" && break
-              echo "::warning::npm install of $NPM_PACKAGE failed (attempt $i/3), retrying..."
-              sleep $((i * 5))
-            done
-          else
-            # Non-npm installer (Cursor): DOWNLOAD to a file, then execute — never stream a URL
-            # straight to bash. The URL is a fixed value from the committed smoke.json, routed
-            # through env (not shell-interpolated), and this leg is main-only (see discover). No
-            # pinned checksum exists for a rolling installer; main-only gating is the documented
-            # supply-chain compromise.
-            curl $INSTALL_FLAGS "$INSTALL_URL" -o /tmp/cli-install.sh
-            bash /tmp/cli-install.sh
-            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-            echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
-            export PATH="$HOME/.local/bin:$HOME/.cursor/bin:$PATH"
-          fi
-          "$CLI" --version
+        run: make smoke-install
 
       # bash runs with `-eo pipefail` (GitHub default), so a red pytest propagates through `tee`
       # and fails the leg — the CLI `--version` above already failed the job if the binary is
@@ -263,24 +184,14 @@ jobs:
           TARGET: ${{ matrix.target }}
           DISABLE_AUTOUPDATER: "1"
           CLAUDE_CODE_ENABLE_TELEMETRY: "0"
-        run: |
-          pytest "$TEST" -v -rs 2>&1 | tee "smoke-results-$TARGET.txt"
-          # Fail CLOSED if the gate silently degraded to all-skipped: the CLI install above ends in
-          # `$CLI --version` (so an absent binary already fails the job), but this makes the gate
-          # self-contained — a real run reports "N passed"; an all-skipped run reports only
-          # "N skipped", and would otherwise exit 0 and read as a green gate that checked nothing.
-          grep -qE '[0-9]+ passed' "smoke-results-$TARGET.txt" || {
-            echo "::error::$TARGET smoke produced no passing checks (all skipped?) — the real CLI must run in CI, the gate did not actually load the plugin"
-            exit 1
-          }
+        run: make smoke-run
 
       - name: Annotate a red run
         if: failure()
         env:
           TARGET: ${{ matrix.target }}
           CLI: ${{ matrix.cli }}
-        run: |
-          echo "::error::$TARGET ecosystem smoke failed — the built plugin did not install/load the way a real $CLI session would. Download the smoke-results-$TARGET artifact for the raw subprocess output. If $TARGET is opencode and the failure mentions issues/15, that is the known OpenCode loader bug (fixed in scripts/build/manifests.py) regressing — anything else is an unreviewed finding."
+        run: make smoke-annotate
 
       - name: Upload smoke check results
         if: always()
@@ -317,7 +228,7 @@ jobs:
           cache-dependency-path: "pyproject.toml"
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: make install
 
       - name: Cache tiktoken encodings
         uses: actions/cache@v6

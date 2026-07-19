@@ -149,6 +149,10 @@ Enforced by `tests/` — a change that breaks one fails CI:
   stays green on "automatically" — that's decoration, not a test.
 - **Pin both ends of a cross-file contract** — writer and reader, or one sync test. A reader-only pin
   stays green while the deleted writer bricks the product.
+- **CI is Makefile-driven — no inline code in workflows.** Every GitHub Actions `run:` step is a single
+  `make <target>`; the logic lives in the `Makefile` and `scripts/ci/`, so it is one source of truth,
+  testable, and runnable locally. A new CI step adds a `make` target + a `scripts/ci/` helper, never an
+  inline YAML heredoc or multi-line shell. Enforced by `tests/build/test_workflows_use_make.py`.
 
 ---
 

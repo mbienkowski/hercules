@@ -121,17 +121,27 @@ def test_the_release_process_rebuilds_and_commits_the_output_after_bumping_the_v
     """The release workflow must rebuild the distributable build output after bumping the
     version, and include that rebuilt output in the release commit. Skipping the rebuild would
     leave the shipped build carrying the old version number, causing the very next unrelated
-    change to fail the version-sync check."""
-    set_idx = RELEASE.find("-m scripts.set_version")
-    build_idx = RELEASE.find("scripts.build.cli")
-    assert set_idx != -1, (
-        "release must bump the version via `python -m scripts.set_version` \u2014 the module "
-        "form, so its `from scripts.build...` import resolves in the release job (the file-path "
-        "form `python scripts/set_version.py` raises ModuleNotFoundError and aborts the bump)"
-    )
-    assert build_idx != -1, "release must rebuild dist/ (python -m scripts.build.cli)"
-    assert build_idx > set_idx, "the dist/ rebuild must run AFTER the version bump"
-    assert re.search(r"git add[^\n]*\bdist\b", RELEASE), "release must stage dist/ in the bump commit"
+    change to fail the version-sync check.
+
+    CI is Makefile-driven (CODE_OF_CONDUCT \u00a7 Invariants): the workflow runs `make` targets in order,
+    and the underlying commands live in the Makefile + scripts/ci/ \u2014 so this pins the behaviour at
+    its real home, not an inline YAML block."""
+    makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+    commit_sh = (REPO_ROOT / "scripts" / "ci" / "release_commit.sh").read_text(encoding="utf-8")
+    # The workflow runs the three make targets in order: bump \u2192 rebuild \u2192 commit.
+    ver_idx = RELEASE.find("make release-version")
+    build_idx = RELEASE.find("make build")
+    commit_idx = RELEASE.find("make release-commit")
+    assert -1 not in (ver_idx, build_idx, commit_idx), \
+        "release must run `make release-version`, `make build`, `make release-commit`"
+    assert ver_idx < build_idx < commit_idx, "order must be version-bump \u2192 rebuild \u2192 commit"
+    # `make release-version` bumps via the MODULE form (`python -m scripts.set_version`), so its
+    # `from scripts.build...` import resolves; the file-path form raises ModuleNotFoundError.
+    assert "-m scripts.set_version" in makefile, \
+        "make release-version must bump via `python -m scripts.set_version` (module form)"
+    # release_commit.sh stages the rebuilt dist/ into the bump commit.
+    assert re.search(r"git add[^\n]*\bdist\b", commit_sh), \
+        "release_commit.sh must stage dist/ in the bump commit"
 
 
 def test_release_acts_only_on_the_ci_validated_commit():
@@ -140,14 +150,17 @@ def test_release_acts_only_on_the_ci_validated_commit():
     would defeat the green-CI gate. Guard the fix so it cannot silently regress: the release job
     must EITHER pin the checkout ref to ``github.event.workflow_run.head_sha``, OR contain a step
     that compares ``git rev-parse HEAD`` to that sha and exits non-zero on mismatch."""
+    verify_sh = (REPO_ROOT / "scripts" / "ci" / "release_verify_checkout.sh").read_text(encoding="utf-8")
     head_sha = "github.event.workflow_run.head_sha"
     pinned = f"ref: ${{{{ {head_sha} }}}}" in RELEASE
-    guarded = ("rev-parse HEAD" in RELEASE) and (head_sha in RELEASE) and ("exit 1" in RELEASE)
+    # Guarded: the workflow passes the CI-validated sha (as WANT_SHA) to `make release-verify`, whose
+    # script compares it to `git rev-parse HEAD` and exits non-zero on mismatch.
+    guarded = (head_sha in RELEASE) and ("rev-parse HEAD" in verify_sh) and ("exit 1" in verify_sh)
     assert pinned or guarded, (
         "release must act only on the CI-validated commit: pin the checkout ref to "
-        "${{ github.event.workflow_run.head_sha }}, or add a step comparing `git rev-parse HEAD` "
-        "to that sha that exits non-zero on mismatch (workflow_run checks out the branch tip, "
-        "which can advance past the validated commit)"
+        "${{ github.event.workflow_run.head_sha }}, or pass that sha to a release-verify step whose "
+        "script compares `git rev-parse HEAD` to it and exits non-zero on mismatch (workflow_run "
+        "checks out the branch tip, which can advance past the validated commit)"
     )
 
 
@@ -200,12 +213,12 @@ def test_the_pipeline_fails_if_the_build_output_is_not_committed_to_source_contr
     the generated output folder is left untracked by version control. Without this guard, a
     release tag could silently capture an empty or missing build."""
     # dist/ must be tracked, not silently git-ignored (a tag would then snapshot an empty tree).
-    # Anchored to the named step, not a bare "porcelain"/"dist" substring search over the whole
-    # file, so an unrelated line elsewhere in the workflow can't false-satisfy this.
-    m = re.search(r"Untracked-dist guard.*?\n((?:.+\n)+?)\n", CI)
-    assert m, "CI must have an 'Untracked-dist guard' step"
-    assert "git status --porcelain" in m.group(1) and "dist" in m.group(1), \
-        "the untracked-dist guard step must actually check git status on dist/"
+    # The guard runs via `make ci-build`; its logic lives in scripts/ci/build_gates.sh (CI is
+    # Makefile-driven — no inline YAML). Anchor the check to that script, not a whole-file substring.
+    gates_sh = (REPO_ROOT / "scripts" / "ci" / "build_gates.sh").read_text(encoding="utf-8")
+    assert "make ci-build" in CI, "CI must run the build gates via `make ci-build`"
+    assert "git status --porcelain" in gates_sh and "dist" in gates_sh, \
+        "build_gates.sh must check git status on dist/ (the untracked-dist guard)"
 
 
 # ── Determinism: two builds are byte-identical ───────────────────────────────

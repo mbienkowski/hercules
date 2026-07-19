@@ -43,13 +43,9 @@ jobs:
       # advanced past the commit whose CI actually passed. Releasing that unvalidated tree would
       # defeat the green-CI gate, so abort and let the newer commit's own release run instead.
       - name: Verify checkout is the CI-validated commit
-        run: |
-          HEAD_SHA=$(git rev-parse HEAD)
-          WANT="${{ github.event.workflow_run.head_sha }}"
-          if [ "$HEAD_SHA" != "$WANT" ]; then
-            echo "::error::main advanced ($HEAD_SHA) past the CI-validated commit ($WANT); aborting so the newer commit's own green-CI release runs instead."
-            exit 1
-          fi
+        env:
+          WANT_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: make release-verify
 
       - uses: actions/setup-python@v6
         with:
@@ -59,15 +55,7 @@ jobs:
       #        capture the previous tag so git log can scope the commit range.
       - name: Detect first release
         id: meta
-        run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ -z "$PREV_TAG" ]; then
-            echo "is_first=true"  >> $GITHUB_OUTPUT
-            echo "prev_tag="      >> $GITHUB_OUTPUT
-          else
-            echo "is_first=false" >> $GITHUB_OUTPUT
-            echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
-          fi
+        run: make release-meta
 
       # 1. Compute the next version + changelog from conventional commits (no tag yet).
       - name: Compute next version
@@ -87,13 +75,15 @@ jobs:
       # 2. Write the new version into EVERY canonical (source) manifest (pyproject.toml,
       #    src/targets/claude-code/plugin.json, package.json) — the single-source list.
       - name: Bump version files
-        run: python -m scripts.set_version "${{ steps.bump.outputs.new_version }}"
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.new_version }}
+        run: make release-version
 
       # 2b. Regenerate dist/ so the built + published artifacts carry the new version. The version
       #     lives in src/ (see VERSION_TARGETS); without this rebuild the committed dist/ would keep
       #     the old version and fail the drift gate on the next unrelated push.
       - name: Rebuild dist/ to propagate the version
-        run: python -m scripts.build.cli --target all
+        run: make build
 
       # 3. Update CHANGELOG.md from git log (all commit subjects, not just conventional).
       #    First release overwrites the file; subsequent releases prepend.
@@ -102,24 +92,14 @@ jobs:
           NEW_TAG:  ${{ steps.bump.outputs.new_tag }}
           PREV_TAG: ${{ steps.meta.outputs.prev_tag }}
           IS_FIRST: ${{ steps.meta.outputs.is_first }}
-        run: python scripts/update_changelog.py
+        run: make changelog
 
       # 4. Commit the bump + tag it (the tag points at the bumped commit).
       - name: Commit, tag, push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Stage every file the canonical version list touches — no hardcoded manifest paths,
-          # so a new target added to VERSION_TARGETS is committed automatically. Also stage dist/,
-          # regenerated in step 2b so the published artifacts carry the bumped version.
-          FILES=$(python -c "from scripts.build.version_targets import VERSION_TARGETS; print(' '.join(rel for rel, _ in VERSION_TARGETS))")
-          git add $FILES dist CHANGELOG.md
-          git commit -m "chore(release): ${{ steps.bump.outputs.new_version }} [skip ci]"
-          # Annotated (not lightweight): `git push --follow-tags` only pushes annotated tags, so
-          # this makes git itself push the tag at the exact release commit — rather than relying on
-          # the release step below to create it at the remote branch tip.
-          git tag -a -m "Release ${{ steps.bump.outputs.new_tag }}" "${{ steps.bump.outputs.new_tag }}"
-          git push --follow-tags
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.new_version }}
+          NEW_TAG: ${{ steps.bump.outputs.new_tag }}
+        run: make release-commit
 
       # 5. Publish the GitHub Release with the aggregated notes.
       - name: GitHub Release
@@ -141,12 +121,7 @@ jobs:
         id: npm
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -n "$NPM_TOKEN" ]; then
-            echo "enabled=true"  >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-          fi
+        run: make npm-creds
 
       - name: Set up Node for npm publish
         if: steps.npm.outputs.enabled == 'true'
@@ -159,4 +134,4 @@ jobs:
         if: steps.npm.outputs.enabled == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
+        run: make release-npm

@@ -31,28 +31,7 @@ jobs:
 
       - id: matrix
         name: Assemble the ecosystem smoke matrix from src/targets/*/smoke.json
-        run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import glob, json, sys
-          # The nightly runs on the default branch (a trusted runner), so non-npm (curl-installed)
-          # CLIs like Cursor are included here; on ci.yml they are main-only for the same reason.
-          legs = []
-          for path in sorted(glob.glob("src/targets/*/smoke.json")):
-              cfg = json.load(open(path))
-              install = cfg.get("install", {"method": "npm"})
-              legs.append({
-                  "target": path.split("/")[2],
-                  "cli": cfg["cli"],
-                  "test": cfg["test"],
-                  "install_method": install.get("method", "npm"),
-                  "npm_package": cfg.get("npm_package", ""),
-                  "install_url": install.get("url", ""),
-                  "install_flags": install.get("flags", ""),
-              })
-          if not legs:
-              sys.exit("no src/targets/*/smoke.json ecosystems discovered")
-          print("matrix=" + json.dumps({"include": legs}))
-          PY
+        run: make smoke-matrix
 
   smoke-latest:
     name: Smoke @latest — ${{ matrix.target }}
@@ -76,11 +55,11 @@ jobs:
           node-version: "22"
 
       - name: Install Python dependencies
-        run: pip install -e ".[dev]"
+        run: make install
 
       # @latest on purpose — the whole point is to catch a newer CLI that breaks the shipped plugin.
-      # A curl-installed CLI (Cursor) has no version pin; its installer always fetches latest, which
-      # is exactly the drift this nightly is meant to surface.
+      # CHANNEL=latest tells install_cli.sh to install @latest; a curl-installed CLI (Cursor) has no
+      # version pin — its installer always fetches latest, exactly the drift this nightly surfaces.
       - name: Install ${{ matrix.cli }}@latest
         env:
           INSTALL_METHOD: ${{ matrix.install_method }}
@@ -88,38 +67,24 @@ jobs:
           INSTALL_URL: ${{ matrix.install_url }}
           INSTALL_FLAGS: ${{ matrix.install_flags }}
           CLI: ${{ matrix.cli }}
-        run: |
-          if [ "$INSTALL_METHOD" = "npm" ]; then
-            npm install -g "$NPM_PACKAGE@latest"
-          else
-            curl $INSTALL_FLAGS "$INSTALL_URL" -o /tmp/cli-install.sh
-            bash /tmp/cli-install.sh
-            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-            echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
-            export PATH="$HOME/.local/bin:$HOME/.cursor/bin:$PATH"
-          fi
-          "$CLI" --version
+          CHANNEL: latest
+        run: make smoke-install
 
       - name: Run ${{ matrix.target }} smoke against @latest
         env:
           TEST: ${{ matrix.test }}
           TARGET: ${{ matrix.target }}
+          RESULT_PREFIX: smoke-latest
           DISABLE_AUTOUPDATER: "1"
           CLAUDE_CODE_ENABLE_TELEMETRY: "0"
-        run: |
-          pytest "$TEST" -v -rs 2>&1 | tee "smoke-latest-$TARGET.txt"
-          grep -qE '[0-9]+ passed' "smoke-latest-$TARGET.txt" || {
-            echo "::error::$TARGET @latest smoke produced no passing checks — the real CLI must run"
-            exit 1
-          }
+        run: make smoke-run
 
       - name: Annotate a red nightly
         if: failure()
         env:
           TARGET: ${{ matrix.target }}
           CLI: ${{ matrix.cli }}
-        run: |
-          echo "::warning::$TARGET smoke FAILED against $CLI@latest while the pinned version in src/targets/$TARGET/smoke.json still passes CI. Either $CLI shipped a breaking change (file upstream / adapt the plugin) or the pin is simply stale (bump it). Non-blocking — this nightly never gates a merge."
+        run: make smoke-annotate-nightly
 
       - name: Upload @latest smoke results
         if: always()
