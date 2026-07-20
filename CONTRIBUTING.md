@@ -4,6 +4,9 @@ Hercules is authored once in `src/` and compiled to per-ecosystem trees under `d
 (`claude-code`, `opencode`, `cursor`) by the build pipeline in `scripts/build/`. CI regenerates and
 drift-checks `dist/` on every push, so `main` always carries an in-sync build.
 
+The deep rules for *extending the methodology itself* (commands, agents, skills, hooks, invariants)
+live in [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md); the release process is in [`RELEASE.md`](RELEASE.md).
+
 ## Quick start
 
 ```bash
@@ -49,11 +52,13 @@ adds one config file — `parse`/`render`/`model_map`/`cli` need no change. The 
    per-agent models, as OpenCode does). `model_map.resolve` falls back toward higher tiers when a
    tier is unset.
 
-4. **Optional build-driver entries** in `scripts/build/cli.py`:
-   - `_RENAMES` — per-target source→dest filename remaps (e.g. `persona.md` → `CLAUDE.md`).
-   - A target-specific branch in `build_target` — if the target needs byte-copied non-markdown
-     assets (like Claude's `hooks/*.py`) or generated extras (like OpenCode's `plugin.js`), add a
-     branch mirroring the `_CLAUDE_COPIES` / `_emit_opencode_extras` patterns.
+4. **Register a `Target`** in `scripts/build/targets/<name>.py` and import it from
+   `scripts/build/targets/__init__.py`. The `Target` binds the ecosystem to its source→dest mapping
+   (a `renames` dict, or a `dest_fn` for a load-bearing rename like Cursor's `.mdc` rule) and its
+   `emit_extras` — the non-content artifacts it copies or generates (manifests, hooks, capability
+   docs), built from the leaf helpers in `scripts/build/emit.py`. `cli.py` holds **zero**
+   per-ecosystem branches — dispatch is registry-driven — so onboarding a target never edits the
+   orchestrator.
 
 5. **Rebuild and commit**: `make build` regenerates `dist/<name>/`; commit it alongside the source.
 
@@ -68,6 +73,35 @@ adds one config file — `parse`/`render`/`model_map`/`cli` need no change. The 
 The keystone invariant: `make test` runs `--check` (renders to a temp dir, diffs against committed
 `dist/`, fails on drift) plus the full suite — so a target that doesn't render deterministically, or
 whose output diverges from committed `dist/`, fails CI immediately.
+
+## Testing your changes as a live plugin
+
+To try your checkout in Claude Code, add **your local directory** as a marketplace:
+`/plugin marketplace add /path/to/your/checkout`. Its `marketplace.json` declares the name
+`mbienkowski`, so `/plugin install hercules@mbienkowski` then resolves to **your checkout**. If you
+already added the public marketplace under that same name, remove it first
+(`/plugin marketplace remove mbienkowski`) so the name isn't ambiguous — otherwise you'd be testing
+the released version, not your changes. After `git checkout`-ing the branch you want, run
+`/reload-plugins` to apply.
+
+**Testing a branch before release (maintainers).** To pull a branch straight from GitHub without a
+local checkout, add a *temporary* marketplace entry in `~/.claude-priv/settings.json` (or
+`~/.claude/settings.local.json`, so it stays off-project and out of git):
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "hercules-dev": {
+      "source": { "source": "github", "repo": "mbienkowski/hercules", "ref": "your-feature-branch" }
+    }
+  },
+  "enabledPlugins": { "hercules@hercules-dev": true }
+}
+```
+
+`ref` accepts a branch, tag, or commit SHA (omit it for the default branch). `hercules-dev` is a
+throwaway local name — **remove the entry and restart Claude Code when you're done** to return to the
+released version. Restart after any change; settings are read at startup.
 
 ## Conventions
 

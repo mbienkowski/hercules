@@ -62,7 +62,8 @@ Keep them in lock-step:
   registry row must match a live matcher in the **reference** gate,
   `src/targets/claude-code/hooks/hooks.json` (CI-verified); each other ecosystem's equivalent gate is
   pinned by its own wiring test under `tests/hooks/` (see § Hooks).
-- If the change is visible at the four-phase level, also update the simplified diagram and the README.
+- If the change is visible at the four-phase level, also update the simplified diagram, the README
+  (end-user overview), and `CONTRIBUTING.md` (if the contributor workflow is affected).
 
 ### The execution walk
 

@@ -155,25 +155,6 @@ forced only when Hercules runs via the headless `cursor-agent --agent` CLI. The 
 
 </details>
 
-<details>
-<summary><b>Building from source (contributors)</b></summary>
-
-All content is authored once in `src/`; the build (`scripts/build/`) generates the plugin trees under `dist/claude-code/`, `dist/opencode/`, and `dist/cursor/` (generated and committed). After editing `src/`, rebuild and commit the output:
-
-```bash
-make build          # regenerate dist/ for every target
-```
-
-An optional pre-commit hook (`.githooks/pre-commit`) regenerates `dist/` automatically when `src/` or `scripts/build/` changes:
-
-```bash
-git config core.hooksPath .githooks
-```
-
-`make test` builds to a temp directory, verifies the committed `dist/` is in sync (a stale `dist/` fails with a `make build` remedy), then runs the suite against the committed output.
-
-</details>
-
 ---
 
 ## Quickstart
@@ -451,58 +432,10 @@ yours to keep or remove: `code-of-conduct.md` and the `@./code-of-conduct.md` li
 
 ## Contributing
 
-Read [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) first — it defines the rules for extending commands,
-agents, and skills, plus how to run the tests.
-
-1. Fork and create a branch (use hyphens, no slashes)
-2. Add or edit files in `src/content/commands/`, `src/content/agents/`, or `src/content/skills/`, then
-   run `make build` to regenerate `dist/` (never edit `dist/` by hand)
-3. Test the plugin locally: add **your local checkout** as a marketplace —
-   `/plugin marketplace add /path/to/your/checkout`. Its `marketplace.json` declares the name
-   `mbienkowski`, so `/plugin install hercules@mbienkowski` then resolves to **your checkout**. If
-   you've already added the public marketplace under that same name, remove it first
-   (`/plugin marketplace remove mbienkowski`) so the name isn't ambiguous — otherwise you'd test the
-   released version, not your changes. `git checkout` the branch you want to test, then run
-   `/reload-plugins` to apply.
-4. Run the suite: `pip install -e ".[dev]" && make test` (the dev extras carry pytest and mutmut)
-5. Open a PR — CI runs the full suite plus mutation testing and validates the plugin package. Commit
-   messages follow Conventional Commits (`feat:`/`fix:`/`feat!:`), which drive the version on release.
-
-For a local dev clone:
-
-```bash
-git clone https://github.com/mbienkowski/hercules.git
-cd hercules
-pip install -e ".[dev]"   # installs test dependencies (pytest, mutmut) — needed to run make test
-```
-
-All `.md` filenames must be **lowercase** — macOS is case-insensitive but Linux is not.
-
-### For maintainers — testing a branch before release
-
-To test a branch without installing from the public marketplace, add a temporary marketplace entry
-pointing at your branch. Put this in `~/.claude-priv/settings.json` (or `~/.claude/settings.local.json`)
-so it stays off-project and out of git:
-
-```json
-{
-  "extraKnownMarketplaces": {
-    "hercules-dev": {
-      "source": {
-        "source": "github",
-        "repo": "mbienkowski/hercules",
-        "ref": "your-feature-branch"
-      }
-    }
-  },
-  "enabledPlugins": { "hercules@hercules-dev": true }
-}
-```
-
-`ref` accepts a branch name, tag, or commit SHA. Omit it to use the repo's default branch.
-
-Then restart Claude Code (the settings are read at startup). The plugin resolves from that branch.
-When you're done, remove the entry and restart again to go back to the released version.
+Want to extend Hercules — add a command, agent, skill, or a whole new ecosystem? The full
+contributor workflow (build, test locally, open a PR, test a branch before release) lives in
+**[`CONTRIBUTING.md`](CONTRIBUTING.md)**. The deep rules for extending the methodology are in
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md), and the release process is in [`RELEASE.md`](RELEASE.md).
 
 
 ---
@@ -534,7 +467,7 @@ it can do is exactly what Claude Code can do in your session:
 - **Network** — none. All model calls go through your existing Claude Code session and API key.
   Hercules makes no direct API calls and opens no separate network channel — hooks included.
 
-You can audit the full plugin source in the `src/` directory of this repository (built plugins land in `dist/`).
+You can audit exactly what runs on your machine in `dist/<your-ecosystem>/` (e.g. `dist/claude-code/`) — the installed plugin tree, generated from the authored source in `src/` (both committed to this repository).
 
 ---
 
