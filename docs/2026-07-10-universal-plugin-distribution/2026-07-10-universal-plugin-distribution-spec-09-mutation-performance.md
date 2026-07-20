@@ -2,6 +2,13 @@
 satisfies: [2026-07-10-universal-plugin-distribution-business-requirements.md §v1.1 R4]
 complexity: high
 
+> **STATUS: DEFERRED — NOT DELIVERED on this branch.** Investigation showed mutmut 3's parallelism
+> can't hit <10 min on CI's 4-core runners without dropping the write-gate hooks + drift tests from
+> the mutation set (kill rate 96%→90.7%). Research points to **cosmic-ray** (in-place, no sandbox,
+> native `cr-filter-git` diff-aware mutation) as the better tool. This work moved to branch
+> `mutation-speed-wip`. The runner-scoping / timeout / gate-hardening below is the ORIGINAL plan and
+> was **not** applied to the PR branch (its mutation gate is unchanged from the proven config).
+
 ## Scope
 Cut the mutation-quality gate from ~40 minutes to well under 10 minutes without weakening it, by
 aligning the per-mutant test runner with the test directories that actually cover the mutated

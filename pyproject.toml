@@ -37,14 +37,17 @@ testpaths = ["tests"]
 norecursedirs = ["*.egg", ".*", "_darcs", "CVS", "dist", "node_modules", "venv", "{arch}"]
 
 [tool.mutmut]
-# Pure transform layer (parse/render/model_map/serialize/manifests/version_targets) + the per-target
-# dest logic (targets/base.py) + every ecosystem's enforcement hooks + metrics carry the mutation
-# gate; the FS boundary (cli/layout/emit) and the per-ecosystem data modules (targets/{claude_code,
-# opencode,cursor}.py — copy maps + capability prose) are round-trip-covered and under the
-# branch-coverage gate (make test's --cov=scripts/build, ~97%), but not mutated — their
-# shutil/tempfile/string mutants are largely equivalent and would only add noise to the kill rate.
+# Pure transform layer (parse/render/model_map/serialize/manifests/version_targets) + every
+# ecosystem's enforcement hooks + metrics carry the mutation gate; the FS boundary (cli/layout/emit)
+# and the per-ecosystem target modules (targets/*.py — dest data + copy maps + capability prose) are
+# round-trip-covered and under the branch-coverage gate (make test's --cov=scripts/build, ~97%), but
+# not mutated — their shutil/tempfile/string mutants are largely equivalent and would only add noise.
+# NOTE: targets/base.py's dest logic is intentionally NOT added here yet — it was the moved-from-cli
+# dest logic (cli was always excluded), and adding it to the gate is deferred to the mutation-tooling
+# rework, where the kill rate can be validated with working tooling (its behaviour is guarded now by
+# tests/build/test_target_registry.py, incl. the frozen-immutability test).
 # Hooks are mutated per ecosystem (claude-code, cursor), not just the reference one.
-paths_to_mutate = "tests/metrics/,src/targets/claude-code/hooks/,src/targets/cursor/hooks/,scripts/build/parse.py,scripts/build/render.py,scripts/build/model_map.py,scripts/build/serialize.py,scripts/build/manifests.py,scripts/build/version_targets.py,scripts/build/targets/base.py"
+paths_to_mutate = "tests/metrics/,src/targets/claude-code/hooks/,src/targets/cursor/hooks/,scripts/build/parse.py,scripts/build/render.py,scripts/build/model_map.py,scripts/build/serialize.py,scripts/build/manifests.py,scripts/build/version_targets.py"
 paths_to_exclude = "test_*.py,__init__.py,conftest.py"
 backup = false
 runner = "python -m pytest tests/ -x -q --tb=no --no-header"

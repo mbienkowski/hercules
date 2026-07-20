@@ -24,10 +24,10 @@ class ExtrasContext:
     src_target_dir: Path   # src/targets/<name>
     shared_hooks_src: Path  # src/targets/claude-code/hooks — canonical guard, byte-copied everywhere
     src_content: Path      # src/content
-    tokens: dict
+    tokens: dict[str, str]
 
 
-def _no_extras(ctx: "ExtrasContext") -> list[str]:
+def _no_extras(ctx: ExtrasContext) -> list[str]:
     return []
 
 
@@ -36,9 +36,9 @@ class Target:
     """One ecosystem's build strategy: how source paths are relocated, and what extra files it emits."""
 
     name: str
-    renames: dict = field(default_factory=dict)
+    renames: dict[str, str] = field(default_factory=dict)
     dest_fn: Callable[[str], str] | None = None
-    emit_extras_fn: Callable[["ExtrasContext"], list[str]] = _no_extras
+    emit_extras_fn: Callable[[ExtrasContext], list[str]] = _no_extras
 
     def dest(self, rel: str) -> str:
         """Map a ``src/content`` relative path to this target's destination path."""
@@ -46,7 +46,7 @@ class Target:
             return self.dest_fn(rel)
         return self.renames.get(rel, rel)
 
-    def emit_extras(self, ctx: "ExtrasContext") -> list[str]:
+    def emit_extras(self, ctx: ExtrasContext) -> list[str]:
         """Emit the target's non-content artifacts (manifests, hooks, capability docs); return rels."""
         return self.emit_extras_fn(ctx)
 

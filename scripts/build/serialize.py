@@ -234,9 +234,10 @@ def cursor_dest(rel: str) -> str:
 
     Cursor's ``agents/``/``commands/``/``skills/`` dirs match the source layout, so only the
     frontmatter-less ``persona.md`` is relocated — to an always-applied rule. This lives here (a
-    mutation-covered module) rather than as a ``cli._RENAMES`` entry on purpose: the ``.mdc`` extension
-    is load-bearing (a ``.md`` rule is silently ignored by Cursor in agent mode), so a mutant flipping
-    it must be killed by ``test_cursor_serialize`` — ``cli.py`` is excluded from the mutation gate."""
+    mutation-covered module), wired into the Cursor ``Target`` via ``dest_fn``, rather than as plain
+    ``renames`` data on the target descriptor: the ``.mdc`` extension is load-bearing (a ``.md`` rule is
+    silently ignored by Cursor in agent mode), so a mutant flipping it must be killed by
+    ``test_cursor_serialize`` — the per-ecosystem ``targets/*`` data modules are outside the mutation gate."""
     if rel == _PERSONA_SRC:
         return _PERSONA_RULE_DEST
     return rel

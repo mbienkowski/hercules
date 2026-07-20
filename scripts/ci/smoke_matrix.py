@@ -65,13 +65,18 @@ def build_matrix() -> dict:
 
 
 def main() -> None:
-    line = "matrix=" + json.dumps(build_matrix())
+    matrix = build_matrix()
+    line = "matrix=" + json.dumps(matrix)
+    # Always echo the resolved matrix to the job log — so an operator debugging "why did/didn't
+    # ecosystem X get a smoke leg" can read the chosen list off the Build job's log — and additionally
+    # write it to $GITHUB_OUTPUT when running under CI.
+    legs = [leg["target"] for leg in matrix["include"]]
+    print(f"smoke matrix ({len(legs)} legs): {', '.join(legs)}")
+    print(line)
     out = os.environ.get("GITHUB_OUTPUT")
     if out:
         with open(out, "a", encoding="utf-8") as fh:
             fh.write(line + "\n")
-    else:
-        print(line)
 
 
 if __name__ == "__main__":

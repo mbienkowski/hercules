@@ -36,8 +36,11 @@ git config core.hooksPath .githooks
 
 ## Adding a new target (e.g. Codex, Cursor)
 
-The build is registry-driven, so adding a target touches the build code in exactly one place and
-adds one config file — `parse`/`render`/`model_map`/`cli` need no change. The procedure:
+The build is registry-driven: `parse`/`render`/`model_map`/`cli`/`emit` need **no** change — a target
+is additive (a serializer + a target descriptor + a few config/manifest files, all listed below).
+The two CI-hard-failing steps that are easy to forget — the write-gate declaration (step 6) and
+`smoke.json` (step 7) — are called out so you don't pass local `make test` and then hit a late CI
+failure. The procedure:
 
 1. **Add a `Serializer` subclass + `register()` it** in `scripts/build/serialize.py`.
    A `Serializer` turns a parsed `(frontmatter, body)` into one target's output bytes. See
@@ -62,12 +65,21 @@ adds one config file — `parse`/`render`/`model_map`/`cli` need no change. The 
 
 5. **Rebuild and commit**: `make build` regenerates `dist/<name>/`; commit it alongside the source.
 
-6. **Add tests** under `tests/build/` pinning the new target's serializer output, and a conformance
+6. **Declare the write-gate** (CI-hard-failing): add an entry for the target to `GATE_EXPECTATIONS`
+   in `tests/hooks/test_enforcement_gates.py`. `test_every_registered_target_declares_a_gate` fails
+   for any registered ecosystem with no declared write-gate (or an explicit, reasoned waiver) — this
+   is a deliberate security forcing-function, so a new target can't ship ungated by accident.
+
+7. **Add `src/targets/<name>/smoke.json`** (CI-hard-failing): the CI smoke matrix derives from the
+   target registry and `scripts/ci/smoke_matrix.py` raises on a registered ecosystem with no
+   `smoke.json`. It declares the CLI, install method, and the smoke-test path.
+
+8. **Add tests** under `tests/build/` pinning the new target's serializer output, and a conformance
    block in `tests/build/test_conformance.py` for any ecosystem-specific invariants. Add a
    mirror-parity test (see `test_opencode_mirror.py`) if the target has both standalone files and
    an inlined manifest.
 
-7. **Add a smoke-checklist section** to `RELEASE.md` for the live (non-build-provable) behaviours
+9. **Add a smoke-checklist section** to `RELEASE.md` for the live (non-build-provable) behaviours
    the new target requires a human to confirm before release.
 
 The keystone invariant: `make test` runs `--check` (renders to a temp dir, diffs against committed
@@ -106,6 +118,8 @@ released version. Restart after any change; settings are read at startup.
 ## Conventions
 
 - **No comments in code** unless explaining a non-obvious decision.
+- All `.md` filenames must be **lowercase** — macOS is case-insensitive but Linux (CI) is not, so a
+  mixed-case name that works locally breaks on CI.
 - Tests live in `tests/`, organised by category (`build/`, `agents/`, `commands/`, `hooks/`, …).
   `tests/test_collection_integrity.py` guards that no test directory is hidden by `norecursedirs`.
 - One version across all manifests — `scripts/build/version_targets.py` is the single canonical

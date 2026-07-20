@@ -6,12 +6,15 @@ special-casing.
 """
 from __future__ import annotations
 
+import dataclasses
 import re
 from pathlib import Path
 
+import pytest
+
 from scripts.build import cli, serialize
 from scripts.build import targets as target_registry
-from scripts.build.targets.base import Target
+from scripts.build.targets.base import ExtrasContext, Target
 
 CLI_SRC = Path(cli.__file__).read_text(encoding="utf-8")
 
@@ -27,6 +30,30 @@ def test_every_build_target_has_a_serializer():
 def test_registered_target_names_is_the_single_ecosystem_list():
     assert target_registry.registered_target_names() == ["claude-code", "cursor", "opencode"]
     assert tuple(target_registry.registered_target_names()) == cli.TARGETS
+
+
+def test_registered_target_names_are_sorted_not_registration_order():
+    # Guards the `sorted(_REGISTRY)` in registered_target_names(): a `sorted`->`list` regression would
+    # return insertion order. Register a name that sorts FIRST but is inserted LAST to force the issue.
+    from scripts.build.targets import base
+    base.register(Target(name="aaa-registered-last"))
+    try:
+        names = target_registry.registered_target_names()
+        assert names == sorted(names), "registered_target_names must be sorted, not insertion order"
+        assert names[0] == "aaa-registered-last"
+    finally:
+        base._REGISTRY.pop("aaa-registered-last", None)
+
+
+def test_target_and_extras_context_are_immutable():
+    # frozen=True on both is load-bearing: a build descriptor or its extras context must not be
+    # mutated mid-build. (Also kills the frozen=True->False mutant on each dataclass.)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        Target(name="x").name = "y"
+    ctx = ExtrasContext(out_root=Path("/tmp"), src_target_dir=Path("/tmp"),
+                        shared_hooks_src=Path("/tmp"), src_content=Path("/tmp"), tokens={})
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        ctx.out_root = Path("/other")
 
 
 def test_target_dest_applies_renames_and_passes_others_through():

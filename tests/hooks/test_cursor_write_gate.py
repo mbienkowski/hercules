@@ -277,16 +277,23 @@ def test_cursor_ships_the_gate_and_the_canonical_guard_files(tmp_path):
             f"{name} must not diverge across dists"
 
 
-def test_hook_commands_reference_the_gate_via_the_plugin_root_variable(tmp_path):
-    """Cursor injects ``${CURSOR_PLUGIN_ROOT}`` into a PLUGIN-bundled hook's command and runs it with
-    cwd = the project root (per Cursor's team guidance), so the gate script must be referenced through
-    that variable — a bare/relative path would not resolve and the write-gate would silently never
-    fire. Lock the verified-correct form so an edit can't regress it to an inert path."""
+def test_hook_commands_invoke_the_gate_by_exact_plugin_root_path(tmp_path):
+    """Lock the EXACT hook command form. The gate is referenced via ``${CURSOR_PLUGIN_ROOT}`` because
+    a plugin-bundled hook runs with cwd = the project root, so a bare/relative path would not resolve.
+
+    IMPORTANT: whether Cursor actually injects ``${CURSOR_PLUGIN_ROOT}`` for plugin-bundled hooks is
+    UNVERIFIED — Cursor's docs don't list it and sources conflict, so if the variable is absent the
+    write-gate is INERT on a real install. This test only pins the current form against silent
+    regression; the load-bearing check that the gate actually FIRES is the manual RELEASE.md item (4b),
+    run on a real Cursor install before release. Exact-match (not substring) so no extra shell content
+    can be appended around the token undetected."""
     out = tmp_path / "cursor"
     build_target("cursor", out)
     hooks = json.loads((out / "hooks" / "hooks.json").read_text(encoding="utf-8"))
-    commands = [h["command"] for legs in hooks["hooks"].values() for h in legs]
-    assert commands, "cursor hooks.json must declare hook commands"
-    for cmd in commands:
-        assert "${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py" in cmd, \
-            f"hook command must invoke the gate via ${{CURSOR_PLUGIN_ROOT}}, got: {cmd!r}"
+    expected = {
+        "beforeShellExecution": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py shell",
+        "afterFileEdit": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py after_edit",
+    }
+    for event, want in expected.items():
+        got = [h["command"] for h in hooks["hooks"][event]]
+        assert got == [want], f"{event}: hook command must be exactly {want!r}, got {got!r}"

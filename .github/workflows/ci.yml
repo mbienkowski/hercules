@@ -49,7 +49,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      matrix: ${{ steps.matrix.outputs.matrix }}
+      # Default to an empty include so `smoke`'s `strategy.matrix: fromJson(needs.build.outputs.matrix)`
+      # always parses valid JSON — GitHub evaluates a job's matrix BEFORE its `if:`, so if `build`
+      # fails before the matrix step runs (a red drift gate, or the matrix step's own fail-closed
+      # SystemExit), an unset output would make fromJson('') throw a confusing eval error instead of
+      # letting `smoke`'s `needs.build.result == 'success'` guard skip it cleanly.
+      matrix: ${{ steps.matrix.outputs.matrix || '{"include":[]}' }}
     steps:
       - uses: actions/checkout@v7
 

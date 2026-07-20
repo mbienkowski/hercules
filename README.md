@@ -138,7 +138,7 @@ The plugin is also published to npm as `hercules` (published automatically on re
 
 Hercules ships as a native [Cursor](https://cursor.com) plugin — the compiled plugin lives at
 `dist/cursor/` (`.cursor-plugin/plugin.json` plus `agents/`, `commands/`, `rules/`, `skills/`).
-Requires **Cursor ≥ 2.4** (for the isolated subagents the specialist advisors run as).
+Requires **Cursor ≥ 2.5** (the version that added plugin packaging; the isolated subagents the specialist advisors run as landed in 2.4).
 
 **Install (git / local).** Add this repository as a Cursor plugin source and install `hercules`: in the
 editor run **`/add-plugin`** and point it at this repo (or the `dist/cursor/` plugin directory); a
