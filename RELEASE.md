@@ -114,8 +114,9 @@ the `dist/cursor/` directory; a public marketplace listing is a planned follow-u
 (the version that added plugin packaging). There is **no registry publish step** — like Claude Code,
 Cursor is git-consumed.
 
-These load-time behaviours are **not** provable by the build (the always-on structural leg validates the
-tree; the keyed `cursor-agent -p` run is main-only) — confirm live before release:
+These load-time behaviours are **not** provable by the build (the `Smoke — cursor` leg runs the real
+`cursor-agent` binary + structural checks on every PR and main; the keyed `cursor-agent -p` run is
+opt-in — it needs a `CURSOR_API_KEY` secret and skips without it) — confirm live before release:
 
 - [ ] The plugin installs and `rules/hercules-persona.mdc` always-applies (persona is active).
 - [ ] `/discover`, `/design`, `/build`, `/ship`, `/workflow` appear and run.
@@ -132,7 +133,7 @@ tree; the keyed `cursor-agent -p` run is main-only) — confirm live before rele
 
 | # | Cursor item | Status |
 |---|---|---|
-| 1 | Real `cursor-agent` binary runs + built plugin is structurally valid | ✅ automated (`test_the_real_cursor_agent_binary_runs_and_the_plugin_is_well_formed`, main-only leg) |
+| 1 | Real `cursor-agent` binary runs + built plugin is structurally valid | ✅ automated (`test_the_real_cursor_agent_binary_runs_and_the_plugin_is_well_formed`, runs on every PR + main) |
 | 2 | Headless `cursor-agent -p` completes a run | ⚙️ keyed (`CURSOR_API_KEY`; skips on forks) |
 | 3 | Persona rule always-applies; commands appear | manual |
 | 4 | Specialist spawns as an isolated subagent | manual |

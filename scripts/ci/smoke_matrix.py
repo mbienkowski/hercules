@@ -3,9 +3,12 @@
 The ecosystem list comes from ``scripts.build.targets`` — the SAME registry the build dispatches on —
 so the smoke matrix cannot drift from what actually ships. Each registered ecosystem must declare a
 ``src/targets/<name>/smoke.json`` (its CLI + install method + smoke-test path); it becomes one parallel
-smoke leg. A non-npm CLI (e.g. Cursor's script installer) runs unpinned remote code, so its leg is
-included only on ``main`` (never fork PRs); every ecosystem still gets always-on STRUCTURAL coverage in
-the ``test`` job, which runs on forks.
+smoke leg that runs on every PR and on ``main``. This workflow uses ``on: pull_request`` with
+``permissions: contents: read`` — a fork PR gets no repository secrets — so every ecosystem's installer
+(npm-pinned or a script installer like Cursor's) runs on PRs; the keyed live checks (e.g. Cursor's
+``cursor-agent -p`` needing ``CURSOR_API_KEY``) simply skip when the secret is absent. NOTE: a script
+installer is not version-pinned (npm legs are), so a change upstream at the installer URL can affect
+PR runs — pin it if that becomes flaky.
 
 Writes ``matrix=<json>`` to ``$GITHUB_OUTPUT`` when set, else prints it (for local inspection).
 """
@@ -30,7 +33,6 @@ def build_matrix() -> dict:
     - a ``smoke.json`` for an unregistered ecosystem is a phantom leg → error (don't smoke a ghost);
     - a matrix that resolves to zero legs → error (the whole gate would vanish).
     """
-    on_main = os.environ.get("GITHUB_REF") == "refs/heads/main"
     registered = registered_target_names()
     on_disk = {p.split("/")[2] for p in glob.glob(f"{_TARGETS_DIR}/*/smoke.json")}
 
@@ -47,8 +49,6 @@ def build_matrix() -> dict:
             cfg = json.load(fh)
         install = cfg.get("install", {"method": "npm"})
         method = install.get("method", "npm")
-        if method != "npm" and not on_main:
-            continue
         legs.append({
             "target": name,
             "cli": cfg["cli"],
