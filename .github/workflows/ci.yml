@@ -29,22 +29,27 @@ defaults:
 
 # Job graph (cheap -> pricey, so a cheap failure fails fast before an expensive job pays out):
 #
-#   build ──┬─> validate ─┐
-#           ├─> test ─────┼─> mutation   (~40 min, PR/main only)
-#           │             └─> smoke      (network + real CLIs, PR/main only, one leg per ecosystem)
-#           └─> discover ───> smoke
+#   build ──┬─> test ─────┐
+#           ├─> validate ─┼─> mutation   (~40 min, PR/main only — waits for ALL three)
+#           └─> smoke ────┘  (network + real CLIs, PR/main only, one leg per ecosystem)
 #
 # build/validate are seconds; test is minutes; smoke pays for Node + a real-CLI install; mutation
-# is the long pole. smoke and mutation both wait on `test` so a red unit suite stops them first.
+# is the long pole. test, validate, and smoke are peers off `build`; mutation waits for all three to
+# SUCCEED (not merely finish — see its `if:`), so a red gate never lets the 40-min job pay out. The
+# smoke matrix is a `build` output (derived from the target registry), so there is no separate
+# discovery job to keep in sync.
 jobs:
   # ── Build gate — regenerate dist/ and prove it matches what's committed ──────
   # Runs FIRST: a src/ edit pushed without a rebuild fails here (drift), before any
   # test burns minutes. Also proves the build is deterministic (two runs byte-equal)
-  # and that dist/ is tracked, not silently git-ignored.
+  # and that dist/ is tracked, not silently git-ignored. Emits the smoke matrix (one leg per
+  # registered ecosystem, from src/targets/<eco>/smoke.json) so `smoke` needs no discovery job.
   build:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v7
 
@@ -56,6 +61,13 @@ jobs:
       # untracked-dist guard — all in scripts/ci/build_gates.sh.
       - name: Build gates (drift, determinism, tracked)
         run: make ci-build
+
+      # The smoke matrix, derived from the build's target registry (the single source of truth) and
+      # fail-closed on drift/emptiness. A step output here means `smoke` reads it from `needs.build`
+      # — no standalone "discover" node to drift out of sync.
+      - id: matrix
+        name: Assemble the ecosystem smoke matrix (from the target registry)
+        run: make smoke-matrix
 
   # ── Tests — always, on every branch ─────────────────────────────────────────
   test:
@@ -104,46 +116,30 @@ jobs:
       - name: Validate manifests and single-source version
         run: make validate
 
-  # ── Discover ecosystems — build the smoke matrix from src/targets/*/smoke.json ──
-  # Each ecosystem that ships a smoke.json (its npm CLI package + pinned version + the smoke-test
-  # path) becomes one PARALLEL `smoke` leg below. Adding a future ecosystem = drop in a smoke.json
-  # under its src/targets/<eco>/ dir; this workflow needs no edit. A target with no smoke.json
-  # (e.g. one with no installable CLI yet) simply gets no leg.
-  discover:
-    name: Discover ecosystems
-    needs: [build]
-    if: >-
-      github.event_name == 'pull_request' ||
-      github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      matrix: ${{ steps.matrix.outputs.matrix }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - id: matrix
-        name: Assemble the ecosystem smoke matrix from src/targets/*/smoke.json
-        run: make smoke-matrix
-
-  # ── Ecosystem smoke checks — one PARALLEL leg per ecosystem (from `discover`) ─────
+  # ── Ecosystem smoke checks — one PARALLEL leg per ecosystem (matrix from `build`) ─────
   # Does the built plugin actually install/load in the REAL Claude Code / OpenCode binary, not
   # just look correct on disk? This is the ONLY job that loads the plugin in a live CLI, so it
   # GATES: a genuine load regression fails the pipeline (and, on main, blocks the release that
   # chains off CI success) instead of failing open. A transient registry hiccup is absorbed by
   # the pinned install's own retry+timeout; a real load failure surfaces as the pytest step going
   # red. fail-fast:false keeps one ecosystem's result independent of the others'.
+  # A PEER of test/validate (needs only `build`): it fans out right after build for early signal,
+  # rather than waiting on the unit suite. `mutation` (below) is what waits for smoke to go green.
   smoke:
     name: Smoke — ${{ matrix.target }}
-    needs: [build, test, discover]
+    needs: [build]
+    # Custom `if:` replaces the implicit `if: success()`, so a failed `build` must be excluded
+    # explicitly (else this job would fan out against a broken/empty matrix). `!cancelled()` keeps
+    # the clean skip on non-PR pushes.
     if: >-
-      github.event_name == 'pull_request' ||
-      github.ref == 'refs/heads/main'
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
+      && !cancelled()
+      && needs.build.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.build.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
 
@@ -208,13 +204,18 @@ jobs:
   # separately by release.yml on every merge to main.
   mutation:
     name: Mutation
-    # Gate the expensive (~40 min) job behind BOTH quick gates — a red test or a red
-    # validate stops it before it burns minutes, and release (which needs the whole
-    # workflow green) is unaffected.
-    needs: [test, validate]
+    # Gate the expensive (~40 min) job behind ALL three quick gates — a red test, validate, or smoke
+    # stops it before it burns minutes. NOTE: a custom `if:` REPLACES GitHub's implicit
+    # `if: success()`, so gating on `needs` requires spelling out the success checks explicitly here —
+    # otherwise this job would launch even when a need failed. `!cancelled()` lets it still skip
+    # cleanly when smoke/mutation are skipped together on a non-PR push (same PR/main condition).
+    needs: [test, validate, smoke]
     if: >-
-      github.event_name == 'pull_request' ||
-      github.ref == 'refs/heads/main'
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
+      && !cancelled()
+      && needs.test.result == 'success'
+      && needs.validate.result == 'success'
+      && needs.smoke.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 40
 

@@ -1,8 +1,11 @@
-"""Assemble the ecosystem smoke matrix from ``src/targets/*/smoke.json`` (invoked by ``make smoke-matrix``).
+"""Assemble the ecosystem smoke matrix from the build's target registry (invoked by ``make smoke-matrix``).
 
-Each ecosystem that ships a ``smoke.json`` becomes one parallel smoke leg. A non-npm CLI (e.g. Cursor's
-curl installer) runs unpinned remote code, so its leg is included only on ``main`` (never fork PRs);
-every ecosystem still gets always-on STRUCTURAL coverage in the ``test`` job, which runs on forks.
+The ecosystem list comes from ``scripts.build.targets`` — the SAME registry the build dispatches on —
+so the smoke matrix cannot drift from what actually ships. Each registered ecosystem must declare a
+``src/targets/<name>/smoke.json`` (its CLI + install method + smoke-test path); it becomes one parallel
+smoke leg. A non-npm CLI (e.g. Cursor's script installer) runs unpinned remote code, so its leg is
+included only on ``main`` (never fork PRs); every ecosystem still gets always-on STRUCTURAL coverage in
+the ``test`` job, which runs on forks.
 
 Writes ``matrix=<json>`` to ``$GITHUB_OUTPUT`` when set, else prints it (for local inspection).
 """
@@ -11,26 +14,43 @@ from __future__ import annotations
 import glob
 import json
 import os
-import sys
+
+from scripts.build.targets import registered_target_names
+
+_TARGETS_DIR = "src/targets"
 
 
 def build_matrix() -> dict:
-    """Return the ``{"include": [...]}`` smoke matrix; raise ``SystemExit`` if none discovered.
+    """Return the ``{"include": [...]}`` smoke matrix; raise ``SystemExit`` on any drift or emptiness.
 
-    Fail CLOSED: an empty include-matrix expands to zero jobs, which GitHub counts as a SKIPPED
-    (== success) gate — that would let an ungated build reach release.
+    Fail CLOSED in three ways, because an empty/partial matrix expands to fewer jobs and GitHub counts
+    a skipped leg as success — which would let an ungated build reach release:
+
+    - a registered ecosystem with no ``smoke.json`` is untestable → error (don't silently skip it);
+    - a ``smoke.json`` for an unregistered ecosystem is a phantom leg → error (don't smoke a ghost);
+    - a matrix that resolves to zero legs → error (the whole gate would vanish).
     """
     on_main = os.environ.get("GITHUB_REF") == "refs/heads/main"
+    registered = registered_target_names()
+    on_disk = {p.split("/")[2] for p in glob.glob(f"{_TARGETS_DIR}/*/smoke.json")}
+
+    missing = sorted(set(registered) - on_disk)
+    if missing:
+        raise SystemExit(f"registered ecosystems with no smoke.json (untestable, gate would skip them): {missing}")
+    orphan = sorted(on_disk - set(registered))
+    if orphan:
+        raise SystemExit(f"smoke.json for unregistered ecosystems (phantom smoke legs): {orphan}")
+
     legs = []
-    for path in sorted(glob.glob("src/targets/*/smoke.json")):
-        with open(path, encoding="utf-8") as fh:
+    for name in registered:
+        with open(f"{_TARGETS_DIR}/{name}/smoke.json", encoding="utf-8") as fh:
             cfg = json.load(fh)
         install = cfg.get("install", {"method": "npm"})
         method = install.get("method", "npm")
         if method != "npm" and not on_main:
             continue
         legs.append({
-            "target": path.split("/")[2],
+            "target": name,
             "cli": cfg["cli"],
             "test": cfg["test"],
             "install_method": method,
@@ -40,7 +60,7 @@ def build_matrix() -> dict:
             "install_flags": install.get("flags", ""),
         })
     if not legs:
-        raise SystemExit("no src/targets/*/smoke.json ecosystems discovered — smoke gate would vanish")
+        raise SystemExit("smoke matrix resolved to zero legs — the smoke gate would vanish")
     return {"include": legs}
 
 
