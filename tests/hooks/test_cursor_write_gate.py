@@ -275,3 +275,18 @@ def test_cursor_ships_the_gate_and_the_canonical_guard_files(tmp_path):
     for name in ("hercules_state.py", "frozen_tests.py"):
         assert (out / "hooks" / name).read_bytes() == (CLAUDE_HOOKS / name).read_bytes(), \
             f"{name} must not diverge across dists"
+
+
+def test_hook_commands_reference_the_gate_via_the_plugin_root_variable(tmp_path):
+    """Cursor injects ``${CURSOR_PLUGIN_ROOT}`` into a PLUGIN-bundled hook's command and runs it with
+    cwd = the project root (per Cursor's team guidance), so the gate script must be referenced through
+    that variable — a bare/relative path would not resolve and the write-gate would silently never
+    fire. Lock the verified-correct form so an edit can't regress it to an inert path."""
+    out = tmp_path / "cursor"
+    build_target("cursor", out)
+    hooks = json.loads((out / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+    commands = [h["command"] for legs in hooks["hooks"].values() for h in legs]
+    assert commands, "cursor hooks.json must declare hook commands"
+    for cmd in commands:
+        assert "${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py" in cmd, \
+            f"hook command must invoke the gate via ${{CURSOR_PLUGIN_ROOT}}, got: {cmd!r}"

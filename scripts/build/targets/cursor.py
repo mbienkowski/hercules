@@ -36,13 +36,21 @@ hide" principle):
   to routine advisors; on Cursor that tiering is intentionally not applied — your one selected model
   drives everything.
 - **Independent review is best-effort in the IDE.** The Design coverage and Build traceability gates
-  delegate to a fresh, isolated `cynical-reviewer` subagent (Cursor >= 2.4). Cursor exposes **no**
-  orchestrator-forced spawn — in-IDE delegation is heuristic or `@`-mention-driven — so Hercules
-  requires an explicit reviewer **handshake** (the reviewer attests it read the requirements source and
-  returns a coverage/traceability matrix) and **halts and asks you** if that handshake is missing,
-  converting a silent self-review into a loud stop. The closest to a forced, isolated reviewer is to run
-  the review packet through the headless `cursor-agent -p` CLI — a fresh agent process with its own
-  context; Cursor's CLI has no flag to select a named subagent, so the packet carries the reviewer mandate.
+  delegate to a fresh, isolated `cynical-reviewer` subagent (**Cursor >= 2.5**, which added plugin
+  packaging; isolated subagents landed in 2.4). Cursor exposes **no** orchestrator-forced spawn —
+  in-IDE delegation is heuristic or `@`-mention-driven — so Hercules requires an explicit reviewer
+  **handshake** (the reviewer attests it read the requirements source and returns a
+  coverage/traceability matrix) and **halts and asks you** if that handshake is missing, converting a
+  silent self-review into a loud stop. The closest to a forced, isolated reviewer is to run the review
+  packet through the headless `cursor-agent -p` CLI — a fresh agent process with its own context;
+  Cursor's CLI has no flag to select a named subagent, so the packet carries the reviewer mandate.
+- **Plugin loading in the headless CLI is a young feature (external risk Hercules cannot pin).** Cursor
+  loads plugin agents/commands/rules/hooks reliably in the IDE, but its `cursor-agent` CLI gained plugin
+  support only recently and has toggled it via a feature flag; if a Cursor update disables or regresses
+  it, the CLI-only paths (the forced-reviewer fallback above, and CI's live smoke) may not load the
+  plugin — the IDE is unaffected. Likewise the read-only reviewer lock depends on Cursor honouring
+  `readonly` subagents server-side, which has regressed before. These are disclosed as accepted external
+  risks; the release checklist re-verifies them on a real install rather than trusting CI alone.
 """
 
 
