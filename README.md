@@ -146,18 +146,16 @@ listing on the public Cursor marketplace is a planned follow-up. Once installed,
 (`rules/hercules-persona.mdc`) always applies, the `/discover`, `/design`, `/build`, `/ship`,
 `/workflow` commands appear, and the advisors run as isolated subagents.
 
-**Capability note.** Cursor has no pre-file-edit veto, so Hercules works *with* the host rather than
-fighting it. The hard teeth sit where Cursor can actually block: a plugin hook **denies** shell
-commands and MCP calls that write to or commit a frozen test. On the edit path, which Cursor cannot
-block, it is **advisory in the IDE** — a Composer edit to a frozen test raises a clear notice and your
-working tree is left untouched (you undo it, or grant an override); an automatic `git checkout` restore
-runs only in **headless** `cursor-agent` runs, where no human is present. Behind the advisory path is an
-**acceptance gate**: every frozen test is re-hashed before a spec retires, catching a tamper at
-acceptance — a strong, prompt-enforced catch, not an unbypassable lock (see `CAPABILITIES.md`). Cursor
-also cannot force a subagent spawn in the IDE, so the
-independent-review gate is **best-effort** with a mandatory reviewer **handshake-or-HALT** — fully
-forced only when Hercules runs the review through the headless `cursor-agent -p` CLI. The gaps are
-disclosed in `dist/cursor/CAPABILITIES.md`.
+**Capability note.** Cursor has no pre-file-edit veto, so Hercules works *with* the host, not against it:
+
+- **Hard-denies where Cursor can block** — a plugin hook denies shell commands and MCP calls that write to or commit a frozen test.
+- **Advisory on the edit path (IDE)** — a Composer edit to a frozen test raises a notice and leaves
+  your working tree untouched; you undo it or grant an override.
+- **Auto-restore only when headless** — an unattended `cursor-agent` run restores the file via `git checkout` (no human present to act on a notice).
+- **Acceptance gate** — every frozen test is re-hashed before a spec retires; a strong, prompt-enforced catch, not an unbypassable lock.
+- **Independent review is best-effort** — the reviewer must return a handshake or Hercules HALTs; fully forced only via the headless `cursor-agent -p` CLI.
+
+Gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
 
 </details>
 
@@ -299,35 +297,27 @@ tokens, or telemetry). Nothing about where your repos live is written into the d
 
 ## How it works
 
-Every feature runs the **same four phases** — the process is constant; what scales is the **number of
-advisors**. Hercules brings strength in proportion to the task: a typo runs no advisor debate; a
-payment migration convenes the full council. The effort is sized to the change: never overkill on a small one nor
-under-prepared on a large one.
+Every feature runs the **same four phases** — what scales is the **number of advisors**: a typo runs
+none; a payment migration convenes the full council. Effort is sized to the change.
 
-1. **Discover — WHAT** (the heaviest phase) — pins the real need, who benefits, what's in/out of
-   scope, and what "done" means. Output: a permanent `*-business-requirements.md`, in plain business
-   language. On a large feature, Discover's draft loop can run across several conversation turns
-   before you approve; each pass regenerates the complete draft from your latest feedback.
-2. **Design — HOW** — turns requirements into one or more self-contained **specs**, challenged by
-   specialist advisors before any code. Output: `*-spec-NN-*.md` (temporary).
-3. **Build — MAKE** — opens with a delivery plan you approve (which specs, in what order, grouped
-   how), then delivers each spec test-first: scaffold, write real tests of the requirements — red only
-   until the logic exists (frozen once written; unblock any test just by asking),
-   implement, and pass the quality gates your `code-of-conduct.md` defines. A cross-check then confirms
-   the delivery matches the requirements. Output: code + tests. The specs are deleted once delivered in code (`git rm`).
-4. **Ship — COMMIT** — after Build completes and you've reviewed the diff, drafts a commit
-   plan (files to stage, commit message, push target), waits for your approval, then executes
-   automatically. No follow-up questions.
+1. **Discover — WHAT** (the heaviest phase) — pins the real need, who benefits, scope, and what "done"
+   means. Output: a permanent `*-business-requirements.md`, in plain business language.
+2. **Design — HOW** — turns requirements into self-contained **specs**, challenged by specialist
+   advisors before any code. Output: `*-spec-NN-*.md` (temporary).
+3. **Build — MAKE** — you approve a delivery plan, then each spec ships test-first: real tests (frozen
+   once written; unblock any by asking), implementation, and the quality gates your `code-of-conduct.md`
+   defines. Output: code + tests; specs deleted once delivered (`git rm`).
+4. **Ship — COMMIT** — after you review the diff, Hercules drafts a commit plan, waits for approval,
+   then executes. No follow-up questions.
 
-**Two documents, two lifecycles.** Business-requirements are **long-lived** — committed forever, in
-business language, the shareable record of what a feature is *for*. Specs are **per-development** — once
-delivered in code, they're deleted, because the code, its tests, and git history become the source of truth.
-Prefer permanent specs (your company already runs on them)? Put it in your `code-of-conduct.md` — e.g.
-*"Always keep the specs, never delete them"* — and delivered specs are kept and refreshed at delivery
-instead of deleted.
+**Two documents, two lifecycles:**
 
-**Complexity scoring (so depth isn't guesswork).** In Discover, Hercules scores the feature on
-*effort* and *blast-radius* (how many users or systems a bug could harm) and takes the higher of the two.
+- **Business-requirements** — long-lived, committed forever, in business language: the shareable record of what a feature is *for*.
+- **Specs** — per-development: deleted once delivered, since code, tests, and git history become the source of truth.
+- **Want permanent specs?** Put *"always keep the specs"* in your `code-of-conduct.md` — delivered specs are then kept and refreshed, not deleted.
+
+**Complexity scoring (so depth isn't guesswork).** Discover scores the feature on *effort* and
+*blast-radius* (how many users or systems a bug could harm) and takes the higher:
 
 | Tier | Effort signals | Blast-radius signals | Advisors |
 |---|---|---|---|
@@ -337,17 +327,16 @@ instead of deleted.
 | high | auth, payments, migration | data at risk, deletion, prod config | 2–4 |
 | critical | multi-service migration | user data, security primitives, money | 3–6 |
 
-Only **trivial** skips the advisory board; every other tier recommends it (you consent or skip), scaled to the number above. A
-change touching **auth, secrets, money, data migration, deletion, production config, or concurrency**
-is floored at `high` regardless of how small the diff looks. You see the score and can override it;
-advisor dissent surfaces as input for you to weigh, never an automatic re-score.
+- **Only `trivial` skips the board** — every other tier recommends it (you consent or skip), scaled to the advisor count above.
+- **High-risk surfaces are floored at `high`** — auth, secrets, money, data migration, deletion, production config, or concurrency, however small the diff.
+- **You stay in control** — you see the score and can override it; advisor dissent is input you weigh, never an automatic re-score.
 
-**Quality has numbers, not adjectives.** Build gates on the **branch-coverage** threshold your
-project's `code-of-conduct.md` sets, and on a **mutation-kill** threshold when the CoC defines one —
-the generator suggests **≥90%** for both as a default, and you can change them. Mutation testing
-checks that your tests actually catch bugs, and a requirement ships only when a **named test** asserts
-it. Traceability is always enforced — decided by an independent reviewer, not the session that wrote the code; branch coverage gates when your CoC sets a threshold, and the mutation gate runs whenever the CoC sets
-a kill-rate threshold — none of this is a best-practice you skip under pressure once it applies.
+**Quality has numbers, not adjectives:**
+
+- **Coverage** — Build gates on the branch-coverage threshold your `code-of-conduct.md` sets.
+- **Mutation** — a kill-rate gate runs when the CoC defines one (the generator defaults to **≥90%**); it checks your tests actually catch bugs.
+- **Traceability** — a requirement ships only when a **named test** asserts it, decided by an **independent reviewer**, not the session that wrote the code.
+- **Not optional** — once a gate applies, it is not a best-practice you skip under pressure.
 
 ---
 
