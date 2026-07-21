@@ -29,7 +29,7 @@ def test_workflows_exist_and_have_run_steps():
     would vacuously pass. Anchor it to a non-empty, known surface."""
     steps = list(_run_steps())
     assert steps, "no workflow run: steps found — did the workflows move?"
-    assert {wf for wf, *_ in steps} >= {"ci.yml", "release.yml", "smoke-nightly.yml"}
+    assert {wf for wf, *_ in steps} >= {"ci.yml", "release.yml"}
 
 
 def test_every_workflow_run_step_calls_only_make():

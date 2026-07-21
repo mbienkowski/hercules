@@ -1,5 +1,5 @@
 .PHONY: test test-mutation test-smoke install build build-check \
-        ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate smoke-annotate-nightly \
+        ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate \
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
 
 install:
@@ -48,9 +48,6 @@ smoke-run:
 
 smoke-annotate:
 	bash scripts/ci/annotate_smoke.sh
-
-smoke-annotate-nightly:
-	bash scripts/ci/annotate_nightly.sh
 
 # ── Release entry points (release.yml) ───────────────────────────────────────
 release-verify:

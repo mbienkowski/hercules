@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run one ecosystem's live-CLI smoke test and fail CLOSED (invoked by `make smoke-run`). Env: TEST,
-# TARGET, RESULT_PREFIX (smoke-results for ci.yml, smoke-latest for the nightly).
+# TARGET, RESULT_PREFIX (smoke-results).
 #
 # `pipefail` makes a red pytest propagate through `tee` and fail the leg. If pytest instead
 # all-SKIPPED (the CLI silently absent, or every test skipped), it exits 0 with only "N skipped" and
