@@ -20,6 +20,7 @@ the fail-open policy rather than broken.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -90,6 +91,67 @@ def _override_allows(session, roots, target_canon) -> bool:
         return target_canon in allowed
     except Exception:
         return False
+
+
+def _sha256(path) -> str | None:
+    """SHA-256 of a file's bytes, or None if it can't be read (missing/unreadable). Never raises."""
+    try:
+        with open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except Exception:
+        return None
+
+
+def frozen_drift(session, roots) -> list:
+    """Frozen tests whose on-disk content no longer matches the baseline recorded at freeze time and
+    which no active ``frozen_override`` covers — the **phase-acceptance backstop** the orchestrator runs
+    before it *accepts/retires a spec*.
+
+    The tool-time hooks (PreToolUse / Cursor after-edit) can be evaded or, on Cursor's advisory IDE path,
+    are intentionally non-blocking; this re-checks the acceptance tests at the retire gate, catching a
+    tamper no matter how it was made (Composer, ``python -c``, an MCP server, a race). The *check* is
+    deterministic; its *invocation* is prompt-enforced by the Build phase, like the other Build gates.
+
+    Baseline is ``session['frozen_baseline']`` — a ``{repo-relative-path: sha256}`` map recorded when the
+    spec's tests are frozen. When it is absent/empty the backstop is simply inactive for that session
+    (returns ``[]`` — older sessions predate it). When it IS active, every ``frozen_test_files`` entry is
+    checked and the direction is **fail-closed**:
+
+    - a frozen file that *vanished*, or that is in ``frozen_test_files`` but was never baselined, is drift;
+    - a file that resolves under several roots (monorepo/multi-service) is drift if **any** root's copy
+      diverges from the baseline and no override covers it — matching ``frozen_candidates``' own
+      "under any root counts" fail-closed rule, not the inverse.
+
+    Returns the drifted ``frozen_test_files`` entries (repo-relative). Never raises.
+    """
+    try:
+        baseline = session.get("frozen_baseline")
+        if not isinstance(baseline, dict) or not baseline:
+            return []  # backstop inactive for this session (nothing was baselined)
+        entries = session.get("frozen_test_files")
+        if not isinstance(entries, list) or not entries:
+            entries = list(baseline)  # fall back to the baselined paths
+        drifted = []
+        for entry in entries:
+            if not isinstance(entry, str) or not entry:
+                continue
+            want = baseline.get(entry)
+            if not isinstance(want, str) or not want:
+                drifted.append(entry)  # active baseline but this frozen file wasn't baselined → fail-closed
+                continue
+            existing = [(c, _sha256(c)) for c in frozen_candidates(entry, roots)]
+            existing = [(c, h) for c, h in existing if h is not None]
+            if not existing:
+                drifted.append(entry)  # a frozen test that disappeared is tampering (fail-closed)
+                continue
+            # Fail-closed: EVERY existing copy must match the baseline; a mismatch under ANY root is drift
+            # unless the user's override covers that copy (an override spans every root of the entry).
+            mismatched = [(c, h) for c, h in existing if h != want]
+            if mismatched and any(not _override_allows(session, roots, c) for c, _ in mismatched):
+                drifted.append(entry)
+        return drifted
+    except Exception:
+        return []
 
 
 def decide(payload, home=None):

@@ -97,8 +97,8 @@ def test_a_shipped_hook_never_writes_hercules_state(script: Path):
     write attribute, or ``shutil``. Those are the operations that could corrupt Hercules's saved
     state under ``~/.hercules`` by racing the model's atomic writes, so every ecosystem's hooks
     stay read-only over state. The single sanctioned working-tree mutation — Cursor's disclosed
-    ``git checkout`` revert backstop — goes through ``subprocess``/git, never a direct write, and
-    is bounded separately by ``test_the_after_edit_backstop_is_a_bounded_git_revert``."""
+    ``git checkout`` restore backstop — goes through ``subprocess``/git, never a direct write, and
+    is bounded separately by ``test_the_after_edit_backstop_is_bounded_honest_and_headless_only``."""
     tree = ast.parse(script.read_text())
     offenders = []
     for node in ast.walk(tree):
@@ -115,21 +115,30 @@ def test_a_shipped_hook_never_writes_hercules_state(script: Path):
     assert not offenders, f"{script.name} performs a direct filesystem write {offenders}; hooks stay read-only over state"
 
 
-def test_the_after_edit_backstop_is_a_bounded_recoverable_git_stash():
-    """Cursor's ``afterFileEdit`` hook cannot veto an edit (notification-only), so it reverts a
-    frozen-test edit as a disclosed backstop — the ONE working-tree mutation any hook performs. Pin that
-    it is bounded AND **recoverable**: it reverts via ``git stash`` (the user can ``git stash pop`` to get
-    their work back), never a **destructive** ``checkout``/``reset --hard``/``clean``/``rm`` that would
-    silently discard the user's edit, so neither a widened blast radius nor data loss can slip in. If
-    Cursor ever ships no such hook, this test is simply vacuous."""
+def test_the_after_edit_backstop_is_bounded_honest_and_headless_only():
+    """Cursor's ``afterFileEdit`` hook cannot veto an edit (notification-only). Its backstop is the ONE
+    working-tree mutation any hook performs, and it is tightly constrained:
+
+      - it restores via a PATH-BOUNDED ``git checkout -- <file>`` (the CoC-sanctioned mutation), never a
+        broad/destructive ``reset --hard`` / ``clean`` / ``rm -`` / bare ``checkout .``;
+      - it runs ONLY in headless mode (gated on ``HERCULES_RUNTIME_MODE``) — the interactive IDE never
+        mutates the user's tree, it only advises;
+      - it claims success ONLY when git actually restored the file (gated on the return code), never the
+        old false "reverted, run git stash pop" message on an untracked file or non-git tree.
+
+    If Cursor ever ships no such hook, this test is simply vacuous."""
     gate = _TARGETS / "cursor" / "hooks" / "hercules_gate.py"
     if not gate.is_file():
         pytest.skip("no Cursor gate shipped")
     src = gate.read_text()
-    assert "stash" in src, "the after-edit backstop must revert via git stash (recoverable)"
-    assert "git stash pop" in src, "the user must be told how to recover the stashed edit"
-    for forbidden in ("reset --hard", "clean -", "rm -", "checkout"):
-        assert forbidden not in src, f"the after-edit backstop must not run a destructive `{forbidden}`"
+    assert '"checkout", "--"' in src, "the backstop must restore via a path-bounded `git checkout -- <file>`"
+    assert "HERCULES_RUNTIME_MODE" in src, "the mutation must be gated to headless mode (IDE is advisory)"
+    assert "returncode == 0" in src, "success must be claimed only when git actually restored the file"
+    # No destructive/broad working-tree ops, and no reintroduced git-stash command (we no longer touch
+    # the stash stack). `'"stash"'` targets the subprocess arg token, not the MCP write-hint regex word.
+    assert '"stash"' not in src, "the after-edit backstop must not run git stash (no false-recovery path)"
+    for forbidden in ("reset --hard", "clean -", "rm -"):
+        assert forbidden not in src, f"the after-edit backstop must not use `{forbidden}`"
 
 
 def test_test_coverage_exemptions_cannot_be_used_to_hide_untested_logic(repo_root):

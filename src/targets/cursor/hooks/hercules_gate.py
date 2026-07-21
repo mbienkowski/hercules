@@ -5,13 +5,23 @@ Cursor's hooks CAN, all keyed off the SAME frozen-test state and the SAME overri
 and OpenCode read (``hercules_state`` + ``frozen_tests._override_allows``, both shipped alongside):
 
 - ``shell`` (``beforeShellExecution``): DENY a shell command that writes to / commits a frozen test
-  path during an active build — a real hard block on the shell write-path.
-- ``after_edit`` (``afterFileEdit``): notification-only, so REVERT a frozen edit after the fact by
-  ``git stash`` (recoverable, not a destructive discard) as a best-effort backstop — it cannot prevent
-  a Composer edit, only undo it, and the user can ``git stash pop`` to get their change back.
+  path during an active build — a real hard block on the shell write-path. Coarse *guardrail*, not a
+  sound sandbox (``python -c``/heredocs/cross-pipe evade it — disclosed in CAPABILITIES.md).
+- ``mcp`` (``beforeMCPExecution``): DENY a *write-ish* MCP tool call whose arguments name a frozen test
+  during a build — closes the "an MCP git/filesystem server commits around the shell gate" hole. Also a
+  coarse guardrail: it can only see the serialized arguments the MCP server exposes.
+- ``after_edit`` (``afterFileEdit``): notification-only — Cursor has already applied the edit. Behaviour
+  is **runtime-aware** (``HERCULES_RUNTIME_MODE``):
+    * **interactive IDE (default)** — Hercules does **not** touch your working tree; it surfaces a loud,
+      plain-language ``userMessage`` and lets you decide (undo it, or grant a ``frozen_override``). The
+      human owns their tree; a silent revert would fight Cursor's model (least-astonishment).
+    * **headless** (``HERCULES_RUNTIME_MODE=headless``, set by Hercules when it drives ``cursor-agent -p``
+      — no human present) — restore the frozen path via ``git checkout`` and say so **only if it actually
+      succeeded** (never a false "reverted" claim on an untracked file / non-git tree).
 
-Block/revert messages reuse the CANONICAL ``frozen_tests._reason`` — the exact wording Claude Code and
-OpenCode emit — so the guidance (including the "change this test" unblock) is identical everywhere.
+Shell/MCP block messages reuse the CANONICAL ``frozen_tests._reason`` — the exact wording Claude Code and
+OpenCode emit. The IDE after-edit advisory is Cursor-specific plain-language copy (there is no Claude/
+OpenCode equivalent surface), but it carries the SAME ``frozen_override`` escape hatch.
 
 Reads are NOT blocked: the doctrine locks frozen tests against *edits*, not reads (the implementing
 agent must read the very test it makes pass), matching Claude Code and OpenCode. A user-sanctioned
@@ -19,8 +29,8 @@ agent must read the very test it makes pass), matching Claude Code and OpenCode.
 because the override check is the canonical one, not a second implementation.
 
 Invoked as ``python3 hercules_gate.py <mode>`` with the Cursor event JSON on stdin; prints the Cursor
-decision JSON on stdout. Fails OPEN (allow) on any error — matching the Claude frozen hook's policy, so
-a gate bug never bricks an unrelated command.
+decision JSON on stdout. Fails OPEN (allow / no-op) on any error or missing ``python3`` — matching the
+Claude frozen hook's policy, so a gate bug never bricks an unrelated command (disclosed in CAPABILITIES).
 """
 from __future__ import annotations
 
@@ -51,6 +61,41 @@ _REDIRECT = re.compile(r">>?\s*(\S+)")               # output redirection and it
 # Quoted spans are stripped before the frozen-path scan, so a commit message that merely NAMES a frozen
 # test (``git commit -m "fix test_login.py"``) is not mistaken for an operation on that file.
 _QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
+# A *write-ish* MCP tool name (an MCP git/filesystem server) — used to avoid blocking pure reads of a
+# frozen test (the doctrine allows reads), while catching write/commit MCP ops on frozen paths.
+_MCP_WRITE_HINT = re.compile(
+    r"(write|commit|edit|create|delete|remove|put|add|move|rename|patch|apply|stash|checkout|reset"
+    r"|save|update|append|insert|push)", re.I)
+
+
+def _is_headless() -> bool:
+    """Headless (autonomous, no human) iff Hercules declared it via env. Default = interactive IDE, the
+    safe non-mutating direction — the hook can't tell the two apart from Cursor's event payload, so mode
+    is *declared* by whoever owns the invocation (Hercules sets it when it drives ``cursor-agent -p``)."""
+    return os.environ.get("HERCULES_RUNTIME_MODE") == "headless"
+
+
+def _restore(cwd: str, fp: str) -> bool:
+    """Restore *fp* to its committed content via ``git checkout`` (CoC-sanctioned working-tree mutation).
+    Returns True ONLY if git actually restored it — so the caller never claims a revert that didn't
+    happen (an untracked frozen test or a non-git tree fails here, honestly)."""
+    try:
+        r = subprocess.run(["git", "-C", cwd, "checkout", "--", fp],
+                           capture_output=True, timeout=10)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def _ide_advisory(fp: str) -> str:
+    """Cursor-specific, plain-language advisory for the interactive IDE (no working-tree mutation)."""
+    return (
+        f"Hercules: {os.path.basename(fp)} is a locked acceptance test for this Build. "
+        "The goal is to write code that makes it pass — not to change the test, which would let the "
+        "acceptance criteria drift to force a green. Your edit is still on disk and Hercules did NOT "
+        "touch it. Undo it (Ctrl+Z) and implement against the test, OR grant an override by telling "
+        'Hercules: "change test ' + os.path.basename(fp) + ' — <reason>".'
+    )
 
 
 def _cwd(evt: dict) -> str:
@@ -109,12 +154,46 @@ def _writes_frozen(cmd: str, frozen: dict):
     return None
 
 
+def _mcp_hits_frozen(evt: dict, frozen: dict):
+    """Return the frozen canon-path a *write-ish* MCP call targets, or None.
+
+    Coarse guardrail (like the shell scan): it can only see what the MCP server exposes. It fires when
+    the tool NAME looks mutating (``_MCP_WRITE_HINT`` — write/commit/edit/…) AND a frozen test's basename
+    appears in the serialized arguments — so a pure read/list/get MCP call (which the doctrine allows) is
+    not blocked, while an MCP git-commit or filesystem-write on a frozen path is. Name/arg field names
+    vary by server, so several candidates are checked defensively."""
+    name = ""
+    # Cursor's exact beforeMCPExecution payload keys aren't firmly documented, so accept the plausible
+    # snake_case AND camelCase spellings; if none match, the tool name stays "" and we fail OPEN (allow)
+    # — the disclosed guardrail posture. CAPABILITIES.md notes this dependence on the server's payload.
+    for key in ("tool_name", "toolName", "name", "tool", "method", "server_name", "serverName", "server"):
+        v = evt.get(key)
+        if isinstance(v, str) and v:
+            name = v
+            break
+    if not _MCP_WRITE_HINT.search(name):
+        return None
+    args = None
+    for key in ("tool_input", "toolInput", "arguments", "input", "params", "args"):
+        if key in evt:
+            args = evt[key]
+            break
+    try:
+        blob = json.dumps(args, default=str) if args is not None else ""
+    except Exception:
+        blob = str(args)
+    for p in frozen:
+        if os.path.basename(p) in blob:
+            return p
+    return None
+
+
 def decide(mode: str, evt: dict, home=None) -> None:
     """Emit the Cursor decision for *mode* given event *evt*. Never raises for a resolvable state."""
     cwd = _cwd(evt)
     frozen = frozen_map(cwd, home=home)
     if not frozen:
-        if mode == "shell":
+        if mode in ("shell", "mcp"):
             _allow()
         return
     if mode == "shell":
@@ -125,20 +204,32 @@ def decide(mode: str, evt: dict, home=None) -> None:
             _deny(reason, reason)
         else:
             _allow()
+    elif mode == "mcp":
+        hit = _mcp_hits_frozen(evt, frozen)
+        if hit is not None:
+            reason = _reason(hit, frozen[hit])
+            _deny(reason, reason)
+        else:
+            _allow()
     elif mode == "after_edit":
         fp = evt.get("file_path")
         c = canon(fp) if fp else None
         if c is not None and c in frozen:
-            # afterFileEdit can't veto — stash the single frozen path (RECOVERABLE, unlike a hard
-            # discard that would destroy the user's work) as a best-effort backstop.
-            try:
-                subprocess.run(["git", "-C", cwd, "stash", "push",
-                                "-m", f"hercules: reverted frozen test {os.path.basename(fp)}", "--", fp],
-                               capture_output=True, timeout=10)
-            except Exception:
-                pass
-            print(json.dumps({"agentMessage": _reason(fp, frozen[c])
-                              + " (Your edit was stashed, not discarded — run `git stash pop` to recover it.)"}))
+            # afterFileEdit is notification-only (the edit already landed). Runtime-aware:
+            if _is_headless():
+                # No human present — restore, but say so ONLY if git actually did it (no false claim).
+                if _restore(cwd, fp):
+                    note = (_reason(fp, frozen[c])
+                            + " (No human was present, so Hercules restored the file from git.)")
+                else:
+                    note = (_reason(fp, frozen[c])
+                            + " (Hercules could NOT auto-restore it — not a git repo, or the test is "
+                              "untracked. Revert it manually before continuing.)")
+                print(json.dumps({"userMessage": note, "agentMessage": note}))
+            else:
+                # Interactive IDE — never mutate the user's tree; advise loudly and let them decide.
+                note = _ide_advisory(fp)
+                print(json.dumps({"userMessage": note, "agentMessage": note}))
 
 
 def main(argv, stdin_text=None, home=None) -> int:
@@ -148,8 +239,8 @@ def main(argv, stdin_text=None, home=None) -> int:
         evt = json.loads(raw) if raw and raw.strip() else {}
         decide(mode, evt, home=home)
     except Exception:
-        if mode == "shell":  # fail OPEN, like the Claude frozen hook
-            _allow()
+        if mode in ("shell", "mcp"):  # fail OPEN, like the Claude frozen hook (a gate bug never bricks
+            _allow()                    # an unrelated command); after_edit fails open by emitting nothing
     return 0
 
 

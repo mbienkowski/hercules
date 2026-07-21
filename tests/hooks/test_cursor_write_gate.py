@@ -5,7 +5,10 @@ SAME frozen-test state AND the SAME ``frozen_override`` policy Claude Code and O
 (``hercules_state`` + ``frozen_tests._override_allows``):
 
 - ``shell`` (``beforeShellExecution``): DENY a command that writes/commits a frozen test during a build.
-- ``after_edit`` (``afterFileEdit``): notification-only — REVERT a frozen edit after the fact.
+- ``mcp`` (``beforeMCPExecution``): DENY a write-ish MCP call that names a frozen test during a build.
+- ``after_edit`` (``afterFileEdit``): notification-only — **advisory** in the interactive IDE (no
+  working-tree mutation), an honest ``git checkout`` restore only in **headless** runs
+  (``HERCULES_RUNTIME_MODE=headless``).
 
 Reads are NOT blocked (the doctrine locks edits, not reads). A user-sanctioned ``frozen_override`` lifts
 the gate for its files this round.
@@ -74,6 +77,13 @@ def _decide(mode: str, evt: dict, home: Path, capsys) -> dict:
     gate.main(["hercules_gate.py", mode], stdin_text=json.dumps(evt), home=str(home))
     out = capsys.readouterr().out.strip()
     return json.loads(out) if out else {}
+
+
+@pytest.fixture(autouse=True)
+def _interactive_by_default(monkeypatch):
+    """Every test runs in interactive-IDE mode (the advisory, non-mutating default) unless it explicitly
+    opts into headless — so a stray ``HERCULES_RUNTIME_MODE`` in the runner env can't skew a test."""
+    monkeypatch.delenv("HERCULES_RUNTIME_MODE", raising=False)
 
 
 # ── shell deny: every write/commit primitive, as HARDCODED commands (not read from the tuple) ──
@@ -213,31 +223,108 @@ def test_after_edit_does_not_revert_a_sanctioned_override_edit(tmp_path, capsys)
     assert _decide("after_edit", evt, home, capsys) == {}
 
 
-# ── after_edit (afterFileEdit) — notification-only, so revert as a backstop ──────────────────
-@pytest.mark.skipif(not _HAVE_GIT, reason="git required for the live revert check")
-def test_after_edit_stashes_a_frozen_edit_recoverably(active_build, capsys):
-    """afterFileEdit can't veto, so the adapter reverts a frozen edit by ``git stash`` — RECOVERABLE,
-    never a destructive checkout that discards the user's work — and warns with the canonical reason plus
-    how to get the change back."""
+# ── after_edit (afterFileEdit) — advisory in the IDE, honest git-checkout restore only in headless ──
+def test_after_edit_ide_advises_and_never_touches_the_tree(active_build, capsys):
+    """Default (interactive IDE): a frozen Composer edit gets a loud, USER-visible advisory and the
+    working tree is left exactly as the human left it — Hercules never silently mutates it
+    (least-astonishment; the human owns their tree)."""
+    home, proj = active_build
+    frozen = proj / "tests" / "test_frozen.py"
+    frozen.write_text("tampered\n", encoding="utf-8")
+    evt = {"file_path": str(frozen), "workspace_roots": [str(proj)]}
+    d = _decide("after_edit", evt, home, capsys)
+    assert d["userMessage"] == d["agentMessage"], "surfaced to the USER, not agent-only"
+    assert "locked acceptance test" in d["userMessage"]
+    assert "change test test_frozen.py" in d["userMessage"], "names the override escape hatch"
+    assert frozen.read_text(encoding="utf-8") == "tampered\n", "the IDE path must NOT mutate the tree"
+
+
+@pytest.mark.skipif(not _HAVE_GIT, reason="git required for the live restore check")
+def test_after_edit_headless_restores_via_git_checkout(active_build, capsys, monkeypatch):
+    """Headless (no human to act on a notice): the frozen edit is restored via ``git checkout`` and the
+    message says so — because the restore actually succeeded on a tracked file in a real repo."""
+    monkeypatch.setenv("HERCULES_RUNTIME_MODE", "headless")
     home, proj = active_build
     frozen = proj / "tests" / "test_frozen.py"
     frozen.write_text("original\n", encoding="utf-8")
     env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
            "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
-    # -c guards keep the commit from tripping over a dev/CI box's global gpg-signing or pre-commit hook.
     base = ["git", "-C", str(proj), "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"]
     for cmd in (["init", "-q"], ["add", "-A"], ["commit", "-qm", "init"]):
         subprocess.run(base + cmd, check=True, env=env, capture_output=True)
     frozen.write_text("tampered\n", encoding="utf-8")  # a Composer edit slips through
-
     evt = {"file_path": str(frozen), "workspace_roots": [str(proj)]}
     d = _decide("after_edit", evt, home, capsys)
-    assert "is a frozen test for spec-1.md" in d["agentMessage"], "carries the canonical reason"
-    assert "git stash pop" in d["agentMessage"], "names the recovery path"
-    assert frozen.read_text(encoding="utf-8") == "original\n", "the working tree is reverted"
-    # ...and the user's work is RECOVERABLE, not discarded:
-    subprocess.run(base + ["stash", "pop"], check=True, env=env, capture_output=True)
-    assert frozen.read_text(encoding="utf-8") == "tampered\n", "git stash pop restores the user's edit"
+    assert "restored the file from git" in d["userMessage"], "claims the restore that actually happened"
+    assert frozen.read_text(encoding="utf-8") == "original\n", "headless restores the frozen content"
+
+
+def test_after_edit_headless_is_honest_when_restore_cannot_happen(active_build, capsys, monkeypatch):
+    """Headless on an UNTRACKED frozen test (the common case right after Design→Build) or a non-git tree:
+    ``git checkout`` cannot restore it, so the message must SAY it could not — never the old false
+    "reverted, run git stash pop" claim — and the file is left as it was (there is nothing to restore to)."""
+    monkeypatch.setenv("HERCULES_RUNTIME_MODE", "headless")
+    home, proj = active_build          # active_build's proj is NOT a git repo
+    frozen = proj / "tests" / "test_frozen.py"
+    frozen.write_text("tampered\n", encoding="utf-8")
+    evt = {"file_path": str(frozen), "workspace_roots": [str(proj)]}
+    d = _decide("after_edit", evt, home, capsys)
+    assert "could NOT auto-restore" in d["userMessage"], "no false success when the restore failed"
+    assert "restored the file from git" not in d["userMessage"]
+    assert frozen.read_text(encoding="utf-8") == "tampered\n"
+
+
+# ── mcp (beforeMCPExecution) — deny a WRITE-ish MCP call naming a frozen test; allow reads ────
+def test_mcp_denies_a_writeish_call_targeting_a_frozen_test(active_build, capsys):
+    """An MCP git/filesystem server that commits/writes a frozen test bypasses the shell gate entirely —
+    beforeMCPExecution closes that hole for write-ish tools whose args name the frozen path."""
+    home, proj = active_build
+    evt = {"tool_name": "git_commit", "arguments": {"files": ["tests/test_frozen.py"], "message": "x"},
+           "workspace_roots": [str(proj)]}
+    d = _decide("mcp", evt, home, capsys)
+    assert d["permission"] == "deny"
+    assert "is a frozen test for spec-1.md (build round 1/3)" in d["agentMessage"]
+
+
+def test_mcp_allows_a_read_call_on_a_frozen_test(active_build, capsys):
+    """The doctrine ALLOWS reading a frozen test — a read-ish MCP tool naming it is not blocked."""
+    home, proj = active_build
+    evt = {"tool_name": "read_file", "arguments": {"path": "tests/test_frozen.py"},
+           "workspace_roots": [str(proj)]}
+    assert _decide("mcp", evt, home, capsys)["permission"] == "allow"
+
+
+def test_mcp_allows_a_write_call_that_names_no_frozen_test(active_build, capsys):
+    home, proj = active_build
+    evt = {"tool_name": "write_file", "arguments": {"path": "src/feature.py", "content": "x"},
+           "workspace_roots": [str(proj)]}
+    assert _decide("mcp", evt, home, capsys)["permission"] == "allow"
+
+
+def test_mcp_allows_everything_when_no_build_is_active(tmp_path, capsys):
+    home = tmp_path / "empty"
+    home.mkdir()
+    evt = {"tool_name": "write_file", "arguments": {"path": "tests/test_frozen.py"},
+           "workspace_roots": [str(tmp_path)]}
+    assert _decide("mcp", evt, home, capsys)["permission"] == "allow"
+
+
+def test_mcp_respects_the_frozen_override(tmp_path, capsys):
+    """A live ``frozen_override`` lifts the MCP gate too — same canonical policy as shell/edit."""
+    home, proj = tmp_path / "home", tmp_path / "proj"
+    (proj / "tests").mkdir(parents=True)
+    _write_state(home, proj, _override_session())
+    evt = {"tool_name": "git_commit", "arguments": {"files": ["tests/test_frozen.py"]},
+           "workspace_roots": [str(proj)]}
+    assert _decide("mcp", evt, home, capsys)["permission"] == "allow"
+
+
+def test_mcp_fails_open_on_malformed_event(tmp_path, capsys):
+    """Garbage on stdin must still yield allow for mcp — a gate bug never bricks an MCP call."""
+    home = tmp_path / "home"
+    home.mkdir()
+    gate.main(["hercules_gate.py", "mcp"], stdin_text="{not json", home=str(home))
+    assert json.loads(capsys.readouterr().out.strip())["permission"] == "allow"
 
 
 def test_after_edit_is_silent_for_a_non_frozen_file(active_build, capsys):
@@ -292,6 +379,7 @@ def test_hook_commands_invoke_the_gate_by_exact_plugin_root_path(tmp_path):
     hooks = json.loads((out / "hooks" / "hooks.json").read_text(encoding="utf-8"))
     expected = {
         "beforeShellExecution": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py shell",
+        "beforeMCPExecution": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py mcp",
         "afterFileEdit": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py after_edit",
     }
     for event, want in expected.items():

@@ -4,18 +4,36 @@ Hercules ships the full Discover → Design → Build → Ship methodology on Cu
 (`.cursor-plugin/plugin.json`), with three capability gaps disclosed here (the "disclose gaps, never
 hide" principle):
 
-- **Frozen-test write-gate: partially enforced (needs `python3`).** Cursor has no pre-file-edit veto
-  (`afterFileEdit` is notification-only), so a Composer edit to a frozen test **cannot be prevented** —
-  but the plugin's hooks (`hooks/hooks.json` → `hooks/hercules_gate.py`, reusing the same canonical
-  guard state AND the same `frozen_override` policy) add real teeth: `beforeShellExecution`
-  **hard-denies** a shell command that writes to or commits a frozen test during a build, and
-  `afterFileEdit` **reverts** a frozen edit after the fact (a backstop, since it cannot block). A
-  user-granted `frozen_override` ("change test X") lifts the gate for that file this round, exactly as
-  on Claude Code and OpenCode. The hooks need `python3` on PATH and fail **open** if it is absent. Turn
-  on Cursor's *ask-before-applying-edits* approval for an additional backstop. This is stronger than
-  advisory but weaker than Claude Code's hard pre-write veto — the Composer-edit path is revert-only, and
-  the shell check is a coarse guardrail against honest/accidental writes (it catches the common
-  write/delete/redirect forms, but not `python -c`, heredocs, or cross-pipe data flow).
+- **Frozen-test write-gate: works *with* Cursor's capabilities (needs `python3`).** Cursor has no
+  pre-file-edit veto (`afterFileEdit` is notification-only), so a Composer edit to a frozen test **cannot
+  be blocked** — Hercules does not pretend otherwise. The hooks (`hooks/hooks.json` →
+  `hooks/hercules_gate.py`, reusing the same canonical guard state AND the same `frozen_override` policy)
+  put the hard teeth where Cursor *can* block: `beforeShellExecution` **and** `beforeMCPExecution`
+  **deny** a shell command or MCP tool call that writes to or commits a frozen test during a build. On
+  the edit path the behaviour is **runtime-aware**:
+    - **Interactive IDE (default): advisory, no working-tree mutation.** A frozen edit raises a loud,
+      plain-language notice (`userMessage`) and Hercules leaves your file exactly as you left it — you
+      undo it (Ctrl+Z) or grant an override. A silent revert would fight Cursor's model (the human owns
+      their working tree), so Hercules doesn't do it.
+    - **Headless (`HERCULES_RUNTIME_MODE=headless`, set by Hercules when it drives `cursor-agent -p` — no
+      human present): automatic `git checkout` restore**, and it says so **only when git actually
+      restored it** (never a false "reverted" claim on an untracked test or a non-git tree).
+  The backstop behind the advisory path is the **acceptance gate**: before a spec retires, every frozen
+  test is re-hashed against a baseline and any drift not covered by an override **HALTs the retire**,
+  catching a tamper however it was made (`python -c`, an MCP write, the advisory IDE path). The hash
+  *check* is deterministic, but — like Hercules' other Build gates — its *invocation* is prompt-enforced
+  by the orchestrator, not hard-wired into a hook: it is a strong catch-at-acceptance, **not** an
+  unbypassable lock (the honest scope; runtime-mediated, not tamper-proof). A user-granted
+  `frozen_override` ("change test X") lifts the gate for that file this round, exactly as on Claude Code
+  and OpenCode. The hooks need `python3` on PATH and fail **open** (allow / no-op) if it is absent — for
+  the shell/MCP deny **and** the after-edit path — leaving the acceptance gate as the protection until
+  `python3` is available; Build announces this at start. The shell/MCP checks are coarse **guardrails**,
+  not a sound sandbox — and coarse in both directions: they can **under-block** (`python -c`, heredocs,
+  cross-pipe data flow, or an MCP server that hides the target path from its arguments, or whose event
+  uses payload keys the adapter doesn't recognise — then the MCP call fails open), and they can
+  **over-block** (matching is basename-level, so a write to an *unrelated* file that happens to share a
+  frozen test's basename can be denied during a build). Turn on Cursor's *ask-before-applying-edits*
+  approval for an additional in-IDE backstop.
 - **No per-agent model tier.** Every Hercules subagent **inherits the model you select in Cursor** — the
   build omits a per-agent `model:` on purpose (Cursor's `inherit` default), because forcing advisors onto
   a cheap `fast` tier would degrade the reasoning-heavy reviewers, and Cursor's `model: inherit` is itself

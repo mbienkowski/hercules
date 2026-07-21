@@ -114,8 +114,14 @@ off the same frozen-guard state so no logic is reimplemented per target:
 - **OpenCode** — a generated `tool.execute.before` hook (in `plugin.js`) throws to abort a frozen edit
   before disk — a real pre-write veto. It shells to the byte-identical Claude guard, not a re-port.
 - **Cursor** — a `hooks.json` adapter (`src/targets/cursor/hooks/`) that `beforeShellExecution`/
-  `beforeReadFile` **denies** a frozen write/read, and — since `afterFileEdit` is notification-only —
-  reverts a frozen edit after the fact as a disclosed backstop.
+  `beforeMCPExecution` **deny** a frozen write/commit (a coarse guardrail — reads are not blocked; the
+  agent must read the test it makes pass). Since `afterFileEdit` is notification-only, the edit path is
+  **runtime-aware**: **advisory** in the interactive IDE (a loud notice, **no** working-tree mutation —
+  the human owns their tree and decides), and an automatic `git checkout` restore only in **headless**
+  `cursor-agent` runs (`HERCULES_RUNTIME_MODE=headless`, no human present). Behind the advisory IDE path
+  is the **acceptance gate** (§ Build): frozen tests are re-hashed against a baseline before a spec
+  retires, catching a tamper at acceptance. Its check is deterministic, but its invocation is
+  prompt-enforced like the other Build gates — a strong catch, not an unbypassable lock (honest scope).
 
 Shared rules for every hook, on every ecosystem:
 
@@ -125,8 +131,11 @@ Shared rules for every hook, on every ecosystem:
 - **Read-only over `~/.hercules`, fail-open** — a hook never writes state (it would race the model's
   atomic writes) and allows the action whenever no active build resolves — or no `python3` is found. It
   must never crash a user's edit. The **one** sanctioned working-tree mutation is Cursor's disclosed
-  after-edit `git checkout` revert (a host with no pre-write veto); it goes through git, never a direct
-  write, and is bounded to restoring the frozen path.
+  after-edit `git checkout` restore in **headless** runs (a host with no pre-write veto and no human to
+  act on a notice); it goes through git, never a direct write, is bounded to restoring the frozen path,
+  and reports success **only when git actually restored it** — never a false "reverted" claim on an
+  untracked file or non-git tree. In the interactive IDE the after-edit path is **advisory only** (no
+  mutation).
 - **Honest scope.** A hook reads model-authored state, so it is **runtime-mediated, not tamper-proof** —
   say so, never "unbypassable"; disclose the per-ecosystem limits in `CAPABILITIES.md` (fail-open without
   `python3`; Cursor's revert-only Composer path). User-granted overrides (`frozen_override`,

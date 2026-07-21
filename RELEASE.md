@@ -127,9 +127,15 @@ opt-in — it needs a `CURSOR_API_KEY` secret and skips without it) — confirm 
 - [ ] `/discover`, `/design`, `/build`, `/ship`, `/workflow` appear and run.
 - [ ] A specialist advisor spawns as an **isolated subagent** (own context), not a same-context rule.
 - [ ] **The write-gate fires** (`${CURSOR_PLUGIN_ROOT}` resolves and `hercules_gate.py` runs): during a
-      build, a `beforeShellExecution` command that writes/commits a frozen test is **denied**, and a
-      Composer edit to a frozen test is **reverted** by `afterFileEdit`. If the hook does not run at all,
-      `${CURSOR_PLUGIN_ROOT}` is not resolving — the gate is inert (this is the load-bearing check).
+      build, a `beforeShellExecution`/`beforeMCPExecution` command that writes/commits a frozen test is
+      **denied**. If the hook does not run at all, `${CURSOR_PLUGIN_ROOT}` is not resolving — the gate is
+      inert (this is the load-bearing check).
+- [ ] **The IDE edit path is advisory, not destructive**: a Composer edit to a frozen test raises a
+      **user-visible notice** and the working tree is **left untouched** (no silent revert). With
+      `HERCULES_RUNTIME_MODE=headless` set, the same edit is instead **restored via `git checkout`** — and
+      the message says so only when git actually restored it (an untracked test reports an honest failure).
+- [ ] **The acceptance backstop holds**: tamper with a frozen test (no override) and confirm Build
+      **HALTs at retire** on the `frozen_baseline` hash mismatch rather than accepting the spec.
 - [ ] At the Design coverage / Build traceability gate, the `cynical-reviewer` returns a **handshake**
       (attests it read `*-business-requirements.md` + a coverage/traceability matrix) — or the flow
       **HALTS and asks** (never silently self-reviews).
@@ -142,7 +148,7 @@ opt-in — it needs a `CURSOR_API_KEY` secret and skips without it) — confirm 
 | 2 | Headless `cursor-agent -p` completes a run | ⚙️ keyed (`CURSOR_API_KEY`; skips on forks) |
 | 3 | Persona rule always-applies; commands appear | manual |
 | 4 | Specialist spawns as an isolated subagent | manual |
-| 4b | Write-gate fires (`${CURSOR_PLUGIN_ROOT}` resolves; frozen write denied/reverted) | manual (load-bearing) |
+| 4b | Write-gate fires (`${CURSOR_PLUGIN_ROOT}` resolves; frozen shell/MCP write denied; IDE edit advisory-not-reverted; headless restores; acceptance backstop HALTs) | manual (load-bearing) |
 | 5 | Independent-review handshake returns (or HALTs) | manual |
 | 6 | `CAPABILITIES.md` gaps read true | manual |
 

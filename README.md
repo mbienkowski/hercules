@@ -146,12 +146,18 @@ listing on the public Cursor marketplace is a planned follow-up. Once installed,
 (`rules/hercules-persona.mdc`) always applies, the `/discover`, `/design`, `/build`, `/ship`,
 `/workflow` commands appear, and the advisors run as isolated subagents.
 
-**Capability note.** Cursor has no pre-file-edit veto, so a plugin hook **hard-denies** shell commands
-that write to or commit a frozen test and **reverts** a Composer edit after the fact (the edit path is
-revert-only, not blocked). Cursor also cannot force a subagent spawn in the IDE, so the
+**Capability note.** Cursor has no pre-file-edit veto, so Hercules works *with* the host rather than
+fighting it. The hard teeth sit where Cursor can actually block: a plugin hook **denies** shell
+commands and MCP calls that write to or commit a frozen test. On the edit path, which Cursor cannot
+block, it is **advisory in the IDE** — a Composer edit to a frozen test raises a clear notice and your
+working tree is left untouched (you undo it, or grant an override); an automatic `git checkout` restore
+runs only in **headless** `cursor-agent` runs, where no human is present. Behind the advisory path is an
+**acceptance gate**: every frozen test is re-hashed before a spec retires, catching a tamper at
+acceptance — a strong, prompt-enforced catch, not an unbypassable lock (see `CAPABILITIES.md`). Cursor
+also cannot force a subagent spawn in the IDE, so the
 independent-review gate is **best-effort** with a mandatory reviewer **handshake-or-HALT** — fully
-forced only when Hercules runs via the headless `cursor-agent --agent` CLI. The gaps are disclosed in
-`dist/cursor/CAPABILITIES.md`.
+forced only when Hercules runs the review through the headless `cursor-agent -p` CLI. The gaps are
+disclosed in `dist/cursor/CAPABILITIES.md`.
 
 </details>
 
