@@ -131,8 +131,10 @@ Shared rules for every hook, on every ecosystem:
 - **Read-only over `~/.hercules`, fail-open** — a hook never writes state (it would race the model's
   atomic writes) and allows the action whenever no active build resolves — or no `python3` is found. It
   must never crash a user's edit. The **one** sanctioned working-tree mutation is Cursor's disclosed
-  after-edit `git checkout` restore in **headless** runs (a host with no pre-write veto and no human to
-  act on a notice); it goes through git, never a direct write, is bounded to restoring the frozen path,
+  after-edit `git checkout` restore in **headless** runs (`afterFileEdit` is notification-only, so it
+  cannot block the landed edit — Cursor's generic `preToolUse` deny hook is unverified for the Composer
+  path and not relied on; no human is present headless to act on a notice); it goes through git, never a
+  direct write, is bounded to restoring the frozen path,
   and reports success **only when git actually restored it** — never a false "reverted" claim on an
   untracked file or non-git tree. In the interactive IDE the after-edit path is **advisory only** (no
   mutation).

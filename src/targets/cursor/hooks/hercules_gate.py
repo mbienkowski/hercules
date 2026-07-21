@@ -1,8 +1,10 @@
 """Cursor write-gate adapter (G1) — reuses the CANONICAL frozen-guard policy, not a re-port.
 
-Cursor exposes no pre-file-edit veto (``afterFileEdit`` is notification-only), so this enforces what
-Cursor's hooks CAN, all keyed off the SAME frozen-test state and the SAME override policy Claude Code
-and OpenCode read (``hercules_state`` + ``frozen_tests._override_allows``, both shipped alongside):
+Cursor's ``afterFileEdit`` is notification-only — it cannot veto an edit that has already landed. (Cursor
+also exposes a generic ``preToolUse`` deny hook; whether it can block the in-editor Composer edit path is
+unverified, so it is not relied on here.) This adapter therefore enforces via the hooks that reliably CAN
+block, all keyed off the SAME frozen-test state and the SAME override policy Claude Code and OpenCode read
+(``hercules_state`` + ``frozen_tests._override_allows``, both shipped alongside):
 
 - ``shell`` (``beforeShellExecution``): DENY a shell command that writes to / commits a frozen test
   path during an active build — a real hard block on the shell write-path. Coarse *guardrail*, not a

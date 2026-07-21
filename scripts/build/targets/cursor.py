@@ -18,6 +18,9 @@ def _extras(ctx: ExtrasContext) -> list[str]:
     written = [".cursor-plugin/plugin.json"]
     written += emit.copy_map(ctx.src_target_dir, ctx.out_root,
                              {f"hooks/{n}": f"hooks/{n}" for n in ("hooks.json", "hercules_gate.py")})
+    # Marketplace-facing assets referenced by the manifest (logo) or expected by submission (README).
+    written += emit.copy_map(ctx.src_target_dir, ctx.out_root,
+                             {"logo.svg": "logo.svg", "README.md": "README.md"})
     written += emit_shared(ctx, "hercules_state.py", "frozen_tests.py")
     return written
 

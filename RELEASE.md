@@ -114,8 +114,9 @@ they must be confirmed live before release:
 ### Cursor
 
 **Install:** Cursor consumes the built plugin at `dist/cursor/` (`.cursor-plugin/plugin.json` + native
-component dirs). Add this repo as a Cursor plugin source (`/add-plugin` in the editor) or point Cursor at
-the `dist/cursor/` directory; a public marketplace listing is a planned follow-up. Requires Cursor ≥ 2.5
+component dirs). Copy `dist/cursor/` into `~/.cursor/plugins/local/hercules/` and restart Cursor (the
+documented local-plugin path); a public marketplace listing is a planned follow-up (a repo-root
+`.cursor-plugin/marketplace.json` sourcing `dist/cursor` is included for it). Requires Cursor ≥ 2.5
 (the version that added plugin packaging). There is **no registry publish step** — like Claude Code,
 Cursor is git-consumed.
 

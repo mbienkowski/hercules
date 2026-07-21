@@ -107,7 +107,7 @@ def test_no_stray_dot_md_rules_and_no_flat_top_level_dirs(tmp_path):
     # The plugin's component dirs are exactly these; nothing leaks elsewhere.
     top = {p.name for p in out.iterdir()}
     assert top <= {".cursor-plugin", "agents", "commands", "rules", "skills", "protocols", "hooks",
-                   "CAPABILITIES.md"}, f"unexpected top-level entries: {top}"
+                   "CAPABILITIES.md", "README.md", "logo.svg"}, f"unexpected top-level entries: {top}"
 
 
 def test_cursor_never_ships_an_agents_md(tmp_path):

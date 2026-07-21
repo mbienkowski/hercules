@@ -364,16 +364,28 @@ def test_cursor_ships_the_gate_and_the_canonical_guard_files(tmp_path):
             f"{name} must not diverge across dists"
 
 
+def test_cursor_ships_the_manifest_referenced_marketplace_assets(tmp_path):
+    """The plugin ships the marketplace-submission assets: a README, and the logo the manifest points at —
+    so the manifest's ``logo`` path can never dangle (a Cursor submission validator would reject that)."""
+    out = tmp_path / "cursor"
+    build_target("cursor", out)
+    assert (out / "README.md").is_file(), "a README must ship with the plugin"
+    manifest = json.loads((out / ".cursor-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    assert manifest.get("logo") == "./logo.svg", "manifest must declare the logo"
+    assert (out / manifest["logo"].lstrip("./")).is_file(), "the manifest-referenced logo must ship"
+
+
 def test_hook_commands_invoke_the_gate_by_exact_plugin_root_path(tmp_path):
     """Lock the EXACT hook command form. The gate is referenced via ``${CURSOR_PLUGIN_ROOT}`` because
-    a plugin-bundled hook runs with cwd = the project root, so a bare/relative path would not resolve.
+    a plugin-bundled hook runs with cwd = the *project* root (not the hook's own dir), so a bare/relative
+    path would not resolve — the variable is how a plugin hook locates its own bundled script.
 
-    IMPORTANT: whether Cursor actually injects ``${CURSOR_PLUGIN_ROOT}`` for plugin-bundled hooks is
-    UNVERIFIED — Cursor's docs don't list it and sources conflict, so if the variable is absent the
-    write-gate is INERT on a real install. This test only pins the current form against silent
-    regression; the load-bearing check that the gate actually FIRES is the manual RELEASE.md item (4b),
-    run on a real Cursor install before release. Exact-match (not substring) so no extra shell content
-    can be appended around the token undetected."""
+    VERIFIED: ``${CURSOR_PLUGIN_ROOT}`` is confirmed by Cursor staff as the correct way to reference the
+    plugin directory from a plugin ``hooks.json`` (forum thread 153236, "Inconsistent working directory
+    for plugin hook commands"). It is staff-confirmed but not enumerated in the official hook env-var
+    docs, so the load-bearing runtime check that the gate actually FIRES stays the manual RELEASE.md item
+    (4b) on a real Cursor install. This test pins the current command form against silent regression;
+    exact-match (not substring) so no extra shell content can be appended around the token undetected."""
     out = tmp_path / "cursor"
     build_target("cursor", out)
     hooks = json.loads((out / "hooks" / "hooks.json").read_text(encoding="utf-8"))

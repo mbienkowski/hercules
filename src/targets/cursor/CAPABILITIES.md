@@ -1,12 +1,14 @@
 # Hercules on Cursor — capabilities & disclosed gaps
 
 Hercules ships the full Discover → Design → Build → Ship methodology on Cursor as an official plugin
-(`.cursor-plugin/plugin.json`), with three capability gaps disclosed here (the "disclose gaps, never
+(`.cursor-plugin/plugin.json`), with the capability gaps disclosed here (the "disclose gaps, never
 hide" principle):
 
-- **Frozen-test write-gate: works *with* Cursor's capabilities (needs `python3`).** Cursor has no
-  pre-file-edit veto (`afterFileEdit` is notification-only), so a Composer edit to a frozen test **cannot
-  be blocked** — Hercules does not pretend otherwise. The hooks (`hooks/hooks.json` →
+- **Frozen-test write-gate: works *with* Cursor's capabilities (needs `python3`).** Cursor's
+  `afterFileEdit` is notification-only, so a Composer edit to a frozen test **cannot be blocked after it
+  lands**. (Cursor also has a generic `preToolUse` deny hook with a `Write` matcher; whether it vetoes the
+  Composer edit path *before* it lands is unverified, so Hercules does not rely on it and does not pretend
+  the edit is blocked.) The hooks (`hooks/hooks.json` →
   `hooks/hercules_gate.py`, reusing the same canonical guard state AND the same `frozen_override` policy)
   put the hard teeth where Cursor *can* block: `beforeShellExecution` **and** `beforeMCPExecution`
   **deny** a shell command or MCP tool call that writes to or commits a frozen test during a build. On
