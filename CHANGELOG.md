@@ -1,3 +1,7 @@
+## v1.10.0 (2026-07-21)
+
+* feat: add Cursor as a third distribution + harden the write-gate on every ecosystem (#21)
+
 ## v1.9.0 (2026-07-19)
 
 * chore: bump the actions group with 3 updates (#17)
