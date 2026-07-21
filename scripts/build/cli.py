@@ -18,6 +18,7 @@ from scripts.build import emit, targets
 from scripts.build.layout import discover_sources
 from scripts.build.serialize import serialize_file
 from scripts.build.targets.base import ExtrasContext
+from scripts.build.version_targets import read_canonical_version
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC = REPO_ROOT / "src"
@@ -67,6 +68,7 @@ def build_target(target: str, out_root: Path) -> list[str]:
         shared_hooks_src=_SHARED_HOOKS_SRC,
         src_content=SRC_CONTENT,
         tokens=tokens,
+        version=read_canonical_version(REPO_ROOT),
     )
     written += spec.emit_extras(ctx)
     return sorted(written)

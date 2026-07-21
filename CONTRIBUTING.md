@@ -132,7 +132,10 @@ released version. Restart after any change; settings are read at startup.
   mixed-case name that works locally breaks on CI.
 - Tests live in `tests/`, organised by category (`build/`, `agents/`, `commands/`, `hooks/`, …).
   `tests/test_collection_integrity.py` guards that no test directory is hidden by `norecursedirs`.
-- One version across all manifests — `scripts/build/version_targets.py` is the single canonical
-  list; `scripts/set_version.py` writes it, CI's `validate` job reads it.
+- One version, single-sourced — `pyproject.toml` is canonical; `package.json` is the only other
+  literal (npm needs it) and is cross-checked against it. Both are the whole list in
+  `scripts/build/version_targets.py`; `scripts/set_version.py` writes them, CI's `validate` job checks
+  them. The plugin manifests under `src/targets/<eco>/plugin.json` carry a `${version}` **token** — the
+  build injects the canonical version into `dist/…/plugin.json`, so there's nothing to hand-bump in `src/`.
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
   `refactor:`, `test:`, `docs:`, `ci:`) — the release pipeline derives the version bump from them.

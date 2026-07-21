@@ -116,15 +116,26 @@ def test_cursor_never_ships_an_agents_md(tmp_path):
     assert not (out / "AGENTS.md").exists()
 
 
-# ── The manifest (single-sourced version) ────────────────────────────────────
-def test_plugin_manifest_is_valid_and_version_matches_source(tmp_path):
-    """.cursor-plugin/plugin.json must be a byte-copy of the versioned source: kebab name and a
-    version identical to the source manifest (single-source-of-truth), so the version can't drift."""
+# ── The manifest (version INJECTED from the single canonical source) ──────────
+def test_plugin_manifest_is_valid_and_version_injected_from_canonical(tmp_path):
+    """.cursor-plugin/plugin.json is the source manifest with its ``${version}`` token filled from the
+    canonical version (pyproject.toml) at build time — kebab name, a real semver version equal to
+    canonical, and identical to the source in every OTHER field. The source itself must carry the
+    token, not a literal (single-source-of-truth: nothing to hand-bump under src/)."""
+    from scripts.build.version_targets import read_canonical_version
+
     out = _build(tmp_path)
     manifest = json.loads((out / ".cursor-plugin" / "plugin.json").read_text(encoding="utf-8"))
     assert re.fullmatch(r"[a-z0-9]([a-z0-9.-]*[a-z0-9])?", manifest["name"]), "name must be kebab-case"
-    source = json.loads((REPO_ROOT / "src" / "targets" / "cursor" / "plugin.json").read_text(encoding="utf-8"))
-    assert manifest == source, "dist manifest must byte-match its versioned source"
+
+    source_text = (REPO_ROOT / "src" / "targets" / "cursor" / "plugin.json").read_text(encoding="utf-8")
+    assert '"version": "${version}"' in source_text, "source manifest must carry the token, not a literal"
+    canonical = read_canonical_version(REPO_ROOT)
+    assert manifest["version"] == canonical, "dist version must be the injected canonical version"
+
+    # Every non-version field must still match the source exactly — injection touches only the version.
+    source = json.loads(source_text.replace("${version}", canonical))
+    assert manifest == source, "injection must change ONLY the version field, nothing else"
     for field in ("rules", "agents", "commands", "skills"):
         assert field in manifest, f"manifest should declare the {field} component path"
 

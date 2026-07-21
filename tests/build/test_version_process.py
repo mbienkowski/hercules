@@ -13,10 +13,11 @@ from pathlib import Path
 
 import pytest
 
-from scripts.build import cli
+from scripts.build import cli, emit
 from scripts.build.version_targets import (
     VERSION_TARGETS,
     check_in_sync,
+    read_canonical_version,
     read_versions,
     write_version,
 )
@@ -97,24 +98,111 @@ def test_bumping_the_version_fails_loudly_if_a_file_has_no_version_line(tmp_path
         write_version("1.0.0", tmp_path)
 
 
-# ── B1: the versioned Claude manifest must be a build SOURCE, not a build OUTPUT ──
-def test_a_release_version_bump_survives_the_next_build(tmp_path):
-    """A version number bumped during a release must still be in place after the project is
-    rebuilt from source. Regression: the version used to be recorded only in a generated build
-    output, which gets overwritten from source on every build -- so a release bump was silently
-    erased by the very next build, and then flagged as drifted. The fix keeps the version
-    recorded in the source file the build reads from, not in a file the build overwrites."""
+# ── B1 (updated for single-source injection): pyproject is the version of record; the manifests the
+#     CLIs load carry a ${version} TOKEN, injected at build — never a literal a rebuild erases or a
+#     human forgets to bump. Contract deliberately reopened from the original byte-copy-literal form. ──
+def test_build_injects_the_canonical_version_into_the_consumed_manifest(tmp_path):
+    """The plugin manifests the CLIs actually load (dist/<eco>/…/plugin.json) get their version
+    INJECTED from the single canonical source (pyproject.toml) at build time; the source manifests
+    under src/targets/ carry a ``${version}`` TOKEN, not a literal. This (a) makes a release bump
+    touch one canonical file instead of N, and (b) means nobody reading src/ sees a stale literal to
+    forget (least-astonishment).
+
+    Regression this still prevents: the version must never live ONLY in a build OUTPUT — a dist file
+    is regenerated from src on every build, silently erasing a bump. Here the version of record is
+    pyproject.toml (a build SOURCE, never regenerated); the token→literal substitution happens only
+    at build, into the output."""
     version_paths = [rel for rel, _ in VERSION_TARGETS]
-    assert "src/targets/claude-code/plugin.json" in version_paths
+    assert "pyproject.toml" in version_paths, "pyproject.toml is the canonical version of record"
     assert not any(rel.startswith("dist/") for rel in version_paths), (
         "a build OUTPUT must never be a version target — it is regenerated from src on every build"
     )
-    # Behavioural: the version in the (source) target file is exactly what a fresh build emits.
-    src_version = read_versions(REPO_ROOT)["src/targets/claude-code/plugin.json"]
+    # The build-consumed source manifests hold the token, never a literal (nothing to hand-bump).
+    for eco in ("claude-code", "cursor"):
+        src_manifest = (REPO_ROOT / "src" / "targets" / eco / "plugin.json").read_text(encoding="utf-8")
+        assert '"version": "${version}"' in src_manifest, (
+            f"src/targets/{eco}/plugin.json must carry the ${{version}} token, not a literal"
+        )
+    # Behavioural: a fresh build injects the canonical (pyproject) version into the consumed manifest.
+    canonical = read_canonical_version(REPO_ROOT)
     out = tmp_path / "claude-code"
     cli.build_target("claude-code", out)
     built = json.loads((out / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
-    assert built["version"] == src_version
+    assert built["version"] == canonical
+
+
+def test_no_shipped_plugin_manifest_carries_an_unresolved_version_token():
+    """No committed dist/ plugin manifest may still contain an unresolved ``${…}`` token — that would
+    mean build-time injection silently failed to fill the version. The fail-loud injector
+    (emit.copy_versioned) should make this impossible; we assert the SHIPPED bytes directly so a
+    regression can't slip past the drift gate (an un-injected token is just as byte-stable as a
+    correct value, so the drift/determinism gates alone cannot catch it)."""
+    manifests = sorted((REPO_ROOT / "dist").rglob("plugin.json"))
+    assert manifests, "expected at least one committed dist plugin manifest"
+    for manifest in manifests:
+        assert "${" not in manifest.read_text(encoding="utf-8"), \
+            f"unresolved build token shipped in {manifest}"
+
+
+def test_every_shipped_plugin_manifest_matches_the_canonical_version():
+    """Every shipped plugin manifest's version equals the single canonical source (pyproject.toml)
+    DIRECTLY — not merely transitively via the byte-drift gate. Closes the gap where cursor's dist
+    manifest version had no assertion of its own tying it to the source of truth."""
+    canonical = read_canonical_version(REPO_ROOT)
+    manifests = sorted((REPO_ROOT / "dist").rglob("plugin.json"))
+    assert manifests, "expected at least one committed dist plugin manifest"
+    for manifest in manifests:
+        version = json.loads(manifest.read_text(encoding="utf-8"))["version"]
+        assert version == canonical, \
+            f"{manifest} version {version!r} != canonical {canonical!r}"
+
+
+# ── The build-time injector (emit.copy_versioned): the ONE guard against shipping ${version} ──
+def test_copy_versioned_fills_the_single_token_and_preserves_every_other_byte(tmp_path):
+    """The happy path: exactly one ${version} token is replaced, and every other byte — key order,
+    indentation, trailing newline — is preserved (pure string substitution, not a JSON re-serialize)."""
+    src = tmp_path / "src.json"
+    src.write_text('{\n  "name": "x",\n  "version": "${version}"\n}\n', encoding="utf-8")
+    dest = tmp_path / "out" / "dest.json"
+    emit.copy_versioned(src, dest, "1.2.3")
+    assert dest.read_text(encoding="utf-8") == '{\n  "name": "x",\n  "version": "1.2.3"\n}\n'
+
+
+def test_copy_versioned_raises_and_writes_nothing_when_the_token_is_missing(tmp_path):
+    """n=0: a source with no ${version} token must raise, not silently ship a manifest with a
+    wrong/absent version. This is the guard the whole single-source change exists to add — the drift
+    and determinism gates CANNOT catch an un-injected token (it's just as byte-stable as a real value).
+    Also asserts no partial/wrong file is left behind on failure."""
+    src = tmp_path / "src.json"
+    src.write_text('{\n  "version": "1.0.0"\n}\n', encoding="utf-8")  # a literal, no token
+    dest = tmp_path / "dest.json"
+    with pytest.raises(SystemExit, match="exactly one"):
+        emit.copy_versioned(src, dest, "1.2.3")
+    assert not dest.exists(), "must not write a manifest when injection fails"
+
+
+def test_copy_versioned_raises_on_a_duplicate_token(tmp_path):
+    """n=2: two ${version} tokens must also raise — the guard counts occurrences, it is not a
+    replace-first-and-hope. (Together with the n=0 case this kills a `!= 1` → `> 1` / `< 1` slip.)"""
+    src = tmp_path / "src.json"
+    src.write_text('{\n  "version": "${version}",\n  "build": "${version}"\n}\n', encoding="utf-8")
+    with pytest.raises(SystemExit, match="exactly one"):
+        emit.copy_versioned(src, tmp_path / "dest.json", "1.2.3")
+
+
+def test_a_duplicate_version_field_is_caught_not_silently_picked(tmp_path):
+    """If a canonical manifest ever grows a SECOND ``"version"`` field (e.g. a nested
+    ``"engines": {"version": …}``), both reading and writing the version must fail loudly rather than
+    silently pick/keep the first. Guards the match-count check that replaced the old ``count=1`` regex,
+    which capped substitutions at one and so could never detect a duplicate despite its error message
+    implying it did."""
+    _seed(tmp_path, "1.0.0")
+    pkg = tmp_path / "package.json"
+    pkg.write_text('{\n  "version": "1.0.0",\n  "engines": { "version": "2.0.0" }\n}\n', encoding="utf-8")
+    with pytest.raises(SystemExit, match="exactly one"):
+        read_versions(tmp_path)
+    with pytest.raises(SystemExit, match="exactly one"):
+        write_version("3.0.0", tmp_path)
 
 
 def test_the_release_process_rebuilds_and_commits_the_output_after_bumping_the_version():

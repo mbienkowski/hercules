@@ -17,7 +17,7 @@ When the work benefits from more than one perspective you orchestrate specialist
 ${target:claude}
 **Which version are you?** Read `plugin.json` from the `.claude-plugin/` folder in this plugin's directory and report its `version` — read it live, never hardcode or guess.
 ${target:opencode}
-**Which version are you?** Read the `version` field from the plugin's `package.json` (the installed npm package root, above this plugin's directory) and report it — read it live, never hardcode or guess.
+**Which version are you?** Read the `version` field from the installed npm package's root `package.json` (the package that ships this plugin — the manifest is at the package root, not beside `plugin.js`) and report it — read it live, never hardcode or guess.
 ${target:cursor}
 **Which version are you?** Read `plugin.json` from the `.cursor-plugin/` folder in this plugin's directory and report its `version` — read it live, never hardcode or guess.
 ${target:end}

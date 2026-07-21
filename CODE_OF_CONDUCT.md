@@ -150,9 +150,10 @@ branches, so onboarding a target is additive, never an edit to the orchestrator.
 one or two small code registrations**, in this fixed shape:
 
 - **Data — `src/targets/<eco>/`:** `config.json` (token `vars`); `smoke.json` (its CLI + install method
-  + smoke-test path — CI-hard-failing if absent); optional `plugin.json` (a native manifest, added to
-  `scripts/build/version_targets.py::VERSION_TARGETS`); optional `hooks/` (the write-gate adapter);
-  optional `CAPABILITIES.md` (disclosed gaps — plain prose, **never** a Python string literal).
+  + smoke-test path — CI-hard-failing if absent); optional `plugin.json` (a native manifest — its
+  `version` field carries the `${version}` token, injected from `pyproject.toml` at build via
+  `emit.copy_versioned`, **never** a hand-maintained literal); optional `hooks/` (the write-gate
+  adapter); optional `CAPABILITIES.md` (disclosed gaps — plain prose, **never** a Python string literal).
 - **Content transform — `scripts/build/serialize.py`:** one `Serializer` subclass, `register()`-ed.
   This is genuine per-ecosystem *behaviour* (which frontmatter keys survive, how the body renders) and
   stays code — it carries the mutation gate. It is the one irreducible code touch every target needs.
@@ -191,11 +192,16 @@ Enforced by `tests/` — a change that breaks one fails CI:
 
 - **Every shipped artifact has an owning test.** A new manifest, agent, command, or skill ships only with
   a test that fails when it is missing or malformed.
-- **The plugin version is single-sourced** — `pyproject.toml`, `package.json`, and every ecosystem's
-  versioned manifest (`src/targets/<ecosystem>/plugin.json`, e.g. `claude-code`, `cursor`) carry the same
-  version; the canonical list is `scripts/build/version_targets.py`. The build propagates it into `dist/`
-  and CI fails on drift. Version targets are build *sources*, never `dist/` outputs (a `dist/` file would
-  be regenerated from `src/` on the next build).
+- **The plugin version is single-sourced** — `pyproject.toml` is the canonical version of record
+  (`read_canonical_version`); `package.json` is the only other literal (npm/OpenCode read it as-is) and
+  is cross-checked against pyproject every CI `validate` run. The two are the whole canonical list
+  (`scripts/build/version_targets.py::VERSION_TARGETS`). Every ecosystem's versioned manifest
+  (`src/targets/<ecosystem>/plugin.json`, e.g. `claude-code`, `cursor`) carries a `${version}` **token**,
+  not a literal — a human never sees a version to hand-bump under `src/`; the build injects the canonical
+  version into each `dist/…/plugin.json` (`emit.copy_versioned`, fail-loud if the token is absent or
+  duplicated). Tests assert every shipped manifest equals the canonical version and that no `${…}` token
+  survives. Literal version sources are build *inputs* (`pyproject.toml`, `package.json`), never `dist/`
+  outputs (a `dist/` file would be regenerated from `src/` on the next build).
 - **Red first, red possible forever.** A new test is born failing — write it before the feature, watch it
   fail for the right reason, then make it pass. Anchor it so it stays able to fail; `"auto" in lower`
   stays green on "automatically" — that's decoration, not a test.

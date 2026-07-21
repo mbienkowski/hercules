@@ -42,7 +42,10 @@ norecursedirs = ["*.egg", ".*", "_darcs", "CVS", "dist", "node_modules", "venv",
 # and the per-ecosystem target modules (targets/*.py — dest data + copy maps; capability prose now
 # lives in src/targets/<eco>/CAPABILITIES.md, not a Python string) are round-trip-covered and under the
 # branch-coverage gate (make test's --cov=scripts/build, ~97%), but not mutated — their
-# shutil/tempfile/string mutants are largely equivalent and would only add noise.
+# shutil/tempfile/string mutants are largely equivalent and would only add noise. NOTE: emit.py stays
+# out of the gate as FS-boundary noise, but its one real conditional — copy_versioned's fail-loud
+# ${version}-injection guard (n != 1 → SystemExit) — is directly unit-tested at n=0/n=1/n=2 in
+# tests/build/test_version_process.py, so a `!= 1` operator slip fails CI regardless of the gate.
 # NOTE: targets/base.py's dest logic is intentionally NOT added here yet — it was the moved-from-cli
 # dest logic (cli was always excluded), and adding it to the gate is deferred to the mutation-tooling
 # rework, where the kill rate can be validated with working tooling (its behaviour is guarded now by

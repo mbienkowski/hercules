@@ -51,7 +51,8 @@ def test_target_and_extras_context_are_immutable():
     with pytest.raises(dataclasses.FrozenInstanceError):
         Target(name="x").name = "y"
     ctx = ExtrasContext(out_root=Path("/tmp"), src_target_dir=Path("/tmp"),
-                        shared_hooks_src=Path("/tmp"), src_content=Path("/tmp"), tokens={})
+                        shared_hooks_src=Path("/tmp"), src_content=Path("/tmp"), tokens={},
+                        version="0.0.0")
     with pytest.raises(dataclasses.FrozenInstanceError):
         ctx.out_root = Path("/other")
 

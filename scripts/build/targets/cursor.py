@@ -8,19 +8,14 @@ from scripts.build import emit
 from scripts.build.serialize import cursor_dest
 from scripts.build.targets.base import ExtrasContext, Target, emit_shared, register
 
-# Byte-copied Cursor sources (non-markdown). The manifest is versioned at its source
-# (src/targets/cursor/plugin.json, in VERSION_TARGETS) and copied verbatim, mirroring claude-code.
-_COPIES = {
-    "plugin.json": ".cursor-plugin/plugin.json",
-}
-
-
 def _extras(ctx: ExtrasContext) -> list[str]:
-    """Cursor's non-content artifacts: the versioned manifest copy, the cursor write-gate adapter
-    (hooks.json + hercules_gate.py), and — via emit_shared — the shared canonical guard files
-    (from which the adapter reuses the SAME frozen_override policy Claude/OpenCode apply, not a re-port)
-    plus CAPABILITIES.md."""
-    written = emit.copy_map(ctx.src_target_dir, ctx.out_root, _COPIES)
+    """Cursor's non-content artifacts: the version-injected manifest (its ${version} token filled from
+    pyproject, mirroring claude-code), the cursor write-gate adapter (hooks.json + hercules_gate.py),
+    and — via emit_shared — the shared canonical guard files (from which the adapter reuses the SAME
+    frozen_override policy Claude/OpenCode apply, not a re-port) plus CAPABILITIES.md."""
+    emit.copy_versioned(ctx.src_target_dir / "plugin.json",
+                        ctx.out_root / ".cursor-plugin" / "plugin.json", ctx.version)
+    written = [".cursor-plugin/plugin.json"]
     written += emit.copy_map(ctx.src_target_dir, ctx.out_root,
                              {f"hooks/{n}": f"hooks/{n}" for n in ("hooks.json", "hercules_gate.py")})
     written += emit_shared(ctx, "hercules_state.py", "frozen_tests.py")

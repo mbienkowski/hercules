@@ -8,16 +8,21 @@ CI regenerates and drift-checks `dist/` on every push, so `main` always carries 
 On every merge to `main`, `release.yml` runs after CI succeeds:
 
 1. Computes the next version from Conventional Commits (`feat`/`fix`/`perf` bump the CHANGELOG).
-2. `scripts/set_version.py` stamps that version into **every** file in the canonical list
-   (`scripts/build/version_targets.py`): `pyproject.toml`, `dist/claude-code/.claude-plugin/plugin.json`,
-   `package.json`. One version identifies the release everywhere.
-3. Commits the bump (`chore(release): X.Y.Z [skip ci]`), tags `vX.Y.Z`, pushes.
-4. Publishes the GitHub Release.
-5. **Publishes the OpenCode plugin to npm** from the tagged tree (requires the `NPM_TOKEN` repo
+2. `scripts/set_version.py` stamps that version into the two files that MUST carry a literal
+   (`scripts/build/version_targets.py::VERSION_TARGETS`): `pyproject.toml` (the canonical source, read
+   by setuptools) and `package.json` (read by npm/OpenCode). The plugin manifests
+   (`dist/{claude-code,cursor}/…/plugin.json`) are **not** stamped — their source carries a
+   `${version}` token that the build injects from `pyproject.toml` (step below), so there is one
+   version of record and nothing to hand-bump under `src/targets/`.
+3. `make build` regenerates `dist/`, injecting the canonical version into each plugin manifest.
+4. Commits the bump + rebuilt `dist/` (`chore(release): X.Y.Z [skip ci]`), tags `vX.Y.Z`, pushes.
+5. Publishes the GitHub Release.
+6. **Publishes the OpenCode plugin to npm** from the tagged tree (requires the `NPM_TOKEN` repo
    secret; the step self-skips if it is absent).
 
-The `validate` CI job re-reads the canonical list and fails the build if any manifest disagrees, so a
-release can never ship a split version.
+The `validate` CI job re-reads the canonical list (`pyproject.toml` + `package.json`) and fails if
+they disagree; a separate test asserts every shipped `dist/…/plugin.json` version equals the canonical
+one — so a release can never ship a split or an un-injected (`${version}`) version.
 
 ## Manual smoke checklist (release-gating, once per release)
 
@@ -143,9 +148,10 @@ opt-in — it needs a `CURSOR_API_KEY` secret and skips without it) — confirm 
 
 ### Cross-ecosystem
 
-- [ ] `src/targets/claude-code/plugin.json`, `src/targets/cursor/plugin.json`, `package.json`, and
-      `pyproject.toml` — the canonical version sources (`scripts/build/version_targets.py`) — all show the
-      release version (matches the git tag); the build propagates it into every `dist/` tree.
+- [ ] `pyproject.toml` and `package.json` — the two literal version sources
+      (`scripts/build/version_targets.py::VERSION_TARGETS`) — both show the release version (matches the
+      git tag). The plugin manifests under `src/targets/` carry a `${version}` token (not a literal); the
+      build injects the canonical `pyproject.toml` version into every `dist/…/plugin.json`.
 
 v1 ships **Claude Code + OpenCode + Cursor**. Codex is TBD — add its smoke section when delivered
 (see [CONTRIBUTING.md](CONTRIBUTING.md) § Adding a new target for the proven extension procedure).

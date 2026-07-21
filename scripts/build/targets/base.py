@@ -27,6 +27,7 @@ class ExtrasContext:
     shared_hooks_src: Path  # src/targets/claude-code/hooks — canonical guard, byte-copied everywhere
     src_content: Path      # src/content
     tokens: dict[str, str]
+    version: str           # canonical build version (from pyproject) — injected into build-consumed manifests
 
 
 def _no_extras(ctx: ExtrasContext) -> list[str]:
