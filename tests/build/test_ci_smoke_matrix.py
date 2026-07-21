@@ -105,6 +105,16 @@ def test_mutation_if_explicitly_checks_each_need_succeeded():
             f"mutation.if must require needs.{job}.result == 'success'"
 
 
+def test_mutation_runs_only_on_a_push_to_main_the_release_gate():
+    """Mutation is the slow (~40 min) release gate: it runs ONLY on a push to main (not on PRs, so PR
+    feedback stays fast), and release.yml chains off this CI run — a failed mutation on main = no
+    release."""
+    mutation_if = CI_JOBS["mutation"]["if"]
+    assert "github.event_name == 'push'" in mutation_if
+    assert "github.ref == 'refs/heads/main'" in mutation_if
+    assert "pull_request" not in mutation_if, "mutation must NOT run on PRs — it's the main-only gate"
+
+
 def test_smoke_if_pins_build_success():
     """smoke has a custom `if:` too (so it also loses implicit success()); it must explicitly require
     build succeeded, else it fans out against a failed/empty build."""

@@ -30,14 +30,14 @@ defaults:
 # Job graph (cheap -> pricey, so a cheap failure fails fast before an expensive job pays out):
 #
 #   build ──┬─> test ─────┐
-#           ├─> validate ─┼─> mutation   (~40 min, PR/main only — waits for ALL three)
-#           └─> smoke ────┘  (network + real CLIs, PR/main only, one leg per ecosystem)
+#           ├─> validate ─┼─> mutation   (~40 min, MAIN pushes only — the release gate; waits for ALL three)
+#           └─> smoke ────┘  (network + real CLIs, PR + main, one leg per ecosystem)
 #
 # build/validate are seconds; test is minutes; smoke pays for Node + a real-CLI install; mutation
-# is the long pole. test, validate, and smoke are peers off `build`; mutation waits for all three to
-# SUCCEED (not merely finish — see its `if:`), so a red gate never lets the 40-min job pay out. The
-# smoke matrix is a `build` output (derived from the target registry), so there is no separate
-# discovery job to keep in sync.
+# is the long pole. On a PR: build/test/validate/smoke run (fast feedback, NO mutation). On a push to
+# main: mutation ALSO runs and gates the release (release.yml chains off this CI run's success). It
+# waits for test+validate+smoke to SUCCEED (not merely finish — see its `if:`). The smoke matrix is a
+# `build` output (derived from the target registry), so there is no separate discovery job to sync.
 jobs:
   # ── Build gate — regenerate dist/ and prove it matches what's committed ──────
   # Runs FIRST: a src/ edit pushed without a rebuild fails here (drift), before any
@@ -201,28 +201,29 @@ jobs:
           name: smoke-results-${{ matrix.target }}
           path: smoke-results-${{ matrix.target }}.txt
 
-  # ── Mutation testing — every commit on PR branches (+ main), after the quick gates ────
-  # Runs mutmut against the pure build layer (scripts/build/*) + hooks + tests/metrics/ and gates on a 90% kill rate. Runs on the
-  # pull_request event (every commit pushed to a branch with an open PR) and on
-  # main pushes (post-merge) — so feature-branch commits without a PR don't
-  # burn CI minutes, and a SHA is never mutation-tested twice. Releases are cut
-  # separately by release.yml on every merge to main.
+  # ── Mutation testing — MAIN ONLY, the release gate (after the quick gates) ────
+  # Runs mutmut against the pure build layer (scripts/build/*) + hooks + tests/metrics/ and gates on a
+  # 90% kill rate. Deliberately runs ONLY on a push to `main` (post-merge), never on PRs: it's the
+  # slow (~40 min) final quality gate, and release.yml chains off this CI run's success — so a merge
+  # to main whose mutation gate fails produces a red CI conclusion and NO release. Keeping it off PRs
+  # is what keeps PR feedback fast; a merge to main is the right, once-per-change place to pay for it.
   mutation:
     name: Mutation
-    # Gate the expensive (~40 min) job behind ALL three quick gates — a red test, validate, or smoke
-    # stops it before it burns minutes. NOTE: a custom `if:` REPLACES GitHub's implicit
-    # `if: success()`, so gating on `needs` requires spelling out the success checks explicitly here —
-    # otherwise this job would launch even when a need failed. `!cancelled()` lets it still skip
-    # cleanly when smoke/mutation are skipped together on a non-PR push (same PR/main condition).
+    # Gate behind ALL three quick gates — a red test, validate, or smoke stops it before it burns
+    # minutes. NOTE: a custom `if:` REPLACES GitHub's implicit `if: success()`, so gating on `needs`
+    # requires spelling out the success checks explicitly here — otherwise this job would launch even
+    # when a need failed. `!cancelled()` lets it still skip cleanly on non-main / PR runs.
     needs: [test, validate, smoke]
     if: >-
-      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
       && !cancelled()
       && needs.test.result == 'success'
       && needs.validate.result == 'success'
       && needs.smoke.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # Generous ceiling: it runs once per merge to main (not per PR), and the single-process run lands
+    # around ~40 min — a tight 40 timeout killed it 8s short, so give real margin.
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v7
