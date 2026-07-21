@@ -31,8 +31,10 @@ hide" principle):
   the shell/MCP deny **and** the after-edit path — leaving the acceptance gate as the protection until
   `python3` is available; Build announces this at start. The shell/MCP checks are coarse **guardrails**,
   not a sound sandbox — and coarse in both directions: they can **under-block** (`python -c`, heredocs,
-  cross-pipe data flow, or an MCP server that hides the target path from its arguments, or whose event
-  uses payload keys the adapter doesn't recognise — then the MCP call fails open), and they can
+  cross-pipe data flow; a `git add .` / `git add -A` / `git commit -am` that stages a frozen test **by
+  pathspec without naming it** — a string matcher cannot resolve a pathspec against the index; or an MCP
+  server that hides the target path from its arguments, or whose event uses payload keys the adapter
+  doesn't recognise — then the MCP call fails open), and they can
   **over-block** (matching is basename-level, so a write to an *unrelated* file that happens to share a
   frozen test's basename can be denied during a build). Turn on Cursor's *ask-before-applying-edits*
   approval for an additional in-IDE backstop.

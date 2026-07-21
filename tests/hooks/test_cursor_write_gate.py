@@ -112,6 +112,12 @@ _DENY_COMMANDS = [
     "env GIT_X=1 git commit -- tests/test_frozen.py",  # wrapper + env assignment
     "nice -n 10 git rm tests/test_frozen.py",    # wrapper + numeric-arg flag
     "stdbuf -oL sed -i s/a/b/ tests/test_frozen.py",   # wrapper + flag
+    # B2: git's own GLOBAL options between `git` and the subcommand must not evade the deny
+    "git -C . add tests/test_frozen.py",               # -C <path> (the form the gate itself uses in _restore)
+    "git -c core.editor=vi commit -- tests/test_frozen.py",  # -c <k=v>
+    "git --git-dir=/r/.git add tests/test_frozen.py",  # --git-dir=… (=value form)
+    "echo x >| tests/test_frozen.py",                  # >| clobber-override redirect to a frozen file
+    "echo x >& tests/test_frozen.py",                  # >& redirect to a frozen file
 ]
 
 
@@ -133,6 +139,8 @@ _ALLOW_COMMANDS = [
     "diff tests/test_frozen.py b.py > d.txt",            # compare it, redirect elsewhere
     "git add src/feature.py",                            # write verb, unrelated file
     "find . -name conftest.py -delete",                  # find -delete, but not a frozen file
+    "git -C . diff tests/test_frozen.py > /tmp/d",       # B2: read (diff) via a global option, output elsewhere
+    "rm mytest_frozen.py.bak",                           # B2: substring of a frozen basename, not the file itself
 ]
 
 

@@ -8,9 +8,13 @@ specs, then implemented-and-tested code — with specialist advisors and require
 - **An always-on persona** (`rules/hercules-persona.mdc`) — Hercules leads the four-phase workflow.
 - **Commands** — `/discover`, `/design`, `/build`, `/ship`, `/workflow`.
 - **Specialist subagents** — architect, QA, security, and more, isolated per review.
-- **Frozen-test enforcement** — during Build, acceptance tests can't be silently weakened:
-  `beforeShellExecution`/`beforeMCPExecution` deny a frozen-test write or commit, the IDE edit path is
-  advisory (a notice, your tree untouched), and a re-hash check gates each spec before it retires.
+- **Frozen-test enforcement (best-effort on Cursor)** — during Build, Hercules resists silent weakening
+  of acceptance tests: `beforeShellExecution`/`beforeMCPExecution` deny the common frozen-test
+  write/commit forms (a coarse guardrail, not a sandbox — some forms such as `git add .` slip past), the
+  IDE Composer edit path is **advisory** (a notice, your tree untouched; a real `git checkout` revert
+  only in headless `cursor-agent -p`), and a re-hash check gates each spec before it retires. On hosts
+  whose edit hooks can veto a write before it lands the same lock is a real **pre-write veto**; on
+  Cursor it is materially weaker — see [`CAPABILITIES.md`](./CAPABILITIES.md).
 
 ## Install (local)
 

@@ -56,7 +56,7 @@ GATE_EXPECTATIONS: dict[str, dict] = {
         "manifest_hooks_pointer": ".cursor-plugin/plugin.json",
         "cursor_hooks": {
             "path": "hooks/hooks.json",
-            "modes": ["beforeShellExecution", "afterFileEdit"],
+            "modes": ["beforeShellExecution", "beforeMCPExecution", "afterFileEdit"],
             "guard": "hercules_gate.py",
         },
     },

@@ -147,9 +147,9 @@ installed, confirm it under **Customize → Plugins**: the persona rule (`rules/
 always applies, the `/discover`, `/design`, `/build`, `/ship`, `/workflow` commands appear, and the
 advisors run as isolated subagents.
 
-**Capability note.** Cursor's edit hook can't block an edit before it lands, so Hercules works *with* the host, not against it:
+**Capability note — Cursor is a best-effort enforcement tier, below Claude Code and OpenCode.** Cursor's edit hook can't block an edit before it lands, so on Cursor the frozen-test lock is materially weaker than the real **pre-write veto** you get on Claude Code and OpenCode; Hercules works *with* the host, not against it:
 
-- **Hard-denies where Cursor can block** — a plugin hook denies shell commands and MCP calls that write to or commit a frozen test.
+- **Best-effort deny where Cursor can block** — a plugin hook denies the common shell/MCP forms that write to or commit a frozen test (a coarse guardrail, not a sandbox — forms like `git add .` that stage by pathspec still slip past).
 - **Advisory on the edit path (IDE)** — a Composer edit to a frozen test raises a notice and leaves
   your working tree untouched; you undo it or grant an override.
 - **Auto-restore only when headless** — an unattended `cursor-agent` run restores the file via `git checkout` (no human present to act on a notice).

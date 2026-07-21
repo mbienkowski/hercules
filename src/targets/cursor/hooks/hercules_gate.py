@@ -59,7 +59,7 @@ _SEG_WRITE = re.compile(
 )
 _FIND_DELETE = re.compile(r"\bfind\b.*\s-delete\b")  # `find … -delete` carries no `rm` token
 _SEGMENT = re.compile(r"[\n;|&()]")                  # shell separators between pipeline segments
-_REDIRECT = re.compile(r">>?\s*(\S+)")               # output redirection and its target
+_REDIRECT = re.compile(r">>?[|&]?\s*(\S+)")           # output redirection (incl. >| clobber, >&) + target
 # Quoted spans are stripped before the frozen-path scan, so a commit message that merely NAMES a frozen
 # test (``git commit -m "fix test_login.py"``) is not mistaken for an operation on that file.
 _QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
@@ -68,6 +68,40 @@ _QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
 _MCP_WRITE_HINT = re.compile(
     r"(write|commit|edit|create|delete|remove|put|add|move|rename|patch|apply|stash|checkout|reset"
     r"|save|update|append|insert|push)", re.I)
+
+# Git write/commit subcommands, plus git's own GLOBAL options that may sit between ``git`` and the
+# subcommand. _SEG_WRITE anchors the verb immediately after ``git`` and so misses ``git -C . add`` /
+# ``git -c k=v commit`` / ``git --git-dir=… rm`` — ordinary forms (the gate itself runs ``git -C`` in
+# _restore). _git_write_seg tokenises past the global options so those are caught too.
+_GIT_WRITE_SUBCMDS = {"add", "commit", "mv", "rm"}
+_GIT_OPT_TAKES_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--config-env"}
+_LEAD_WRAP = re.compile(r"^\s*" + _WRAP)  # strip time/env/sudo/… wrappers before the ``git`` token
+
+
+def _git_write_seg(seg: str) -> bool:
+    """True if *seg* is a ``git`` add/commit/mv/rm even when git GLOBAL OPTIONS precede the subcommand.
+    Value-taking options (``-C <path>``, ``-c <k=v>``, ``--git-dir <p>``) consume their argument so the
+    first non-option token is classified as the subcommand. Coarse like the rest of the gate — it closes
+    the documented global-option evasion, it is not a sandbox."""
+    toks = _LEAD_WRAP.sub("", seg).strip().split()
+    if not toks or toks[0] != "git":
+        return False
+    i = 1
+    while i < len(toks):
+        t = toks[i]
+        if not t.startswith("-"):
+            return t in _GIT_WRITE_SUBCMDS       # first non-option token = the subcommand
+        if "=" not in t and t in _GIT_OPT_TAKES_VALUE:
+            i += 1                                # ``-C path`` form — skip the separate value token
+        i += 1
+    return False
+
+
+def _seg_names(seg: str, base: str) -> bool:
+    """True if basename *base* appears in *seg* as a whole path component / filename, not as a substring
+    of a longer name — so a frozen ``test_login.py`` is not matched inside ``mytest_login.py.bak``. A
+    path separator before it is fine; a word / dot / dash char on either edge is not."""
+    return re.search(r"(?:^|[^\w.\-])" + re.escape(base) + r"(?![\w.\-])", seg) is not None
 
 
 def _is_headless() -> bool:
@@ -149,9 +183,9 @@ def _writes_frozen(cmd: str, frozen: dict):
         if b in by_base:
             return by_base[b]
     for seg in _SEGMENT.split(unquoted):            # (b) a write/delete verb naming a frozen file in
-        if _SEG_WRITE.search(seg) or _FIND_DELETE.search(seg):  # the SAME pipeline segment
+        if _SEG_WRITE.search(seg) or _git_write_seg(seg) or _FIND_DELETE.search(seg):  # the SAME segment
             for b, p in by_base.items():
-                if b in seg:
+                if _seg_names(seg, b):
                     return p
     return None
 

@@ -163,7 +163,8 @@ jobs:
 
       # Pinned to the version verified when the check was written; the retry+timeout absorbs a
       # transient registry hiccup (a genuine outage, after 3 tries, fails only this ecosystem's
-      # leg). A pin going stale is surfaced by Dependabot — see .github/dependabot.yml.
+      # leg). Note: this blocking smoke installs the PINNED version, so it stays green after an
+      # upstream release — a stale pin is NOT auto-surfaced here; bump it by hand (see RELEASE.md).
       # Matrix values are routed through env (not interpolated into the shell) so a fork PR that
       # edits a smoke.json can't inject a command into these run: steps.
       - name: Install ${{ matrix.cli }}

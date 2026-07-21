@@ -119,3 +119,49 @@ def test_a_frozen_file_with_no_baseline_hash_is_drift_when_the_backstop_is_activ
                "frozen_test_files": ["tests/test_a.py", "tests/test_b.py"],
                "frozen_baseline": {"tests/test_a.py": a}}  # test_b.py absent
     assert frozen_drift(session, [canon(str(proj))]) == ["tests/test_b.py"]
+
+
+# --- B1: the sanctioned correct-the-test path (build.md Step 5 re-baseline + Step 10 mandatory clear) ---
+# The behavioural fix is doctrine-level (build.md); these pin the frozen_drift contract that doctrine now
+# relies on — the real grant->edit->CLEAR-override->retire path the suite never exercised before, the
+# false-HALT it removes, and the list(baseline) fallback that makes clearing frozen_baseline mandatory.
+
+def test_a_sanctioned_correction_that_rebaselined_is_not_drift(tmp_path):
+    """After a sanctioned grant, Build re-baselines the corrected file in the same atomic write that
+    CLEARS the override (build.md Step 5). At retire the override is already gone, so the only thing
+    standing between a legitimate correction and a false HALT is that frozen_baseline now holds the
+    corrected hash. Encodes that contract — the grant->edit->clear->retire path itself."""
+    proj = tmp_path / "proj"
+    _freeze(proj, "tests/test_frozen.py", "def test_x():\n    assert status == 200\n")
+    corrected = "def test_x():\n    assert status == 201\n"
+    (proj / "tests" / "test_frozen.py").write_text(corrected, encoding="utf-8")
+    session, roots = _session(proj, {"tests/test_frozen.py": _sha(corrected)})  # re-based; override cleared
+    assert frozen_drift(session, roots) == []
+
+
+def test_a_correction_left_unrebaselined_would_false_halt(tmp_path):
+    """The bug this fix removes: if Build edits under a sanctioned override but FAILS to re-baseline
+    before clearing it, retire sees corrected-bytes != stale-baseline and no active override -> a false
+    'tampered acceptance test' HALT on a legitimately corrected test. Pins the failure mode so a
+    regression that drops the Step-5 re-baseline is caught."""
+    proj = tmp_path / "proj"
+    baseline = _freeze(proj, "tests/test_frozen.py", "def test_x():\n    assert status == 200\n")
+    (proj / "tests" / "test_frozen.py").write_text("def test_x():\n    assert status == 201\n",
+                                                    encoding="utf-8")
+    session, roots = _session(proj, {"tests/test_frozen.py": baseline})  # baseline NOT updated, no override
+    assert frozen_drift(session, roots) == ["tests/test_frozen.py"]
+
+
+def test_a_stale_baseline_left_after_retire_rechecks_retired_paths(tmp_path):
+    """Why clearing frozen_baseline at retire is MANDATORY: frozen_drift falls back to
+    list(frozen_baseline) when frozen_test_files is empty. If retire clears frozen_test_files but leaves
+    a stale frozen_baseline, the NEXT spec (before it freezes its own tests) re-checks the retired path
+    and false-HALTs. Pins the fallback behaviour that makes the Step-10 clear load-bearing."""
+    proj = tmp_path / "proj"
+    old = _freeze(proj, "tests/test_retired.py", "def test_x():\n    assert real()\n")
+    (proj / "tests" / "test_retired.py").write_text("def test_x():\n    assert real2()\n",
+                                                     encoding="utf-8")  # retired test evolved with the code
+    session = {"current_phase": "build", "current_spec": "spec-2.md", "current_spec_round": 1,
+               "frozen_test_files": [],                              # next spec hasn't frozen yet
+               "frozen_baseline": {"tests/test_retired.py": old}}    # stale — not cleared at retire
+    assert frozen_drift(session, [canon(str(proj))]) == ["tests/test_retired.py"]
