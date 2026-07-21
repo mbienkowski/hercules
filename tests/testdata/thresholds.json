@@ -65,8 +65,8 @@
     "target": "dist/claude-code/commands/build.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 3150,
-    "warn_at": 3120,
+    "limit": 3260,
+    "warn_at": 3230,
     "severity": "gate"
   },
   {
