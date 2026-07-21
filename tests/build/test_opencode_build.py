@@ -37,8 +37,9 @@ def test_opencode_output_contains_no_claude_specific_wording(tmp_path):
     offenders = {}
     for rel, text in _files(out).items():
         # plugin.js inlines the (already-checked) content; CAPABILITIES.md legitimately *names*
-        # Claude Code to disclose the cross-ecosystem capability difference.
-        if rel in ("plugin.js", "CAPABILITIES.md"):
+        # Claude Code to disclose the cross-ecosystem gap; hooks/ ships the CANONICAL shared guard
+        # (byte-identical to Claude's), whose docstrings describe the cross-ecosystem write-gate.
+        if rel in ("plugin.js", "CAPABILITIES.md") or rel.startswith("hooks/"):
             continue
         hits = CLAUDE_ISM.findall(text)
         if hits:

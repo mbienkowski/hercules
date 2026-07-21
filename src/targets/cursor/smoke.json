@@ -1,0 +1,9 @@
+{
+  "cli": "cursor-agent",
+  "test": "tests/build/test_cursor_smoke.py",
+  "install": {
+    "method": "script",
+    "url": "https://cursor.com/install",
+    "flags": "-fsSL"
+  }
+}

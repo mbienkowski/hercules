@@ -13,10 +13,11 @@ from pathlib import Path
 
 import pytest
 
-from scripts.build import cli
+from scripts.build import cli, emit
 from scripts.build.version_targets import (
     VERSION_TARGETS,
     check_in_sync,
+    read_canonical_version,
     read_versions,
     write_version,
 )
@@ -97,41 +98,138 @@ def test_bumping_the_version_fails_loudly_if_a_file_has_no_version_line(tmp_path
         write_version("1.0.0", tmp_path)
 
 
-# ── B1: the versioned Claude manifest must be a build SOURCE, not a build OUTPUT ──
-def test_a_release_version_bump_survives_the_next_build(tmp_path):
-    """A version number bumped during a release must still be in place after the project is
-    rebuilt from source. Regression: the version used to be recorded only in a generated build
-    output, which gets overwritten from source on every build -- so a release bump was silently
-    erased by the very next build, and then flagged as drifted. The fix keeps the version
-    recorded in the source file the build reads from, not in a file the build overwrites."""
+# ── B1 (updated for single-source injection): pyproject is the version of record; the manifests the
+#     CLIs load carry a ${version} TOKEN, injected at build — never a literal a rebuild erases or a
+#     human forgets to bump. Contract deliberately reopened from the original byte-copy-literal form. ──
+def test_build_injects_the_canonical_version_into_the_consumed_manifest(tmp_path):
+    """The plugin manifests the CLIs actually load (dist/<eco>/…/plugin.json) get their version
+    INJECTED from the single canonical source (pyproject.toml) at build time; the source manifests
+    under src/targets/ carry a ``${version}`` TOKEN, not a literal. This (a) makes a release bump
+    touch one canonical file instead of N, and (b) means nobody reading src/ sees a stale literal to
+    forget (least-astonishment).
+
+    Regression this still prevents: the version must never live ONLY in a build OUTPUT — a dist file
+    is regenerated from src on every build, silently erasing a bump. Here the version of record is
+    pyproject.toml (a build SOURCE, never regenerated); the token→literal substitution happens only
+    at build, into the output."""
     version_paths = [rel for rel, _ in VERSION_TARGETS]
-    assert "src/targets/claude-code/plugin.json" in version_paths
+    assert "pyproject.toml" in version_paths, "pyproject.toml is the canonical version of record"
     assert not any(rel.startswith("dist/") for rel in version_paths), (
         "a build OUTPUT must never be a version target — it is regenerated from src on every build"
     )
-    # Behavioural: the version in the (source) target file is exactly what a fresh build emits.
-    src_version = read_versions(REPO_ROOT)["src/targets/claude-code/plugin.json"]
+    # The build-consumed source manifests hold the token, never a literal (nothing to hand-bump).
+    for eco in ("claude-code", "cursor"):
+        src_manifest = (REPO_ROOT / "src" / "targets" / eco / "plugin.json").read_text(encoding="utf-8")
+        assert '"version": "${version}"' in src_manifest, (
+            f"src/targets/{eco}/plugin.json must carry the ${{version}} token, not a literal"
+        )
+    # Behavioural: a fresh build injects the canonical (pyproject) version into the consumed manifest.
+    canonical = read_canonical_version(REPO_ROOT)
     out = tmp_path / "claude-code"
     cli.build_target("claude-code", out)
     built = json.loads((out / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
-    assert built["version"] == src_version
+    assert built["version"] == canonical
+
+
+def test_no_shipped_plugin_manifest_carries_an_unresolved_version_token():
+    """No committed dist/ plugin manifest may still contain an unresolved ``${…}`` token — that would
+    mean build-time injection silently failed to fill the version. The fail-loud injector
+    (emit.copy_versioned) should make this impossible; we assert the SHIPPED bytes directly so a
+    regression can't slip past the drift gate (an un-injected token is just as byte-stable as a
+    correct value, so the drift/determinism gates alone cannot catch it)."""
+    manifests = sorted((REPO_ROOT / "dist").rglob("plugin.json"))
+    assert manifests, "expected at least one committed dist plugin manifest"
+    for manifest in manifests:
+        assert "${" not in manifest.read_text(encoding="utf-8"), \
+            f"unresolved build token shipped in {manifest}"
+
+
+def test_every_shipped_plugin_manifest_matches_the_canonical_version():
+    """Every shipped plugin manifest's version equals the single canonical source (pyproject.toml)
+    DIRECTLY — not merely transitively via the byte-drift gate. Closes the gap where cursor's dist
+    manifest version had no assertion of its own tying it to the source of truth."""
+    canonical = read_canonical_version(REPO_ROOT)
+    manifests = sorted((REPO_ROOT / "dist").rglob("plugin.json"))
+    assert manifests, "expected at least one committed dist plugin manifest"
+    for manifest in manifests:
+        version = json.loads(manifest.read_text(encoding="utf-8"))["version"]
+        assert version == canonical, \
+            f"{manifest} version {version!r} != canonical {canonical!r}"
+
+
+# ── The build-time injector (emit.copy_versioned): the ONE guard against shipping ${version} ──
+def test_copy_versioned_fills_the_single_token_and_preserves_every_other_byte(tmp_path):
+    """The happy path: exactly one ${version} token is replaced, and every other byte — key order,
+    indentation, trailing newline — is preserved (pure string substitution, not a JSON re-serialize)."""
+    src = tmp_path / "src.json"
+    src.write_text('{\n  "name": "x",\n  "version": "${version}"\n}\n', encoding="utf-8")
+    dest = tmp_path / "out" / "dest.json"
+    emit.copy_versioned(src, dest, "1.2.3")
+    assert dest.read_text(encoding="utf-8") == '{\n  "name": "x",\n  "version": "1.2.3"\n}\n'
+
+
+def test_copy_versioned_raises_and_writes_nothing_when_the_token_is_missing(tmp_path):
+    """n=0: a source with no ${version} token must raise, not silently ship a manifest with a
+    wrong/absent version. This is the guard the whole single-source change exists to add — the drift
+    and determinism gates CANNOT catch an un-injected token (it's just as byte-stable as a real value).
+    Also asserts no partial/wrong file is left behind on failure."""
+    src = tmp_path / "src.json"
+    src.write_text('{\n  "version": "1.0.0"\n}\n', encoding="utf-8")  # a literal, no token
+    dest = tmp_path / "dest.json"
+    with pytest.raises(SystemExit, match="exactly one"):
+        emit.copy_versioned(src, dest, "1.2.3")
+    assert not dest.exists(), "must not write a manifest when injection fails"
+
+
+def test_copy_versioned_raises_on_a_duplicate_token(tmp_path):
+    """n=2: two ${version} tokens must also raise — the guard counts occurrences, it is not a
+    replace-first-and-hope. (Together with the n=0 case this kills a `!= 1` → `> 1` / `< 1` slip.)"""
+    src = tmp_path / "src.json"
+    src.write_text('{\n  "version": "${version}",\n  "build": "${version}"\n}\n', encoding="utf-8")
+    with pytest.raises(SystemExit, match="exactly one"):
+        emit.copy_versioned(src, tmp_path / "dest.json", "1.2.3")
+
+
+def test_a_duplicate_version_field_is_caught_not_silently_picked(tmp_path):
+    """If a canonical manifest ever grows a SECOND ``"version"`` field (e.g. a nested
+    ``"engines": {"version": …}``), both reading and writing the version must fail loudly rather than
+    silently pick/keep the first. Guards the match-count check that replaced the old ``count=1`` regex,
+    which capped substitutions at one and so could never detect a duplicate despite its error message
+    implying it did."""
+    _seed(tmp_path, "1.0.0")
+    pkg = tmp_path / "package.json"
+    pkg.write_text('{\n  "version": "1.0.0",\n  "engines": { "version": "2.0.0" }\n}\n', encoding="utf-8")
+    with pytest.raises(SystemExit, match="exactly one"):
+        read_versions(tmp_path)
+    with pytest.raises(SystemExit, match="exactly one"):
+        write_version("3.0.0", tmp_path)
 
 
 def test_the_release_process_rebuilds_and_commits_the_output_after_bumping_the_version():
     """The release workflow must rebuild the distributable build output after bumping the
     version, and include that rebuilt output in the release commit. Skipping the rebuild would
     leave the shipped build carrying the old version number, causing the very next unrelated
-    change to fail the version-sync check."""
-    set_idx = RELEASE.find("-m scripts.set_version")
-    build_idx = RELEASE.find("scripts.build.cli")
-    assert set_idx != -1, (
-        "release must bump the version via `python -m scripts.set_version` \u2014 the module "
-        "form, so its `from scripts.build...` import resolves in the release job (the file-path "
-        "form `python scripts/set_version.py` raises ModuleNotFoundError and aborts the bump)"
-    )
-    assert build_idx != -1, "release must rebuild dist/ (python -m scripts.build.cli)"
-    assert build_idx > set_idx, "the dist/ rebuild must run AFTER the version bump"
-    assert re.search(r"git add[^\n]*\bdist\b", RELEASE), "release must stage dist/ in the bump commit"
+    change to fail the version-sync check.
+
+    CI is Makefile-driven (CODE_OF_CONDUCT \u00a7 Invariants): the workflow runs `make` targets in order,
+    and the underlying commands live in the Makefile + scripts/ci/ \u2014 so this pins the behaviour at
+    its real home, not an inline YAML block."""
+    makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+    commit_sh = (REPO_ROOT / "scripts" / "ci" / "release_commit.sh").read_text(encoding="utf-8")
+    # The workflow runs the three make targets in order: bump \u2192 rebuild \u2192 commit.
+    ver_idx = RELEASE.find("make release-version")
+    build_idx = RELEASE.find("make build")
+    commit_idx = RELEASE.find("make release-commit")
+    assert -1 not in (ver_idx, build_idx, commit_idx), \
+        "release must run `make release-version`, `make build`, `make release-commit`"
+    assert ver_idx < build_idx < commit_idx, "order must be version-bump \u2192 rebuild \u2192 commit"
+    # `make release-version` bumps via the MODULE form (`python -m scripts.set_version`), so its
+    # `from scripts.build...` import resolves; the file-path form raises ModuleNotFoundError.
+    assert "-m scripts.set_version" in makefile, \
+        "make release-version must bump via `python -m scripts.set_version` (module form)"
+    # release_commit.sh stages the rebuilt dist/ into the bump commit.
+    assert re.search(r"git add[^\n]*\bdist\b", commit_sh), \
+        "release_commit.sh must stage dist/ in the bump commit"
 
 
 def test_release_acts_only_on_the_ci_validated_commit():
@@ -140,14 +238,17 @@ def test_release_acts_only_on_the_ci_validated_commit():
     would defeat the green-CI gate. Guard the fix so it cannot silently regress: the release job
     must EITHER pin the checkout ref to ``github.event.workflow_run.head_sha``, OR contain a step
     that compares ``git rev-parse HEAD`` to that sha and exits non-zero on mismatch."""
+    verify_sh = (REPO_ROOT / "scripts" / "ci" / "release_verify_checkout.sh").read_text(encoding="utf-8")
     head_sha = "github.event.workflow_run.head_sha"
     pinned = f"ref: ${{{{ {head_sha} }}}}" in RELEASE
-    guarded = ("rev-parse HEAD" in RELEASE) and (head_sha in RELEASE) and ("exit 1" in RELEASE)
+    # Guarded: the workflow passes the CI-validated sha (as WANT_SHA) to `make release-verify`, whose
+    # script compares it to `git rev-parse HEAD` and exits non-zero on mismatch.
+    guarded = (head_sha in RELEASE) and ("rev-parse HEAD" in verify_sh) and ("exit 1" in verify_sh)
     assert pinned or guarded, (
         "release must act only on the CI-validated commit: pin the checkout ref to "
-        "${{ github.event.workflow_run.head_sha }}, or add a step comparing `git rev-parse HEAD` "
-        "to that sha that exits non-zero on mismatch (workflow_run checks out the branch tip, "
-        "which can advance past the validated commit)"
+        "${{ github.event.workflow_run.head_sha }}, or pass that sha to a release-verify step whose "
+        "script compares `git rev-parse HEAD` to it and exits non-zero on mismatch (workflow_run "
+        "checks out the branch tip, which can advance past the validated commit)"
     )
 
 
@@ -200,12 +301,12 @@ def test_the_pipeline_fails_if_the_build_output_is_not_committed_to_source_contr
     the generated output folder is left untracked by version control. Without this guard, a
     release tag could silently capture an empty or missing build."""
     # dist/ must be tracked, not silently git-ignored (a tag would then snapshot an empty tree).
-    # Anchored to the named step, not a bare "porcelain"/"dist" substring search over the whole
-    # file, so an unrelated line elsewhere in the workflow can't false-satisfy this.
-    m = re.search(r"Untracked-dist guard.*?\n((?:.+\n)+?)\n", CI)
-    assert m, "CI must have an 'Untracked-dist guard' step"
-    assert "git status --porcelain" in m.group(1) and "dist" in m.group(1), \
-        "the untracked-dist guard step must actually check git status on dist/"
+    # The guard runs via `make ci-build`; its logic lives in scripts/ci/build_gates.sh (CI is
+    # Makefile-driven — no inline YAML). Anchor the check to that script, not a whole-file substring.
+    gates_sh = (REPO_ROOT / "scripts" / "ci" / "build_gates.sh").read_text(encoding="utf-8")
+    assert "make ci-build" in CI, "CI must run the build gates via `make ci-build`"
+    assert "git status --porcelain" in gates_sh and "dist" in gates_sh, \
+        "build_gates.sh must check git status on dist/ (the untracked-dist guard)"
 
 
 # ── Determinism: two builds are byte-identical ───────────────────────────────

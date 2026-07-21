@@ -5,8 +5,8 @@ version: 2
 # opens one PR per week, not one per action.
 #
 # NOTE: the ecosystem CLI pins live in src/targets/<eco>/smoke.json (not a package manifest), so
-# Dependabot cannot bump them. That drift is a separate follow-up (a non-blocking `@latest` smoke
-# leg surfaces it) — see the advisory-board report finding #5.
+# Dependabot cannot bump them, and no CI leg surfaces a stale one — the blocking smoke installs the
+# pinned version and stays green after an upstream release. Bump these pins by hand (see RELEASE.md).
 updates:
   - package-ecosystem: github-actions
     directory: "/"

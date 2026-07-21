@@ -8,16 +8,21 @@ CI regenerates and drift-checks `dist/` on every push, so `main` always carries 
 On every merge to `main`, `release.yml` runs after CI succeeds:
 
 1. Computes the next version from Conventional Commits (`feat`/`fix`/`perf` bump the CHANGELOG).
-2. `scripts/set_version.py` stamps that version into **every** file in the canonical list
-   (`scripts/build/version_targets.py`): `pyproject.toml`, `dist/claude-code/.claude-plugin/plugin.json`,
-   `package.json`. One version identifies the release everywhere.
-3. Commits the bump (`chore(release): X.Y.Z [skip ci]`), tags `vX.Y.Z`, pushes.
-4. Publishes the GitHub Release.
-5. **Publishes the OpenCode plugin to npm** from the tagged tree (requires the `NPM_TOKEN` repo
+2. `scripts/set_version.py` stamps that version into the two files that MUST carry a literal
+   (`scripts/build/version_targets.py::VERSION_TARGETS`): `pyproject.toml` (the canonical source, read
+   by setuptools) and `package.json` (read by npm/OpenCode). The plugin manifests
+   (`dist/{claude-code,cursor}/…/plugin.json`) are **not** stamped — their source carries a
+   `${version}` token that the build injects from `pyproject.toml` (step below), so there is one
+   version of record and nothing to hand-bump under `src/targets/`.
+3. `make build` regenerates `dist/`, injecting the canonical version into each plugin manifest.
+4. Commits the bump + rebuilt `dist/` (`chore(release): X.Y.Z [skip ci]`), tags `vX.Y.Z`, pushes.
+5. Publishes the GitHub Release.
+6. **Publishes the OpenCode plugin to npm** from the tagged tree (requires the `NPM_TOKEN` repo
    secret; the step self-skips if it is absent).
 
-The `validate` CI job re-reads the canonical list and fails the build if any manifest disagrees, so a
-release can never ship a split version.
+The `validate` CI job re-reads the canonical list (`pyproject.toml` + `package.json`) and fails if
+they disagree; a separate test asserts every shipped `dist/…/plugin.json` version equals the canonical
+one — so a release can never ship a split or an un-injected (`${version}`) version.
 
 ## Manual smoke checklist (release-gating, once per release)
 
@@ -106,10 +111,54 @@ they must be confirmed live before release:
       config-hook mutation to `instructions` is applied before the model runs; documented for skills).
 - [ ] The `hercules-reference` skill is model-invoked and its `§` sections are reachable.
 
+### Cursor
+
+**Install:** Cursor consumes the built plugin at `dist/cursor/` (`.cursor-plugin/plugin.json` + native
+component dirs). Copy `dist/cursor/` into `~/.cursor/plugins/local/hercules/` and restart Cursor (the
+documented local-plugin path); a public marketplace listing is a planned follow-up (a repo-root
+`.cursor-plugin/marketplace.json` sourcing `dist/cursor` is included for it). Requires Cursor ≥ 2.5
+(the version that added plugin packaging). There is **no registry publish step** — like Claude Code,
+Cursor is git-consumed.
+
+These load-time behaviours are **not** provable by the build (the `Smoke — cursor` leg runs the real
+`cursor-agent` binary + structural checks on every PR and main; the keyed `cursor-agent -p` run is
+opt-in — it needs a `CURSOR_API_KEY` secret and skips without it) — confirm live before release:
+
+- [ ] The plugin installs and `rules/hercules-persona.mdc` always-applies (persona is active).
+- [ ] `/discover`, `/design`, `/build`, `/ship`, `/workflow` appear and run.
+- [ ] A specialist advisor spawns as an **isolated subagent** (own context), not a same-context rule.
+- [ ] **The write-gate fires** (`${CURSOR_PLUGIN_ROOT}` resolves and `hercules_gate.py` runs): during a
+      build, a `beforeShellExecution`/`beforeMCPExecution` command that writes/commits a frozen test is
+      **denied**. If the hook does not run at all, `${CURSOR_PLUGIN_ROOT}` is not resolving — the gate is
+      inert (this is the load-bearing check).
+- [ ] **The IDE edit path is advisory, not destructive**: a Composer edit to a frozen test raises a
+      **user-visible notice** and the working tree is **left untouched** (no silent revert). With
+      `HERCULES_RUNTIME_MODE=headless` set, the same edit is instead **restored via `git checkout`** — and
+      the message says so only when git actually restored it (an untracked test reports an honest failure).
+- [ ] **The acceptance backstop holds**: tamper with a frozen test (no override) and confirm Build
+      **HALTs at retire** on the `frozen_baseline` hash mismatch rather than accepting the spec.
+- [ ] At the Design coverage / Build traceability gate, the `cynical-reviewer` returns a **handshake**
+      (attests it read `*-business-requirements.md` + a coverage/traceability matrix) — or the flow
+      **HALTS and asks** (never silently self-reviews).
+- [ ] `CAPABILITIES.md` discloses the write-gate, model-tier, and best-effort-independent-review gaps.
+- [ ] "Which version are you?" reports the version from `.cursor-plugin/plugin.json`.
+
+| # | Cursor item | Status |
+|---|---|---|
+| 1 | Real `cursor-agent` binary runs + built plugin is structurally valid | ✅ automated (`test_the_real_cursor_agent_binary_runs_and_the_plugin_is_well_formed`, runs on every PR + main) |
+| 2 | Headless `cursor-agent -p` completes a run | ⚙️ keyed (`CURSOR_API_KEY`; skips on forks) |
+| 3 | Persona rule always-applies; commands appear | manual |
+| 4 | Specialist spawns as an isolated subagent | manual |
+| 4b | Write-gate fires (`${CURSOR_PLUGIN_ROOT}` resolves; frozen shell/MCP write denied; IDE edit advisory-not-reverted; headless restores; acceptance backstop HALTs) | manual (load-bearing) |
+| 5 | Independent-review handshake returns (or HALTs) | manual |
+| 6 | `CAPABILITIES.md` gaps read true | manual |
+
 ### Cross-ecosystem
 
-- [ ] `dist/claude-code/.claude-plugin/plugin.json`, `package.json`, and `pyproject.toml` all show the
-      release version (matches the git tag).
+- [ ] `pyproject.toml` and `package.json` — the two literal version sources
+      (`scripts/build/version_targets.py::VERSION_TARGETS`) — both show the release version (matches the
+      git tag). The plugin manifests under `src/targets/` carry a `${version}` token (not a literal); the
+      build injects the canonical `pyproject.toml` version into every `dist/…/plugin.json`.
 
-v1 ships **Claude Code + OpenCode**. Codex and Cursor are TBD — add their smoke sections when delivered
+v1 ships **Claude Code + OpenCode + Cursor**. Codex is TBD — add its smoke section when delivered
 (see [CONTRIBUTING.md](CONTRIBUTING.md) § Adding a new target for the proven extension procedure).

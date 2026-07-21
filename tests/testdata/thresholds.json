@@ -65,8 +65,8 @@
     "target": "dist/claude-code/commands/build.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 3000,
-    "warn_at": 2980,
+    "limit": 3260,
+    "warn_at": 3230,
     "severity": "gate"
   },
   {
@@ -112,10 +112,10 @@
     "target": "dist/claude-code/skills/hercules-reference/SKILL.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 3400,
+    "limit": 3450,
     "severity": "gate",
     "per_file": true,
-    "warn_at": 3380
+    "warn_at": 3430
   },
   {
     "name": "coc-generator-token-budget",

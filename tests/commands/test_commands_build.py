@@ -263,7 +263,9 @@ def test_finishing_a_piece_of_work_resets_the_attempt_counter_for_the_next_one(r
     retire = _section(read_file(_BUILD), "10. **Retire the spec.**", "For a spec scoped",
                       label=_BUILD)
     assert "remove `current_spec_round`" in retire
-    assert "clear `frozen_test_files` and `frozen_override`" in retire
+    # B1: frozen_baseline is cleared at retire alongside its siblings — a stale baseline left behind
+    # would make the next spec's acceptance backstop re-check retired paths and false-HALT.
+    assert "clear `frozen_test_files`, `frozen_baseline`, and `frozen_override`" in retire
 
 def test_a_new_tests_failure_must_be_a_real_failure_not_a_broken_test_file(read_file):
     """Before writing tests, the code must be confirmed to still compile, and a newly written

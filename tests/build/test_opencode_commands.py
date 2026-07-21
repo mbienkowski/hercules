@@ -8,7 +8,8 @@ carry ``{description, agent, ...}`` and ``template`` is the prompt BODY only.
 """
 from pathlib import Path
 
-from scripts.build.cli import _load_tokens, _opencode_agents_and_commands, build_target
+from scripts.build.cli import SRC_CONTENT, _load_tokens, build_target
+from scripts.build.targets.opencode import _agents_and_commands
 
 
 def test_opencode_commands_have_real_descriptions_and_clean_prompt_text():
@@ -16,7 +17,7 @@ def test_opencode_commands_have_real_descriptions_and_clean_prompt_text():
     UI, must be wired to the hercules agent, and its prompt text must not still contain leftover
     Claude-only formatting or settings -- otherwise the command would look broken or run through
     the wrong agent when a user tries to use it in OpenCode."""
-    _, commands = _opencode_agents_and_commands(_load_tokens("opencode"))
+    _, commands = _agents_and_commands(SRC_CONTENT, _load_tokens("opencode"))
     assert commands, "expected inline command entries"
     for name, meta, template in commands:
         assert meta.get("description"), f"{name}: empty command description reaches the UI"

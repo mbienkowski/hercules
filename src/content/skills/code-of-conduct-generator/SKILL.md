@@ -30,6 +30,8 @@ ${target:claude}
 1. **Plan mode & mode** — call `${plan_enter}` first, before any scanning; give a chat summary of the
 ${target:opencode}
 1. **Plan mode & mode** — enter plan mode first, before any scanning; give a chat summary of the
+${target:cursor}
+1. **Plan mode & mode** — enter plan mode first, before any scanning; give a chat summary of the
 ${target:end}
    flow and offer **Quick** (small/low-stakes default: scan → a few questions → draft → gate → review →
    commit) or **Thorough** (adds the coverage-map gap pass and an advisor critical-review pass). Name the detected
@@ -71,6 +73,8 @@ ${target:end}
 ${target:claude}
 8. **Approve & write** — on approval: `${plan_exit}` (`auto`) → write atomically (temp + rename) → add a
 ${target:opencode}
+8. **Approve & write** — on approval: leave plan mode → write atomically (temp + rename) → add a
+${target:cursor}
 8. **Approve & write** — on approval: leave plan mode → write atomically (temp + rename) → add a
 ${target:end}
    deduplicated `@`-reference (default `@./code-of-conduct.md`) to the **target** repo's `${instructions_file}`,

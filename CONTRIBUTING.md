@@ -1,8 +1,11 @@
 # Contributing to Hercules
 
 Hercules is authored once in `src/` and compiled to per-ecosystem trees under `dist/`
-(`claude-code`, `opencode`) by the build pipeline in `scripts/build/`. CI regenerates and
+(`claude-code`, `opencode`, `cursor`) by the build pipeline in `scripts/build/`. CI regenerates and
 drift-checks `dist/` on every push, so `main` always carries an in-sync build.
+
+The deep rules for *extending the methodology itself* (commands, agents, skills, hooks, invariants)
+live in [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md); the release process is in [`RELEASE.md`](RELEASE.md).
 
 ## Quick start
 
@@ -12,6 +15,11 @@ make build          # regenerate dist/ for every target
 make test           # drift-check dist/ + run the suite with coverage
 make test-mutation  # mutation testing (slower; gates on a 90% kill rate)
 ```
+
+> **Run `make test-mutation` locally before opening a PR.** Mutation is **not** run on PRs (to keep PR
+> feedback fast) — it runs as the **release gate on `main`**: a merge whose kill rate drops below 90%
+> produces a red CI conclusion and **blocks the release**. So a mutation regression you don't catch
+> locally won't surface on your PR — it will stop the next release *after* merge. Catch it here first.
 
 After editing anything under `src/`, rebuild and commit `dist/` alongside the source change.
 An optional pre-commit hook regenerates `dist/` automatically:
@@ -33,8 +41,16 @@ git config core.hooksPath .githooks
 
 ## Adding a new target (e.g. Codex, Cursor)
 
-The build is registry-driven, so adding a target touches the build code in exactly one place and
-adds one config file — `parse`/`render`/`model_map`/`cli` need no change. The procedure:
+The authoritative contract is [`CODE_OF_CONDUCT.md` § Adding an ecosystem](CODE_OF_CONDUCT.md) (data
+under `src/targets/<eco>/`, code under `scripts/build/`); this is the practical checklist.
+
+The build is registry-driven: `parse`/`render`/`model_map`/`cli`/`emit` need **no** change — a target
+is additive (a serializer + a target descriptor + a few config/manifest files, all listed below).
+Disclosed capability gaps go in an optional `src/targets/<eco>/CAPABILITIES.md` (a plain data file the
+build copies verbatim — not a Python string). The two CI-hard-failing steps that are easy to forget —
+the write-gate declaration (step 6) and
+`smoke.json` (step 7) — are called out so you don't pass local `make test` and then hit a late CI
+failure. The procedure:
 
 1. **Add a `Serializer` subclass + `register()` it** in `scripts/build/serialize.py`.
    A `Serializer` turns a parsed `(frontmatter, body)` into one target's output bytes. See
@@ -49,32 +65,77 @@ adds one config file — `parse`/`render`/`model_map`/`cli` need no change. The 
    per-agent models, as OpenCode does). `model_map.resolve` falls back toward higher tiers when a
    tier is unset.
 
-4. **Optional build-driver entries** in `scripts/build/cli.py`:
-   - `_RENAMES` — per-target source→dest filename remaps (e.g. `persona.md` → `CLAUDE.md`).
-   - A target-specific branch in `build_target` — if the target needs byte-copied non-markdown
-     assets (like Claude's `hooks/*.py`) or generated extras (like OpenCode's `plugin.js`), add a
-     branch mirroring the `_CLAUDE_COPIES` / `_emit_opencode_extras` patterns.
+4. **Register a `Target`** in `scripts/build/targets/<name>.py` and import it from
+   `scripts/build/targets/__init__.py`. The `Target` binds the ecosystem to its source→dest mapping
+   (a `renames` dict, or a `dest_fn` for a load-bearing rename like Cursor's `.mdc` rule) and its
+   `emit_extras` — the non-content artifacts it copies or generates (manifests, hooks, capability
+   docs), built from the leaf helpers in `scripts/build/emit.py`. `cli.py` holds **zero**
+   per-ecosystem branches — dispatch is registry-driven — so onboarding a target never edits the
+   orchestrator.
 
 5. **Rebuild and commit**: `make build` regenerates `dist/<name>/`; commit it alongside the source.
 
-6. **Add tests** under `tests/build/` pinning the new target's serializer output, and a conformance
+6. **Declare the write-gate** (CI-hard-failing): add an entry for the target to `GATE_EXPECTATIONS`
+   in `tests/hooks/test_enforcement_gates.py`. `test_every_registered_target_declares_a_gate` fails
+   for any registered ecosystem with no declared write-gate (or an explicit, reasoned waiver) — this
+   is a deliberate security forcing-function, so a new target can't ship ungated by accident.
+
+7. **Add `src/targets/<name>/smoke.json`** (CI-hard-failing): the CI smoke matrix derives from the
+   target registry and `scripts/ci/smoke_matrix.py` raises on a registered ecosystem with no
+   `smoke.json`. It declares the CLI, install method, and the smoke-test path.
+
+8. **Add tests** under `tests/build/` pinning the new target's serializer output, and a conformance
    block in `tests/build/test_conformance.py` for any ecosystem-specific invariants. Add a
    mirror-parity test (see `test_opencode_mirror.py`) if the target has both standalone files and
    an inlined manifest.
 
-7. **Add a smoke-checklist section** to `RELEASE.md` for the live (non-build-provable) behaviours
+9. **Add a smoke-checklist section** to `RELEASE.md` for the live (non-build-provable) behaviours
    the new target requires a human to confirm before release.
 
 The keystone invariant: `make test` runs `--check` (renders to a temp dir, diffs against committed
 `dist/`, fails on drift) plus the full suite — so a target that doesn't render deterministically, or
 whose output diverges from committed `dist/`, fails CI immediately.
 
+## Testing your changes as a live plugin
+
+To try your checkout in Claude Code, add **your local directory** as a marketplace:
+`/plugin marketplace add /path/to/your/checkout`. Its `marketplace.json` declares the name
+`mbienkowski`, so `/plugin install hercules@mbienkowski` then resolves to **your checkout**. If you
+already added the public marketplace under that same name, remove it first
+(`/plugin marketplace remove mbienkowski`) so the name isn't ambiguous — otherwise you'd be testing
+the released version, not your changes. After `git checkout`-ing the branch you want, run
+`/reload-plugins` to apply.
+
+**Testing a branch before release (maintainers).** To pull a branch straight from GitHub without a
+local checkout, add a *temporary* marketplace entry in `~/.claude-priv/settings.json` (or
+`~/.claude/settings.local.json`, so it stays off-project and out of git):
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "hercules-dev": {
+      "source": { "source": "github", "repo": "mbienkowski/hercules", "ref": "your-feature-branch" }
+    }
+  },
+  "enabledPlugins": { "hercules@hercules-dev": true }
+}
+```
+
+`ref` accepts a branch, tag, or commit SHA (omit it for the default branch). `hercules-dev` is a
+throwaway local name — **remove the entry and restart Claude Code when you're done** to return to the
+released version. Restart after any change; settings are read at startup.
+
 ## Conventions
 
 - **No comments in code** unless explaining a non-obvious decision.
+- All `.md` filenames must be **lowercase** — macOS is case-insensitive but Linux (CI) is not, so a
+  mixed-case name that works locally breaks on CI.
 - Tests live in `tests/`, organised by category (`build/`, `agents/`, `commands/`, `hooks/`, …).
   `tests/test_collection_integrity.py` guards that no test directory is hidden by `norecursedirs`.
-- One version across all manifests — `scripts/build/version_targets.py` is the single canonical
-  list; `scripts/set_version.py` writes it, CI's `validate` job reads it.
+- One version, single-sourced — `pyproject.toml` is canonical; `package.json` is the only other
+  literal (npm needs it) and is cross-checked against it. Both are the whole list in
+  `scripts/build/version_targets.py`; `scripts/set_version.py` writes them, CI's `validate` job checks
+  them. The plugin manifests under `src/targets/<eco>/plugin.json` carry a `${version}` **token** — the
+  build injects the canonical version into `dist/…/plugin.json`, so there's nothing to hand-bump in `src/`.
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
   `refactor:`, `test:`, `docs:`, `ci:`) — the release pipeline derives the version bump from them.

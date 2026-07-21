@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Hercules">
+  <rect width="512" height="512" rx="112" fill="#141a2e"/>
+  <g fill="#e6b450">
+    <rect x="150" y="150" width="48" height="212" rx="10"/>
+    <rect x="314" y="150" width="48" height="212" rx="10"/>
+    <rect x="150" y="232" width="212" height="48" rx="10"/>
+    <rect x="132" y="132" width="84" height="26" rx="8"/>
+    <rect x="296" y="132" width="84" height="26" rx="8"/>
+    <rect x="132" y="354" width="84" height="26" rx="8"/>
+    <rect x="296" y="354" width="84" height="26" rx="8"/>
+  </g>
+</svg>

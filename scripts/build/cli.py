@@ -1,91 +1,34 @@
 """``hercules-build`` entry point (thin FS boundary).
 
-``--target {claude-code|opencode|all} [--check]``. Without ``--check`` it writes ``dist/<target>/``;
-with ``--check`` it renders to a temp dir and diffs against the committed ``dist/`` (exit non-zero on
-drift). One code path for local dev and CI. Spec 02 lands full Claude-Code generation; OpenCode in
-Spec 03.
+``--target {<name>|all} [--check]``. Without ``--check`` it writes ``dist/<target>/``; with
+``--check`` it renders to a temp dir and diffs against the committed ``dist/`` (exit non-zero on
+drift). One code path for local dev and CI. The accepted target names derive from the target
+registry, so ``all`` and the valid values extend automatically as targets are registered.
 """
 from __future__ import annotations
 
 import argparse
 import filecmp
 import json
-import shutil
 import sys
 import tempfile
 from pathlib import Path
 
+from scripts.build import emit, targets
 from scripts.build.layout import discover_sources
-from scripts.build.manifests import generate_opencode_json, generate_plugin_js
-from scripts.build.parse import parse_frontmatter, split_document
-from scripts.build.render import render_body
-from scripts.build.serialize import registered_targets, require_field, serialize_file
+from scripts.build.serialize import serialize_file
+from scripts.build.targets.base import ExtrasContext
+from scripts.build.version_targets import read_canonical_version
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC = REPO_ROOT / "src"
 SRC_CONTENT = SRC / "content"
 DIST = REPO_ROOT / "dist"
-# Derived from the serializer registry (populated at import) — adding a target needs no edit here.
-TARGETS = tuple(registered_targets())
-
-# Per-target source→dest renames + the Claude-only byte-copied files.
-_RENAMES = {"claude-code": {"persona.md": "CLAUDE.md"}, "opencode": {"persona.md": "instructions.md"}}
-
-_OPENCODE_CAPABILITIES = """# Hercules on OpenCode — capabilities & disclosed gaps
-
-Hercules ships the full Discover → Design → Build → Ship methodology on OpenCode, with two capability
-gaps disclosed here (the "disclose gaps, never hide" principle):
-
-- **No hard write-gate hook.** On Claude Code a PreToolUse hook can deny a premature artifact write;
-  OpenCode has no equivalent, so the approval gate is prompt/permission-mediated — the agent presents
-  the plan and waits, but it is not a runtime-enforced deny. Enable `permission: {edit: "ask"}` in your
-  `opencode.json` for a stronger backstop.
-- **No per-agent model tier.** Every Hercules agent runs on the model you select in OpenCode (the
-  build omits per-agent `model:` on purpose). Claude Code assigns a heavier model to the orchestrator
-  and lighter models to routine advisors; on OpenCode that tiering is intentionally not applied.
-"""
-
-
-def _opencode_agents_and_commands(tokens: dict[str, str]):
-    """Collect ``(name, meta, opencode-rendered-prompt)`` triples for the plugin.js inline entries."""
-    agents = []
-    for src in sorted((SRC_CONTENT / "agents").glob("*.md")):
-        text = src.read_text(encoding="utf-8")
-        meta, _ = parse_frontmatter(text)
-        _, body = split_document(text)
-        agents.append((
-            src.stem,
-            {"description": render_body(require_field(meta, "description"), "opencode", tokens),
-             "mode": "primary" if src.stem == "hercules" else "subagent"},
-            render_body(body, "opencode", tokens).strip(),
-        ))
-    commands = []
-    for src in sorted((SRC_CONTENT / "commands").glob("*.md")):
-        text = src.read_text(encoding="utf-8")
-        meta, _ = parse_frontmatter(text)
-        _, body = split_document(text)
-        commands.append((
-            src.stem,
-            {"description": render_body(require_field(meta, "description"), "opencode", tokens),
-             "agent": "hercules"},
-            render_body(body, "opencode", tokens).strip(),
-        ))
-    return agents, commands
-
-
-def _emit_opencode_extras(out_root: Path, tokens: dict[str, str]) -> list[str]:
-    agents, commands = _opencode_agents_and_commands(tokens)
-    _write(out_root / "plugin.js", generate_plugin_js("hercules", agents, commands))
-    _write(out_root / "opencode.json", json.dumps(generate_opencode_json(), indent=2) + "\n")
-    _write(out_root / "CAPABILITIES.md", _OPENCODE_CAPABILITIES)
-    return ["plugin.js", "opencode.json", "CAPABILITIES.md"]
-_CLAUDE_COPIES = {
-    "settings.json": "settings.json",
-    "hooks/hooks.json": "hooks/hooks.json",
-    "hooks/frozen_tests.py": "hooks/frozen_tests.py",
-    "hooks/hercules_state.py": "hooks/hercules_state.py",
-    "plugin.json": ".claude-plugin/plugin.json",
-}
+# The canonical frozen-test guard lives with the Claude hooks; OpenCode and Cursor ship COPIES of the
+# same files so the write-gate logic has one source of truth across every ecosystem.
+_SHARED_HOOKS_SRC = SRC / "targets" / "claude-code" / "hooks"
+# The one authoritative ecosystem list — every accepted --target value and `all` derive from it.
+TARGETS = tuple(targets.registered_target_names())
 
 
 def _targets_for(name: str) -> list[str]:
@@ -104,35 +47,30 @@ def _load_tokens(target: str) -> dict[str, str]:
     return json.loads(path.read_text(encoding="utf-8")).get("vars", {})
 
 
-def _write(dest: Path, text: str) -> None:
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(text, encoding="utf-8")
-
-
 def build_target(target: str, out_root: Path) -> list[str]:
-    """Render *target* into *out_root*; return the sorted list of written relative paths."""
+    """Render *target* into *out_root*; return the sorted list of written relative paths.
+
+    The body holds no per-ecosystem branches: the content loop relocates each source via the target's
+    ``dest`` and the non-content artifacts come from the target's ``emit_extras``.
+    """
     models = _load_models()
     tokens = _load_tokens(target)
-    renames = _RENAMES.get(target, {})
+    spec = targets.get(target)
     written: list[str] = []
     for src in discover_sources(SRC_CONTENT):
         rel = src.relative_to(SRC_CONTENT).as_posix()
-        dest_rel = renames.get(rel, rel)
-        _write(out_root / dest_rel, serialize_file(target, src.read_text(encoding="utf-8"), tokens, models))
-        written.append(dest_rel)
-    if target == "claude-code":
-        tdir = SRC / "targets" / target
-        for src_rel, dest_rel in _CLAUDE_COPIES.items():
-            dest = out_root / dest_rel
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(tdir / src_rel, dest)
-            written.append(dest_rel)
-    elif target == "opencode":
-        # The generic loop above also wrote dist/opencode/{agents,commands}/*.md. OpenCode does NOT
-        # load agents/commands from those files — it reads the inlined cfg.agent/cfg.command maps in
-        # plugin.js (below). They are kept as a readable, diff-friendly mirror; test_opencode_mirror
-        # pins them byte-equal to the inlined entries so the two render paths can't diverge.
-        written += _emit_opencode_extras(out_root, tokens)
+        emit.write(out_root / spec.dest(rel),
+                   serialize_file(target, src.read_text(encoding="utf-8"), tokens, models, rel))
+        written.append(spec.dest(rel))
+    ctx = ExtrasContext(
+        out_root=out_root,
+        src_target_dir=SRC / "targets" / target,
+        shared_hooks_src=_SHARED_HOOKS_SRC,
+        src_content=SRC_CONTENT,
+        tokens=tokens,
+        version=read_canonical_version(REPO_ROOT),
+    )
+    written += spec.emit_extras(ctx)
     return sorted(written)
 
 
@@ -177,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     rc = 0
     for target in _targets_for(args.target):
-        if target not in registered_targets():
+        if target not in targets.registered_target_names():
             continue
         if args.check:
             rc |= check_target(target)

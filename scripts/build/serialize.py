@@ -4,8 +4,9 @@ A ``Serializer`` turns a parsed source artifact into the exact bytes a target ex
 target later = one new ``Serializer`` registered here + one config file — ``parse``/``render``/
 ``model_map``/``cli`` need no change (proven by ``tests/build/test_serialize.py``).
 
-Spec 01 lands the protocol, the registry, and a ``ClaudeCodeSerializer`` agent path (frontmatter emit
-+ byte-preserving body). OpenCode is added in Spec 03.
+Three serializers are registered: ``ClaudeCodeSerializer`` (native ``.claude-plugin`` tree, per-agent
+model tiers, hooks), ``OpenCodeSerializer`` (generated ``plugin.js`` + inlined agent/command maps), and
+``CursorSerializer`` (an official Cursor plugin — subagents, commands, an always-applied persona rule).
 """
 from __future__ import annotations
 
@@ -24,7 +25,7 @@ class Serializer(Protocol):
     def serialize_agent(self, frontmatter: dict[str, str], body: str, tokens: dict[str, str], models: dict) -> str:
         ...
 
-    def serialize_file(self, text: str, tokens: dict[str, str], models: dict) -> str:
+    def serialize_file(self, text: str, tokens: dict[str, str], models: dict, rel: str | None = None) -> str:
         ...
 
 
@@ -81,12 +82,15 @@ class ClaudeCodeSerializer:
             out["tools"] = frontmatter["tools"]
         return render_frontmatter(out) + "\n\n" + render_body(body, self.target, tokens)
 
-    def serialize_file(self, text: str, tokens: dict[str, str], models: dict) -> str:
+    def serialize_file(self, text: str, tokens: dict[str, str], models: dict, rel: str | None = None) -> str:
         """Render a whole source file byte-preservingly for Claude Code.
 
         Frontmatter with ``model_tier`` is rebuilt with the resolved ``model:`` alias in the same
         slot (all other keys and their order kept); frontmatter without ``model_tier`` — and files
         with none — are left untouched. The body is substituted in place with no normalisation.
+
+        ``rel`` (the source path under ``src/content``) is accepted for signature parity with
+        path-aware serializers (Cursor); Claude Code dispatches by frontmatter shape and ignores it.
         """
         fm_block, body = split_document(text)
         if fm_block is None:
@@ -134,7 +138,7 @@ class OpenCodeSerializer:
         }
         return render_frontmatter(out) + "\n\n" + render_body(body, self.target, tokens).lstrip("\n")
 
-    def serialize_file(self, text: str, tokens: dict[str, str], models: dict) -> str:
+    def serialize_file(self, text: str, tokens: dict[str, str], models: dict, rel: str | None = None) -> str:
         fm_block, body = split_document(text)
         if fm_block is None:
             return render_body(text, self.target, tokens)
@@ -146,10 +150,104 @@ class OpenCodeSerializer:
         return fm_block + render_body(body, self.target, tokens)
 
 
-def serialize_file(target: str, text: str, tokens: dict[str, str], models: dict) -> str:
+# The one source file Cursor relocates: the frontmatter-less persona becomes an always-applied rule.
+# Shared by CursorSerializer.serialize_file (which wraps it) and cursor_dest (which routes it) so the
+# two never disagree.
+_PERSONA_SRC = "persona.md"
+_PERSONA_RULE_DEST = "rules/hercules-persona.mdc"
+
+
+class CursorSerializer:
+    """Emit an official Cursor plugin (``.cursor-plugin/plugin.json`` + native component dirs).
+
+    Cursor's component directories match ``src/content``'s (``agents/``, ``commands/``, ``skills/``),
+    so only ``persona.md`` is relocated — to ``rules/hercules-persona.mdc`` (an always-applied rule).
+    Dispatch is by source ``rel`` (path-aware), not frontmatter-sniffing, because the frontmatter-less
+    persona and the protocols are otherwise indistinguishable. Field shapes are the officially
+    documented minimal set (confirmed against real ``cursor/plugins`` files):
+
+    - agent → ``agents/<name>.md`` subagent: ``name, description`` (+ ``readonly: true`` for the
+      review/audit roles); ``model_tier``/``tools`` dropped (subagents inherit the user's model, as
+      OpenCode does — ``models.json[cursor]`` is all-``null``).
+    - command → ``commands/<name>.md``: ``name`` (from the file stem) + ``description`` — the official
+      plugin validator requires both; Claude's ``disable-model-invocation`` marker is dropped.
+    - skill → ``skills/<name>/SKILL.md`` (native skill): frontmatter kept, body token-rendered.
+    - persona → ``rules/hercules-persona.mdc``: ``description`` + ``alwaysApply: true``.
+    - protocol / companion / plain → passthrough with token/switch rendering.
+    """
+
+    target = "cursor"
+    # Roles that render a GATE VERDICT on other agents' work ship read-locked, so an isolated reviewer
+    # can never become an author — this is what keeps the independent-review gates independent
+    # (``cynical-reviewer`` above all; the audit roles alongside it). Generative advisors are not
+    # listed: they never write files either, but read-locking is scoped to the verdict-givers.
+    readonly_agents = frozenset({
+        "cynical-reviewer", "security-expert", "source-checker", "senior-qa-engineer", "maintainer",
+    })
+    persona_description = (
+        "Hercules — the spec-first delivery methodology (Discover → Design → Build → Ship). "
+        "Always-on persona and project instructions."
+    )
+
+    def serialize_agent(self, frontmatter: dict[str, str], body: str, tokens: dict[str, str]) -> str:
+        name = require_field(frontmatter, "name")
+        out: dict[str, str] = {
+            "name": name,
+            "description": render_body(require_field(frontmatter, "description"), self.target, tokens),
+        }
+        if name in self.readonly_agents:
+            out["readonly"] = "true"
+        return render_frontmatter(out) + "\n\n" + render_body(body, self.target, tokens)
+
+    def serialize_command(self, name: str, frontmatter: dict[str, str], body: str, tokens: dict[str, str]) -> str:
+        """Emit a Cursor command: ``name`` (the file stem) + ``description`` frontmatter, then the
+        prompt body. Claude's ``disable-model-invocation`` key is dropped."""
+        out = {
+            "name": name,
+            "description": render_body(require_field(frontmatter, "description"), self.target, tokens),
+        }
+        return render_frontmatter(out) + "\n\n" + render_body(body, self.target, tokens).lstrip("\n")
+
+    def serialize_persona(self, text: str, tokens: dict[str, str]) -> str:
+        """Wrap the frontmatter-less ``persona.md`` as an always-applied Cursor rule."""
+        out = {"description": self.persona_description, "alwaysApply": "true"}
+        return render_frontmatter(out) + "\n\n" + render_body(text, self.target, tokens)
+
+    def serialize_file(self, text: str, tokens: dict[str, str], models: dict, rel: str | None = None) -> str:
+        if rel == _PERSONA_SRC:
+            return self.serialize_persona(text, tokens)
+        fm_block, body = split_document(text)
+        if fm_block is None:  # protocols, skill companion docs, any plain file
+            return render_body(text, self.target, tokens)
+        meta, _ = parse_frontmatter(fm_block)
+        if rel is not None and rel.startswith("agents/"):
+            return self.serialize_agent(meta, body, tokens)
+        if rel is not None and rel.startswith("commands/"):
+            return self.serialize_command(rel.rsplit("/", 1)[-1][: -len(".md")], meta, body, tokens)
+        # skills/<name>/SKILL.md and any other frontmatter'd file: keep frontmatter (already
+        # name+description for skills), render the body.
+        return fm_block + render_body(body, self.target, tokens)
+
+
+def cursor_dest(rel: str) -> str:
+    """Map a ``src/content`` source path to its destination inside the Cursor plugin tree.
+
+    Cursor's ``agents/``/``commands/``/``skills/`` dirs match the source layout, so only the
+    frontmatter-less ``persona.md`` is relocated — to an always-applied rule. This lives here (a
+    mutation-covered module), wired into the Cursor ``Target`` via ``dest_fn``, rather than as plain
+    ``renames`` data on the target descriptor: the ``.mdc`` extension is load-bearing (a ``.md`` rule is
+    silently ignored by Cursor in agent mode), so a mutant flipping it must be killed by
+    ``test_cursor_serialize`` — the per-ecosystem ``targets/*`` data modules are outside the mutation gate."""
+    if rel == _PERSONA_SRC:
+        return _PERSONA_RULE_DEST
+    return rel
+
+
+def serialize_file(target: str, text: str, tokens: dict[str, str], models: dict, rel: str | None = None) -> str:
     """Serialize *text* for *target* using its registered serializer."""
-    return get(target).serialize_file(text, tokens, models)
+    return get(target).serialize_file(text, tokens, models, rel)
 
 
 register(ClaudeCodeSerializer())
 register(OpenCodeSerializer())
+register(CursorSerializer())

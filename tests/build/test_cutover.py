@@ -73,6 +73,18 @@ def test_marketplace_listing_points_to_a_plugin_that_actually_exists():
         f"marketplace source {entry['source']} must resolve to a plugin.json"
 
 
+def test_cursor_marketplace_listing_points_to_a_plugin_that_actually_exists():
+    """The Cursor marketplace catalog (`.cursor-plugin/marketplace.json`) must list a `hercules`
+    entry whose `source` resolves to a folder containing a real Cursor plugin manifest — the same
+    guarantee the Claude-Code listing carries, so a broken/stale Cursor source can't ship silently."""
+    mk = json.loads((REPO_ROOT / ".cursor-plugin" / "marketplace.json").read_text(encoding="utf-8"))
+    assert mk.get("name") and mk.get("owner", {}).get("name"), "Cursor marketplace needs name + owner"
+    entry = next(p for p in mk["plugins"] if p["name"] == "hercules")
+    source = REPO_ROOT / entry["source"]
+    assert (source / ".cursor-plugin" / "plugin.json").is_file(), \
+        f"cursor marketplace source {entry['source']} must resolve to a .cursor-plugin/plugin.json"
+
+
 def test_mutation_testing_targets_the_current_hooks_location_not_the_retired_one():
     """The mutation-testing configuration must scan the hooks code at its current, migrated
     location and must not still reference the old, retired location. Otherwise mutation testing

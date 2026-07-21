@@ -13,6 +13,8 @@ ${target:claude}
 **Plan mode — required.** Call `${plan_enter}` at the start. Every draft is a full inline proposal; iterate freely; always regenerate the complete draft — never patch sections. At the **Plan approval** gate, on the user's approval, call `${plan_exit}` (`auto`), then write.
 ${target:opencode}
 **Plan mode — required.** Enter plan mode at the start. Every draft is a full inline proposal; iterate freely; always regenerate the complete draft — never patch sections. At the **Plan approval** gate, on the user's approval, leave plan mode, then write.
+${target:cursor}
+**Plan mode — required.** Enter plan mode at the start. Every draft is a full inline proposal; iterate freely; always regenerate the complete draft — never patch sections. At the **Plan approval** gate, on the user's approval, leave plan mode, then write.
 ${target:end}
 
 Technical design and delivery sequencing wizard. Locate the business requirements, break them into self-contained specs, iterate, validate (implementability, then coverage with evidence), then take Plan approval and write. Never write without approval or with uncovered requirements.
@@ -79,7 +81,11 @@ Requirements coverage:
   ~ [requirement text]
     → partially covered: "quote" — but missing [specific gap]
 ```
+${target:cursor}
 
+**On ${host}, this reviewer is not runtime-forced** — ${host} exposes no orchestrator-forced spawn, so run it as a real, isolated subagent (`@cynical-reviewer`) and require its reply to be a structured **handshake**: an explicit "I read `*-business-requirements.md` at `<path>` (N items)" attestation plus the coverage matrix above. If no such handshake returns — or the matrix appears to have been produced in the authoring context — **HALT and tell the user** the independent-review gate could not be confirmed; never accept a self-produced matrix as the review. (For a genuinely isolated reviewer, run the review packet through the headless `cursor-agent -p` CLI — a fresh agent process with its own context; Cursor's CLI has no flag to select a named subagent, so the packet itself must carry the reviewer's mandate.)
+
+${target:end}
 Sub-spec ownership — every requirement must map to at least one spec via that spec's `satisfies:` header; a requirement owned by no spec is a ✗ — it would never get built.
 
 Note on n-1 — `*-business-requirements.md` is both the validation source and the only prior artifact (n-1); one read suffices.
@@ -91,6 +97,8 @@ Synthesise the reviewer's findings (that synthesis is the terminal judgment): if
 ${target:claude}
 This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback, not approval. **Do not write the specs until the user approves.** On approval, call `${plan_exit}` (`auto`), then write (Step 9).
 ${target:opencode}
+This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback, not approval. **Do not write the specs until the user approves.** On approval, leave plan mode, then write (Step 9).
+${target:cursor}
 This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback, not approval. **Do not write the specs until the user approves.** On approval, leave plan mode, then write (Step 9).
 ${target:end}
 

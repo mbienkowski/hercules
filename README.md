@@ -2,7 +2,7 @@
 
 Half god, half man — strong enough to wrestle a lion, patient enough to sit through your kickoff meeting.
 
-**Hercules is a universal, spec-first delivery plugin** — install it in **Claude Code** or **OpenCode** (Codex & Cursor coming) — that enforces **Discover → Design → Build → Ship** so what you're building ships fast and reliably, without the rework.
+**Hercules is a universal, spec-first delivery plugin** — install it natively in your AI coding tool — that enforces **Discover → Design → Build → Ship** so what you're building ships fast and reliably, without the rework.
 
 ![How Hercules works](docs/workflow/workflow-diagram-simplified.svg)
 
@@ -22,7 +22,7 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
   `code-of-conduct.md`, enforced identically for everyone.
 
 > **New to the terms?**
-> - **Plugin:** an add-on you install into your AI coding tool (Claude Code or OpenCode).
+> - **Plugin:** an add-on you install into your AI coding tool.
 > - **Marketplace:** a source (here, a GitHub repo) you add plugins from.
 > - **Agent:** a specialist persona Claude can consult.
 > - **Business requirements:** the permanent, plain-language "what & why" doc.
@@ -33,7 +33,7 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
 
 ## Install
 
-Hercules installs natively in each supported ecosystem — **pick yours**. (Codex & Cursor are coming.)
+Hercules installs natively in each supported ecosystem — **pick yours**. (Codex is coming.)
 
 <details>
 <summary><b>Claude Code</b></summary>
@@ -134,21 +134,29 @@ The plugin is also published to npm as `hercules` (published automatically on re
 </details>
 
 <details>
-<summary><b>Building from source (contributors)</b></summary>
+<summary><b>Cursor</b></summary>
 
-All content is authored once in `src/`; the build (`scripts/build/`) generates the plugin trees under `dist/claude-code/` and `dist/opencode/` (generated and committed). After editing `src/`, rebuild and commit the output:
+Hercules ships as a native [Cursor](https://cursor.com) plugin — the compiled plugin lives at
+`dist/cursor/` (`.cursor-plugin/plugin.json` plus `agents/`, `commands/`, `rules/`, `skills/`).
+Requires **Cursor ≥ 2.5** (the version that added plugin packaging; the isolated subagents the specialist advisors run as landed in 2.4).
 
-```bash
-make build          # regenerate dist/ for every target
-```
+**Install (local).** Copy the built plugin at `dist/cursor/` into `~/.cursor/plugins/local/hercules/` and
+restart Cursor (the documented local-plugin path); a listing on the public Cursor marketplace is a
+planned follow-up (a `.cursor-plugin/marketplace.json` sourcing `dist/cursor` is included for it). Once
+installed, confirm it under **Customize → Plugins**: the persona rule (`rules/hercules-persona.mdc`)
+always applies, the `/discover`, `/design`, `/build`, `/ship`, `/workflow` commands appear, and the
+advisors run as isolated subagents.
 
-An optional pre-commit hook (`.githooks/pre-commit`) regenerates `dist/` automatically when `src/` or `scripts/build/` changes:
+**Capability note — Cursor is a best-effort enforcement tier, below Claude Code and OpenCode.** Cursor's edit hook can't block an edit before it lands, so on Cursor the frozen-test lock is materially weaker than the real **pre-write veto** you get on Claude Code and OpenCode; Hercules works *with* the host, not against it:
 
-```bash
-git config core.hooksPath .githooks
-```
+- **Best-effort deny where Cursor can block** — a plugin hook denies the common shell/MCP forms that write to or commit a frozen test (a coarse guardrail, not a sandbox — forms like `git add .` that stage by pathspec still slip past).
+- **Advisory on the edit path (IDE)** — a Composer edit to a frozen test raises a notice and leaves
+  your working tree untouched; you undo it or grant an override.
+- **Auto-restore only when headless** — an unattended `cursor-agent` run restores the file via `git checkout` (no human present to act on a notice).
+- **Acceptance gate** — every frozen test is re-hashed before a spec retires; a strong, prompt-enforced catch, not an unbypassable lock.
+- **Independent review is best-effort** — the reviewer must return a handshake or Hercules HALTs; fully forced only via the headless `cursor-agent -p` CLI.
 
-`make test` builds to a temp directory, verifies the committed `dist/` is in sync (a stale `dist/` fails with a `make build` remedy), then runs the suite against the committed output.
+Gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
 
 </details>
 
@@ -290,35 +298,27 @@ tokens, or telemetry). Nothing about where your repos live is written into the d
 
 ## How it works
 
-Every feature runs the **same four phases** — the process is constant; what scales is the **number of
-advisors**. Hercules brings strength in proportion to the task: a typo runs no advisor debate; a
-payment migration convenes the full council. The effort is sized to the change: never overkill on a small one nor
-under-prepared on a large one.
+Every feature runs the **same four phases** — what scales is the **number of advisors**: a typo runs
+none; a payment migration convenes the full council. Effort is sized to the change.
 
-1. **Discover — WHAT** (the heaviest phase) — pins the real need, who benefits, what's in/out of
-   scope, and what "done" means. Output: a permanent `*-business-requirements.md`, in plain business
-   language. On a large feature, Discover's draft loop can run across several conversation turns
-   before you approve; each pass regenerates the complete draft from your latest feedback.
-2. **Design — HOW** — turns requirements into one or more self-contained **specs**, challenged by
-   specialist advisors before any code. Output: `*-spec-NN-*.md` (temporary).
-3. **Build — MAKE** — opens with a delivery plan you approve (which specs, in what order, grouped
-   how), then delivers each spec test-first: scaffold, write real tests of the requirements — red only
-   until the logic exists (frozen once written; unblock any test just by asking),
-   implement, and pass the quality gates your `code-of-conduct.md` defines. A cross-check then confirms
-   the delivery matches the requirements. Output: code + tests. The specs are deleted once delivered in code (`git rm`).
-4. **Ship — COMMIT** — after Build completes and you've reviewed the diff, drafts a commit
-   plan (files to stage, commit message, push target), waits for your approval, then executes
-   automatically. No follow-up questions.
+1. **Discover — WHAT** (the heaviest phase) — pins the real need, who benefits, scope, and what "done"
+   means. Output: a permanent `*-business-requirements.md`, in plain business language.
+2. **Design — HOW** — turns requirements into self-contained **specs**, challenged by specialist
+   advisors before any code. Output: `*-spec-NN-*.md` (temporary).
+3. **Build — MAKE** — you approve a delivery plan, then each spec ships test-first: real tests (frozen
+   once written; unblock any by asking), implementation, and the quality gates your `code-of-conduct.md`
+   defines. Output: code + tests; specs deleted once delivered (`git rm`).
+4. **Ship — COMMIT** — after you review the diff, Hercules drafts a commit plan, waits for approval,
+   then executes. No follow-up questions.
 
-**Two documents, two lifecycles.** Business-requirements are **long-lived** — committed forever, in
-business language, the shareable record of what a feature is *for*. Specs are **per-development** — once
-delivered in code, they're deleted, because the code, its tests, and git history become the source of truth.
-Prefer permanent specs (your company already runs on them)? Put it in your `code-of-conduct.md` — e.g.
-*"Always keep the specs, never delete them"* — and delivered specs are kept and refreshed at delivery
-instead of deleted.
+**Two documents, two lifecycles:**
 
-**Complexity scoring (so depth isn't guesswork).** In Discover, Hercules scores the feature on
-*effort* and *blast-radius* (how many users or systems a bug could harm) and takes the higher of the two.
+- **Business-requirements** — long-lived, committed forever, in business language: the shareable record of what a feature is *for*.
+- **Specs** — per-development: deleted once delivered, since code, tests, and git history become the source of truth.
+- **Want permanent specs?** Put *"always keep the specs"* in your `code-of-conduct.md` — delivered specs are then kept and refreshed, not deleted.
+
+**Complexity scoring (so depth isn't guesswork).** Discover scores the feature on *effort* and
+*blast-radius* (how many users or systems a bug could harm) and takes the higher:
 
 | Tier | Effort signals | Blast-radius signals | Advisors |
 |---|---|---|---|
@@ -328,17 +328,16 @@ instead of deleted.
 | high | auth, payments, migration | data at risk, deletion, prod config | 2–4 |
 | critical | multi-service migration | user data, security primitives, money | 3–6 |
 
-Only **trivial** skips the advisory board; every other tier recommends it (you consent or skip), scaled to the number above. A
-change touching **auth, secrets, money, data migration, deletion, production config, or concurrency**
-is floored at `high` regardless of how small the diff looks. You see the score and can override it;
-advisor dissent surfaces as input for you to weigh, never an automatic re-score.
+- **Only `trivial` skips the board** — every other tier recommends it (you consent or skip), scaled to the advisor count above.
+- **High-risk surfaces are floored at `high`** — auth, secrets, money, data migration, deletion, production config, or concurrency, however small the diff.
+- **You stay in control** — you see the score and can override it; advisor dissent is input you weigh, never an automatic re-score.
 
-**Quality has numbers, not adjectives.** Build gates on the **branch-coverage** threshold your
-project's `code-of-conduct.md` sets, and on a **mutation-kill** threshold when the CoC defines one —
-the generator suggests **≥90%** for both as a default, and you can change them. Mutation testing
-checks that your tests actually catch bugs, and a requirement ships only when a **named test** asserts
-it. Traceability is always enforced — decided by an independent reviewer, not the session that wrote the code; branch coverage gates when your CoC sets a threshold, and the mutation gate runs whenever the CoC sets
-a kill-rate threshold — none of this is a best-practice you skip under pressure once it applies.
+**Quality has numbers, not adjectives:**
+
+- **Coverage** — Build gates on the branch-coverage threshold your `code-of-conduct.md` sets.
+- **Mutation** — a kill-rate gate runs when the CoC defines one (the generator defaults to **≥90%**); it checks your tests actually catch bugs.
+- **Traceability** — a requirement ships only when a **named test** asserts it, decided by an **independent reviewer**, not the session that wrote the code.
+- **Not optional** — once a gate applies, it is not a best-practice you skip under pressure.
 
 ---
 
@@ -429,58 +428,10 @@ yours to keep or remove: `code-of-conduct.md` and the `@./code-of-conduct.md` li
 
 ## Contributing
 
-Read [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) first — it defines the rules for extending commands,
-agents, and skills, plus how to run the tests.
-
-1. Fork and create a branch (use hyphens, no slashes)
-2. Add or edit files in `src/content/commands/`, `src/content/agents/`, or `src/content/skills/`, then
-   run `make build` to regenerate `dist/` (never edit `dist/` by hand)
-3. Test the plugin locally: add **your local checkout** as a marketplace —
-   `/plugin marketplace add /path/to/your/checkout`. Its `marketplace.json` declares the name
-   `mbienkowski`, so `/plugin install hercules@mbienkowski` then resolves to **your checkout**. If
-   you've already added the public marketplace under that same name, remove it first
-   (`/plugin marketplace remove mbienkowski`) so the name isn't ambiguous — otherwise you'd test the
-   released version, not your changes. `git checkout` the branch you want to test, then run
-   `/reload-plugins` to apply.
-4. Run the suite: `pip install -e ".[dev]" && make test` (the dev extras carry pytest and mutmut)
-5. Open a PR — CI runs the full suite plus mutation testing and validates the plugin package. Commit
-   messages follow Conventional Commits (`feat:`/`fix:`/`feat!:`), which drive the version on release.
-
-For a local dev clone:
-
-```bash
-git clone https://github.com/mbienkowski/hercules.git
-cd hercules
-pip install -e ".[dev]"   # installs test dependencies (pytest, mutmut) — needed to run make test
-```
-
-All `.md` filenames must be **lowercase** — macOS is case-insensitive but Linux is not.
-
-### For maintainers — testing a branch before release
-
-To test a branch without installing from the public marketplace, add a temporary marketplace entry
-pointing at your branch. Put this in `~/.claude-priv/settings.json` (or `~/.claude/settings.local.json`)
-so it stays off-project and out of git:
-
-```json
-{
-  "extraKnownMarketplaces": {
-    "hercules-dev": {
-      "source": {
-        "source": "github",
-        "repo": "mbienkowski/hercules",
-        "ref": "your-feature-branch"
-      }
-    }
-  },
-  "enabledPlugins": { "hercules@hercules-dev": true }
-}
-```
-
-`ref` accepts a branch name, tag, or commit SHA. Omit it to use the repo's default branch.
-
-Then restart Claude Code (the settings are read at startup). The plugin resolves from that branch.
-When you're done, remove the entry and restart again to go back to the released version.
+Want to extend Hercules — add a command, agent, skill, or a whole new ecosystem? The full
+contributor workflow (build, test locally, open a PR, test a branch before release) lives in
+**[`CONTRIBUTING.md`](CONTRIBUTING.md)**. The deep rules for extending the methodology are in
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md), and the release process is in [`RELEASE.md`](RELEASE.md).
 
 
 ---
@@ -512,7 +463,7 @@ it can do is exactly what Claude Code can do in your session:
 - **Network** — none. All model calls go through your existing Claude Code session and API key.
   Hercules makes no direct API calls and opens no separate network channel — hooks included.
 
-You can audit the full plugin source in the `src/` directory of this repository (built plugins land in `dist/`).
+You can audit exactly what runs on your machine in `dist/<your-ecosystem>/` (e.g. `dist/claude-code/`) — the installed plugin tree, generated from the authored source in `src/` (both committed to this repository).
 
 ---
 
