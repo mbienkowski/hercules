@@ -16,6 +16,11 @@ make test           # drift-check dist/ + run the suite with coverage
 make test-mutation  # mutation testing (slower; gates on a 90% kill rate)
 ```
 
+> **Run `make test-mutation` locally before opening a PR.** Mutation is **not** run on PRs (to keep PR
+> feedback fast) — it runs as the **release gate on `main`**: a merge whose kill rate drops below 90%
+> produces a red CI conclusion and **blocks the release**. So a mutation regression you don't catch
+> locally won't surface on your PR — it will stop the next release *after* merge. Catch it here first.
+
 After editing anything under `src/`, rebuild and commit `dist/` alongside the source change.
 An optional pre-commit hook regenerates `dist/` automatically:
 
