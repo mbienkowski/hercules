@@ -18,8 +18,11 @@ fails when it is hand-edited or left stale.
 - **`src/content/`** — ecosystem-neutral content: `agents/`, `commands/`, `skills/{name}/SKILL.md`,
   `protocols/`, and `persona.md` (the project instructions, rendered to each host's convention —
   Claude Code's `CLAUDE.md`, OpenCode's `instructions.md`).
-- **`src/targets/<ecosystem>/`** — ecosystem-specific files: a versioned manifest, a `config.json` per
-  target, and a `hooks/` dir on any host that supports enforcement (`claude-code`, `cursor`).
+- **`src/targets/<ecosystem>/`** — an ecosystem's **data**: a `config.json` (token `vars`), a
+  `smoke.json`, an optional versioned manifest, an optional `hooks/` dir on any host that supports
+  enforcement (`claude-code`, `cursor`), and an optional `CAPABILITIES.md` (disclosed gaps, prose). The
+  small per-ecosystem build **code** — its `Serializer` and `Target` — lives under `scripts/build/`
+  (see **Adding an ecosystem**), not here; `src/` holds no code the compiler executes.
 - **`dist/<ecosystem>/`** — the built plugins (generated; the shipped output), one tree per target.
 
 Paths below name the **source** you edit; the compiler places the built copy under `dist/`.
@@ -138,6 +141,34 @@ Shared rules for every hook, on every ecosystem:
 Skills are `src/content/skills/{name}/SKILL.md` — each declares a phase-anchored trigger, a
 precondition-then-stop guard, and atomic/idempotent writes, and falls back gracefully when a target
 project has no `code-of-conduct.md`.
+
+### Adding an ecosystem (target)
+
+One neutral `src/content/` compiles to every ecosystem through a generic engine: `cli.build_target`
+loops the content once and dispatches through two registries — it holds **zero** per-ecosystem
+branches, so onboarding a target is additive, never an edit to the orchestrator. A target is **data +
+one or two small code registrations**, in this fixed shape:
+
+- **Data — `src/targets/<eco>/`:** `config.json` (token `vars`); `smoke.json` (its CLI + install method
+  + smoke-test path — CI-hard-failing if absent); optional `plugin.json` (a native manifest, added to
+  `scripts/build/version_targets.py::VERSION_TARGETS`); optional `hooks/` (the write-gate adapter);
+  optional `CAPABILITIES.md` (disclosed gaps — plain prose, **never** a Python string literal).
+- **Content transform — `scripts/build/serialize.py`:** one `Serializer` subclass, `register()`-ed.
+  This is genuine per-ecosystem *behaviour* (which frontmatter keys survive, how the body renders) and
+  stays code — it carries the mutation gate. It is the one irreducible code touch every target needs.
+- **Non-content extras — `scripts/build/targets/<eco>.py`:** one `register(Target(...))` — its
+  `renames`/`dest_fn` (destination routing) and `emit_extras_fn`. Copies/shared-hook/CAPABILITIES
+  plumbing goes through the shared helpers (`emit.copy_map`, `targets.base.emit_shared`); write bespoke
+  code here **only** for genuinely generated output (e.g. OpenCode's `plugin.js`). A target with no
+  extras beyond copies needs just the one `register()` call.
+- **Enforcement + release:** a `GATE_EXPECTATIONS` entry (or explicit waiver) in
+  `tests/hooks/test_enforcement_gates.py` — hand-authored on purpose, the forcing function that a new
+  target cannot ship ungated; output-pinning tests under `tests/build/`; a `RELEASE.md` smoke section.
+
+The rule is the same for a trivial ecosystem and a complex one — the complex one just fills in more of
+the optional parts (a `hooks/` dir, a bespoke `emit_extras`). Do **not** invent a JSON config DSL for
+the serializer, or auto-discovered executable code under `src/`: control-flow stays typed,
+mutation-covered Python; `src/` stays data the compiler only reads.
 
 ### Failure moments
 

@@ -41,9 +41,14 @@ git config core.hooksPath .githooks
 
 ## Adding a new target (e.g. Codex, Cursor)
 
+The authoritative contract is [`CODE_OF_CONDUCT.md` § Adding an ecosystem](CODE_OF_CONDUCT.md) (data
+under `src/targets/<eco>/`, code under `scripts/build/`); this is the practical checklist.
+
 The build is registry-driven: `parse`/`render`/`model_map`/`cli`/`emit` need **no** change — a target
 is additive (a serializer + a target descriptor + a few config/manifest files, all listed below).
-The two CI-hard-failing steps that are easy to forget — the write-gate declaration (step 6) and
+Disclosed capability gaps go in an optional `src/targets/<eco>/CAPABILITIES.md` (a plain data file the
+build copies verbatim — not a Python string). The two CI-hard-failing steps that are easy to forget —
+the write-gate declaration (step 6) and
 `smoke.json` (step 7) — are called out so you don't pass local `make test` and then hit a late CI
 failure. The procedure:
 

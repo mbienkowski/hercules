@@ -39,9 +39,10 @@ norecursedirs = ["*.egg", ".*", "_darcs", "CVS", "dist", "node_modules", "venv",
 [tool.mutmut]
 # Pure transform layer (parse/render/model_map/serialize/manifests/version_targets) + every
 # ecosystem's enforcement hooks + metrics carry the mutation gate; the FS boundary (cli/layout/emit)
-# and the per-ecosystem target modules (targets/*.py — dest data + copy maps + capability prose) are
-# round-trip-covered and under the branch-coverage gate (make test's --cov=scripts/build, ~97%), but
-# not mutated — their shutil/tempfile/string mutants are largely equivalent and would only add noise.
+# and the per-ecosystem target modules (targets/*.py — dest data + copy maps; capability prose now
+# lives in src/targets/<eco>/CAPABILITIES.md, not a Python string) are round-trip-covered and under the
+# branch-coverage gate (make test's --cov=scripts/build, ~97%), but not mutated — their
+# shutil/tempfile/string mutants are largely equivalent and would only add noise.
 # NOTE: targets/base.py's dest logic is intentionally NOT added here yet — it was the moved-from-cli
 # dest logic (cli was always excluded), and adding it to the gate is deferred to the mutation-tooling
 # rework, where the kill rate can be validated with working tooling (its behaviour is guarded now by

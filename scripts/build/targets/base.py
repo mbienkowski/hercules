@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from scripts.build import emit
+
 
 @dataclass(frozen=True)
 class ExtrasContext:
@@ -29,6 +31,19 @@ class ExtrasContext:
 
 def _no_extras(ctx: ExtrasContext) -> list[str]:
     return []
+
+
+def emit_shared(ctx: ExtrasContext, *hook_names: str) -> list[str]:
+    """The one shared-extras helper for non-reference ecosystems: byte-copy the named canonical guard
+    files (from the shared hooks source) into ``hooks/``, and — if the target ships a
+    ``CAPABILITIES.md`` — copy that verbatim too. Both are identical in shape across cursor/opencode, so
+    this replaces the copy-map + capabilities boilerplate each used to hand-roll. Returns written rels."""
+    written = emit.copy_map(ctx.shared_hooks_src, ctx.out_root, {n: f"hooks/{n}" for n in hook_names})
+    cap = ctx.src_target_dir / "CAPABILITIES.md"
+    if cap.exists():
+        emit.write(ctx.out_root / "CAPABILITIES.md", cap.read_text(encoding="utf-8"))
+        written.append("CAPABILITIES.md")
+    return written
 
 
 @dataclass(frozen=True)
