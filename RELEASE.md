@@ -115,8 +115,7 @@ they must be confirmed live before release:
 
 **Install:** Cursor consumes the built plugin at `dist/cursor/` (`.cursor-plugin/plugin.json` + native
 component dirs). Copy `dist/cursor/` into `~/.cursor/plugins/local/hercules/` and restart Cursor (the
-documented local-plugin path); a public marketplace listing is a planned follow-up (a repo-root
-`.cursor-plugin/marketplace.json` sourcing `dist/cursor` is included for it). Requires Cursor ≥ 2.5
+documented local-plugin path). Requires Cursor ≥ 2.5
 (the version that added plugin packaging). There is **no registry publish step** — like Claude Code,
 Cursor is git-consumed.
 
@@ -160,5 +159,5 @@ opt-in — it needs a `CURSOR_API_KEY` secret and skips without it) — confirm 
       git tag). The plugin manifests under `src/targets/` carry a `${version}` token (not a literal); the
       build injects the canonical `pyproject.toml` version into every `dist/…/plugin.json`.
 
-v1 ships **Claude Code + OpenCode + Cursor**. Codex is TBD — add its smoke section when delivered
+Each shipped ecosystem carries its own smoke section above; add one per target
 (see [CONTRIBUTING.md](CONTRIBUTING.md) § Adding a new target for the proven extension procedure).

@@ -33,7 +33,7 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
 
 ## Install
 
-Hercules installs natively in each supported ecosystem — **pick yours**. (Codex is coming.)
+Hercules installs natively in each supported ecosystem — **pick yours**.
 
 <details>
 <summary><b>Claude Code</b></summary>
@@ -141,8 +141,7 @@ Hercules ships as a native [Cursor](https://cursor.com) plugin — the compiled 
 Requires **Cursor ≥ 2.5** (the version that added plugin packaging; the isolated subagents the specialist advisors run as landed in 2.4).
 
 **Install (local).** Copy the built plugin at `dist/cursor/` into `~/.cursor/plugins/local/hercules/` and
-restart Cursor (the documented local-plugin path); a listing on the public Cursor marketplace is a
-planned follow-up (a `.cursor-plugin/marketplace.json` sourcing `dist/cursor` is included for it). Once
+restart Cursor (the documented local-plugin path). Once
 installed, confirm it under **Customize → Plugins**: the persona rule (`rules/hercules-persona.mdc`)
 always applies, the `/discover`, `/design`, `/build`, `/ship`, `/workflow` commands appear, and the
 advisors run as isolated subagents.

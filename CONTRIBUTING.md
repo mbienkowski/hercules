@@ -39,7 +39,7 @@ git config core.hooksPath .githooks
 - `scripts/build/` — the compiler: `parse` → `render` → `serialize` (per-target) → `cli` (FS write).
 - `dist/` — generated output, committed and tracked (never git-ignored).
 
-## Adding a new target (e.g. Codex, Cursor)
+## Adding a new target
 
 The authoritative contract is [`CODE_OF_CONDUCT.md` § Adding an ecosystem](CODE_OF_CONDUCT.md) (data
 under `src/targets/<eco>/`, code under `scripts/build/`); this is the practical checklist.
