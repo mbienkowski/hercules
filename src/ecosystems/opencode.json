@@ -43,9 +43,6 @@
   "routes": [
     {"kind": "exact", "src": "persona.md", "dest": "instructions.md"}
   ],
-  "assets": [
-    {"src": "opencode.capabilities.md", "dest": "CAPABILITIES.md"}
-  ],
   "guard": ["frozen_tests.py", "hercules_state.py"],
   "generate": [
     {"name": "opencode_plugin_js", "args": {"default_agent": "hercules"}},

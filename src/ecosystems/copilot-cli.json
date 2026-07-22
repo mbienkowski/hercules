@@ -108,9 +108,6 @@
       }
     }
   ],
-  "assets": [
-    {"src": "copilot-cli.capabilities.md", "dest": "CAPABILITIES.md"}
-  ],
   "guard": ["hercules_state.py", "frozen_tests.py", "hercules_gate.py"],
   "gate": {
     "protocol": "pre_tool",

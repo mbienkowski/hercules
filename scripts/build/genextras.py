@@ -6,7 +6,8 @@ Four descriptor sections map onto four named emission behaviors (a closed set, v
 - ``artifacts`` — inline JSON objects dumped canonically (2-space, trailing newline); ``versioned``
   substitutes the single ``${version}`` token from the canonical version, fail-loud on zero/many
   (the same contract as ``emit.copy_versioned``).
-- ``assets`` — flat sibling files (``src/ecosystems/<src>``) byte-copied to their dest.
+- shipped siblings — every ``src/ecosystems/<name>.dist.<dest>`` file byte-copied to plugin-root
+  ``<dest>``: the filename IS the routing (``descriptor.dist_files``), no separate mapping to drift.
 - ``guard`` + ``gate`` — the shared enforcement code (``src/hooks/``: canonical guard modules and
   the ONE generic write-gate adapter) byte-copied into ``hooks/``, with the ecosystem's ``gate``
   parameters emitted as ``hooks/gate.json`` beside it.
@@ -21,7 +22,7 @@ import re
 from pathlib import Path
 
 from scripts.build import emit
-from scripts.build.descriptor import ECOSYSTEMS_DIR, EcosystemDescriptor
+from scripts.build.descriptor import ECOSYSTEMS_DIR, EcosystemDescriptor, dist_files
 from scripts.build.genserialize import compute_fields
 from scripts.build.manifests import generate_opencode_json, generate_plugin_js
 from scripts.build.parse import parse_frontmatter, split_document
@@ -86,9 +87,10 @@ def emit_extras(ctx, descriptor: EcosystemDescriptor) -> list:
             text = _versioned_text(text, ctx.version, artifact.dest)
         emit.write(ctx.out_root / artifact.dest, text)
         written.append(artifact.dest)
-    if descriptor.assets:
+    siblings = dist_files(descriptor.name)
+    if siblings:
         written += emit.copy_map(ECOSYSTEMS_DIR, ctx.out_root,
-                                 {a.src: a.dest for a in descriptor.assets})
+                                 {path.name: dest for dest, path in siblings.items()})
     if descriptor.guard:
         written += emit.copy_map(ctx.shared_hooks_src, ctx.out_root,
                                  {name: f"hooks/{name}" for name in descriptor.guard})

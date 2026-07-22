@@ -2,9 +2,15 @@
 
 An ecosystem is described entirely by ``src/ecosystems/<name>.json``: token ``vars``, ``models``
 tiers, the ``smoke`` install matrix entry, per-role output shapes (``roles``), destination
-``routes``, inline JSON ``artifacts``, flat-file ``assets``, shared-``guard`` modules, and named
+``routes``, inline JSON ``artifacts``, shared-``guard`` modules, write-``gate`` params, and named
 ``generate`` steps. The filename is the registry key; discovery is a glob — a new ecosystem is one
 new JSON file, never new Python.
+
+The DIRECTORY itself has a definitive schema, validated on discovery: every file is either a
+``<name>.json`` descriptor or a ``<name>.dist.<dest>`` shipped file — the filename IS the contract
+(``gemini-cli.dist.CAPABILITIES.md`` ships byte-identically to ``dist/gemini-cli/CAPABILITIES.md``),
+so the input→output mapping is a pure, testable function of the name. A stray file, an unknown
+ecosystem prefix, or a nested dest fails discovery loudly.
 
 The vocabulary is **closed**: a descriptor selects named, mutation-covered Python behaviors (the
 serialization modes, field generators, route kinds, and generators in ``genserialize``/``genextras``)
@@ -22,7 +28,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 ECOSYSTEMS_DIR = REPO_ROOT / "src" / "ecosystems"
 
 _TOP_KEYS = {"schema", "name", "vars", "models", "smoke", "dispatch", "roles",
-             "routes", "artifacts", "assets", "guard", "gate", "generate"}
+             "routes", "artifacts", "guard", "gate", "generate"}
+# The one shipped-file marker in a sibling filename: everything after "<eco>.dist." is the
+# destination filename at the built plugin's root.
+_DIST_MARKER = ".dist."
 # The write-gate protocols the shared adapter (src/hooks/hercules_gate.py) implements. A new host
 # behavior is a new named protocol in that mutation-covered file — never logic in the descriptor.
 _GATE_PROTOCOLS = {"pre_tool", "cursor_events"}
@@ -135,14 +144,6 @@ class Artifact:
 
 
 @dataclass(frozen=True)
-class Asset:
-    """One flat sibling file (``src/ecosystems/<src>``) byte-copied to ``dest``."""
-
-    src: str
-    dest: str
-
-
-@dataclass(frozen=True)
 class Generate:
     """One named generator invocation (genuinely generated output, e.g. OpenCode's plugin.js)."""
 
@@ -162,7 +163,6 @@ class EcosystemDescriptor:
     roles: dict                       # role name -> RoleSpec
     routes: tuple = ()
     artifacts: tuple = ()
-    assets: tuple = ()
     guard: tuple = ()
     gate: Optional[dict] = None       # write-gate params, emitted verbatim as hooks/gate.json
     generate: tuple = ()
@@ -251,16 +251,6 @@ def _parse_artifact(name: str, raw: object) -> Artifact:
                     content=raw["content"], versioned=raw.get("versioned", False))
 
 
-def _parse_asset(name: str, raw: object) -> Asset:
-    if not isinstance(raw, dict):
-        _fail(name, f"an asset must be an object, got {raw!r}")
-    _check_keys(name, "asset", raw, {"src", "dest"})
-    src = _check_rel_path(name, "asset 'src'", raw.get("src"))
-    if "/" in src:
-        _fail(name, f"asset 'src' must be a flat sibling filename (no '/'), got {src!r}")
-    return Asset(src=src, dest=_check_rel_path(name, "asset 'dest'", raw.get("dest")))
-
-
 def _parse_gate(name: str, raw: object) -> dict:
     if not isinstance(raw, dict):
         _fail(name, f"'gate' must be an object, got {raw!r}")
@@ -344,10 +334,9 @@ def parse_descriptor(name: str, raw: object) -> EcosystemDescriptor:
         _fail(name, "'roles' must be an object")
     if sorted(roles_raw) != sorted(_ROLE_NAMES):
         _fail(name, f"'roles' must define exactly {sorted(_ROLE_NAMES)}, got {sorted(roles_raw)}")
-    for what, key in (("routes", "routes"), ("artifacts", "artifacts"),
-                      ("assets", "assets"), ("guard", "guard"), ("generate", "generate")):
+    for key in ("routes", "artifacts", "guard", "generate"):
         if key in raw and not isinstance(raw[key], list):
-            _fail(name, f"{what!r} must be a list")
+            _fail(name, f"{key!r} must be a list")
     guard = tuple(_check_str(name, "'guard' entry", g) for g in raw.get("guard", []))
     for module in guard:
         if "/" in module:
@@ -361,7 +350,6 @@ def parse_descriptor(name: str, raw: object) -> EcosystemDescriptor:
         roles={role: _parse_role(name, role, spec) for role, spec in roles_raw.items()},
         routes=tuple(_parse_route(name, r) for r in raw["routes"]),
         artifacts=tuple(_parse_artifact(name, a) for a in raw.get("artifacts", [])),
-        assets=tuple(_parse_asset(name, a) for a in raw.get("assets", [])),
         guard=guard,
         gate=_parse_gate(name, raw["gate"]) if "gate" in raw else None,
         generate=tuple(_parse_generate(name, g) for g in raw.get("generate", [])),
@@ -373,13 +361,41 @@ def load(path: Path) -> EcosystemDescriptor:
     return parse_descriptor(path.stem, json.loads(path.read_text(encoding="utf-8")))
 
 
+def _validate_layout(root: Path, names: set) -> None:
+    """Enforce the directory's definitive schema: every non-descriptor file is
+    ``<known-eco>.dist.<dest>`` with a flat, non-empty dest. A stray file, an unknown ecosystem
+    prefix, or a nested dest fails LOUDLY — nothing in this directory is ever silently ignored.
+    (Hidden dotfiles — editor/OS droppings — are the one tolerated exception.)"""
+    for path in sorted(root.iterdir()):
+        if not path.is_file() or path.suffix == ".json" or path.name.startswith("."):
+            continue
+        eco, marker, dest = path.name.partition(_DIST_MARKER)
+        if not marker or eco not in names or not dest:
+            raise DescriptorError(  # pragma: no mutate - message text only
+                f"src/ecosystems/{path.name}: every shipped file must be named "
+                f"'<ecosystem>{_DIST_MARKER}<dest-filename>' for a known ecosystem {sorted(names)}"
+            )
+
+
+def dist_files(name: str, root: Path = ECOSYSTEMS_DIR) -> dict:
+    """The shipped sibling files for ecosystem *name*: ``{dest_filename: source_path}``, derived
+    purely from the filename schema (``<name>.dist.<dest>`` → plugin-root ``<dest>``) — the
+    deterministic input→output contract the build and its tests both read."""
+    prefix = name + _DIST_MARKER
+    return {p.name[len(prefix):]: p
+            for p in sorted(root.glob(prefix + "*")) if p.is_file()}
+
+
 _CACHE: dict = {}
 
 
 def discover(root: Path = ECOSYSTEMS_DIR) -> dict:
     """All descriptors under *root*, keyed by name, sorted — cached per root (the build reads many
-    times; descriptors are immutable within a run)."""
+    times; descriptors are immutable within a run). Validates the whole directory layout, so a
+    malformed sibling file fails the FIRST build step, not a late copy."""
     key = str(root)
     if key not in _CACHE:
-        _CACHE[key] = {d.name: d for d in (load(p) for p in sorted(root.glob("*.json")))}
+        found = {d.name: d for d in (load(p) for p in sorted(root.glob("*.json")))}
+        _validate_layout(root, set(found))
+        _CACHE[key] = found
     return _CACHE[key]

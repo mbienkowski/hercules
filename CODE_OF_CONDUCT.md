@@ -20,9 +20,10 @@ fails when it is hand-edited or left stale.
   Claude Code's `CLAUDE.md`, OpenCode's `instructions.md`).
 - **`src/ecosystems/<ecosystem>.json`** — ONE descriptor per ecosystem, the whole target as **data**
   (see **Adding an ecosystem**): token `vars`, `models`, `smoke`, role shapes, routes, inline JSON
-  artifacts, guard/gate wiring, named generators. Flat prose/SVG siblings
-  (`<ecosystem>.capabilities.md`, marketplace assets) sit beside it — no per-ecosystem directories,
-  no per-ecosystem code anywhere.
+  artifacts, guard/gate wiring, named generators. Shipped prose/SVG siblings follow the definitive
+  filename schema **`<ecosystem>.dist.<dest>`** (ships byte-identically at plugin-root `<dest>`;
+  the directory layout is schema-validated on discovery — a stray file fails the build). No
+  per-ecosystem directories, no per-ecosystem code anywhere.
 - **`src/hooks/`** — the SHARED enforcement code (stdlib Python, authored once, byte-copied to every
   ecosystem): the canonical frozen-test guard and the one generic write-gate adapter. `src/` holds no
   code the compiler executes — the compiler only copies these for the host to run.
@@ -182,9 +183,11 @@ it holds **zero** per-ecosystem branches, classes, or modules. **A target is one
   named Python generator (`generate`), never inline JSON logic, never auto-discovered code under
   `src/`. Growing descriptor expressiveness instead of adding a named Python behavior is the failure
   mode to reject in review.
-- **Flat siblings — `src/ecosystems/<eco>.*`:** optional `CAPABILITIES.md`-style prose
-  (`<eco>.capabilities.md`, disclosed gaps — plain prose, **never** a JSON string literal) and
-  marketplace assets, referenced from the descriptor's `assets`. No per-ecosystem directories.
+- **Shipped siblings — `src/ecosystems/<eco>.dist.<dest>`:** optional prose/SVG files that ship
+  byte-identically at plugin-root `<dest>` (`<eco>.dist.CAPABILITIES.md` — disclosed gaps as plain
+  prose, **never** a JSON string literal; marketplace logo/readme). The filename IS the routing —
+  validated on discovery, pinned deterministic by tests, no separate mapping to drift. No
+  per-ecosystem directories.
 - **Enforcement + release:** a `GATE_EXPECTATIONS` entry (or explicit waiver) in
   `tests/hooks/test_enforcement_gates.py` — hand-authored on purpose, the forcing function that a new
   target cannot ship ungated; output-pinning tests under `tests/build/`; a `RELEASE.md` smoke section.

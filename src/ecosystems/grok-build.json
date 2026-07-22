@@ -99,8 +99,5 @@
       }
     }
   ],
-  "assets": [
-    {"src": "grok-build.capabilities.md", "dest": "CAPABILITIES.md"}
-  ],
   "guard": ["hercules_state.py", "frozen_tests.py"]
 }

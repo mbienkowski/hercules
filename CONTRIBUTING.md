@@ -35,10 +35,11 @@ git config core.hooksPath .githooks
   ecosystem.
 - `src/ecosystems/<name>.json` — ONE descriptor per ecosystem (the filename is the registry key):
   token `vars`, `models` tiers, the `smoke` matrix entry, per-role output shapes (`roles`),
-  destination `routes`, inline JSON `artifacts` (manifests, settings, hook wiring), flat `assets`,
-  shared-`guard` modules, write-`gate` params, and named `generate` steps. Flat prose/SVG siblings
-  (`<name>.capabilities.md`, `cursor.logo.svg`, …) sit beside the descriptors — no per-ecosystem
-  directories, no per-ecosystem Python.
+  destination `routes`, inline JSON `artifacts` (manifests, settings, hook wiring), shared-`guard`
+  modules, write-`gate` params, and named `generate` steps. Shipped prose/SVG siblings follow the
+  filename schema `<name>.dist.<dest>` (byte-copied to plugin-root `<dest>`; the directory layout is
+  schema-validated — a stray file fails the build) — no per-ecosystem directories, no per-ecosystem
+  Python.
 - `src/hooks/` — the shared enforcement code, authored once and byte-copied to every ecosystem:
   the canonical frozen-test guard + the ONE generic write-gate adapter (`hercules_gate.py`).
 - `scripts/build/` — the generic compiler: `parse` → `render` → `genserialize` (descriptor-driven)
@@ -71,8 +72,10 @@ late CI failure. The procedure:
    - `generate` — named Python generators for genuinely generated output (e.g. OpenCode's
      `plugin.js`). A need the vocabulary can't express = a new NAMED behavior in `scripts/build/`
      with tests, then referenced by name — never logic in the JSON.
-2. **Add flat siblings if needed**: `src/ecosystems/<name>.capabilities.md` for disclosed gaps
-   (plain prose the build copies verbatim), plus any marketplace assets (logo, readme).
+2. **Add shipped siblings if needed** — filename = routing: `src/ecosystems/<name>.dist.<dest>`
+   ships byte-identically at `dist/<name>/<dest>` (e.g. `<name>.dist.CAPABILITIES.md` for disclosed
+   gaps as plain prose, `<name>.dist.logo.svg` for marketplace assets). A mis-prefixed or stray
+   file fails discovery loudly.
 3. **Rebuild and commit**: `make build` regenerates `dist/<name>/`; commit it alongside the source.
 4. **Declare the write-gate** (CI-hard-failing): add an entry for the target to `GATE_EXPECTATIONS`
    in `tests/hooks/test_enforcement_gates.py`. `test_every_registered_target_declares_a_gate` fails

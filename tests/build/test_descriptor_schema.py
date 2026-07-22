@@ -174,10 +174,70 @@ def test_artifact_content_must_be_a_json_object():
         parse_descriptor("eco", _minimal(artifacts=artifacts))
 
 
-def test_asset_src_must_be_a_flat_sibling_filename():
-    assets = [{"src": "nested/logo.svg", "dest": "logo.svg"}]
-    with pytest.raises(DescriptorError, match="flat sibling"):
-        parse_descriptor("eco", _minimal(assets=assets))
+def test_a_stray_sibling_file_fails_discovery_loudly(tmp_path):
+    """The directory has a definitive schema: a file that is neither a descriptor nor a
+    '<eco>.dist.<dest>' shipped file must fail discovery — nothing is ever silently ignored."""
+    (tmp_path / "eco.json").write_text(json.dumps(_minimal()), encoding="utf-8")
+    (tmp_path / "notes.md").write_text("stray", encoding="utf-8")
+    with pytest.raises(DescriptorError, match="dist"):
+        discover(tmp_path)
+
+
+def test_a_dist_file_for_an_unknown_ecosystem_fails_discovery(tmp_path):
+    (tmp_path / "eco.json").write_text(json.dumps(_minimal()), encoding="utf-8")
+    (tmp_path / "ghost.dist.CAPABILITIES.md").write_text("x", encoding="utf-8")
+    with pytest.raises(DescriptorError, match="ghost.dist.CAPABILITIES.md"):
+        discover(tmp_path)
+
+
+def test_a_dist_file_with_an_empty_dest_fails_discovery(tmp_path):
+    (tmp_path / "eco.json").write_text(json.dumps(_minimal()), encoding="utf-8")
+    (tmp_path / "eco.dist.").write_text("x", encoding="utf-8")
+    with pytest.raises(DescriptorError, match="eco.dist"):
+        discover(tmp_path)
+
+
+def test_dist_files_derives_the_destination_purely_from_the_filename(tmp_path):
+    """The input→output contract: '<eco>.dist.<dest>' maps to plugin-root '<dest>', nothing else
+    consulted — a rename IS a re-route, deterministically."""
+    from scripts.build.descriptor import dist_files
+    (tmp_path / "eco.json").write_text(json.dumps(_minimal()), encoding="utf-8")
+    (tmp_path / "eco.dist.CAPABILITIES.md").write_text("caps", encoding="utf-8")
+    (tmp_path / "eco.dist.logo.svg").write_text("<svg/>", encoding="utf-8")
+    files = dist_files("eco", tmp_path)
+    assert sorted(files) == ["CAPABILITIES.md", "logo.svg"]
+    assert files["CAPABILITIES.md"].name == "eco.dist.CAPABILITIES.md"
+
+
+def test_every_shipped_sibling_lands_at_its_filename_derived_dest_byte_identically(tmp_path):
+    """End-to-end determinism over the REAL corpus: for every ecosystem, each
+    src/ecosystems/<eco>.dist.<dest> ships byte-identical at dist-root <dest>."""
+    from scripts.build.cli import build_target
+    from scripts.build.descriptor import dist_files
+    checked = 0
+    for name in discover(ECOSYSTEMS):
+        siblings = dist_files(name)
+        if not siblings:
+            continue
+        out = tmp_path / name
+        build_target(name, out)
+        for dest, src in siblings.items():
+            assert (out / dest).read_bytes() == src.read_bytes(), f"{name}: {dest} diverged"
+            checked += 1
+    assert checked >= 7, "expected the capabilities/logo/readme siblings to be covered"
+
+
+def test_every_shipped_capabilities_file_follows_the_disclosure_shape():
+    """Capabilities prose is testable: every <eco>.dist.CAPABILITIES.md opens with the canonical
+    disclosure heading and is substantive (not a stub) — the 'disclose gaps, never hide' shape."""
+    import re
+    files = sorted(ECOSYSTEMS.glob("*.dist.CAPABILITIES.md"))
+    assert len(files) == 5, "five ecosystems disclose capability gaps"
+    for f in files:
+        text = f.read_text(encoding="utf-8")
+        assert re.match(r"^# Hercules on .+ — capabilities & disclosed gaps\n", text), \
+            f"{f.name}: must open with the canonical disclosure heading"
+        assert text.count("- **") >= 2, f"{f.name}: must disclose at least two concrete items"
 
 
 def test_unknown_generator_name_fails_naming_the_allowed_set():
@@ -225,7 +285,6 @@ _MALFORMED = [
     ("artifact-not-object", lambda: _minimal(artifacts=["x"])),
     ("artifact-versioned-not-bool", lambda: _minimal(
         artifacts=[{"dest": "p.json", "content": {}, "versioned": "yes"}])),
-    ("asset-not-object", lambda: _minimal(assets=["x"])),
     ("generate-step-not-object", lambda: _minimal(generate=["x"])),
     ("generate-args-not-object", lambda: _minimal(generate=[{"name": "opencode_json", "args": []}])),
     ("role-not-object", lambda: _with_role("preserve")),
