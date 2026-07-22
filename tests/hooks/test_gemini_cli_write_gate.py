@@ -158,3 +158,19 @@ def test_before_tool_allows_a_mutating_tool_with_no_resolvable_path(active_build
     home, proj, _ = active_build
     evt = {"tool_name": "write_file", "tool_input": {"unknown_key": "x"}, "cwd": str(proj)}
     assert _decide(evt, home, capsys) == {}
+
+
+def test_before_tool_fails_open_on_a_malformed_json_string_arg(active_build, capsys):
+    """A ``tool_input`` delivered as a non-JSON string must fail OPEN (unparseable → no path → allow),
+    never crash — the ``_extract_path`` parse-guard."""
+    home, proj, _ = active_build
+    evt = {"tool_name": "write_file", "tool_input": "{not json", "cwd": str(proj)}
+    assert _decide(evt, home, capsys) == {}
+
+
+def test_before_tool_fails_open_when_json_string_arg_is_not_an_object(active_build, capsys):
+    """A ``tool_input`` string that parses to a JSON scalar (``"123"``), not an object, yields no path
+    → allow — the non-dict branch of ``_extract_path``."""
+    home, proj, _ = active_build
+    evt = {"tool_name": "replace", "tool_input": "123", "cwd": str(proj)}
+    assert _decide(evt, home, capsys) == {}
