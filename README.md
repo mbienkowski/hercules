@@ -149,7 +149,7 @@ Gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
 <summary><b>GitHub Copilot CLI</b></summary>
 
 - **Requires** [GitHub Copilot CLI](https://github.com/github/copilot-cli) — `npm install -g @github/copilot`.
-- **Install** — `copilot plugin marketplace add mbienkowski/hercules`, then `copilot plugin install hercules@mbienkowski`.
+- **Install** — `copilot plugin marketplace add mbienkowski/hercules`, then `copilot plugin install hercules@hercules`.
 - **Start** — `/workflow`.
 - **Enforcement** — a real `preToolUse` veto (needs `python3`); gaps in `dist/copilot-cli/CAPABILITIES.md`.
 
