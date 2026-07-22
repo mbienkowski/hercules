@@ -1,0 +1,103 @@
+{
+  "schema": 1,
+  "name": "claude-code",
+  "vars": {
+    "product": "Claude Code",
+    "host": "Claude",
+    "ns": "/hercules:",
+    "instructions_file": "CLAUDE.md",
+    "agent_ns": "hercules:",
+    "plugin_root": "${CLAUDE_PLUGIN_ROOT}/",
+    "plan_enter": "EnterPlanMode",
+    "plan_exit": "ExitPlanMode"
+  },
+  "models": {"high": "opus", "medium": "sonnet", "low": "haiku"},
+  "smoke": {
+    "npm_package": "@anthropic-ai/claude-code",
+    "npm_version": "2.1.214",
+    "cli": "claude",
+    "test": "tests/build/test_claude_code_smoke.py"
+  },
+  "dispatch": "path",
+  "roles": {
+    "agent": {"mode": "preserve", "resolve_model_tier": true, "required": ["name", "description"]},
+    "command": {"mode": "preserve", "resolve_model_tier": true},
+    "persona": {"mode": "preserve", "resolve_model_tier": true},
+    "default": {"mode": "preserve", "resolve_model_tier": true}
+  },
+  "routes": [
+    {"kind": "exact", "src": "persona.md", "dest": "CLAUDE.md"}
+  ],
+  "artifacts": [
+    {
+      "dest": "settings.json",
+      "content": {
+        "agent": "hercules",
+        "advisors": [
+          "backend-engineer",
+          "business-analyst",
+          "challenger",
+          "copywriter",
+          "cynical-reviewer",
+          "devops-engineer",
+          "document-specialist",
+          "frontend-engineer",
+          "lead-architect",
+          "maintainer",
+          "security-expert",
+          "senior-qa-engineer",
+          "simplicity-advocate",
+          "source-checker",
+          "ux-ui-designer"
+        ],
+        "skills": [
+          "code-of-conduct-generator",
+          "hercules-reference",
+          "learnings",
+          "write-test-scenarios"
+        ],
+        "commands": [
+          "build",
+          "design",
+          "discover",
+          "ship",
+          "workflow"
+        ]
+      }
+    },
+    {
+      "dest": "hooks/hooks.json",
+      "content": {
+        "hooks": {
+          "PreToolUse": [
+            {
+              "matcher": "Edit|MultiEdit|Write|NotebookEdit",
+              "hooks": [
+                {
+                  "type": "command",
+                  "command": "python3",
+                  "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py"]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "dest": ".claude-plugin/plugin.json",
+      "versioned": true,
+      "content": {
+        "name": "hercules",
+        "description": "Methodology & workflow system for software delivery with AI",
+        "version": "${version}",
+        "author": {
+          "name": "Michal Bienkowski"
+        },
+        "license": "AGPL-3.0",
+        "homepage": "https://github.com/mbienkowski/hercules"
+      }
+    }
+  ],
+  "guard": ["frozen_tests.py", "hercules_state.py"]
+}

@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "name": "copilot-cli",
+  "vars": {
+    "product": "GitHub Copilot CLI",
+    "host": "Copilot",
+    "ns": "/",
+    "instructions_file": "AGENTS.md",
+    "agent_ns": "",
+    "plugin_root": "${PLUGIN_ROOT}/",
+    "plan_enter": "plan mode",
+    "plan_exit": "approval"
+  },
+  "models": {"high": null, "medium": null, "low": null},
+  "smoke": {
+    "npm_package": "@github/copilot",
+    "npm_version": "1.0.73",
+    "cli": "copilot",
+    "test": "tests/build/test_copilot_cli_smoke.py"
+  },
+  "dispatch": "path",
+  "roles": {
+    "agent": {
+      "mode": "fields",
+      "body": "keep",
+      "fields": [
+        {"key": "name", "from": "frontmatter", "field": "name"},
+        {"key": "description", "from": "frontmatter", "field": "description", "render": true}
+      ]
+    },
+    "command": {
+      "mode": "fields",
+      "body": "lstrip_newlines",
+      "fields": [
+        {"key": "description", "from": "frontmatter", "field": "description", "render": true}
+      ]
+    },
+    "persona": {"mode": "plain"},
+    "default": {"mode": "preserve"}
+  },
+  "routes": [
+    {"kind": "exact", "src": "persona.md", "dest": "AGENTS.md"},
+    {"kind": "suffix_swap", "prefix": "agents/", "from_suffix": ".md", "to_suffix": ".agent.md"},
+    {"kind": "suffix_swap", "prefix": "commands/", "from_suffix": ".md", "to_suffix": ".prompt.md"}
+  ],
+  "artifacts": [
+    {
+      "dest": "hooks/hooks.json",
+      "content": {
+        "version": 1,
+        "hooks": {
+          "preToolUse": [
+            {
+              "type": "command",
+              "matcher": "create|edit|str_replace_editor|apply_patch|write|Write|Edit|MultiEdit|NotebookEdit",
+              "bash": "python3 \"$PLUGIN_ROOT/hooks/hercules_gate.py\" preToolUse || exit 0",
+              "powershell": "try { python3 \"$env:PLUGIN_ROOT/hooks/hercules_gate.py\" preToolUse } catch {}; exit 0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "dest": "plugin.json",
+      "versioned": true,
+      "content": {
+        "name": "hercules",
+        "description": "Methodology & workflow system for software delivery with AI",
+        "version": "${version}",
+        "author": {
+          "name": "Michal Bienkowski"
+        },
+        "license": "AGPL-3.0",
+        "homepage": "https://github.com/mbienkowski/hercules",
+        "repository": "https://github.com/mbienkowski/hercules",
+        "keywords": [
+          "methodology",
+          "workflow",
+          "spec-driven",
+          "tdd",
+          "delivery",
+          "code-review",
+          "agents"
+        ],
+        "agents": "./agents/",
+        "commands": "./commands/",
+        "skills": "./skills/",
+        "hooks": "./hooks/hooks.json"
+      }
+    },
+    {
+      "dest": ".github/plugin/marketplace.json",
+      "content": {
+        "name": "hercules",
+        "owner": {
+          "name": "Michal Bienkowski"
+        },
+        "metadata": {
+          "description": "Methodology & workflow system for software delivery with AI"
+        },
+        "plugins": [
+          {
+            "name": "hercules",
+            "source": ".",
+            "description": "Methodology & workflow system for software delivery with AI"
+          }
+        ]
+      }
+    }
+  ],
+  "assets": [
+    {"src": "copilot-cli.gate.py", "dest": "hooks/hercules_gate.py"},
+    {"src": "copilot-cli.capabilities.md", "dest": "CAPABILITIES.md"}
+  ],
+  "guard": ["hercules_state.py", "frozen_tests.py"]
+}

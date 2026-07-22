@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "name": "opencode",
+  "vars": {
+    "product": "OpenCode",
+    "host": "OpenCode",
+    "ns": "/hercules:",
+    "instructions_file": "AGENTS.md",
+    "agent_ns": "",
+    "plugin_root": "",
+    "plan_enter": "plan mode",
+    "plan_exit": "approval"
+  },
+  "models": {"high": null, "medium": null, "low": null},
+  "smoke": {
+    "npm_package": "opencode-ai",
+    "npm_version": "1.18.3",
+    "cli": "opencode",
+    "test": "tests/build/test_opencode_smoke.py"
+  },
+  "dispatch": "frontmatter",
+  "roles": {
+    "agent": {
+      "mode": "fields",
+      "body": "keep",
+      "fields": [
+        {"key": "name", "from": "frontmatter", "field": "name"},
+        {"key": "description", "from": "frontmatter", "field": "description", "render": true},
+        {"key": "mode", "from": "primary_mode", "primary": "hercules"}
+      ]
+    },
+    "command": {
+      "mode": "fields",
+      "body": "lstrip_newlines",
+      "fields": [
+        {"key": "description", "from": "frontmatter", "field": "description", "render": true},
+        {"key": "agent", "from": "literal", "value": "hercules"}
+      ]
+    },
+    "persona": {"mode": "plain"},
+    "default": {"mode": "preserve"}
+  },
+  "routes": [
+    {"kind": "exact", "src": "persona.md", "dest": "instructions.md"}
+  ],
+  "assets": [
+    {"src": "opencode.capabilities.md", "dest": "CAPABILITIES.md"}
+  ],
+  "guard": ["frozen_tests.py", "hercules_state.py"],
+  "generate": [
+    {"name": "opencode_plugin_js", "args": {"default_agent": "hercules"}},
+    {"name": "opencode_json"}
+  ]
+}

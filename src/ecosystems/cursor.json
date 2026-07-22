@@ -1,0 +1,127 @@
+{
+  "schema": 1,
+  "name": "cursor",
+  "vars": {
+    "product": "Cursor",
+    "host": "Cursor",
+    "ns": "/",
+    "instructions_file": "AGENTS.md",
+    "agent_ns": "",
+    "plugin_root": "${CURSOR_PLUGIN_ROOT}/",
+    "plan_enter": "plan mode",
+    "plan_exit": "approval"
+  },
+  "models": {"high": null, "medium": null, "low": null},
+  "smoke": {
+    "cli": "cursor-agent",
+    "test": "tests/build/test_cursor_smoke.py",
+    "install": {
+      "method": "script",
+      "url": "https://cursor.com/install",
+      "flags": "-fsSL"
+    }
+  },
+  "dispatch": "path",
+  "roles": {
+    "agent": {
+      "mode": "fields",
+      "body": "keep",
+      "fields": [
+        {"key": "name", "from": "frontmatter", "field": "name"},
+        {"key": "description", "from": "frontmatter", "field": "description", "render": true},
+        {
+          "key": "readonly",
+          "from": "flag_if_name_in",
+          "value": "true",
+          "names": [
+            "cynical-reviewer",
+            "security-expert",
+            "source-checker",
+            "senior-qa-engineer",
+            "maintainer"
+          ]
+        }
+      ]
+    },
+    "command": {
+      "mode": "fields",
+      "body": "lstrip_newlines",
+      "fields": [
+        {"key": "name", "from": "stem"},
+        {"key": "description", "from": "frontmatter", "field": "description", "render": true}
+      ]
+    },
+    "persona": {
+      "mode": "wrap",
+      "fields": [
+        {
+          "key": "description",
+          "from": "literal",
+          "value": "Hercules — the spec-first delivery methodology (Discover → Design → Build → Ship). Always-on persona and project instructions."
+        },
+        {"key": "alwaysApply", "from": "literal", "value": "true"}
+      ]
+    },
+    "default": {"mode": "preserve"}
+  },
+  "routes": [
+    {"kind": "exact", "src": "persona.md", "dest": "rules/hercules-persona.mdc"}
+  ],
+  "artifacts": [
+    {
+      "dest": "hooks/hooks.json",
+      "content": {
+        "version": 1,
+        "hooks": {
+          "beforeShellExecution": [
+            {"command": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py shell"}
+          ],
+          "beforeMCPExecution": [
+            {"command": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py mcp"}
+          ],
+          "afterFileEdit": [
+            {"command": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py after_edit"}
+          ]
+        }
+      }
+    },
+    {
+      "dest": ".cursor-plugin/plugin.json",
+      "versioned": true,
+      "content": {
+        "name": "hercules",
+        "displayName": "Hercules",
+        "description": "Methodology & workflow system for software delivery with AI",
+        "version": "${version}",
+        "author": {
+          "name": "Michal Bienkowski"
+        },
+        "license": "AGPL-3.0",
+        "homepage": "https://github.com/mbienkowski/hercules",
+        "repository": "https://github.com/mbienkowski/hercules",
+        "keywords": [
+          "methodology",
+          "workflow",
+          "spec-driven",
+          "tdd",
+          "delivery",
+          "code-review",
+          "agents"
+        ],
+        "logo": "./logo.svg",
+        "agents": "./agents/",
+        "commands": "./commands/",
+        "rules": "./rules/",
+        "skills": "./skills/",
+        "hooks": "./hooks/hooks.json"
+      }
+    }
+  ],
+  "assets": [
+    {"src": "cursor.gate.py", "dest": "hooks/hercules_gate.py"},
+    {"src": "cursor.logo.svg", "dest": "logo.svg"},
+    {"src": "cursor.readme.md", "dest": "README.md"},
+    {"src": "cursor.capabilities.md", "dest": "CAPABILITIES.md"}
+  ],
+  "guard": ["hercules_state.py", "frozen_tests.py"]
+}
