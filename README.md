@@ -159,6 +159,36 @@ Gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
 
 </details>
 
+<details>
+<summary><b>Grok Build</b></summary>
+
+Requires [Grok Build](https://x.ai/cli) (`npm install -g @xai-official/grok`), which reads Claude-format
+plugins natively. Add `mbienkowski/hercules` as a marketplace source, install **hercules** from Grok's
+`/marketplace`, and run `/hercules:workflow`. The frozen-test write-gate is a real `PreToolUse` veto that
+runs on your system `python3`; gaps are disclosed in `dist/grok-build/CAPABILITIES.md`.
+
+</details>
+
+<details>
+<summary><b>Gemini CLI</b></summary>
+
+Requires [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`npm install -g @google/gemini-cli`).
+Clone this repo and install the extension: `gemini extensions install ./dist/gemini-cli`. Restart Gemini
+and run `/workflow`. The frozen-test write-gate is a real `BeforeTool` veto that needs `python3`; gaps are
+disclosed in `dist/gemini-cli/CAPABILITIES.md`.
+
+</details>
+
+<details>
+<summary><b>GitHub Copilot CLI</b></summary>
+
+Requires [GitHub Copilot CLI](https://github.com/github/copilot-cli) (`npm install -g @github/copilot`).
+Add the marketplace and install: `copilot plugin marketplace add mbienkowski/hercules`, then
+`copilot plugin install hercules@mbienkowski`. Run `/workflow`. The frozen-test write-gate is a real
+`preToolUse` veto that needs `python3`; gaps are disclosed in `dist/copilot-cli/CAPABILITIES.md`.
+
+</details>
+
 ---
 
 ## Quickstart

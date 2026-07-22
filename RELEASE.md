@@ -152,6 +152,23 @@ opt-in — it needs a `CURSOR_API_KEY` secret and skips without it) — confirm 
 | 5 | Independent-review handshake returns (or HALTs) | manual |
 | 6 | `CAPABILITIES.md` gaps read true | manual |
 
+### Grok Build · Gemini CLI · Copilot CLI
+
+Installable via `@xai-official/grok` (`/marketplace`), `@google/gemini-cli` (`gemini extensions install
+./dist/gemini-cli`), and `@github/copilot` (`copilot plugin install hercules@mbienkowski`). The build
+proves structure + the in-process guard; these load-time behaviours are verified live before release
+(the `test_<target>_smoke` legs run the real CLI on PR + main; each write-gate test never skips):
+
+- [ ] **Write-gate fires on the file-edit tool** (the 100%-tier claim): a frozen-test edit *during a
+      build* is denied — Grok `PreToolUse` (exit 2), Gemini `BeforeTool` (`decision:"deny"`), Copilot
+      `preToolUse` (`permissionDecision:"deny"`). If a host vetoes only shell, re-file it best-effort in
+      its `CAPABILITIES.md` — never a false "blocked".
+- [ ] **Fail-open** when `python3` is absent (Copilot's hook wrapper keeps a missing interpreter from
+      failing closed); the acceptance-gate `frozen_baseline` re-hash is the backstop.
+- [ ] Persona/commands load, `/…workflow` resolves, and each `CAPABILITIES.md`'s disclosed gaps read true.
+- [ ] **Rollback:** repo-hosted install — revert the `dist/<target>/` commit and re-tag; the marketplace
+      descriptors point at the prior good tag.
+
 ### Cross-ecosystem
 
 - [ ] `pyproject.toml` and `package.json` — the two literal version sources
