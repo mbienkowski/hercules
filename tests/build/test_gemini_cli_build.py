@@ -90,7 +90,10 @@ def test_emitted_command_toml_parses_with_the_prompt_preserved(tmp_path):
     """Every emitted command file must be valid TOML with the plan-mode prompt intact — the real safety
     net. A source-only invariant can't catch a token that renders a backslash or ``\"\"\"`` into a body;
     parsing the *rendered* ``.toml`` (and escaping the body in the emitter) does. Closes the whole class."""
-    import tomllib
+    try:
+        import tomllib  # Python >= 3.11
+    except ModuleNotFoundError:  # Python 3.9/3.10 (the project's floor is 3.9) — use the tomli backport
+        import tomli as tomllib
     out = _build(tmp_path)
     toml_files = sorted((out / "commands").glob("*.toml"))
     assert toml_files, "gemini commands must emit .toml files"
