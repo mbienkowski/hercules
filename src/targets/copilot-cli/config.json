@@ -1,0 +1,12 @@
+{
+  "vars": {
+    "product": "GitHub Copilot CLI",
+    "host": "Copilot",
+    "ns": "/",
+    "instructions_file": "AGENTS.md",
+    "agent_ns": "",
+    "plugin_root": "${PLUGIN_ROOT}/",
+    "plan_enter": "plan mode",
+    "plan_exit": "approval"
+  }
+}

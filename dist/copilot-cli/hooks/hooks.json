@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "matcher": "create|edit|str_replace_editor|apply_patch",
+        "bash": "python3 \"$PLUGIN_ROOT/hooks/hercules_gate.py\" preToolUse || exit 0",
+        "powershell": "python3 \"$env:PLUGIN_ROOT/hooks/hercules_gate.py\" preToolUse; exit 0"
+      }
+    ]
+  }
+}

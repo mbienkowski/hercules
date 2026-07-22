@@ -28,7 +28,7 @@ def test_every_build_target_has_a_serializer():
 
 
 def test_registered_target_names_is_the_single_ecosystem_list():
-    assert target_registry.registered_target_names() == ["claude-code", "cursor", "gemini-cli", "grok-build", "opencode"]
+    assert target_registry.registered_target_names() == ["claude-code", "copilot-cli", "cursor", "gemini-cli", "grok-build", "opencode"]
     assert tuple(target_registry.registered_target_names()) == cli.TARGETS
 
 
@@ -72,6 +72,16 @@ def test_cursor_persona_relocates_to_the_mdc_rule_via_dest():
     # The load-bearing .mdc mapping stays in serialize.cursor_dest (mutation-covered); the Target
     # just wires it in. Guard that the wiring is intact.
     assert target_registry.get("cursor").dest("persona.md") == "rules/hercules-persona.mdc"
+
+
+def test_copilot_cli_dest_routes_persona_agents_and_commands_by_extension():
+    # The load-bearing .agent.md/.prompt.md/AGENTS.md routing lives in serialize.copilot_cli_dest
+    # (mutation-covered); the Target just wires it via dest_fn. Guard the wiring is intact.
+    dest = target_registry.get("copilot-cli").dest
+    assert dest("persona.md") == "AGENTS.md"
+    assert dest("agents/cynical-reviewer.md") == "agents/cynical-reviewer.agent.md"
+    assert dest("commands/build.md") == "commands/build.prompt.md"
+    assert dest("protocols/workflow-protocol.md") == "protocols/workflow-protocol.md"
 
 
 def test_cli_build_target_has_no_per_ecosystem_branches():

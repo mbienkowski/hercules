@@ -304,6 +304,79 @@ def gemini_dest(rel: str) -> str:
     return rel
 
 
+class CopilotCliSerializer:
+    """Emit a GitHub Copilot CLI plugin (``plugin.json`` manifest + native component dirs).
+
+    Copilot CLI's plugin components live in conventional dirs the manifest points at; only two
+    sources are relocated by extension (``copilot_cli_dest``): agents become ``agents/<name>.agent.md``
+    (Copilot derives the agent id from the ``<name>`` stem) and commands become Copilot prompt files
+    ``commands/<name>.prompt.md``. The frontmatter-less ``persona.md`` becomes the plugin's ``AGENTS.md``
+    custom-instructions file. Dispatch is by source ``rel`` (path-aware), like Cursor, because the
+    frontmatter-less persona and the protocols are otherwise indistinguishable. Field shapes are the
+    documented minimal set:
+
+    - agent → ``agents/<name>.agent.md``: ``name, description``; ``model_tier``/``tools`` dropped
+      (Copilot agents inherit the user's model — ``models.json[copilot-cli]`` is all-``null``).
+    - command → ``commands/<name>.prompt.md``: ``description`` (Copilot keys the command off the file
+      stem); Claude's ``disable-model-invocation`` marker is dropped.
+    - persona → ``AGENTS.md``: plain custom instructions (no frontmatter), body token-rendered.
+    - skill → ``skills/<name>/SKILL.md``: frontmatter kept, body token-rendered.
+    - protocol / companion / plain → passthrough with token/switch rendering.
+    """
+
+    target = "copilot-cli"
+
+    def serialize_agent(self, frontmatter: dict[str, str], body: str, tokens: dict[str, str]) -> str:
+        out = {
+            "name": require_field(frontmatter, "name"),
+            "description": render_body(require_field(frontmatter, "description"), self.target, tokens),
+        }
+        return render_frontmatter(out) + "\n\n" + render_body(body, self.target, tokens)
+
+    def serialize_command(self, frontmatter: dict[str, str], body: str, tokens: dict[str, str]) -> str:
+        """Emit a Copilot prompt file: a ``description`` frontmatter, then the prompt body. Copilot keys
+        the command off the file stem, so no ``name`` is emitted; Claude's ``disable-model-invocation``
+        marker is dropped."""
+        out = {"description": render_body(require_field(frontmatter, "description"), self.target, tokens)}
+        return render_frontmatter(out) + "\n\n" + render_body(body, self.target, tokens).lstrip("\n")
+
+    def serialize_file(self, text: str, tokens: dict[str, str], models: dict, rel: str | None = None) -> str:
+        if rel == _PERSONA_SRC:  # persona.md → AGENTS.md custom instructions (no frontmatter)
+            return render_body(text, self.target, tokens)
+        fm_block, body = split_document(text)
+        if fm_block is None:  # protocols, skill companion docs, any plain file
+            return render_body(text, self.target, tokens)
+        meta, _ = parse_frontmatter(fm_block)
+        if rel is not None and rel.startswith("agents/"):
+            return self.serialize_agent(meta, body, tokens)
+        if rel is not None and rel.startswith("commands/"):
+            return self.serialize_command(meta, body, tokens)
+        # skills/<name>/SKILL.md and any other frontmatter'd file: keep frontmatter, render the body.
+        return fm_block + render_body(body, self.target, tokens)
+
+
+# Copilot relocates the persona to AGENTS.md, agents to <name>.agent.md, commands to <name>.prompt.md.
+_COPILOT_AGENT_SUFFIX = ".agent.md"
+_COPILOT_COMMAND_SUFFIX = ".prompt.md"
+
+
+def copilot_cli_dest(rel: str) -> str:
+    """Map a ``src/content`` source path to its destination inside the Copilot CLI plugin tree.
+
+    Two extensions are load-bearing: Copilot derives an agent's id from ``<name>.agent.md`` (a plain
+    ``agents/<name>.md`` is not loaded as a plugin agent), and a plugin command is a ``.prompt.md``
+    prompt file. The frontmatter-less ``persona.md`` becomes the plugin's ``AGENTS.md`` custom
+    instructions. Lives here (a mutation-covered module), wired via ``dest_fn``, so a mutant flipping an
+    extension is killed by ``test_copilot_cli_serialize``/``test_copilot_cli_build``."""
+    if rel == _PERSONA_SRC:
+        return "AGENTS.md"
+    if rel.startswith("agents/") and rel.endswith(".md"):
+        return rel[: -len(".md")] + _COPILOT_AGENT_SUFFIX
+    if rel.startswith("commands/") and rel.endswith(".md"):
+        return rel[: -len(".md")] + _COPILOT_COMMAND_SUFFIX
+    return rel
+
+
 def cursor_dest(rel: str) -> str:
     """Map a ``src/content`` source path to its destination inside the Cursor plugin tree.
 
@@ -338,3 +411,4 @@ register(OpenCodeSerializer())
 register(CursorSerializer())
 register(GrokBuildSerializer())
 register(GeminiCliSerializer())
+register(CopilotCliSerializer())

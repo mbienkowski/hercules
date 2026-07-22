@@ -50,8 +50,8 @@ norecursedirs = ["*.egg", ".*", "_darcs", "CVS", "dist", "node_modules", "venv",
 # dest logic (cli was always excluded), and adding it to the gate is deferred to the mutation-tooling
 # rework, where the kill rate can be validated with working tooling (its behaviour is guarded now by
 # tests/build/test_target_registry.py, incl. the frozen-immutability test).
-# Hooks are mutated per ecosystem (claude-code, cursor, gemini-cli), not just the reference one.
-paths_to_mutate = "tests/metrics/,src/targets/claude-code/hooks/,src/targets/cursor/hooks/,src/targets/gemini-cli/hooks/,scripts/build/parse.py,scripts/build/render.py,scripts/build/model_map.py,scripts/build/serialize.py,scripts/build/manifests.py,scripts/build/version_targets.py"
+# Hooks are mutated per ecosystem (claude-code, cursor, gemini-cli, copilot-cli), not just the reference one.
+paths_to_mutate = "tests/metrics/,src/targets/claude-code/hooks/,src/targets/cursor/hooks/,src/targets/gemini-cli/hooks/,src/targets/copilot-cli/hooks/,scripts/build/parse.py,scripts/build/render.py,scripts/build/model_map.py,scripts/build/serialize.py,scripts/build/manifests.py,scripts/build/version_targets.py"
 paths_to_exclude = "test_*.py,__init__.py,conftest.py"
 backup = false
 runner = "python -m pytest tests/ -x -q --tb=no --no-header"

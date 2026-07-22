@@ -3,5 +3,6 @@
   "opencode":    {"high": null, "medium": null, "low": null},
   "cursor":      {"high": null, "medium": null, "low": null},
   "grok-build":  {"high": null, "medium": null, "low": null},
-  "gemini-cli":  {"high": null, "medium": null, "low": null}
+  "gemini-cli":  {"high": null, "medium": null, "low": null},
+  "copilot-cli": {"high": null, "medium": null, "low": null}
 }
