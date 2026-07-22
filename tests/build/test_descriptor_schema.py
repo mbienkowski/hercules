@@ -202,6 +202,60 @@ def test_guard_entries_are_module_filenames():
         parse_descriptor("eco", _minimal(guard=["hooks/frozen_tests.py"]))
 
 
+def _with_role(agent_role: dict) -> dict:
+    raw = _minimal()
+    raw["roles"]["agent"] = agent_role
+    return raw
+
+
+_GATE_OK = {"protocol": "pre_tool", "tools": {"edit": "Edit"}, "path_keys": ["path"],
+            "deny": {"d": "deny"}, "reason_key": "r"}
+
+# Every malformed SHAPE the validator must reject — one case per reject branch, so the closed
+# vocabulary can't silently grow a lenient fallback anywhere.
+_MALFORMED = [
+    ("descriptor-not-object", lambda: []),
+    ("vars-empty", lambda: _minimal(vars={})),
+    ("models-not-object", lambda: _minimal(models=[])),
+    ("models-value-not-str-or-null", lambda: _minimal(models={"high": 5})),
+    ("smoke-not-object", lambda: _minimal(smoke=[])),
+    ("roles-not-object", lambda: _minimal(roles=[])),
+    ("routes-not-list", lambda: _minimal(routes={})),
+    ("route-not-object", lambda: _minimal(routes=["x"])),
+    ("artifact-not-object", lambda: _minimal(artifacts=["x"])),
+    ("artifact-versioned-not-bool", lambda: _minimal(
+        artifacts=[{"dest": "p.json", "content": {}, "versioned": "yes"}])),
+    ("asset-not-object", lambda: _minimal(assets=["x"])),
+    ("generate-step-not-object", lambda: _minimal(generate=["x"])),
+    ("generate-args-not-object", lambda: _minimal(generate=[{"name": "opencode_json", "args": []}])),
+    ("role-not-object", lambda: _with_role("preserve")),
+    ("role-body-unknown", lambda: _with_role(
+        {"mode": "fields", "body": "trim", "fields": [{"key": "k", "from": "stem"}]})),
+    ("role-fields-empty", lambda: _with_role({"mode": "fields", "fields": []})),
+    ("role-resolve-not-bool", lambda: _with_role({"mode": "preserve", "resolve_model_tier": "yes"})),
+    ("role-required-not-list", lambda: _with_role({"mode": "preserve", "required": "name"})),
+    ("field-not-object", lambda: _with_role({"mode": "fields", "fields": ["k"]})),
+    ("field-render-not-bool", lambda: _with_role({"mode": "fields", "fields": [
+        {"key": "d", "from": "frontmatter", "field": "d", "render": "yes"}]})),
+    ("field-names-empty", lambda: _with_role({"mode": "fields", "fields": [
+        {"key": "r", "from": "flag_if_name_in", "names": [], "value": "true"}]})),
+    ("gate-not-object", lambda: _minimal(gate="x")),
+    ("gate-protocol-unknown", lambda: _minimal(gate={"protocol": "magic"})),
+    ("gate-tools-empty", lambda: _minimal(gate={**_GATE_OK, "tools": {}})),
+    ("gate-path-keys-empty", lambda: _minimal(gate={**_GATE_OK, "path_keys": []})),
+    ("gate-deny-not-object", lambda: _minimal(gate={**_GATE_OK, "deny": "deny"})),
+    ("gate-allow-not-object", lambda: _minimal(gate={**_GATE_OK, "allow": "allow"})),
+    ("gate-nested-keys-not-list", lambda: _minimal(gate={**_GATE_OK, "nested_keys": "edits"})),
+]
+
+
+@pytest.mark.parametrize("case", _MALFORMED, ids=lambda c: c[0])
+def test_every_malformed_shape_is_rejected_loudly(case):
+    _, build = case
+    with pytest.raises(DescriptorError):
+        parse_descriptor("eco", build())
+
+
 def test_load_uses_the_filename_stem_as_the_name(tmp_path):
     path = tmp_path / "eco.json"
     path.write_text(json.dumps(_minimal()), encoding="utf-8")

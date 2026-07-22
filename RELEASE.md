@@ -13,7 +13,7 @@ On every merge to `main`, `release.yml` runs after CI succeeds:
    by setuptools) and `package.json` (read by npm/OpenCode). The plugin manifests
    (`dist/{claude-code,cursor}/…/plugin.json`) are **not** stamped — their source carries a
    `${version}` token that the build injects from `pyproject.toml` (step below), so there is one
-   version of record and nothing to hand-bump under `src/targets/`.
+   version of record and nothing to hand-bump under `src/ecosystems/`.
 3. `make build` regenerates `dist/`, injecting the canonical version into each plugin manifest.
 4. Commits the bump + rebuilt `dist/` (`chore(release): X.Y.Z [skip ci]`), tags `vX.Y.Z`, pushes.
 5. Publishes the GitHub Release.
@@ -173,7 +173,7 @@ proves structure + the in-process guard; these load-time behaviours are verified
 
 - [ ] `pyproject.toml` and `package.json` — the two literal version sources
       (`scripts/build/version_targets.py::VERSION_TARGETS`) — both show the release version (matches the
-      git tag). The plugin manifests under `src/targets/` carry a `${version}` token (not a literal); the
+      git tag). The plugin manifests (versioned artifacts in `src/ecosystems/*.json`) carry a `${version}` token (not a literal); the
       build injects the canonical `pyproject.toml` version into every `dist/…/plugin.json`.
 
 Each shipped ecosystem carries its own smoke section above; add one per target

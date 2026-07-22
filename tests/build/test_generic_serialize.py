@@ -249,6 +249,31 @@ def test_compute_fields_orders_output_by_spec_order():
     assert out["mode"] == "primary"
 
 
+def test_corpus_guard_model_tier_appears_only_under_agents():
+    """Freezes the corpus fact that makes path- and frontmatter-dispatch equivalent: ``model_tier``
+    (the agent sniff marker) never appears outside ``agents/``. If a non-agent source ever gains it,
+    opencode's frontmatter sniff and every path dispatcher would diverge — this fails FIRST."""
+    from pathlib import Path
+    src_content = Path(__file__).resolve().parents[2] / "src" / "content"
+    for p in sorted(src_content.rglob("*.md")):
+        rel = p.relative_to(src_content).as_posix()
+        if not rel.startswith("agents/"):
+            assert "model_tier:" not in p.read_text(encoding="utf-8"), \
+                f"{rel}: model_tier outside agents/ breaks dispatch equivalence"
+
+
+def test_corpus_guard_command_marker_appears_only_under_commands():
+    """The companion guard: ``disable-model-invocation`` (the command sniff marker) never appears
+    outside ``commands/`` — same dispatch-equivalence freeze as the model_tier guard."""
+    from pathlib import Path
+    src_content = Path(__file__).resolve().parents[2] / "src" / "content"
+    for p in sorted(src_content.rglob("*.md")):
+        rel = p.relative_to(src_content).as_posix()
+        if not rel.startswith("commands/"):
+            assert "disable-model-invocation" not in p.read_text(encoding="utf-8"), \
+                f"{rel}: command marker outside commands/ breaks dispatch equivalence"
+
+
 def test_synthetic_preserve_without_resolve_leaves_model_tier_untouched():
     """A preserve role NOT flagged resolve_model_tier is a pure byte passthrough."""
     raw = {

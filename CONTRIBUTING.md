@@ -33,63 +33,55 @@ git config core.hooksPath .githooks
 - `src/content/` — neutral source: agents, commands, skills, protocols, and `persona.md`.
   Content uses `${token}` placeholders and `${target:…}` switches so one file compiles for every
   ecosystem.
-- `src/targets/<name>/config.json` — per-target token vars (e.g. `product`, `ns`, `plan_enter`).
-- `src/models.json` — `model_tier` (high/medium/low) → per-target model id. `null` means omit the
-  field for that target.
-- `scripts/build/` — the compiler: `parse` → `render` → `serialize` (per-target) → `cli` (FS write).
+- `src/ecosystems/<name>.json` — ONE descriptor per ecosystem (the filename is the registry key):
+  token `vars`, `models` tiers, the `smoke` matrix entry, per-role output shapes (`roles`),
+  destination `routes`, inline JSON `artifacts` (manifests, settings, hook wiring), flat `assets`,
+  shared-`guard` modules, write-`gate` params, and named `generate` steps. Flat prose/SVG siblings
+  (`<name>.capabilities.md`, `cursor.logo.svg`, …) sit beside the descriptors — no per-ecosystem
+  directories, no per-ecosystem Python.
+- `src/hooks/` — the shared enforcement code, authored once and byte-copied to every ecosystem:
+  the canonical frozen-test guard + the ONE generic write-gate adapter (`hercules_gate.py`).
+- `scripts/build/` — the generic compiler: `parse` → `render` → `genserialize` (descriptor-driven)
+  → `genextras` → `cli` (FS write). `descriptor.py` validates the closed vocabulary.
 - `dist/` — generated output, committed and tracked (never git-ignored).
 
 ## Adding a new target
 
-The authoritative contract is [`CODE_OF_CONDUCT.md` § Adding an ecosystem](CODE_OF_CONDUCT.md) (data
-under `src/targets/<eco>/`, code under `scripts/build/`); this is the practical checklist.
+The authoritative contract is [`CODE_OF_CONDUCT.md` § Adding an ecosystem](CODE_OF_CONDUCT.md); this
+is the practical checklist. **A new ecosystem is one new JSON file** — the engine has zero
+per-ecosystem branches, classes, or modules. The CI-hard-failing steps that are easy to forget — the
+write-gate declaration (step 4) — are called out so you don't pass local `make test` and then hit a
+late CI failure. The procedure:
 
-The build is registry-driven: `parse`/`render`/`model_map`/`cli`/`emit` need **no** change — a target
-is additive (a serializer + a target descriptor + a few config/manifest files, all listed below).
-Disclosed capability gaps go in an optional `src/targets/<eco>/CAPABILITIES.md` (a plain data file the
-build copies verbatim — not a Python string). The two CI-hard-failing steps that are easy to forget —
-the write-gate declaration (step 6) and
-`smoke.json` (step 7) — are called out so you don't pass local `make test` and then hit a late CI
-failure. The procedure:
-
-1. **Add a `Serializer` subclass + `register()` it** in `scripts/build/serialize.py`.
-   A `Serializer` turns a parsed `(frontmatter, body)` into one target's output bytes. See
-   `ClaudeCodeSerializer` and `OpenCodeSerializer` for the two live patterns: how frontmatter is
-   rebuilt (which keys kept/dropped/aliased) and how the body is rendered.
-
-2. **Add `src/targets/<name>/config.json`** with the target's token `vars` (e.g. `product`,
-   `host`, `ns`, `instructions_file`, `plan_enter`, `plan_exit`). These are substituted into
-   `${token}` placeholders in source content at build time.
-
-3. **Add a `models.json` row** mapping `model_tier` → the target's model id (or `null` to omit
-   per-agent models, as OpenCode does). `model_map.resolve` falls back toward higher tiers when a
-   tier is unset.
-
-4. **Register a `Target`** in `scripts/build/targets/<name>.py` and import it from
-   `scripts/build/targets/__init__.py`. The `Target` binds the ecosystem to its source→dest mapping
-   (a `renames` dict, or a `dest_fn` for a load-bearing rename like Cursor's `.mdc` rule) and its
-   `emit_extras` — the non-content artifacts it copies or generates (manifests, hooks, capability
-   docs), built from the leaf helpers in `scripts/build/emit.py`. `cli.py` holds **zero**
-   per-ecosystem branches — dispatch is registry-driven — so onboarding a target never edits the
-   orchestrator.
-
-5. **Rebuild and commit**: `make build` regenerates `dist/<name>/`; commit it alongside the source.
-
-6. **Declare the write-gate** (CI-hard-failing): add an entry for the target to `GATE_EXPECTATIONS`
+1. **Add `src/ecosystems/<name>.json`** — copy the closest existing descriptor and adjust. Every
+   section is validated against a closed vocabulary (`scripts/build/descriptor.py`): an unknown key
+   or enum value fails the build loudly, naming the allowed set. The sections:
+   - `vars` — token substitutions for `${token}` placeholders in source content.
+   - `models` — `model_tier` (high/medium/low) → model id, or `null` to omit per-agent models.
+   - `smoke` — the CLI, install method, and smoke-test path (feeds the CI smoke matrix directly;
+     schema-required, so a target can't exist without it).
+   - `dispatch` + `roles` — how sources map to roles and how each role serializes (named modes:
+     `preserve`, `fields`, `wrap`, `plain`, `toml_command`; named field generators).
+   - `routes` — src→dest relocations (`exact`, `suffix_swap`) for load-bearing renames like
+     Gemini's `.toml` commands or Copilot's `.agent.md`.
+   - `artifacts` — host manifests/settings/hook wiring as inline JSON, emitted canonically;
+     `"versioned": true` injects the canonical version into a `${version}` token (fail-loud).
+   - `guard` + `gate` — which `src/hooks/` modules ship, and the write-gate parameters the ONE
+     generic adapter reads (`pre_tool` tool maps + decision shapes, or `cursor_events`).
+   - `generate` — named Python generators for genuinely generated output (e.g. OpenCode's
+     `plugin.js`). A need the vocabulary can't express = a new NAMED behavior in `scripts/build/`
+     with tests, then referenced by name — never logic in the JSON.
+2. **Add flat siblings if needed**: `src/ecosystems/<name>.capabilities.md` for disclosed gaps
+   (plain prose the build copies verbatim), plus any marketplace assets (logo, readme).
+3. **Rebuild and commit**: `make build` regenerates `dist/<name>/`; commit it alongside the source.
+4. **Declare the write-gate** (CI-hard-failing): add an entry for the target to `GATE_EXPECTATIONS`
    in `tests/hooks/test_enforcement_gates.py`. `test_every_registered_target_declares_a_gate` fails
    for any registered ecosystem with no declared write-gate (or an explicit, reasoned waiver) — this
    is a deliberate security forcing-function, so a new target can't ship ungated by accident.
-
-7. **Add `src/targets/<name>/smoke.json`** (CI-hard-failing): the CI smoke matrix derives from the
-   target registry and `scripts/ci/smoke_matrix.py` raises on a registered ecosystem with no
-   `smoke.json`. It declares the CLI, install method, and the smoke-test path.
-
-8. **Add tests** under `tests/build/` pinning the new target's serializer output, and a conformance
-   block in `tests/build/test_conformance.py` for any ecosystem-specific invariants. Add a
-   mirror-parity test (see `test_opencode_mirror.py`) if the target has both standalone files and
-   an inlined manifest.
-
-9. **Add a smoke-checklist section** to `RELEASE.md` for the live (non-build-provable) behaviours
+5. **Add tests** under `tests/build/` pinning the new target's output (see any
+   `test_<name>_build.py`), and a conformance block in `tests/build/test_conformance.py` for any
+   ecosystem-specific invariants.
+6. **Add a smoke-checklist section** to `RELEASE.md` for the live (non-build-provable) behaviours
    the new target requires a human to confirm before release.
 
 The keystone invariant: `make test` runs `--check` (renders to a temp dir, diffs against committed
@@ -135,7 +127,8 @@ released version. Restart after any change; settings are read at startup.
 - One version, single-sourced — `pyproject.toml` is canonical; `package.json` is the only other
   literal (npm needs it) and is cross-checked against it. Both are the whole list in
   `scripts/build/version_targets.py`; `scripts/set_version.py` writes them, CI's `validate` job checks
-  them. The plugin manifests under `src/targets/<eco>/plugin.json` carry a `${version}` **token** — the
-  build injects the canonical version into `dist/…/plugin.json`, so there's nothing to hand-bump in `src/`.
+  them. The plugin manifests (versioned `artifacts` in each `src/ecosystems/<eco>.json`) carry a
+  `${version}` **token** — the build injects the canonical version into `dist/…/plugin.json`, so
+  there's nothing to hand-bump in `src/`.
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
   `refactor:`, `test:`, `docs:`, `ci:`) — the release pipeline derives the version bump from them.
