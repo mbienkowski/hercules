@@ -6,6 +6,7 @@ runtime-misfiring content defects. These tests pin each fix so it can't regress.
 from pathlib import Path
 import re
 
+from scripts.build import targets as target_registry
 from scripts.build.cli import build_target
 
 
@@ -146,3 +147,20 @@ def test_opencode_users_are_warned_about_the_edit_approval_prompt_where_they_wil
     build_target("opencode", out)
     instr = (out / "instructions.md").read_text(encoding="utf-8")
     assert 'edit: "ask"' in instr, "write-gate mitigation must be in the loaded instructions.md"
+
+
+# ── Fix 6: no target renders a plan-mode/CoC triad empty (the ${target:default} guard) ─────────
+def test_no_registered_target_renders_a_plan_gate_empty(tmp_path):
+    """Every registered target must render the plan-mode instructions. ${target:…} switches resolve
+    exact-name → short-alias → default → empty (render.py), so a target whose name matches no branch
+    and finds no default would silently render the plan-mode/CoC triads to nothing -- shipping a
+    distribution with no plan-approval discipline. Parametrized over the live registry so a newly
+    added ecosystem is auto-covered: its build must carry the plan-mode wording and leave no
+    unresolved ${target:…} switch anywhere in the output."""
+    for tgt in target_registry.registered_target_names():
+        out = tmp_path / tgt
+        build_target(tgt, out)
+        joined = "\n".join(_files(out).values())
+        assert "Plan mode" in joined, f"{tgt}: plan-mode instruction rendered empty"
+        assert "Plan approval" in joined, f"{tgt}: Plan-approval gate rendered empty"
+        assert "${target:" not in joined, f"{tgt}: unresolved target switch left in output"

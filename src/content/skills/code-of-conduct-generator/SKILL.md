@@ -28,9 +28,7 @@ and git command against that root (`git -C <root>`), never bare `.`.
 
 ${target:claude}
 1. **Plan mode & mode** — call `${plan_enter}` first, before any scanning; give a chat summary of the
-${target:opencode}
-1. **Plan mode & mode** — enter plan mode first, before any scanning; give a chat summary of the
-${target:cursor}
+${target:default}
 1. **Plan mode & mode** — enter plan mode first, before any scanning; give a chat summary of the
 ${target:end}
    flow and offer **Quick** (small/low-stakes default: scan → a few questions → draft → gate → review →
@@ -72,9 +70,7 @@ ${target:end}
    wholesale only when the user reopens the scope, and re-gate only what changed.
 ${target:claude}
 8. **Approve & write** — on approval: `${plan_exit}` (`auto`) → write atomically (temp + rename) → add a
-${target:opencode}
-8. **Approve & write** — on approval: leave plan mode → write atomically (temp + rename) → add a
-${target:cursor}
+${target:default}
 8. **Approve & write** — on approval: leave plan mode → write atomically (temp + rename) → add a
 ${target:end}
    deduplicated `@`-reference (default `@./code-of-conduct.md`) to the **target** repo's `${instructions_file}`,

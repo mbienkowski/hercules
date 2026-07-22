@@ -11,9 +11,7 @@ Plan the delivery, then execute the approved specs with TDD and full traceabilit
 
 ${target:claude}
 **Plan mode — required.** Build opens in plan mode: call `${plan_enter}`, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
-${target:opencode}
-**Plan mode — required.** Build opens in plan mode: enter plan mode, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
-${target:cursor}
+${target:default}
 **Plan mode — required.** Build opens in plan mode: enter plan mode, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
 ${target:end}
 
@@ -58,9 +56,7 @@ Show the delivery plan: each spec, the requirement(s) it satisfies (its `satisfi
 
 ${target:claude}
 The single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback; regenerate the plan, never silently proceed. On the user's approval, call `${plan_exit}` (`auto`) first, then set `current_phase: "build"`, `current_spec` to the first pending spec (on resume, the interrupted one), and the approved `cadence` (`"deliver-all"` / `"ship-each"`) in the session's state file (atomic temp + rename) and this session's `Status` to `build` in `docs/INDEX.md`; execution runs automatically per the approved batching and cadence.
-${target:opencode}
-The single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback; regenerate the plan, never silently proceed. On the user's approval, leave plan mode, then set `current_phase: "build"`, `current_spec` to the first pending spec (on resume, the interrupted one), and the approved `cadence` (`"deliver-all"` / `"ship-each"`) in the session's state file (atomic temp + rename) and this session's `Status` to `build` in `docs/INDEX.md`; execution runs automatically per the approved batching and cadence.
-${target:cursor}
+${target:default}
 The single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback; regenerate the plan, never silently proceed. On the user's approval, leave plan mode, then set `current_phase: "build"`, `current_spec` to the first pending spec (on resume, the interrupted one), and the approved `cadence` (`"deliver-all"` / `"ship-each"`) in the session's state file (atomic temp + rename) and this session's `Status` to `build` in `docs/INDEX.md`; execution runs automatically per the approved batching and cadence.
 ${target:end}
 

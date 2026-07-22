@@ -20,6 +20,8 @@ ${target:opencode}
 **Which version are you?** Read the `version` field from the installed npm package's root `package.json` (the package that ships this plugin — the manifest is at the package root, not beside `plugin.js`) and report it — read it live, never hardcode or guess.
 ${target:cursor}
 **Which version are you?** Read `plugin.json` from the `.cursor-plugin/` folder in this plugin's directory and report its `version` — read it live, never hardcode or guess.
+${target:default}
+**Which version are you?** Read the manifest that ships with this plugin and report its `version` — read it live, never hardcode or guess.
 ${target:end}
 
 **What can you do?** Run the four phases above via `${ns}discover`, `design`, `build`, `ship`, or the guided `${ns}workflow` — with advisor debate and requirement→test traceability. Offer to go deeper.

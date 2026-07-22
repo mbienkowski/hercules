@@ -14,7 +14,10 @@ from scripts.build.targets.base import (
     registered_target_names,
 )
 
-# Registration side effects — importing each module calls register(Target(...)).
-from scripts.build.targets import claude_code, cursor, opencode  # noqa: E402,F401
+# Registration side effects — importing each module calls register(Target(...)). One import per line
+# so a new ecosystem adds its own line without colliding with a sibling target's addition.
+from scripts.build.targets import claude_code  # noqa: E402,F401
+from scripts.build.targets import cursor  # noqa: E402,F401
+from scripts.build.targets import opencode  # noqa: E402,F401
 
 __all__ = ["ExtrasContext", "Target", "get", "register", "registered_target_names"]

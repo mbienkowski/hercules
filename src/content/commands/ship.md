@@ -11,9 +11,7 @@ Stage, commit, and optionally push the delivered work. Plugin-file citations (`h
 
 ${target:claude}
 **Plan mode — required.** Call `${plan_enter}`; present a complete Ship plan; at the **Plan approval** gate — *you approve the phase after reviewing the plan* — the gate accepts the canonical Plan-approval trigger words (`persona.md § Delivery workflow`); any other utterance is feedback. When the user approves, call `${plan_exit}` (`auto`), then execute all steps automatically — no further questions.
-${target:opencode}
-**Plan mode — required.** Enter plan mode; present a complete Ship plan; at the **Plan approval** gate — *you approve the phase after reviewing the plan* — the gate accepts the canonical Plan-approval trigger words (`persona.md § Delivery workflow`); any other utterance is feedback. When the user approves, leave plan mode, then execute all steps automatically — no further questions.
-${target:cursor}
+${target:default}
 **Plan mode — required.** Enter plan mode; present a complete Ship plan; at the **Plan approval** gate — *you approve the phase after reviewing the plan* — the gate accepts the canonical Plan-approval trigger words (`persona.md § Delivery workflow`); any other utterance is feedback. When the user approves, leave plan mode, then execute all steps automatically — no further questions.
 ${target:end}
 
