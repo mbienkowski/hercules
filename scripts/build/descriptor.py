@@ -22,7 +22,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 ECOSYSTEMS_DIR = REPO_ROOT / "src" / "ecosystems"
 
 _TOP_KEYS = {"schema", "name", "vars", "models", "smoke", "dispatch", "roles",
-             "routes", "artifacts", "assets", "guard", "generate"}
+             "routes", "artifacts", "assets", "guard", "gate", "generate"}
+# The write-gate protocols the shared adapter (src/hooks/hercules_gate.py) implements. A new host
+# behavior is a new named protocol in that mutation-covered file — never logic in the descriptor.
+_GATE_PROTOCOLS = {"pre_tool", "cursor_events"}
+_GATE_KEYS = {
+    "pre_tool": {"protocol", "tools", "path_keys", "nested_keys", "allow", "deny", "reason_key"},
+    "cursor_events": {"protocol"},
+}
 _ROLE_NAMES = ("agent", "command", "persona", "default")
 _MODES = {"preserve", "fields", "wrap", "plain", "toml_command"}
 _BODY_POLICIES = {"keep", "lstrip_newlines", "strip_newlines"}
@@ -157,6 +164,7 @@ class EcosystemDescriptor:
     artifacts: tuple = ()
     assets: tuple = ()
     guard: tuple = ()
+    gate: Optional[dict] = None       # write-gate params, emitted verbatim as hooks/gate.json
     generate: tuple = ()
 
 
@@ -253,6 +261,33 @@ def _parse_asset(name: str, raw: object) -> Asset:
     return Asset(src=src, dest=_check_rel_path(name, "asset 'dest'", raw.get("dest")))
 
 
+def _parse_gate(name: str, raw: object) -> dict:
+    if not isinstance(raw, dict):
+        _fail(name, f"'gate' must be an object, got {raw!r}")
+    protocol = raw.get("protocol")
+    if protocol not in _GATE_PROTOCOLS:
+        _fail(name, f"gate 'protocol' must be one of {sorted(_GATE_PROTOCOLS)}, got {protocol!r}")
+    _check_keys(name, f"gate (protocol={protocol})", raw, _GATE_KEYS[protocol])
+    if protocol == "pre_tool":
+        tools = raw.get("tools")
+        if not isinstance(tools, dict) or not tools:
+            _fail(name, "gate 'tools' must be a non-empty object mapping host tool → canonical tool")
+        for host_tool, canonical in tools.items():
+            _check_str(name, f"gate tools[{host_tool!r}]", canonical)
+        path_keys = raw.get("path_keys")
+        if not isinstance(path_keys, list) or not path_keys:
+            _fail(name, "gate 'path_keys' must be a non-empty list")
+        for key in ("deny",):
+            if not isinstance(raw.get(key), dict):
+                _fail(name, f"gate {key!r} must be an object (the host's decision shape)")
+        if "allow" in raw and not isinstance(raw["allow"], dict):
+            _fail(name, "gate 'allow' must be an object when present")
+        _check_str(name, "gate 'reason_key'", raw.get("reason_key"))
+        if "nested_keys" in raw and not isinstance(raw["nested_keys"], list):
+            _fail(name, "gate 'nested_keys' must be a list")
+    return dict(raw)
+
+
 def _parse_generate(name: str, raw: object) -> Generate:
     if not isinstance(raw, dict):
         _fail(name, f"a generate step must be an object, got {raw!r}")
@@ -328,6 +363,7 @@ def parse_descriptor(name: str, raw: object) -> EcosystemDescriptor:
         artifacts=tuple(_parse_artifact(name, a) for a in raw.get("artifacts", [])),
         assets=tuple(_parse_asset(name, a) for a in raw.get("assets", [])),
         guard=guard,
+        gate=_parse_gate(name, raw["gate"]) if "gate" in raw else None,
         generate=tuple(_parse_generate(name, g) for g in raw.get("generate", [])),
     )
 

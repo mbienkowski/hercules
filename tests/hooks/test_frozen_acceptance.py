@@ -13,7 +13,7 @@ import hashlib
 import sys
 from pathlib import Path
 
-_HOOKS = Path(__file__).resolve().parents[2] / "src" / "targets" / "claude-code" / "hooks"
+_HOOKS = Path(__file__).resolve().parents[2] / "src" / "hooks"
 if str(_HOOKS) not in sys.path:
     sys.path.insert(0, str(_HOOKS))
 from frozen_tests import frozen_drift  # noqa: E402

@@ -38,11 +38,10 @@ testpaths = ["tests"]
 norecursedirs = ["*.egg", ".*", "_darcs", "CVS", "dist", "node_modules", "venv", "{arch}"]
 
 [tool.mutmut]
-# Pure transform layer (parse/render/model_map/serialize/manifests/version_targets) + every
-# ecosystem's enforcement hooks + metrics carry the mutation gate; the FS boundary (cli/layout/emit)
-# and the per-ecosystem target modules (targets/*.py — dest data + copy maps; capability prose now
-# lives in src/targets/<eco>/CAPABILITIES.md, not a Python string) are round-trip-covered and under the
-# branch-coverage gate (make test's --cov=scripts/build, ~97%), but not mutated — their
+# Pure transform layer (parse/render/model_map/serialize/manifests/version_targets), the generic
+# descriptor engine (descriptor/genserialize/genextras), the shared enforcement hooks (src/hooks/),
+# and metrics carry the mutation gate; the FS boundary (cli/layout/emit) and the registry shell
+# (targets/) are round-trip-covered and under the
 # shutil/tempfile/string mutants are largely equivalent and would only add noise. NOTE: emit.py stays
 # out of the gate as FS-boundary noise, but its one real conditional — copy_versioned's fail-loud
 # ${version}-injection guard (n != 1 → SystemExit) — is directly unit-tested at n=0/n=1/n=2 in
@@ -52,7 +51,7 @@ norecursedirs = ["*.egg", ".*", "_darcs", "CVS", "dist", "node_modules", "venv",
 # rework, where the kill rate can be validated with working tooling (its behaviour is guarded now by
 # tests/build/test_target_registry.py, incl. the frozen-immutability test).
 # Hooks are mutated per ecosystem (claude-code, cursor, gemini-cli, copilot-cli), not just the reference one.
-paths_to_mutate = "tests/metrics/,src/targets/claude-code/hooks/,src/targets/cursor/hooks/,src/targets/gemini-cli/hooks/,src/targets/copilot-cli/hooks/,scripts/build/parse.py,scripts/build/render.py,scripts/build/model_map.py,scripts/build/serialize.py,scripts/build/manifests.py,scripts/build/version_targets.py"
+paths_to_mutate = "tests/metrics/,src/hooks/,scripts/build/parse.py,scripts/build/render.py,scripts/build/model_map.py,scripts/build/serialize.py,scripts/build/descriptor.py,scripts/build/genserialize.py,scripts/build/genextras.py,scripts/build/manifests.py,scripts/build/version_targets.py"
 paths_to_exclude = "test_*.py,__init__.py,conftest.py"
 backup = false
 runner = "python -m pytest tests/ -x -q --tb=no --no-header"

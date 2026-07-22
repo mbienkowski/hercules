@@ -1,10 +1,12 @@
-"""Hygiene scans for every shipped hook script, across all ecosystems (`src/targets/*/hooks/*.py`).
+"""Hygiene scans for every shipped hook script — the shared `src/hooks/*.py` tree.
 
 The plugin claims "no external network channel" and "no credentials"; hooks are the only
 executable Python it ships, so they must be scanned (the markdown-only network scan in
-`test_plugin_integrity` does not cover `.py`). These tests enforce, for EVERY ecosystem's hooks
-(Claude Code's PreToolUse guard, Cursor's shell/read/after-edit adapter): stdlib-only (portability —
-no third-party install step), no network modules, and no state-corrupting filesystem writes.
+`test_plugin_integrity` does not cover `.py`). All enforcement code is authored ONCE in
+`src/hooks/` (the canonical guard + the one generic gate adapter) and byte-copied to every
+ecosystem, so scanning that tree covers every shipped hook. These tests enforce: stdlib-only
+(portability — no third-party install step), no network modules, and no state-corrupting
+filesystem writes.
 """
 
 from __future__ import annotations
@@ -15,10 +17,10 @@ from pathlib import Path
 
 import pytest
 
-_TARGETS = Path(__file__).resolve().parents[2] / "src" / "targets"
-# Every ecosystem that ships source hook scripts — Claude Code and Cursor today; a new target's
-# hooks/ dir is picked up automatically, so the scans below can never silently skip a new ecosystem.
-_HOOK_SCRIPTS = sorted(_TARGETS.glob("*/hooks/*.py"))
+_SHARED_HOOKS = Path(__file__).resolve().parents[2] / "src" / "hooks"
+# ALL shipped hook code lives in the one shared tree — a new hook script added there is picked up
+# automatically, so the scans below can never silently skip one.
+_HOOK_SCRIPTS = sorted(_SHARED_HOOKS.glob("*.py"))
 
 # Modules that would open a network channel — banned in shipped hook code.
 _NETWORK_MODULES = {
@@ -44,7 +46,7 @@ def test_the_hook_checks_below_would_fail_loudly_if_no_hooks_shipped():
     against an empty list and silently report success without having checked anything. This
     guarantees there is at least one real hook script to scan, so the safety checks can't be
     quietly disabled just by deleting all the hooks."""
-    assert _HOOK_SCRIPTS, "expected shipped hook scripts under src/targets/*/hooks/"
+    assert _HOOK_SCRIPTS, "expected shipped hook scripts under src/hooks/"
 
 
 @pytest.mark.parametrize("script", _HOOK_SCRIPTS, ids=lambda p: p.name)
@@ -127,9 +129,9 @@ def test_the_after_edit_backstop_is_bounded_honest_and_headless_only():
         old false "reverted, run git stash pop" message on an untracked file or non-git tree.
 
     If Cursor ever ships no such hook, this test is simply vacuous."""
-    gate = _TARGETS / "cursor" / "hooks" / "hercules_gate.py"
+    gate = _SHARED_HOOKS / "hercules_gate.py"
     if not gate.is_file():
-        pytest.skip("no Cursor gate shipped")
+        pytest.skip("no gate adapter shipped")
     src = gate.read_text()
     assert '"checkout", "--"' in src, "the backstop must restore via a path-bounded `git checkout -- <file>`"
     assert "HERCULES_RUNTIME_MODE" in src, "the mutation must be gated to headless mode (IDE is advisory)"
@@ -149,7 +151,7 @@ def test_test_coverage_exemptions_cannot_be_used_to_hide_untested_logic(repo_roo
     code that genuinely needs it, letting a bug slip through unnoticed."""
     import itertools
     scoped = itertools.chain(
-        (repo_root / "src" / "targets").glob("*/hooks/*.py"),
+        (repo_root / "src" / "hooks").glob("*.py"),
         (repo_root / "tests" / "metrics").glob("*.py"),
     )
     for path in scoped:

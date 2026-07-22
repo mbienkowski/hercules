@@ -1,9 +1,10 @@
 """Structural wiring tests for the plugin's hooks manifest.
 
-`src/targets/claude-code/hooks/hooks.json` auto-loads by convention at the plugin root (no plugin.json
-key needed). These tests pin that it is valid, registers the frozen-tests guard on the mutating
-tools, and that every referenced command path resolves to a real script under the package —
-a hooks.json that points at a missing script is a dead guard.
+Claude Code's ``hooks/hooks.json`` auto-loads by convention at the plugin root (no plugin.json key
+needed); it is authored as an inline artifact in ``src/ecosystems/claude-code.json``. These tests
+pin that it is valid, registers the frozen-tests guard on the mutating tools, and that every
+referenced command path resolves to a real script in the BUILT plugin — a hooks.json that points at
+a missing script is a dead guard.
 """
 
 from __future__ import annotations
@@ -14,13 +15,21 @@ from pathlib import Path
 
 import pytest
 
-_PLUGIN = Path(__file__).resolve().parents[2] / "src" / "targets" / "claude-code"
-_HOOKS = _PLUGIN / "hooks" / "hooks.json"
+from scripts.build.cli import build_target
+from scripts.build.descriptor import discover
 
 
 @pytest.fixture(scope="module")
 def hooks():
-    return json.loads(_HOOKS.read_text())
+    artifact = next(a for a in discover()["claude-code"].artifacts if a.dest == "hooks/hooks.json")
+    return artifact.content
+
+
+@pytest.fixture(scope="module")
+def built_plugin(tmp_path_factory) -> Path:
+    out = tmp_path_factory.mktemp("claude-code")
+    build_target("claude-code", out)
+    return out
 
 
 def test_hooks_manifest_declares_a_check_that_runs_before_tools_execute(hooks):
@@ -57,9 +66,9 @@ def test_frozen_tests_guard_is_installed_so_a_missing_interpreter_never_blocks_w
         "exec form must carry a non-empty `args` list (shell form has none)"
 
 
-def test_every_hook_points_to_a_script_that_actually_exists(hooks):
-    """Every hook listed in the manifest must reference a script file that is really present in
-    the plugin package. A hook pointing at a missing script would silently fail to run, leaving
+def test_every_hook_points_to_a_script_that_actually_exists(hooks, built_plugin):
+    """Every hook listed in the manifest must reference a script file that really ships in the
+    BUILT plugin tree. A hook pointing at a missing script would silently fail to run, leaving
     whatever safety check it was supposed to provide completely disabled."""
     for event in hooks["hooks"].values():
         for entry in event:
@@ -69,5 +78,5 @@ def test_every_hook_points_to_a_script_that_actually_exists(hooks):
                 invocation = " ".join([hook.get("command", "")] + list(hook.get("args", [])))
                 m = re.search(r"\$\{CLAUDE_PLUGIN_ROOT\}/(\S+?\.py)", invocation)
                 assert m, f"hook must invoke a ${{CLAUDE_PLUGIN_ROOT}} script: {hook!r}"
-                script = _PLUGIN / m.group(1)
+                script = built_plugin / m.group(1)
                 assert script.is_file(), f"hook references a missing script: {script}"

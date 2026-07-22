@@ -1,14 +1,17 @@
-"""The Gemini CLI write-gate adapter (G1) — ``src/targets/gemini-cli/hooks/hercules_gate.py``.
+"""The write-gate on Gemini CLI — the ONE generic adapter driven by gemini-cli's ``gate`` config.
 
 Gemini's ``BeforeTool`` event vetoes a tool BEFORE it touches disk (Claude's ``PreToolUse`` shape), so
-the adapter is a real pre-write block: it maps Gemini's ``write_file``/``replace`` to the canonical
-guard's tool names and delegates to ``frozen_tests.decide`` — the SAME frozen state and ``frozen_override``
-policy Claude/OpenCode/Cursor read. On a frozen-test edit during a build it emits Gemini's deny decision;
-otherwise nothing (Gemini proceeds). Reads are never blocked. Fails OPEN on any error/missing state.
+the gate is a real pre-write block: the descriptor's ``pre_tool`` config maps Gemini's ``write_file``/
+``replace`` to the canonical guard's tool names and the adapter delegates to ``frozen_tests.decide`` —
+the SAME frozen state and ``frozen_override`` policy every ecosystem reads. On a frozen-test edit
+during a build it emits Gemini's deny decision; otherwise nothing (Gemini proceeds — the config has no
+``allow`` shape). Reads are never blocked. Fails OPEN on any error/missing state.
 
-These drive the real adapter in-process against a throwaway ``~/.hercules`` tree, asserting the emitted
-Gemini decision JSON. The deny value is a HARDCODED literal (never read from the adapter) so a mutated
-primitive is caught; the canonical reason text is pinned for the same reason.
+These drive the real shared adapter (``src/hooks/hercules_gate.py``) in-process with the REAL
+gemini-cli descriptor gate config, against a throwaway ``~/.hercules`` tree, asserting the emitted
+Gemini decision JSON. The deny value is a HARDCODED literal in the assertions (never read from the
+config) so drift in either the adapter or the descriptor data is caught; the canonical reason text is
+pinned for the same reason.
 """
 from __future__ import annotations
 
@@ -19,18 +22,19 @@ from pathlib import Path
 
 import pytest
 
+from scripts.build.descriptor import discover
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
-GEMINI_HOOKS = REPO_ROOT / "src" / "targets" / "gemini-cli" / "hooks"
-CLAUDE_HOOKS = REPO_ROOT / "src" / "targets" / "claude-code" / "hooks"
+SHARED_HOOKS = REPO_ROOT / "src" / "hooks"
+GATE_CONFIG = discover()["gemini-cli"].gate
 
 
 def _load_gate():
-    """Import the adapter in-process. It does ``from frozen_tests import decide`` off its own dir, so the
-    shared guard modules (which live in the claude-code tree in source) must be on sys.path too."""
-    for d in (str(CLAUDE_HOOKS), str(GEMINI_HOOKS)):
-        if d not in sys.path:
-            sys.path.insert(0, d)
-    spec = importlib.util.spec_from_file_location("gemini_hercules_gate", GEMINI_HOOKS / "hercules_gate.py")
+    """Import the shared adapter in-process. It does ``from frozen_tests import decide`` off its own
+    dir — src/hooks/, where the guard modules live alongside it."""
+    if str(SHARED_HOOKS) not in sys.path:
+        sys.path.insert(0, str(SHARED_HOOKS))
+    spec = importlib.util.spec_from_file_location("hercules_gate_generic", SHARED_HOOKS / "hercules_gate.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -61,9 +65,9 @@ def active_build(tmp_path):
 
 
 def _decide(evt: dict, home: Path, capsys) -> dict:
-    """Run the adapter's ``main`` for *evt*; return the parsed Gemini decision (or {} when it emitted
-    nothing — the allow case)."""
-    gate.main(stdin_text=json.dumps(evt), home=str(home))
+    """Run the adapter's ``main`` for *evt* under the gemini-cli gate config; return the parsed
+    Gemini decision (or {} when it emitted nothing — the allow case)."""
+    gate.main(stdin_text=json.dumps(evt), home=str(home), config=GATE_CONFIG)
     out = capsys.readouterr().out.strip()
     return json.loads(out) if out else {}
 
@@ -124,7 +128,7 @@ def test_fails_open_on_malformed_stdin(tmp_path, capsys):
     """Garbage on stdin must yield no decision (allow) and exit 0 — a gate bug never bricks an edit."""
     home = tmp_path / "home"
     home.mkdir()
-    assert gate.main(stdin_text="{not json", home=str(home)) == 0
+    assert gate.main(stdin_text="{not json", home=str(home), config=GATE_CONFIG) == 0
     assert capsys.readouterr().out.strip() == ""
 
 
@@ -132,7 +136,7 @@ def test_fails_open_on_a_non_dict_payload(tmp_path, capsys):
     """A well-formed but non-object payload (e.g. a bare JSON number) must fail open, not raise."""
     home = tmp_path / "home"
     home.mkdir()
-    assert gate.main(stdin_text="123", home=str(home)) == 0
+    assert gate.main(stdin_text="123", home=str(home), config=GATE_CONFIG) == 0
     assert capsys.readouterr().out.strip() == ""
 
 

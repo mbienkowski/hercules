@@ -193,7 +193,7 @@ def test_frozen_state_reader_is_byte_identical_across_all_gated_targets(built):
             continue
         shipped[target] = (built[target] / _STATE).read_bytes()
     assert len(shipped) >= 2, "expected at least two gated targets to ship the shared state reader"
-    reference = REPO_ROOT / "src" / "targets" / "claude-code" / "hooks" / "hercules_state.py"
+    reference = REPO_ROOT / "src" / "hooks" / "hercules_state.py"
     ref_bytes = reference.read_bytes()
     for target, data in shipped.items():
         assert data == ref_bytes, f"{target}: hercules_state.py diverged from the canonical source"

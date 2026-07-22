@@ -73,8 +73,15 @@
     }
   ],
   "assets": [
-    {"src": "gemini-cli.gate.py", "dest": "hooks/hercules_gate.py"},
     {"src": "gemini-cli.capabilities.md", "dest": "CAPABILITIES.md"}
   ],
-  "guard": ["hercules_state.py", "frozen_tests.py"]
+  "guard": ["hercules_state.py", "frozen_tests.py", "hercules_gate.py"],
+  "gate": {
+    "protocol": "pre_tool",
+    "tools": {"write_file": "Write", "replace": "Edit"},
+    "path_keys": ["file_path", "filePath", "path", "absolute_path", "absolutePath", "file", "filename"],
+    "nested_keys": [],
+    "deny": {"decision": "deny"},
+    "reason_key": "reason"
+  }
 }

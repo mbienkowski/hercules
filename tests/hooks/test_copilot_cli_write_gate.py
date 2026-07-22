@@ -1,14 +1,18 @@
-"""The Copilot CLI write-gate adapter (G1) — ``src/targets/copilot-cli/hooks/hercules_gate.py``.
+"""The write-gate on Copilot CLI — the ONE generic adapter driven by copilot-cli's ``gate`` config.
 
-Copilot's ``preToolUse`` hook is a real pre-write veto, so the adapter reads the event, extracts the
-target path, and asks the CANONICAL guard (``frozen_tests.decide`` + its ``frozen_override`` policy —
-the SAME one Claude Code, OpenCode, and Cursor read) whether it is a frozen test under an active build.
-A frozen hit returns ``permissionDecision: "deny"``; everything else allows. Reads (``view``) are never
-blocked (the doctrine locks edits, not reads).
+Copilot's ``preToolUse`` hook is a real pre-write veto: the descriptor's ``pre_tool`` config maps
+Copilot's file-mutating tools to the canonical guard's vocabulary and the adapter asks the CANONICAL
+guard (``frozen_tests.decide`` + its ``frozen_override`` policy — the SAME one every ecosystem reads)
+whether the target is a frozen test under an active build. A frozen hit returns
+``permissionDecision: "deny"``; everything else allows (the config's explicit ``allow`` shape —
+Copilot always expects a decision). Reads (``view``) are never blocked (the doctrine locks edits,
+not reads).
 
-These drive the real adapter in-process against a throwaway ``~/.hercules`` state tree, asserting the
-emitted Copilot decision JSON. Deny/allow strings are HARDCODED literals (never read from the adapter's
-own constants) so a mutated primitive is actually caught; the canonical block wording is pinned too.
+These drive the real shared adapter (``src/hooks/hercules_gate.py``) in-process with the REAL
+copilot-cli descriptor gate config, against a throwaway ``~/.hercules`` state tree, asserting the
+emitted Copilot decision JSON. Deny/allow strings are HARDCODED literals in the assertions (never
+read from the config) so drift in either the adapter or the descriptor data is actually caught; the
+canonical block wording is pinned too.
 """
 from __future__ import annotations
 
@@ -20,20 +24,19 @@ from pathlib import Path
 import pytest
 
 from scripts.build.cli import build_target
+from scripts.build.descriptor import discover
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-COPILOT_HOOKS = REPO_ROOT / "src" / "targets" / "copilot-cli" / "hooks"
-CLAUDE_HOOKS = REPO_ROOT / "src" / "targets" / "claude-code" / "hooks"
+SHARED_HOOKS = REPO_ROOT / "src" / "hooks"
+GATE_CONFIG = discover()["copilot-cli"].gate
 
 
 def _load_gate():
-    """Import the adapter in-process; both shared modules (they live in the claude-code tree in source)
-    must be on sys.path because the adapter does ``from frozen_tests import decide`` off its own dir."""
+    """Import the shared adapter in-process; the guard modules live alongside it in src/hooks/."""
     import sys
-    for d in (str(CLAUDE_HOOKS), str(COPILOT_HOOKS)):
-        if d not in sys.path:
-            sys.path.insert(0, d)
-    spec = importlib.util.spec_from_file_location("copilot_hercules_gate", COPILOT_HOOKS / "hercules_gate.py")
+    if str(SHARED_HOOKS) not in sys.path:
+        sys.path.insert(0, str(SHARED_HOOKS))
+    spec = importlib.util.spec_from_file_location("hercules_gate_generic", SHARED_HOOKS / "hercules_gate.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -61,7 +64,8 @@ def active_build(tmp_path):
 
 
 def _decide(evt: dict, home: Path, capsys) -> dict:
-    gate.main(["hercules_gate.py", "preToolUse"], stdin_text=json.dumps(evt), home=str(home))
+    gate.main(["hercules_gate.py", "preToolUse"], stdin_text=json.dumps(evt), home=str(home),
+              config=GATE_CONFIG)
     out = capsys.readouterr().out.strip()
     return json.loads(out) if out else {}
 
@@ -174,14 +178,15 @@ def test_fails_open_on_malformed_stdin(tmp_path, capsys):
     """Garbage on stdin must still yield allow — a gate bug never bricks an edit."""
     home = tmp_path / "home"
     home.mkdir()
-    gate.main(["hercules_gate.py", "preToolUse"], stdin_text="{not json", home=str(home))
+    gate.main(["hercules_gate.py", "preToolUse"], stdin_text="{not json", home=str(home),
+              config=GATE_CONFIG)
     assert json.loads(capsys.readouterr().out.strip())["permissionDecision"] == "allow"
 
 
 def test_empty_stdin_allows(tmp_path, capsys):
     home = tmp_path / "home"
     home.mkdir()
-    gate.main(["hercules_gate.py", "preToolUse"], stdin_text="", home=str(home))
+    gate.main(["hercules_gate.py", "preToolUse"], stdin_text="", home=str(home), config=GATE_CONFIG)
     assert json.loads(capsys.readouterr().out.strip())["permissionDecision"] == "allow"
 
 
@@ -190,7 +195,7 @@ def test_reads_from_real_stdin_when_no_text_is_passed(active_build, capsys, monk
     home, proj = active_build
     evt = {"toolName": "edit", "toolArgs": {"path": _frozen_abs(proj)}, "cwd": str(proj)}
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(evt)))
-    gate.main(["hercules_gate.py", "preToolUse"], home=str(home))
+    gate.main(["hercules_gate.py", "preToolUse"], home=str(home), config=GATE_CONFIG)
     assert json.loads(capsys.readouterr().out.strip())["permissionDecision"] == "deny"
 
 
@@ -201,8 +206,18 @@ def test_copilot_ships_the_gate_and_canonical_guard_files(tmp_path):
     for name in ("hercules_gate.py", "hooks.json", "hercules_state.py", "frozen_tests.py"):
         assert (out / "hooks" / name).is_file(), f"dist/copilot-cli/hooks/{name} must ship"
     for name in ("hercules_state.py", "frozen_tests.py"):
-        assert (out / "hooks" / name).read_bytes() == (CLAUDE_HOOKS / name).read_bytes(), \
+        assert (out / "hooks" / name).read_bytes() == (SHARED_HOOKS / name).read_bytes(), \
             f"{name} must not diverge across dists"
+
+
+def test_shipped_gate_config_is_the_descriptor_gate_verbatim(tmp_path):
+    """dist/copilot-cli/hooks/gate.json must be exactly the descriptor's ``gate`` object — the shipped
+    adapter is generic, so this data IS the ecosystem's enforcement wiring; drift here is a broken gate."""
+    out = tmp_path / "copilot-cli"
+    build_target("copilot-cli", out)
+    shipped = json.loads((out / "hooks" / "gate.json").read_text(encoding="utf-8"))
+    assert shipped == GATE_CONFIG
+    assert shipped["protocol"] == "pre_tool" and shipped["deny"] == {"permissionDecision": "deny"}
 
 
 def test_hook_command_invokes_the_gate_by_plugin_root_path(tmp_path):

@@ -54,7 +54,7 @@ def test_the_shipped_guard_is_the_same_file_claude_uses(tmp_path):
     never diverge across ecosystems."""
     out = tmp_path / "opencode"
     build_target("opencode", out)
-    src = REPO_ROOT / "src" / "targets" / "claude-code" / "hooks"
+    src = REPO_ROOT / "src" / "hooks"
     for name in ("frozen_tests.py", "hercules_state.py"):
         assert (out / "hooks" / name).read_bytes() == (src / name).read_bytes()
 

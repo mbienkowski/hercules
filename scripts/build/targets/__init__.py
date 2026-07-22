@@ -1,11 +1,18 @@
-"""Per-ecosystem build descriptors — the single authoritative ecosystem registry.
+"""The build's target registry — populated from the ecosystem descriptors, zero per-ecosystem code.
 
-Importing this package registers every ``Target`` (one module per ecosystem) as a side effect, so
-``get`` / ``registered_target_names`` reflect the full set. ``cli`` and the CI smoke matrix both read
-the ecosystem list from here, so there is one source of truth.
+Importing this package registers one :class:`~scripts.build.targets.base.Target` per
+``src/ecosystems/<name>.json``: destination routing via the generic route interpreter
+(``genserialize.dest``) and non-content artifacts via the generic extras emitter
+(``genextras.emit_extras``), both driven wholly by the descriptor. A new ecosystem is one new JSON
+file — it appears here, in ``cli.TARGETS``, and in the CI smoke matrix automatically (and the
+enforcement-gate test then fails until its hand-authored gate expectation exists).
 """
 from __future__ import annotations
 
+from functools import partial
+
+from scripts.build import genextras, genserialize
+from scripts.build.descriptor import discover
 from scripts.build.targets.base import (
     ExtrasContext,
     Target,
@@ -14,13 +21,11 @@ from scripts.build.targets.base import (
     registered_target_names,
 )
 
-# Registration side effects — importing each module calls register(Target(...)). One import per line
-# so a new ecosystem adds its own line without colliding with a sibling target's addition.
-from scripts.build.targets import claude_code  # noqa: E402,F401
-from scripts.build.targets import copilot_cli  # noqa: E402,F401
-from scripts.build.targets import cursor  # noqa: E402,F401
-from scripts.build.targets import gemini_cli  # noqa: E402,F401
-from scripts.build.targets import grok_build  # noqa: E402,F401
-from scripts.build.targets import opencode  # noqa: E402,F401
+for _descriptor in discover().values():
+    register(Target(
+        name=_descriptor.name,
+        dest_fn=partial(genserialize.dest, _descriptor),
+        emit_extras_fn=partial(genextras.emit_extras, descriptor=_descriptor),
+    ))
 
 __all__ = ["ExtrasContext", "Target", "get", "register", "registered_target_names"]

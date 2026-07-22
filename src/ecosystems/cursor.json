@@ -118,10 +118,12 @@
     }
   ],
   "assets": [
-    {"src": "cursor.gate.py", "dest": "hooks/hercules_gate.py"},
     {"src": "cursor.logo.svg", "dest": "logo.svg"},
     {"src": "cursor.readme.md", "dest": "README.md"},
     {"src": "cursor.capabilities.md", "dest": "CAPABILITIES.md"}
   ],
-  "guard": ["hercules_state.py", "frozen_tests.py"]
+  "guard": ["hercules_state.py", "frozen_tests.py", "hercules_gate.py"],
+  "gate": {
+    "protocol": "cursor_events"
+  }
 }

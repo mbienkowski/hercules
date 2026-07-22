@@ -24,9 +24,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC = REPO_ROOT / "src"
 SRC_CONTENT = SRC / "content"
 DIST = REPO_ROOT / "dist"
-# The canonical frozen-test guard lives with the Claude hooks; OpenCode and Cursor ship COPIES of the
-# same files so the write-gate logic has one source of truth across every ecosystem.
-_SHARED_HOOKS_SRC = SRC / "targets" / "claude-code" / "hooks"
+# The canonical frozen-test guard + the one generic write-gate adapter live in the NEUTRAL
+# src/hooks/ tree; every ecosystem ships byte-copies, so the write-gate logic has one source of truth.
+_SHARED_HOOKS_SRC = SRC / "hooks"
 # The one authoritative ecosystem list — every accepted --target value and `all` derive from it.
 TARGETS = tuple(targets.registered_target_names())
 
