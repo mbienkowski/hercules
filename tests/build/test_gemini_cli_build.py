@@ -104,16 +104,16 @@ def test_emitted_command_toml_parses_with_the_prompt_preserved(tmp_path):
 
 
 def test_toml_escapers_handle_backslashes_and_triple_quotes():
-    """Direct coverage for the TOML escapers (mutation-gated in serialize.py): the basic string escapes
-    backslash then double-quote; the multiline escaper doubles backslashes and breaks any run of three
-    quotes that would close the ``\"\"\"`` delimiter early, and leaves plain text untouched."""
-    from scripts.build.serialize import _gemini_toml_basic, _gemini_toml_multiline
-    assert _gemini_toml_basic('a"b\\c') == '"a\\"b\\\\c"'
-    assert _gemini_toml_multiline("plain") == "plain"
-    assert _gemini_toml_multiline("a\\b") == "a\\\\b"
-    assert _gemini_toml_multiline('a""b') == 'a""b'          # a 2-quote run stays — only 3+ closes """
-    assert _gemini_toml_multiline('x"""y') == 'x""\\"y'      # exactly the 3rd quote is escaped
-    assert _gemini_toml_multiline('""""') == '""\\""'        # 4 quotes: 3rd escaped, run resets
+    """Direct coverage for the TOML escapers (mutation-gated in genserialize.py): the basic string
+    escapes backslash then double-quote; the multiline escaper doubles backslashes and breaks any run
+    of three quotes that would close the ``\"\"\"`` delimiter early, and leaves plain text untouched."""
+    from scripts.build.genserialize import toml_basic, toml_multiline
+    assert toml_basic('a"b\\c') == '"a\\"b\\\\c"'
+    assert toml_multiline("plain") == "plain"
+    assert toml_multiline("a\\b") == "a\\\\b"
+    assert toml_multiline('a""b') == 'a""b'          # a 2-quote run stays — only 3+ closes """
+    assert toml_multiline('x"""y') == 'x""\\"y'      # exactly the 3rd quote is escaped
+    assert toml_multiline('""""') == '""\\""'        # 4 quotes: 3rd escaped, run resets
 
 
 def test_extension_manifest_is_valid_and_version_injected_from_canonical(tmp_path):

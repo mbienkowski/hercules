@@ -69,14 +69,14 @@ def test_target_dest_prefers_a_dest_fn_when_present():
 
 
 def test_cursor_persona_relocates_to_the_mdc_rule_via_dest():
-    # The load-bearing .mdc mapping stays in serialize.cursor_dest (mutation-covered); the Target
-    # just wires it in. Guard that the wiring is intact.
+    # The load-bearing .mdc mapping is cursor descriptor ROUTE data interpreted by genserialize.dest
+    # (mutation-covered); the Target just wires it in. Guard that the wiring is intact.
     assert target_registry.get("cursor").dest("persona.md") == "rules/hercules-persona.mdc"
 
 
 def test_copilot_cli_dest_routes_persona_agents_and_commands_by_extension():
-    # The load-bearing .agent.md/.prompt.md/AGENTS.md routing lives in serialize.copilot_cli_dest
-    # (mutation-covered); the Target just wires it via dest_fn. Guard the wiring is intact.
+    # The load-bearing .agent.md/.prompt.md/AGENTS.md routing is copilot descriptor ROUTE data
+    # interpreted by genserialize.dest (mutation-covered); the Target wires it via dest_fn.
     dest = target_registry.get("copilot-cli").dest
     assert dest("persona.md") == "AGENTS.md"
     assert dest("agents/cynical-reviewer.md") == "agents/cynical-reviewer.agent.md"

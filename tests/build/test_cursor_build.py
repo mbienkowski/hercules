@@ -16,7 +16,13 @@ from pathlib import Path
 import yaml
 
 from scripts.build.cli import build_target
-from scripts.build.serialize import CursorSerializer
+from scripts.build.descriptor import discover
+
+
+def _readonly_agents() -> set:
+    """The read-locked verdict roles, from the cursor descriptor's readonly field spec."""
+    fields = discover()["cursor"].roles["agent"].fields
+    return set(next(f for f in fields if f.key == "readonly").names)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC_CONTENT = REPO_ROOT / "src" / "content"
@@ -80,7 +86,7 @@ def test_agents_ship_as_subagents_with_the_official_field_set(tmp_path):
         assert fm.get("name") == name and fm.get("description")
         assert "model" not in fm and "model_tier" not in fm and "tools" not in fm, \
             f"{name}: Cursor subagents carry no model tier/tools"
-        if name in CursorSerializer.readonly_agents:
+        if name in _readonly_agents():
             assert fm.get("readonly") is True, f"{name} is a review/audit role — must be readonly"
 
 
