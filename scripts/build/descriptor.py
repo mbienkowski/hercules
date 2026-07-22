@@ -43,7 +43,7 @@ _ROLE_NAMES = ("agent", "command", "persona", "default")
 _MODES = {"preserve", "fields", "wrap", "plain", "toml_command"}
 _BODY_POLICIES = {"keep", "lstrip_newlines", "strip_newlines"}
 _FIELD_FROMS = {"frontmatter", "stem", "literal", "primary_mode", "flag_if_name_in"}
-_ROUTE_KINDS = {"exact", "suffix_swap"}
+_ROUTE_KINDS = {"exact", "suffix_swap", "omit"}
 _DISPATCHES = {"path", "frontmatter"}
 _MODEL_TIERS = {"high", "medium", "low"}
 _SMOKE_KEYS = {"cli", "test", "npm_package", "npm_version", "install"}
@@ -67,6 +67,7 @@ _FIELD_KEYS = {
 _ROUTE_KEYS = {
     "exact": {"kind", "src", "dest"},
     "suffix_swap": {"kind", "prefix", "from_suffix", "to_suffix"},
+    "omit": {"kind", "src"},
 }
 
 
@@ -127,8 +128,8 @@ class Route:
     """One src→dest relocation rule (ordered, first match wins, identity fallback)."""
 
     kind: str                         # a _ROUTE_KINDS member
-    src: Optional[str] = None         # exact: the source rel
-    dest: Optional[str] = None        # exact: the destination rel
+    src: Optional[str] = None         # exact/omit: the source rel
+    dest: Optional[str] = None        # exact: the destination rel (omit ships nothing)
     prefix: Optional[str] = None      # suffix_swap: required rel prefix
     from_suffix: Optional[str] = None
     to_suffix: Optional[str] = None
@@ -234,6 +235,8 @@ def _parse_route(name: str, raw: object) -> Route:
     if kind == "exact":
         return Route(kind=kind, src=_check_rel_path(name, "route 'src'", raw.get("src")),
                      dest=_check_rel_path(name, "route 'dest'", raw.get("dest")))
+    if kind == "omit":
+        return Route(kind=kind, src=_check_rel_path(name, "route 'src'", raw.get("src")))
     return Route(kind=kind, prefix=_check_str(name, "route 'prefix'", raw.get("prefix")),
                  from_suffix=_check_str(name, "route 'from_suffix'", raw.get("from_suffix")),
                  to_suffix=_check_str(name, "route 'to_suffix'", raw.get("to_suffix")))

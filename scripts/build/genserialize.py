@@ -79,14 +79,17 @@ def toml_command(description: str, prompt: str) -> str:
             f'prompt = """\n{toml_multiline(prompt)}\n"""\n')
 
 
-def dest(descriptor: EcosystemDescriptor, rel: str) -> str:
+def dest(descriptor: EcosystemDescriptor, rel: str) -> Optional[str]:
     """Map a ``src/content`` path through the descriptor's routes (ordered, first match wins,
-    identity fallback). Extensions swapped here are load-bearing — a wrong one makes the host
-    silently ignore the file — which is why this interpreter lives in a mutation-gated module and
-    each ecosystem's route data is pinned by its build tests."""
+    identity fallback); ``None`` means the source ships NOTHING on this target (``omit``).
+    Extensions swapped here are load-bearing — a wrong one makes the host silently ignore the
+    file — which is why this interpreter lives in a mutation-gated module and each ecosystem's
+    route data is pinned by its build tests."""
     for route in descriptor.routes:
         if route.kind == "exact" and rel == route.src:
             return route.dest
+        if route.kind == "omit" and rel == route.src:
+            return None
         if (route.kind == "suffix_swap" and rel.startswith(route.prefix)
                 and rel.endswith(route.from_suffix)):
             return rel[: -len(route.from_suffix)] + route.to_suffix

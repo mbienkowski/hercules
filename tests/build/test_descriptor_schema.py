@@ -224,20 +224,53 @@ def test_every_shipped_sibling_lands_at_its_filename_derived_dest_byte_identical
         for dest, src in siblings.items():
             assert (out / dest).read_bytes() == src.read_bytes(), f"{name}: {dest} diverged"
             checked += 1
-    assert checked >= 7, "expected the capabilities/logo/readme siblings to be covered"
+    assert checked >= 2, "expected the cursor logo/readme siblings to be covered"
 
 
-def test_every_shipped_capabilities_file_follows_the_disclosure_shape():
-    """Capabilities prose is testable: every <eco>.dist.CAPABILITIES.md opens with the canonical
-    disclosure heading and is substantive (not a stub) — the 'disclose gaps, never hide' shape."""
+def _capabilities_targets() -> list:
+    """The ecosystems whose descriptors route the shared capabilities source to CAPABILITIES.md."""
+    return sorted(name for name, d in discover(ECOSYSTEMS).items()
+                  if any(r.kind == "exact" and r.src == "capabilities.md" for r in d.routes))
+
+
+def test_capabilities_are_compiled_from_one_shared_source_for_five_ecosystems():
+    """CAPABILITIES.md is CONTENT now — one shared, switch-branched source compiled per ecosystem —
+    so a shared claim can never drift between ecosystems (it exists once). claude-code (the
+    reference) deliberately omits it."""
+    assert _capabilities_targets() == ["copilot-cli", "cursor", "gemini-cli", "grok-build", "opencode"]
+    claude = discover(ECOSYSTEMS)["claude-code"]
+    assert any(r.kind == "omit" and r.src == "capabilities.md" for r in claude.routes), \
+        "claude-code must explicitly omit the capabilities source, not silently ship it"
+
+
+def test_every_compiled_capabilities_file_follows_the_disclosure_shape():
+    """Capabilities prose is testable: every compiled dist CAPABILITIES.md opens with the canonical
+    per-product disclosure heading and is substantive (not a stub) — the 'disclose gaps, never
+    hide' shape. Reads the committed dist copies (the drift gate pins them to a fresh build)."""
     import re
-    files = sorted(ECOSYSTEMS.glob("*.dist.CAPABILITIES.md"))
-    assert len(files) == 5, "five ecosystems disclose capability gaps"
-    for f in files:
-        text = f.read_text(encoding="utf-8")
-        assert re.match(r"^# Hercules on .+ — capabilities & disclosed gaps\n", text), \
-            f"{f.name}: must open with the canonical disclosure heading"
-        assert text.count("- **") >= 2, f"{f.name}: must disclose at least two concrete items"
+    for name in _capabilities_targets():
+        text = (REPO_ROOT / "dist" / name / "CAPABILITIES.md").read_text(encoding="utf-8")
+        product = discover(ECOSYSTEMS)[name].vars["product"]
+        assert text.startswith(f"# Hercules on {product} — capabilities & disclosed gaps\n"), \
+            f"{name}: must open with the canonical disclosure heading for {product!r}"
+        assert text.count("- **") >= 2, f"{name}: must disclose at least two concrete items"
+        assert "${target:" not in text and "${product}" not in text, f"{name}: unrendered token"
+
+
+def test_capabilities_disclosures_match_the_descriptor_gate_wiring():
+    """Pin both ends of the disclosure contract: what the prose CLAIMS about the write-gate must
+    match the wiring DATA the descriptor actually ships. A matcher/tool renamed in the descriptor
+    without updating the disclosure (or vice versa) fails here."""
+    found = discover(ECOSYSTEMS)
+    gemini = (REPO_ROOT / "dist" / "gemini-cli" / "CAPABILITIES.md").read_text(encoding="utf-8")
+    gemini_matcher = found["gemini-cli"].artifacts[0].content["hooks"]["BeforeTool"][0]["matcher"]
+    assert f"`{gemini_matcher}`" in gemini, "gemini disclosure must name the exact BeforeTool matcher"
+    for tool in found["gemini-cli"].gate["tools"]:
+        assert tool in gemini, f"gemini disclosure must name gated tool {tool!r}"
+    copilot = (REPO_ROOT / "dist" / "copilot-cli" / "CAPABILITIES.md").read_text(encoding="utf-8")
+    for tool in ("create", "edit", "str_replace_editor", "apply_patch"):
+        assert tool in found["copilot-cli"].gate["tools"], f"descriptor must gate {tool!r}"
+        assert tool in copilot, f"copilot disclosure must name gated tool {tool!r}"
 
 
 def test_unknown_generator_name_fails_naming_the_allowed_set():

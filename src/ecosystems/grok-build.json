@@ -11,7 +11,11 @@
     "plan_enter": "plan mode",
     "plan_exit": "approval"
   },
-  "models": {"high": null, "medium": null, "low": null},
+  "models": {
+    "high": null,
+    "medium": null,
+    "low": null
+  },
   "smoke": {
     "npm_package": "@xai-official/grok",
     "npm_version": "0.2.106",
@@ -20,13 +24,38 @@
   },
   "dispatch": "path",
   "roles": {
-    "agent": {"mode": "preserve", "resolve_model_tier": true, "required": ["name", "description"]},
-    "command": {"mode": "preserve", "resolve_model_tier": true},
-    "persona": {"mode": "preserve", "resolve_model_tier": true},
-    "default": {"mode": "preserve", "resolve_model_tier": true}
+    "agent": {
+      "mode": "preserve",
+      "resolve_model_tier": true,
+      "required": [
+        "name",
+        "description"
+      ]
+    },
+    "command": {
+      "mode": "preserve",
+      "resolve_model_tier": true
+    },
+    "persona": {
+      "mode": "preserve",
+      "resolve_model_tier": true
+    },
+    "default": {
+      "mode": "preserve",
+      "resolve_model_tier": true
+    }
   },
   "routes": [
-    {"kind": "exact", "src": "persona.md", "dest": "CLAUDE.md"}
+    {
+      "kind": "exact",
+      "src": "capabilities.md",
+      "dest": "CAPABILITIES.md"
+    },
+    {
+      "kind": "exact",
+      "src": "persona.md",
+      "dest": "CLAUDE.md"
+    }
   ],
   "artifacts": [
     {
@@ -76,7 +105,9 @@
                 {
                   "type": "command",
                   "command": "python3",
-                  "args": ["${GROK_PLUGIN_ROOT}/hooks/frozen_tests.py"]
+                  "args": [
+                    "${GROK_PLUGIN_ROOT}/hooks/frozen_tests.py"
+                  ]
                 }
               ]
             }
@@ -99,5 +130,8 @@
       }
     }
   ],
-  "guard": ["hercules_state.py", "frozen_tests.py"]
+  "guard": [
+    "hercules_state.py",
+    "frozen_tests.py"
+  ]
 }

@@ -35,11 +35,12 @@ class Target:
 
     name: str
     renames: dict[str, str] = field(default_factory=dict)
-    dest_fn: Callable[[str], str] | None = None
+    dest_fn: Callable[[str], "str | None"] | None = None
     emit_extras_fn: Callable[[ExtrasContext], list[str]] = _no_extras
 
-    def dest(self, rel: str) -> str:
-        """Map a ``src/content`` relative path to this target's destination path."""
+    def dest(self, rel: str) -> "str | None":
+        """Map a ``src/content`` relative path to this target's destination path — ``None`` means
+        the source ships nothing on this target (an ``omit`` route)."""
         if self.dest_fn is not None:
             return self.dest_fn(rel)
         return self.renames.get(rel, rel)

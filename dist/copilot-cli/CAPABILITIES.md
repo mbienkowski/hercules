@@ -42,15 +42,18 @@ capability gaps disclosed here (the "disclose gaps, never hide" principle):
       where it does not fire; the release checklist re-verifies the live veto on a real `copilot`
       install rather than trusting CI alone. `preToolUse` command-hook **timeouts** are always fail-open
       by Copilot's design, so a slow guard never blocks work.
-- **No per-agent model tier.** Every Hercules agent **inherits the model you select in Copilot** — the
-  build omits a per-agent `model:` on purpose (the copilot-cli descriptor's `models` are all-`null`), matching
-  OpenCode and Cursor. Claude Code assigns a heavier model to the orchestrator and lighter models to
-  routine advisors; on Copilot that tiering is intentionally not applied — your one selected model drives
+
+- **No per-agent model tier.** Every Hercules agent **inherits the model you select in GitHub Copilot CLI** —
+  the build omits a per-agent `model:` on purpose (this ecosystem's descriptor `models` are
+  all-`null`). Claude Code assigns a heavier model to the orchestrator and lighter models to routine
+  advisors; on GitHub Copilot CLI that tiering is intentionally not applied — your one selected model drives
   everything.
+
 - **Persona loads as `AGENTS.md`.** The always-on project instructions ship as the plugin's `AGENTS.md`
   (Copilot's custom-instructions convention), and the operational reference ships as an auto-loaded
   skill (`skills/hercules-reference/SKILL.md`) — so the workflow guidance reaches the agent through
   Copilot's own component loading, not a Claude-only `CLAUDE.md`.
+
 - **Independent review is best-effort.** The Design coverage and Build traceability gates delegate to a
   fresh `cynical-reviewer` agent. Copilot exposes no orchestrator-forced isolated spawn, so — as on
   Cursor — Hercules requires an explicit reviewer **handshake** (the reviewer attests it read the

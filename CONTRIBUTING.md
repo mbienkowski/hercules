@@ -36,10 +36,10 @@ git config core.hooksPath .githooks
 - `src/ecosystems/<name>.json` — ONE descriptor per ecosystem (the filename is the registry key):
   token `vars`, `models` tiers, the `smoke` matrix entry, per-role output shapes (`roles`),
   destination `routes`, inline JSON `artifacts` (manifests, settings, hook wiring), shared-`guard`
-  modules, write-`gate` params, and named `generate` steps. Shipped prose/SVG siblings follow the
+  modules, write-`gate` params, and named `generate` steps. Binary/marketplace siblings follow the
   filename schema `<name>.dist.<dest>` (byte-copied to plugin-root `<dest>`; the directory layout is
-  schema-validated — a stray file fails the build) — no per-ecosystem directories, no per-ecosystem
-  Python.
+  schema-validated — a stray file fails the build); capability disclosures are compiled from the
+  shared `src/content/capabilities.md` — no per-ecosystem directories, no per-ecosystem Python.
 - `src/hooks/` — the shared enforcement code, authored once and byte-copied to every ecosystem:
   the canonical frozen-test guard + the ONE generic write-gate adapter (`hercules_gate.py`).
 - `scripts/build/` — the generic compiler: `parse` → `render` → `genserialize` (descriptor-driven)
@@ -72,10 +72,11 @@ late CI failure. The procedure:
    - `generate` — named Python generators for genuinely generated output (e.g. OpenCode's
      `plugin.js`). A need the vocabulary can't express = a new NAMED behavior in `scripts/build/`
      with tests, then referenced by name — never logic in the JSON.
-2. **Add shipped siblings if needed** — filename = routing: `src/ecosystems/<name>.dist.<dest>`
-   ships byte-identically at `dist/<name>/<dest>` (e.g. `<name>.dist.CAPABILITIES.md` for disclosed
-   gaps as plain prose, `<name>.dist.logo.svg` for marketplace assets). A mis-prefixed or stray
-   file fails discovery loudly.
+2. **Disclose capability gaps** — add a `${target:<name>}` branch to the shared
+   `src/content/capabilities.md` (compiled per ecosystem; shared claims stay on shared lines) and
+   route it with `{"kind": "exact", "src": "capabilities.md", "dest": "CAPABILITIES.md"}`. For
+   binary/marketplace assets use the sibling filename schema: `src/ecosystems/<name>.dist.<dest>`
+   ships byte-identically at `dist/<name>/<dest>`; a mis-prefixed or stray file fails discovery.
 3. **Rebuild and commit**: `make build` regenerates `dist/<name>/`; commit it alongside the source.
 4. **Declare the write-gate** (CI-hard-failing): add an entry for the target to `GATE_EXPECTATIONS`
    in `tests/hooks/test_enforcement_gates.py`. `test_every_registered_target_declares_a_gate` fails

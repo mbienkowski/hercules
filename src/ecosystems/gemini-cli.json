@@ -11,7 +11,11 @@
     "plan_enter": "plan mode",
     "plan_exit": "approval"
   },
-  "models": {"high": null, "medium": null, "low": null},
+  "models": {
+    "high": null,
+    "medium": null,
+    "low": null
+  },
   "smoke": {
     "npm_package": "@google/gemini-cli",
     "npm_version": "0.51.0",
@@ -24,23 +28,55 @@
       "mode": "fields",
       "body": "keep",
       "fields": [
-        {"key": "name", "from": "frontmatter", "field": "name"},
-        {"key": "description", "from": "frontmatter", "field": "description", "render": true}
+        {
+          "key": "name",
+          "from": "frontmatter",
+          "field": "name"
+        },
+        {
+          "key": "description",
+          "from": "frontmatter",
+          "field": "description",
+          "render": true
+        }
       ]
     },
     "command": {
       "mode": "toml_command",
       "body": "strip_newlines",
       "fields": [
-        {"key": "description", "from": "frontmatter", "field": "description", "render": true}
+        {
+          "key": "description",
+          "from": "frontmatter",
+          "field": "description",
+          "render": true
+        }
       ]
     },
-    "persona": {"mode": "plain"},
-    "default": {"mode": "preserve"}
+    "persona": {
+      "mode": "plain"
+    },
+    "default": {
+      "mode": "preserve"
+    }
   },
   "routes": [
-    {"kind": "exact", "src": "persona.md", "dest": "GEMINI.md"},
-    {"kind": "suffix_swap", "prefix": "commands/", "from_suffix": ".md", "to_suffix": ".toml"}
+    {
+      "kind": "exact",
+      "src": "capabilities.md",
+      "dest": "CAPABILITIES.md"
+    },
+    {
+      "kind": "exact",
+      "src": "persona.md",
+      "dest": "GEMINI.md"
+    },
+    {
+      "kind": "suffix_swap",
+      "prefix": "commands/",
+      "from_suffix": ".md",
+      "to_suffix": ".toml"
+    }
   ],
   "artifacts": [
     {
@@ -72,13 +108,30 @@
       }
     }
   ],
-  "guard": ["hercules_state.py", "frozen_tests.py", "hercules_gate.py"],
+  "guard": [
+    "hercules_state.py",
+    "frozen_tests.py",
+    "hercules_gate.py"
+  ],
   "gate": {
     "protocol": "pre_tool",
-    "tools": {"write_file": "Write", "replace": "Edit"},
-    "path_keys": ["file_path", "filePath", "path", "absolute_path", "absolutePath", "file", "filename"],
+    "tools": {
+      "write_file": "Write",
+      "replace": "Edit"
+    },
+    "path_keys": [
+      "file_path",
+      "filePath",
+      "path",
+      "absolute_path",
+      "absolutePath",
+      "file",
+      "filename"
+    ],
     "nested_keys": [],
-    "deny": {"decision": "deny"},
+    "deny": {
+      "decision": "deny"
+    },
     "reason_key": "reason"
   }
 }

@@ -57,9 +57,12 @@ def build_target(target: str, out_root: Path) -> list[str]:
     written: list[str] = []
     for src in discover_sources(SRC_CONTENT):
         rel = src.relative_to(SRC_CONTENT).as_posix()
-        emit.write(out_root / spec.dest(rel),
+        dest = spec.dest(rel)
+        if dest is None:  # an `omit` route — this source ships nothing on this target
+            continue
+        emit.write(out_root / dest,
                    serialize_file(target, src.read_text(encoding="utf-8"), tokens, models, rel))
-        written.append(spec.dest(rel))
+        written.append(dest)
     ctx = ExtrasContext(
         out_root=out_root,
         src_target_dir=SRC / "ecosystems",

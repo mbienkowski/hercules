@@ -147,9 +147,10 @@ Shared rules for every hook, on every ecosystem:
   untracked file or non-git tree. In the interactive IDE the after-edit path is **advisory only** (no
   mutation).
 - **Honest scope.** A hook reads model-authored state, so it is **runtime-mediated, not tamper-proof** —
-  say so, never "unbypassable"; disclose the per-ecosystem limits in `CAPABILITIES.md` (fail-open without
-  `python3`; Cursor's revert-only Composer path). User-granted overrides (`frozen_override`,
-  `frozen_hook: "off"`) are recorded state, not holes.
+  say so, never "unbypassable"; disclose the per-ecosystem limits in the compiled `CAPABILITIES.md`
+  (authored in `src/content/capabilities.md`: fail-open without `python3`; Cursor's revert-only
+  Composer path). User-granted overrides (`frozen_override`, `frozen_hook: "off"`) are recorded
+  state, not holes.
 - **Single source of truth.** The frozen-guard state reader (`hercules_state.py`) is authored once and
   shipped byte-identical to every ecosystem (a build-time copy, pinned by a byte-identity test).
 - Every hook ships with executable tests under `tests/hooks/` (scanned for hygiene across all ecosystems)
@@ -183,11 +184,16 @@ it holds **zero** per-ecosystem branches, classes, or modules. **A target is one
   named Python generator (`generate`), never inline JSON logic, never auto-discovered code under
   `src/`. Growing descriptor expressiveness instead of adding a named Python behavior is the failure
   mode to reject in review.
-- **Shipped siblings — `src/ecosystems/<eco>.dist.<dest>`:** optional prose/SVG files that ship
-  byte-identically at plugin-root `<dest>` (`<eco>.dist.CAPABILITIES.md` — disclosed gaps as plain
-  prose, **never** a JSON string literal; marketplace logo/readme). The filename IS the routing —
-  validated on discovery, pinned deterministic by tests, no separate mapping to drift. No
-  per-ecosystem directories.
+- **Capability disclosures are compiled content.** `CAPABILITIES.md` is authored ONCE in
+  `src/content/capabilities.md` — shared claims live in shared lines, host-specific nuance in
+  `${target:…}` branches — and compiled per ecosystem like every other content file, so a shared
+  claim can never drift between ecosystems. An ecosystem routes it in with an `exact` route (or out
+  with `omit` — claude-code, the reference, ships none); conformance and gate-wiring sync tests pin
+  the rendered prose against the descriptor data it describes.
+- **Shipped siblings — `src/ecosystems/<eco>.dist.<dest>`:** optional binary/marketplace files that
+  ship byte-identically at plugin-root `<dest>` (cursor's logo/readme). The filename IS the
+  routing — validated on discovery, pinned deterministic by tests, no separate mapping to drift.
+  No per-ecosystem directories.
 - **Enforcement + release:** a `GATE_EXPECTATIONS` entry (or explicit waiver) in
   `tests/hooks/test_enforcement_gates.py` — hand-authored on purpose, the forcing function that a new
   target cannot ship ungated; output-pinning tests under `tests/build/`; a `RELEASE.md` smoke section.

@@ -11,7 +11,11 @@
     "plan_enter": "plan mode",
     "plan_exit": "approval"
   },
-  "models": {"high": null, "medium": null, "low": null},
+  "models": {
+    "high": null,
+    "medium": null,
+    "low": null
+  },
   "smoke": {
     "cli": "cursor-agent",
     "test": "tests/build/test_cursor_smoke.py",
@@ -27,8 +31,17 @@
       "mode": "fields",
       "body": "keep",
       "fields": [
-        {"key": "name", "from": "frontmatter", "field": "name"},
-        {"key": "description", "from": "frontmatter", "field": "description", "render": true},
+        {
+          "key": "name",
+          "from": "frontmatter",
+          "field": "name"
+        },
+        {
+          "key": "description",
+          "from": "frontmatter",
+          "field": "description",
+          "render": true
+        },
         {
           "key": "readonly",
           "from": "flag_if_name_in",
@@ -47,8 +60,16 @@
       "mode": "fields",
       "body": "lstrip_newlines",
       "fields": [
-        {"key": "name", "from": "stem"},
-        {"key": "description", "from": "frontmatter", "field": "description", "render": true}
+        {
+          "key": "name",
+          "from": "stem"
+        },
+        {
+          "key": "description",
+          "from": "frontmatter",
+          "field": "description",
+          "render": true
+        }
       ]
     },
     "persona": {
@@ -59,13 +80,28 @@
           "from": "literal",
           "value": "Hercules — the spec-first delivery methodology (Discover → Design → Build → Ship). Always-on persona and project instructions."
         },
-        {"key": "alwaysApply", "from": "literal", "value": "true"}
+        {
+          "key": "alwaysApply",
+          "from": "literal",
+          "value": "true"
+        }
       ]
     },
-    "default": {"mode": "preserve"}
+    "default": {
+      "mode": "preserve"
+    }
   },
   "routes": [
-    {"kind": "exact", "src": "persona.md", "dest": "rules/hercules-persona.mdc"}
+    {
+      "kind": "exact",
+      "src": "capabilities.md",
+      "dest": "CAPABILITIES.md"
+    },
+    {
+      "kind": "exact",
+      "src": "persona.md",
+      "dest": "rules/hercules-persona.mdc"
+    }
   ],
   "artifacts": [
     {
@@ -74,13 +110,19 @@
         "version": 1,
         "hooks": {
           "beforeShellExecution": [
-            {"command": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py shell"}
+            {
+              "command": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py shell"
+            }
           ],
           "beforeMCPExecution": [
-            {"command": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py mcp"}
+            {
+              "command": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py mcp"
+            }
           ],
           "afterFileEdit": [
-            {"command": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py after_edit"}
+            {
+              "command": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py after_edit"
+            }
           ]
         }
       }
@@ -117,7 +159,11 @@
       }
     }
   ],
-  "guard": ["hercules_state.py", "frozen_tests.py", "hercules_gate.py"],
+  "guard": [
+    "hercules_state.py",
+    "frozen_tests.py",
+    "hercules_gate.py"
+  ],
   "gate": {
     "protocol": "cursor_events"
   }

@@ -11,7 +11,11 @@
     "plan_enter": "plan mode",
     "plan_exit": "approval"
   },
-  "models": {"high": null, "medium": null, "low": null},
+  "models": {
+    "high": null,
+    "medium": null,
+    "low": null
+  },
   "smoke": {
     "npm_package": "opencode-ai",
     "npm_version": "1.18.3",
@@ -24,28 +28,73 @@
       "mode": "fields",
       "body": "keep",
       "fields": [
-        {"key": "name", "from": "frontmatter", "field": "name"},
-        {"key": "description", "from": "frontmatter", "field": "description", "render": true},
-        {"key": "mode", "from": "primary_mode", "primary": "hercules"}
+        {
+          "key": "name",
+          "from": "frontmatter",
+          "field": "name"
+        },
+        {
+          "key": "description",
+          "from": "frontmatter",
+          "field": "description",
+          "render": true
+        },
+        {
+          "key": "mode",
+          "from": "primary_mode",
+          "primary": "hercules"
+        }
       ]
     },
     "command": {
       "mode": "fields",
       "body": "lstrip_newlines",
       "fields": [
-        {"key": "description", "from": "frontmatter", "field": "description", "render": true},
-        {"key": "agent", "from": "literal", "value": "hercules"}
+        {
+          "key": "description",
+          "from": "frontmatter",
+          "field": "description",
+          "render": true
+        },
+        {
+          "key": "agent",
+          "from": "literal",
+          "value": "hercules"
+        }
       ]
     },
-    "persona": {"mode": "plain"},
-    "default": {"mode": "preserve"}
+    "persona": {
+      "mode": "plain"
+    },
+    "default": {
+      "mode": "preserve"
+    }
   },
   "routes": [
-    {"kind": "exact", "src": "persona.md", "dest": "instructions.md"}
+    {
+      "kind": "exact",
+      "src": "capabilities.md",
+      "dest": "CAPABILITIES.md"
+    },
+    {
+      "kind": "exact",
+      "src": "persona.md",
+      "dest": "instructions.md"
+    }
   ],
-  "guard": ["frozen_tests.py", "hercules_state.py"],
+  "guard": [
+    "frozen_tests.py",
+    "hercules_state.py"
+  ],
   "generate": [
-    {"name": "opencode_plugin_js", "args": {"default_agent": "hercules"}},
-    {"name": "opencode_json"}
+    {
+      "name": "opencode_plugin_js",
+      "args": {
+        "default_agent": "hercules"
+      }
+    },
+    {
+      "name": "opencode_json"
+    }
   ]
 }

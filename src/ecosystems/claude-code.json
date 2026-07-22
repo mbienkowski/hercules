@@ -11,7 +11,11 @@
     "plan_enter": "EnterPlanMode",
     "plan_exit": "ExitPlanMode"
   },
-  "models": {"high": "opus", "medium": "sonnet", "low": "haiku"},
+  "models": {
+    "high": "opus",
+    "medium": "sonnet",
+    "low": "haiku"
+  },
   "smoke": {
     "npm_package": "@anthropic-ai/claude-code",
     "npm_version": "2.1.214",
@@ -20,13 +24,37 @@
   },
   "dispatch": "path",
   "roles": {
-    "agent": {"mode": "preserve", "resolve_model_tier": true, "required": ["name", "description"]},
-    "command": {"mode": "preserve", "resolve_model_tier": true},
-    "persona": {"mode": "preserve", "resolve_model_tier": true},
-    "default": {"mode": "preserve", "resolve_model_tier": true}
+    "agent": {
+      "mode": "preserve",
+      "resolve_model_tier": true,
+      "required": [
+        "name",
+        "description"
+      ]
+    },
+    "command": {
+      "mode": "preserve",
+      "resolve_model_tier": true
+    },
+    "persona": {
+      "mode": "preserve",
+      "resolve_model_tier": true
+    },
+    "default": {
+      "mode": "preserve",
+      "resolve_model_tier": true
+    }
   },
   "routes": [
-    {"kind": "exact", "src": "persona.md", "dest": "CLAUDE.md"}
+    {
+      "kind": "omit",
+      "src": "capabilities.md"
+    },
+    {
+      "kind": "exact",
+      "src": "persona.md",
+      "dest": "CLAUDE.md"
+    }
   ],
   "artifacts": [
     {
@@ -76,7 +104,9 @@
                 {
                   "type": "command",
                   "command": "python3",
-                  "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py"]
+                  "args": [
+                    "${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py"
+                  ]
                 }
               ]
             }
@@ -99,5 +129,8 @@
       }
     }
   ],
-  "guard": ["frozen_tests.py", "hercules_state.py"]
+  "guard": [
+    "frozen_tests.py",
+    "hercules_state.py"
+  ]
 }
