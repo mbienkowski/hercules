@@ -5,9 +5,9 @@ name: CI
 # branch merged into its PR base — catches conflict-adjacent breakage the tip can't show).
 # Deliberately NOT restricted to `branches: [main]`: this repo stacks PRs (feature -> feature
 # -> main), and a merge-preview check is exactly as valuable at an intermediate stack level as
-# it is at the final one — restricting it to main-based PRs would silently skip pull_request-
-# gated jobs (mutation, smoke) on every stacked PR, which is most of them.
-# The expensive mutation job stays gated to pull_request/main below.
+# it is at the final one — restricting it to main-based PRs would silently skip the pull_request
+# merge-preview run on every stacked PR, which is most of them.
+# The expensive mutation job stays gated to main pushes below; smoke runs on every commit.
 on:
   push:
     branches: ["**"]
@@ -31,11 +31,11 @@ defaults:
 #
 #   build ──┬─> test ─────┐
 #           ├─> validate ─┼─> mutation   (~40 min, MAIN pushes only — the release gate; waits for ALL three)
-#           └─> smoke ────┘  (network + real CLIs, PR + main, one leg per ecosystem)
+#           └─> smoke ────┘  (network + real CLIs, EVERY commit, one leg per ecosystem)
 #
 # build/validate are seconds; test is minutes; smoke pays for Node + a real-CLI install; mutation
-# is the long pole. On a PR: build/test/validate/smoke run (fast feedback, NO mutation). On a push to
-# main: mutation ALSO runs and gates the release (release.yml chains off this CI run's success). It
+# is the long pole. On every commit: build/test/validate/smoke run (fast feedback, NO mutation). On a
+# push to main: mutation ALSO runs and gates the release (release.yml chains off this CI run's success). It
 # waits for test+validate+smoke to SUCCEED (not merely finish — see its `if:`). The smoke matrix is a
 # `build` output (derived from the target registry), so there is no separate discovery job to sync.
 jobs:
@@ -133,12 +133,13 @@ jobs:
   smoke:
     name: Smoke — ${{ matrix.target }}
     needs: [build]
-    # Custom `if:` replaces the implicit `if: success()`, so a failed `build` must be excluded
-    # explicitly (else this job would fan out against a broken/empty matrix). `!cancelled()` keeps
-    # the clean skip on non-PR pushes.
+    # Runs on EVERY commit (push, all branches) and on PRs — smoke is a fast peer gate, not a
+    # PR/main-only one, so a broken install or a plugin that no longer loads is caught on the commit
+    # that introduced it. Custom `if:` replaces the implicit `if: success()`, so a failed `build` is
+    # excluded explicitly (else this job would fan out against a broken/empty matrix); `!cancelled()`
+    # keeps a clean skip when build is cancelled.
     if: >-
-      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
-      && !cancelled()
+      !cancelled()
       && needs.build.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
