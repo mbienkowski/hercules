@@ -273,21 +273,33 @@ def test_capabilities_disclosures_match_the_descriptor_gate_wiring():
         assert tool in copilot, f"copilot disclosure must name gated tool {tool!r}"
 
 
-def test_unknown_generator_name_fails_naming_the_allowed_set():
+def test_unknown_template_value_kind_fails_naming_the_allowed_set():
+    tpl = [{"src": "eco.template.x.js", "dest": "x.js",
+            "values": {"__X__": {"from": "run_code"}}}]
     with pytest.raises(DescriptorError) as err:
-        parse_descriptor("eco", _minimal(generate=[{"name": "make_website"}]))
-    assert "make_website" in str(err.value) and "opencode_plugin_js" in str(err.value)
+        parse_descriptor("eco", _minimal(templates=tpl))
+    assert "run_code" in str(err.value) and "js_string" in str(err.value)
 
 
-def test_generator_missing_required_arg_fails():
-    with pytest.raises(DescriptorError, match="default_agent"):
-        parse_descriptor("eco", _minimal(generate=[{"name": "opencode_plugin_js"}]))
+def test_template_placeholder_must_be_upper_snake_dunder():
+    tpl = [{"src": "eco.template.x.js", "dest": "x.js",
+            "values": {"{{x}}": {"from": "js_string", "value": "v"}}}]
+    with pytest.raises(DescriptorError, match="__UPPER_SNAKE__"):
+        parse_descriptor("eco", _minimal(templates=tpl))
 
 
-def test_generator_unknown_arg_fails():
-    gen = [{"name": "opencode_json", "args": {"mystery": "x"}}]
-    with pytest.raises(DescriptorError, match="mystery"):
-        parse_descriptor("eco", _minimal(generate=gen))
+def test_template_src_must_be_a_template_sibling():
+    tpl = [{"src": "plugin.js", "dest": "plugin.js", "values": {}}]
+    with pytest.raises(DescriptorError, match="template"):
+        parse_descriptor("eco", _minimal(templates=tpl))
+
+
+def test_role_entries_value_requires_a_known_role():
+    tpl = [{"src": "eco.template.x.js", "dest": "x.js",
+            "values": {"__E__": {"from": "role_entries_js", "role": "wizard",
+                                 "body_key": "prompt"}}}]
+    with pytest.raises(DescriptorError, match="wizard"):
+        parse_descriptor("eco", _minimal(templates=tpl))
 
 
 def test_guard_entries_are_module_filenames():
@@ -318,8 +330,9 @@ _MALFORMED = [
     ("artifact-not-object", lambda: _minimal(artifacts=["x"])),
     ("artifact-versioned-not-bool", lambda: _minimal(
         artifacts=[{"dest": "p.json", "content": {}, "versioned": "yes"}])),
-    ("generate-step-not-object", lambda: _minimal(generate=["x"])),
-    ("generate-args-not-object", lambda: _minimal(generate=[{"name": "opencode_json", "args": []}])),
+    ("template-not-object", lambda: _minimal(templates=["x"])),
+    ("template-values-not-object", lambda: _minimal(
+        templates=[{"src": "eco.template.x", "dest": "x", "values": []}])),
     ("role-not-object", lambda: _with_role("preserve")),
     ("role-body-unknown", lambda: _with_role(
         {"mode": "fields", "body": "trim", "fields": [{"key": "k", "from": "stem"}]})),

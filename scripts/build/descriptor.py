@@ -20,6 +20,7 @@ offending key and the allowed set — control flow stays typed Python; descripto
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -28,10 +29,20 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 ECOSYSTEMS_DIR = REPO_ROOT / "src" / "ecosystems"
 
 _TOP_KEYS = {"schema", "name", "vars", "models", "smoke", "dispatch", "roles",
-             "routes", "artifacts", "guard", "gate", "generate"}
-# The one shipped-file marker in a sibling filename: everything after "<eco>.dist." is the
-# destination filename at the built plugin's root.
+             "routes", "artifacts", "guard", "gate", "templates"}
+# Sibling filename markers: "<eco>.dist.<dest>" ships byte-identically at plugin-root <dest>;
+# "<eco>.template.<dest>" is a text template the descriptor's `templates` section renders.
 _DIST_MARKER = ".dist."
+_TEMPLATE_MARKER = ".template."
+# Computed-value kinds a template placeholder may use (closed; operands only — the computations are
+# named, mutation-covered functions in genextras). "js_*" kinds emit JavaScript literals.
+_TEMPLATE_VALUE_KINDS = {
+    "js_string": {"from", "value"},
+    "js_string_list": {"from", "values"},
+    "js_root_joins": {"from", "paths"},
+    "role_entries_js": {"from", "role", "drop", "body_key", "key_prefix"},
+}
+_PLACEHOLDER = re.compile(r"__[A-Z_]+__\Z")
 # The write-gate protocols the shared adapter (src/hooks/hercules_gate.py) implements. A new host
 # behavior is a new named protocol in that mutation-covered file — never logic in the descriptor.
 _GATE_PROTOCOLS = {"pre_tool", "cursor_events"}
@@ -47,7 +58,6 @@ _ROUTE_KINDS = {"exact", "suffix_swap", "omit"}
 _DISPATCHES = {"path", "frontmatter"}
 _MODEL_TIERS = {"high", "medium", "low"}
 _SMOKE_KEYS = {"cli", "test", "npm_package", "npm_version", "install"}
-_GENERATORS = {"opencode_plugin_js": {"default_agent"}, "opencode_json": set()}
 # Per-mode allowed role-spec keys — the schema's shape lives here, not in prose.
 _ROLE_KEYS = {
     "preserve": {"mode", "resolve_model_tier", "required"},
@@ -145,11 +155,26 @@ class Artifact:
 
 
 @dataclass(frozen=True)
-class Generate:
-    """One named generator invocation (genuinely generated output, e.g. OpenCode's plugin.js)."""
+class TemplateValue:
+    """One computed template value: a closed ``kind`` plus its data operands."""
 
-    name: str
-    args: dict = field(default_factory=dict)
+    kind: str                         # a _TEMPLATE_VALUE_KINDS key
+    value: Optional[str] = None       # js_string
+    values: tuple = ()                # js_string_list
+    paths: tuple = ()                 # js_root_joins
+    role: Optional[str] = None        # role_entries_js: which role's fields shape the entries
+    drop: tuple = ()                  # role_entries_js: computed field keys to omit from entries
+    body_key: Optional[str] = None    # role_entries_js: the key the rendered body lands under
+    key_prefix: str = ""              # role_entries_js: prefix for each entry key (namespacing)
+
+
+@dataclass(frozen=True)
+class Template:
+    """One rendered template: a ``<eco>.template.<dest>`` sibling filled with computed values."""
+
+    src: str
+    dest: str
+    values: dict = field(default_factory=dict)  # placeholder ("__X__") -> TemplateValue
 
 
 @dataclass(frozen=True)
@@ -166,7 +191,7 @@ class EcosystemDescriptor:
     artifacts: tuple = ()
     guard: tuple = ()
     gate: Optional[dict] = None       # write-gate params, emitted verbatim as hooks/gate.json
-    generate: tuple = ()
+    templates: tuple = ()             # rendered sibling templates (Template)
 
 
 def _parse_field(name: str, raw: object) -> FieldSpec:
@@ -281,23 +306,53 @@ def _parse_gate(name: str, raw: object) -> dict:
     return dict(raw)
 
 
-def _parse_generate(name: str, raw: object) -> Generate:
+def _parse_template_value(name: str, placeholder: str, raw: object) -> TemplateValue:
     if not isinstance(raw, dict):
-        _fail(name, f"a generate step must be an object, got {raw!r}")
-    _check_keys(name, "generate", raw, {"name", "args"})
-    gen = raw.get("name")
-    if gen not in _GENERATORS:
-        _fail(name, f"generate 'name' must be one of {sorted(_GENERATORS)}, got {gen!r}")
-    args = raw.get("args", {})
-    if not isinstance(args, dict):
-        _fail(name, "generate 'args' must be an object")
-    _check_keys(name, f"generate {gen!r} args", args, _GENERATORS[gen])
-    missing = sorted(_GENERATORS[gen] - set(args))
-    if missing:
-        _fail(name, f"generate {gen!r} is missing required arg(s) {missing}")
-    for key, value in args.items():
-        _check_str(name, f"generate arg {key!r}", value)
-    return Generate(name=gen, args=args)
+        _fail(name, f"template value {placeholder!r} must be an object, got {raw!r}")
+    kind = raw.get("from")
+    if kind not in _TEMPLATE_VALUE_KINDS:
+        _fail(name, f"template value {placeholder!r} 'from' must be one of "
+                    f"{sorted(_TEMPLATE_VALUE_KINDS)}, got {kind!r}")
+    _check_keys(name, f"template value {placeholder!r} (from={kind})", raw, _TEMPLATE_VALUE_KINDS[kind])
+    if kind == "js_string":
+        return TemplateValue(kind=kind, value=_check_str(name, f"{placeholder!r} 'value'", raw.get("value")))
+    if kind == "js_string_list":
+        values = raw.get("values")
+        if not isinstance(values, list) or not values:
+            _fail(name, f"template value {placeholder!r} 'values' must be a non-empty list")
+        return TemplateValue(kind=kind, values=tuple(_check_str(name, "'values' entry", v) for v in values))
+    if kind == "js_root_joins":
+        paths = raw.get("paths")
+        if not isinstance(paths, list) or not paths:
+            _fail(name, f"template value {placeholder!r} 'paths' must be a non-empty list")
+        return TemplateValue(kind=kind, paths=tuple(_check_rel_path(name, "'paths' entry", p) for p in paths))
+    role = raw.get("role")  # kind == "role_entries_js"
+    if role not in _ROLE_NAMES:
+        _fail(name, f"template value {placeholder!r} 'role' must be one of {sorted(_ROLE_NAMES)}, got {role!r}")
+    drop = raw.get("drop", [])
+    if not isinstance(drop, list):
+        _fail(name, f"template value {placeholder!r} 'drop' must be a list")
+    return TemplateValue(kind=kind, role=role,
+                         drop=tuple(_check_str(name, "'drop' entry", d) for d in drop),
+                         body_key=_check_str(name, f"{placeholder!r} 'body_key'", raw.get("body_key")),
+                         key_prefix=raw.get("key_prefix", ""))
+
+
+def _parse_template(name: str, raw: object) -> Template:
+    if not isinstance(raw, dict):
+        _fail(name, f"a template must be an object, got {raw!r}")
+    _check_keys(name, "template", raw, {"src", "dest", "values"})
+    src = _check_str(name, "template 'src'", raw.get("src"))
+    if "/" in src or _TEMPLATE_MARKER not in src:
+        _fail(name, f"template 'src' must be a flat '<eco>{_TEMPLATE_MARKER}<dest>' sibling, got {src!r}")
+    values_raw = raw.get("values", {})
+    if not isinstance(values_raw, dict):
+        _fail(name, "template 'values' must be an object")
+    for placeholder in values_raw:
+        if not _PLACEHOLDER.match(placeholder):
+            _fail(name, f"template placeholder {placeholder!r} must match __UPPER_SNAKE__")
+    return Template(src=src, dest=_check_rel_path(name, "template 'dest'", raw.get("dest")),
+                    values={p: _parse_template_value(name, p, v) for p, v in values_raw.items()})
 
 
 def parse_descriptor(name: str, raw: object) -> EcosystemDescriptor:
@@ -337,7 +392,7 @@ def parse_descriptor(name: str, raw: object) -> EcosystemDescriptor:
         _fail(name, "'roles' must be an object")
     if sorted(roles_raw) != sorted(_ROLE_NAMES):
         _fail(name, f"'roles' must define exactly {sorted(_ROLE_NAMES)}, got {sorted(roles_raw)}")
-    for key in ("routes", "artifacts", "guard", "generate"):
+    for key in ("routes", "artifacts", "guard", "templates"):
         if key in raw and not isinstance(raw[key], list):
             _fail(name, f"{key!r} must be a list")
     guard = tuple(_check_str(name, "'guard' entry", g) for g in raw.get("guard", []))
@@ -355,7 +410,7 @@ def parse_descriptor(name: str, raw: object) -> EcosystemDescriptor:
         artifacts=tuple(_parse_artifact(name, a) for a in raw.get("artifacts", [])),
         guard=guard,
         gate=_parse_gate(name, raw["gate"]) if "gate" in raw else None,
-        generate=tuple(_parse_generate(name, g) for g in raw.get("generate", [])),
+        templates=tuple(_parse_template(name, t) for t in raw.get("templates", [])),
     )
 
 
@@ -366,17 +421,22 @@ def load(path: Path) -> EcosystemDescriptor:
 
 def _validate_layout(root: Path, names: set) -> None:
     """Enforce the directory's definitive schema: every non-descriptor file is
-    ``<known-eco>.dist.<dest>`` with a flat, non-empty dest. A stray file, an unknown ecosystem
-    prefix, or a nested dest fails LOUDLY — nothing in this directory is ever silently ignored.
-    (Hidden dotfiles — editor/OS droppings — are the one tolerated exception.)"""
+    ``<known-eco>.dist.<dest>`` (shipped byte-identically) or ``<known-eco>.template.<dest>`` (a
+    text template the descriptor renders), with a flat, non-empty dest. A stray file, an unknown
+    ecosystem prefix, or a nested dest fails LOUDLY — nothing in this directory is ever silently
+    ignored. (Hidden dotfiles — editor/OS droppings — are the one tolerated exception.)"""
     for path in sorted(root.iterdir()):
         if not path.is_file() or path.suffix == ".json" or path.name.startswith("."):
             continue
-        eco, marker, dest = path.name.partition(_DIST_MARKER)
-        if not marker or eco not in names or not dest:
+        for marker in (_DIST_MARKER, _TEMPLATE_MARKER):
+            eco, found, dest = path.name.partition(marker)
+            if found and eco in names and dest:
+                break
+        else:
             raise DescriptorError(  # pragma: no mutate - message text only
-                f"src/ecosystems/{path.name}: every shipped file must be named "
-                f"'<ecosystem>{_DIST_MARKER}<dest-filename>' for a known ecosystem {sorted(names)}"
+                f"src/ecosystems/{path.name}: every sibling file must be named "
+                f"'<ecosystem>{_DIST_MARKER}<dest>' or '<ecosystem>{_TEMPLATE_MARKER}<dest>' "
+                f"for a known ecosystem {sorted(names)}"
             )
 
 

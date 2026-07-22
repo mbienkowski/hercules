@@ -17,9 +17,10 @@ from pathlib import Path
 import pytest
 
 from scripts.build.cli import build_target
-from scripts.build.manifests import generate_plugin_js
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+# The plugin.js source of truth is sibling DATA now — the template the descriptor renders.
+_TEMPLATE = REPO_ROOT / "src" / "ecosystems" / "opencode.template.plugin.js"
 
 
 def test_generated_plugin_js_ships_no_network_channel():
@@ -27,7 +28,7 @@ def test_generated_plugin_js_ships_no_network_channel():
     test_hook_hygiene, but the hand-written plugin.js — which already `require`s child_process and
     `spawnSync`s — is not. Pin that it `require`s ONLY an allowlist of stdlib modules and references no
     network primitive, so the "no external network channel" promise can't be silently broken in JS."""
-    js = generate_plugin_js("hercules", [], [])
+    js = _TEMPLATE.read_text(encoding="utf-8")
     requires = set(re.findall(r'require\(["\']([^"\']+)["\']\)', js))
     allowed = {"path", "fs", "os", "child_process"}
     assert requires <= allowed, f"plugin.js requires unexpected module(s): {sorted(requires - allowed)}"
@@ -40,8 +41,8 @@ def test_generated_plugin_js_ships_no_network_channel():
 def test_generated_plugin_wires_the_write_gate_to_the_canonical_python_guard():
     """The plugin.js must register a tool.execute.before hook that calls python3 on the shipped
     frozen_tests.py — the reuse that keeps one source of truth across ecosystems. Pinned at the
-    Python (generator) level so it is covered by the coverage + mutation gates."""
-    js = generate_plugin_js("hercules", [], [])
+    template-data level (the rendered dist copy is byte-pinned by the drift gate)."""
+    js = _TEMPLATE.read_text(encoding="utf-8")
     assert '"tool.execute.before": makeWriteGate' in js, "plugin must register the write-gate hook"
     assert 'spawnSync("python3"' in js, "the gate must invoke the canonical python3 guard"
     assert 'path.join(PLUGIN_ROOT, "hooks", "frozen_tests.py")' in js, "must point at the shipped guard"

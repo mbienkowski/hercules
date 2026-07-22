@@ -16,7 +16,7 @@ https://github.com/mbienkowski/hercules/issues/15 has the full root-cause diagno
    only by running the real binary: "must export id" -- a path-installed plugin also requires a
    top-level `id` field that the Node probe never exercised.
 
-Both are now fixed in `scripts/build/manifests.py`'s `_PLUGIN_JS_TEMPLATE` (exports
+Both are now fixed in `src/ecosystems/opencode.template.plugin.js` (exports
 `{ id: "hercules", server: fn }`), verified against the real installed `opencode` binary before
 this test's `xfail` marker was removed.
 """
