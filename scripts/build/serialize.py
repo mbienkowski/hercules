@@ -12,6 +12,12 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from scripts.build.descriptor import discover
+from scripts.build.genserialize import (  # noqa: F401  (canonical home; re-exported for callers)
+    DescriptorSerializer,
+    SerializeError,
+    require_field,
+)
 from scripts.build.model_map import resolve as resolve_model
 from scripts.build.parse import parse_frontmatter, render_frontmatter, split_document
 from scripts.build.render import render_body
@@ -27,21 +33,6 @@ class Serializer(Protocol):
 
     def serialize_file(self, text: str, tokens: dict[str, str], models: dict, rel: str | None = None) -> str:
         ...
-
-
-class SerializeError(ValueError):
-    """Raised when a source artifact is missing frontmatter a target requires."""
-
-
-def require_field(meta: dict[str, str], key: str) -> str:
-    """Return ``meta[key]`` or raise :class:`SerializeError` with a scripted, actionable message."""
-    if key not in meta:
-        name = meta.get("name", "<unnamed>")
-        raise SerializeError(  # pragma: no mutate - message text only
-            f"source artifact {name!r} is missing required frontmatter field {key!r} "
-            f"— add a '{key}:' line to its frontmatter"
-        )
-    return meta[key]
 
 
 _REGISTRY: dict[str, "Serializer"] = {}
@@ -428,9 +419,7 @@ def serialize_file(target: str, text: str, tokens: dict[str, str], models: dict,
     return get(target).serialize_file(text, tokens, models, rel)
 
 
-register(ClaudeCodeSerializer())
-register(OpenCodeSerializer())
-register(CursorSerializer())
-register(GrokBuildSerializer())
-register(GeminiCliSerializer())
-register(CopilotCliSerializer())
+# Bootstrap: every ecosystem descriptor registers one generic serializer — a bare import of this
+# module yields the fully populated registry, and a 7th descriptor file appears here automatically.
+for _descriptor in discover().values():
+    register(DescriptorSerializer(_descriptor))
