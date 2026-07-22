@@ -38,13 +38,8 @@ Hercules installs natively in each supported ecosystem — **pick yours**.
 <details>
 <summary><b>Claude Code</b></summary>
 
-**Prerequisite:** Hercules runs *inside* [Claude Code](https://code.claude.com) — install Claude Code first.
-
-The plugin needs no extra packages — its enforcement hooks run on your system `python3` (see Requirements).
-
-Then, three steps:
-
-**1 — Add the marketplace and install the plugin.** In Claude Code (CLI or Desktop), type:
+- **Requires** [Claude Code](https://code.claude.com) — Hercules runs inside it. No extra packages; the enforcement hooks use your system `python3` (see Requirements).
+- **Install** — in Claude Code (CLI or Desktop), type (`hercules@mbienkowski` = `plugin@marketplace`):
 
 ```
 /plugin marketplace add mbienkowski/hercules
@@ -52,27 +47,9 @@ Then, three steps:
 /reload-plugins
 ```
 
-`hercules@mbienkowski` is `plugin@marketplace` (the plugin named `hercules`, from `mbienkowski`'s
-marketplace). The `/plugin` and `/hercules:*` commands are typed **inside Claude Code**, not in a terminal.
-
-**2 — Verify.** Run `/help` (or `/plugin`) and confirm the `/hercules:` commands appear. If they don't,
-the plugin is installed-but-disabled — enable it from the `/plugin` screen.
-
-**3 — Start.** Run:
-
-```
-/hercules:workflow
-```
-
-If this is a new repo, Hercules will detect it and walk you through the one-time setup first.
-
-When enabled, Hercules becomes your **default agent** — that's why you can also just say
-*"Hercules, where do I start?"*. This means Hercules is active for every Claude Code session where
-this plugin is enabled — it does not add instructions to Claude sessions where the plugin is off.
-The `/hercules:*` commands run the phases.
-
-**Claude Code Desktop** — same flow: type the `/plugin` commands in the chat, **or** use the in-app plugin browser (the `+` near
-the prompt → **Plugins** → add marketplace / install). It is *not* a "Settings → Plugins" page.
+- **Verify** — run `/help` (or `/plugin`) and confirm the `/hercules:` commands appear; if not, enable it from the `/plugin` screen.
+- **Start** — `/hercules:workflow`.
+- **Desktop** — same flow in the chat, or the in-app plugin browser (the `+` near the prompt → **Plugins**). It is *not* a "Settings → Plugins" page.
 
 **For a team (or CI) — no typing.** Declare it once in `settings.json` (user `~/.claude/settings.json`, project `.claude/settings.json`, or
 local) so everyone gets Hercules on clone:
@@ -86,15 +63,8 @@ local) so everyone gets Hercules on clone:
 }
 ```
 
-**If you want to pin installation to a specific version**, add a `ref` to a release tag (a commit
-SHA also works) for reproducible installs across every machine and in CI — omit it (as above) and
-the install tracks the default branch, which drifts. When scopes conflict, the more-specific one
-wins (local over project over user). Either way, pull a new version with the
-`claude plugin update hercules@mbienkowski` CLI (see § Updating); a pinned `ref` only moves when you
-bump it.
-
-Use the **project** scope to standardize a whole repo; consider an org fork + a pinned version for
-governance. This file merges with any existing Claude Code settings — it does not replace them.
+- **Pin a version** — add a `ref` (release tag or commit SHA) for reproducible installs across machines and CI; omit it (as above) to track the default branch, which drifts. Pull updates with `claude plugin update hercules@mbienkowski` (see § Updating); a pinned `ref` only moves when you bump it.
+- **Scope** — the more-specific scope wins (local > project > user). Use **project** scope to standardize a repo; for governance, an org fork + a pinned version. This file merges with existing Claude Code settings, never replaces them.
 
 | Your situation | Use |
 |---|---|
@@ -106,7 +76,8 @@ governance. This file merges with any existing Claude Code settings — it does 
 <details>
 <summary><b>OpenCode</b></summary>
 
-Hercules also works in [OpenCode](https://opencode.ai). **The canonical install is from the GitHub repo** — add it to your `opencode.json`:
+- **Requires** [OpenCode](https://opencode.ai).
+- **Install** — add the GitHub repo to your `opencode.json` (the canonical install):
 
 ```json
 {
@@ -114,14 +85,14 @@ Hercules also works in [OpenCode](https://opencode.ai). **The canonical install 
 }
 ```
 
-OpenCode resolves the package via its `package.json` `main` (`dist/opencode/plugin.js`) and runs the `config` hook that registers the agents, commands, and instructions.
-
-Then restart OpenCode. Hercules becomes the default agent and the `/hercules:*` commands (`/hercules:discover`, `/hercules:design`, `/hercules:build`, `/hercules:ship`, `/hercules:workflow`) are available.
+- OpenCode resolves it via `package.json` `main` (`dist/opencode/plugin.js`) and loads it through the `config` hook (agents, commands, instructions).
+- **Start** — restart OpenCode, then `/hercules:workflow`.
+- **Enforcement** — a real `tool.execute.before` veto (needs `python3`); gaps in `dist/opencode/CAPABILITIES.md`.
 
 <details>
 <summary><i>Alternative: npm</i></summary>
 
-The plugin is also published to npm as `hercules` (published automatically on release when an `NPM_TOKEN` is configured). If you prefer npm, install it and reference the package name:
+Also published to npm as `hercules` (on release, when an `NPM_TOKEN` is configured) — reference the package name instead:
 
 ```json
 {
@@ -136,15 +107,10 @@ The plugin is also published to npm as `hercules` (published automatically on re
 <details>
 <summary><b>Cursor</b></summary>
 
-Hercules ships as a native [Cursor](https://cursor.com) plugin — the compiled plugin lives at
-`dist/cursor/` (`.cursor-plugin/plugin.json` plus `agents/`, `commands/`, `rules/`, `skills/`).
-Requires **Cursor ≥ 2.5** (the version that added plugin packaging; the isolated subagents the specialist advisors run as landed in 2.4).
-
-**Install (local).** Copy the built plugin at `dist/cursor/` into `~/.cursor/plugins/local/hercules/` and
-restart Cursor (the documented local-plugin path). Once
-installed, confirm it under **Customize → Plugins**: the persona rule (`rules/hercules-persona.mdc`)
-always applies, the `/discover`, `/design`, `/build`, `/ship`, `/workflow` commands appear, and the
-advisors run as isolated subagents.
+- **Requires** [Cursor](https://cursor.com) **≥ 2.5** (added plugin packaging; the isolated advisor subagents landed in 2.4).
+- **Install** — copy the built plugin `dist/cursor/` (`.cursor-plugin/plugin.json` + `agents/`, `commands/`, `rules/`, `skills/`) into `~/.cursor/plugins/local/hercules/`, then restart Cursor.
+- **Verify** — under **Customize → Plugins**: the persona rule (`rules/hercules-persona.mdc`) always applies, the `/discover … /workflow` commands appear, and advisors run as isolated subagents.
+- **Start** — `/workflow`.
 
 **Capability note — Cursor is a best-effort enforcement tier, below Claude Code and OpenCode.** Cursor's edit hook can't block an edit before it lands, so on Cursor the frozen-test lock is materially weaker than the real **pre-write veto** you get on Claude Code and OpenCode; Hercules works *with* the host, not against it:
 
@@ -162,36 +128,42 @@ Gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
 <details>
 <summary><b>Grok Build</b></summary>
 
-Requires [Grok Build](https://x.ai/cli) (`npm install -g @xai-official/grok`), which reads Claude-format
-plugins natively. Add `mbienkowski/hercules` as a marketplace source, install **hercules** from Grok's
-`/marketplace`, and run `/hercules:workflow`. The frozen-test write-gate is a real `PreToolUse` veto that
-runs on your system `python3`; gaps are disclosed in `dist/grok-build/CAPABILITIES.md`.
+- **Requires** [Grok Build](https://x.ai/cli) — `npm install -g @xai-official/grok` (reads Claude-format plugins natively).
+- **Install** — add `mbienkowski/hercules` as a marketplace source, then install **hercules** from Grok's `/marketplace`.
+- **Start** — `/hercules:workflow`.
+- **Enforcement** — a real `PreToolUse` veto (needs `python3`); gaps in `dist/grok-build/CAPABILITIES.md`.
 
 </details>
 
 <details>
 <summary><b>Gemini CLI</b></summary>
 
-Requires [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`npm install -g @google/gemini-cli`).
-Clone this repo and install the extension: `gemini extensions install ./dist/gemini-cli`. Restart Gemini
-and run `/workflow`. The frozen-test write-gate is a real `BeforeTool` veto that needs `python3`; gaps are
-disclosed in `dist/gemini-cli/CAPABILITIES.md`.
+- **Requires** [Gemini CLI](https://github.com/google-gemini/gemini-cli) — `npm install -g @google/gemini-cli`.
+- **Install** — clone this repo, then `gemini extensions install ./dist/gemini-cli`.
+- **Start** — restart Gemini, then `/workflow`.
+- **Enforcement** — a real `BeforeTool` veto (needs `python3`); gaps in `dist/gemini-cli/CAPABILITIES.md`.
 
 </details>
 
 <details>
 <summary><b>GitHub Copilot CLI</b></summary>
 
-Requires [GitHub Copilot CLI](https://github.com/github/copilot-cli) (`npm install -g @github/copilot`).
-Add the marketplace and install: `copilot plugin marketplace add mbienkowski/hercules`, then
-`copilot plugin install hercules@mbienkowski`. Run `/workflow`. The frozen-test write-gate is a real
-`preToolUse` veto that needs `python3`; gaps are disclosed in `dist/copilot-cli/CAPABILITIES.md`.
+- **Requires** [GitHub Copilot CLI](https://github.com/github/copilot-cli) — `npm install -g @github/copilot`.
+- **Install** — `copilot plugin marketplace add mbienkowski/hercules`, then `copilot plugin install hercules@mbienkowski`.
+- **Start** — `/workflow`.
+- **Enforcement** — a real `preToolUse` veto (needs `python3`); gaps in `dist/copilot-cli/CAPABILITIES.md`.
 
 </details>
 
 ---
 
 ## Quickstart
+
+Once installed, in any ecosystem:
+
+- **It's your default delivery partner** — just say *"Hercules, where do I start?"*, or run the workflow command; it steers only the sessions where the plugin is enabled.
+- **Invoke it** with `/hercules:workflow` (Claude Code, OpenCode, Grok Build) or `/workflow` (Gemini CLI, Copilot CLI, Cursor) — and the per-phase commands the same way.
+- **New repo?** Hercules detects it and walks you through the one-time setup first.
 
 The fastest way to start is the guided workflow — Hercules walks you through every phase:
 
@@ -209,13 +181,9 @@ short slug; `NN` = the spec number):
 | `/hercules:build` | Build — **MAKE** | Approve the delivery plan, then build & verify | working code + tests (specs deleted once delivered in code) |
 | `/hercules:ship` | Ship — **COMMIT** | Commit the delivered work | a conventional commit + optional push + optional PR |
 
-Each feature is its own workflow run — start a new one any time with `/hercules:workflow` and a feature
-description. Your `docs/` folder accumulates business-requirements files, a session digest (`docs/INDEX.md`), and
-reusable lessons (`docs/learnings.md`) over time; specs are temporary
-and deleted once the feature is delivered in code (during Build, when code becomes the source of truth). Multiple features
-can be in-flight simultaneously — each gets its own spec files with unique sequential numbers. To
-abandon one mid-flight, say **"abandon this session"** — its INDEX row is marked abandoned and its
-state cleared; your docs stay yours.
+- **One run per feature** — start a new one any time with `/hercules:workflow` and a description; multiple can be in-flight at once, each with its own sequentially-numbered spec files.
+- **Your `docs/` accumulates** business-requirements files, a session digest (`docs/INDEX.md`), and reusable lessons (`docs/learnings.md`); specs are temporary — deleted once the feature is delivered in code (code becomes the source of truth).
+- **Abandon one mid-flight** by saying **"abandon this session"** — its INDEX row is marked abandoned and its state cleared; your docs stay yours.
 
 ---
 
@@ -266,13 +234,13 @@ PRDs, ADRs, Figma links, QA scenarios, API contracts, Slack threads. The more co
 better. Hercules will always paraphrase what it understood before writing — correct it if anything's
 off. Your first session ends with a requirements document saved to `docs/`.
 
-Every phase works the same way: Hercules presents a plan and waits for your approval before doing
-anything. Discover and Design draft a document and write it to `docs/` on approval — you can revisit
-it any time. Build presents a delivery plan — which specs, in what order, grouped how — and on
-approval delivers them test-first (you choose to ship each spec as it lands, or deliver all in one
-pass). Ship drafts the commit plan and, on approval, commits and pushes. One Plan-approval gate per
-phase authorizes every write and execution; clarifying questions can come before it. That's the whole
-loop. Repeat for every feature.
+Every phase works the same way — Hercules presents a plan and waits for your approval before doing anything:
+
+- **Discover / Design** — draft a document and write it to `docs/` on approval (revisit it any time).
+- **Build** — presents a delivery plan (which specs, in what order, grouped how), then delivers test-first on approval (ship each spec as it lands, or deliver all in one pass).
+- **Ship** — drafts the commit plan, then commits and pushes on approval.
+
+One Plan-approval gate per phase authorizes every write and execution; clarifying questions can come before it. That's the whole loop — repeat for every feature.
 
 ### What that looks like
 
@@ -312,16 +280,9 @@ A reset link works once, expires after 30 minutes, and never reveals whether an 
 
 ## Where your delivery docs live
 
-Hercules keeps every requirement and spec in **one place** your team can version and review like code.
-By default that's `docs/` in the directory where you launch Claude. To change it, name the directory (or
-a dedicated docs repo) once in your project's **`code-of-conduct.md`** — a *per-project, lowercase*
-config file Hercules reads at runtime. (Not to be confused with this repo's `CODE_OF_CONDUCT.md`, which
-is the contributor guide.)
-
-A feature that spans several services? Tell Hercules the local path to each — it asks once and remembers
-them on **your machine only**, under `~/.hercules/` (a registry `config.json` plus a per-project state
-file; auto-written; it stores only local filesystem paths and delivery progress — no credentials,
-tokens, or telemetry). Nothing about where your repos live is written into the docs themselves.
+- **One place** — every requirement and spec lives together, versioned and reviewable like code. Default: `docs/` in the directory where you launch it.
+- **Change it** — name the directory (or a dedicated docs repo) once in your project's **`code-of-conduct.md`** — a *per-project, lowercase* config Hercules reads at runtime (not this repo's contributor `CODE_OF_CONDUCT.md`).
+- **Multi-service** — tell Hercules each service's local path; it asks once and remembers them **on your machine only**, under `~/.hercules/` (a registry `config.json` + per-project state; local filesystem paths and delivery progress only — no credentials, tokens, or telemetry). Nothing about where your repos live is written into the docs.
 
 ---
 
