@@ -214,6 +214,6 @@ def test_hook_command_invokes_the_gate_by_plugin_root_path(tmp_path):
     build_target("copilot-cli", out)
     hooks = json.loads((out / "hooks" / "hooks.json").read_text(encoding="utf-8"))
     entry = hooks["hooks"]["preToolUse"][0]
-    assert entry["matcher"] == "create|edit|str_replace_editor|apply_patch"
+    assert entry["matcher"] == "create|edit|str_replace_editor|apply_patch|write|Write|Edit|MultiEdit|NotebookEdit"
     assert entry["bash"] == 'python3 "$PLUGIN_ROOT/hooks/hercules_gate.py" preToolUse || exit 0'
-    assert entry["powershell"] == 'python3 "$env:PLUGIN_ROOT/hooks/hercules_gate.py" preToolUse; exit 0'
+    assert entry["powershell"] == 'try { python3 "$env:PLUGIN_ROOT/hooks/hercules_gate.py" preToolUse } catch {}; exit 0'

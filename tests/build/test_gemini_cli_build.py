@@ -86,12 +86,29 @@ def test_commands_ship_as_toml_with_prompt_and_description(tmp_path):
         assert "plan mode" in text.lower(), f"{name}: plan-mode default branch rendered empty"
 
 
-def test_command_bodies_carry_no_toml_breaking_sequences(tmp_path):
-    """The serializer emits the prompt as a TOML basic multiline string without escaping the body,
-    which is only sound while command bodies contain no ``\"\"\"`` or backslash — pin that invariant."""
-    for name in _src_names("commands"):
-        src = (SRC_CONTENT / "commands" / f"{name}.md").read_text(encoding="utf-8")
-        assert '"""' not in src and "\\" not in src, f"{name}: body would break the TOML prompt string"
+def test_emitted_command_toml_parses_with_the_prompt_preserved(tmp_path):
+    """Every emitted command file must be valid TOML with the plan-mode prompt intact — the real safety
+    net. A source-only invariant can't catch a token that renders a backslash or ``\"\"\"`` into a body;
+    parsing the *rendered* ``.toml`` (and escaping the body in the emitter) does. Closes the whole class."""
+    import tomllib
+    out = _build(tmp_path)
+    toml_files = sorted((out / "commands").glob("*.toml"))
+    assert toml_files, "gemini commands must emit .toml files"
+    for f in toml_files:
+        data = tomllib.loads(f.read_text(encoding="utf-8"))
+        assert data.get("prompt"), f"{f.name}: prompt missing/empty after TOML parse"
+        assert "Plan mode — required" in data["prompt"], f"{f.name}: plan-mode instruction lost in the prompt"
+
+
+def test_toml_escapers_handle_backslashes_and_triple_quotes():
+    """Direct coverage for the TOML escapers (mutation-gated in serialize.py): the basic string escapes
+    backslash then double-quote; the multiline escaper doubles backslashes and breaks any run of three
+    quotes that would close the ``\"\"\"`` delimiter early, and leaves plain text untouched."""
+    from scripts.build.serialize import _gemini_toml_basic, _gemini_toml_multiline
+    assert _gemini_toml_basic('a"b\\c') == '"a\\"b\\\\c"'
+    assert _gemini_toml_multiline("plain") == "plain"
+    assert _gemini_toml_multiline("a\\b") == "a\\\\b"
+    assert _gemini_toml_multiline('x"""y') == 'x""\\"y'
 
 
 def test_extension_manifest_is_valid_and_version_injected_from_canonical(tmp_path):

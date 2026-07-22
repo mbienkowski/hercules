@@ -234,14 +234,36 @@ def _gemini_toml_basic(s: str) -> str:
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def _gemini_toml_multiline(s: str) -> str:
+    """Escape a body for a TOML multiline basic (``\"\"\"…\"\"\"``) string. Backslash is TOML's escape char
+    (a trailing one would also swallow the closing newline), so it is doubled; and any run of three-or-
+    more quotes — which would close the delimiter early — is broken by escaping its third quote. Today's
+    command bodies contain neither, so this is a no-op on current output; it guards a future token that
+    renders a ``\\`` or ``\"\"\"`` into a body from silently emitting invalid TOML."""
+    s = s.replace("\\", "\\\\")
+    out: list[str] = []
+    run = 0
+    for ch in s:
+        if ch == '"':
+            run += 1
+            if run == 3:
+                out.append('\\"')
+                run = 0
+                continue
+        else:
+            run = 0
+        out.append(ch)
+    return "".join(out)
+
+
 def _gemini_toml_command(description: str, prompt: str) -> str:
     """A Gemini custom-command TOML file: a one-line ``description`` + a multiline ``prompt``.
 
     The ``prompt`` uses a TOML multiline basic string whose opening ``\"\"\"`` is followed by a newline
-    (TOML trims that first newline) so the body starts on its own line. Command bodies carry no ``\\``
-    or ``\"\"\"`` sequences (asserted by ``test_gemini_cli_build``), so the body needs no escaping."""
+    (TOML trims that first newline) so the body starts on its own line; the body is escaped for that
+    context by ``_gemini_toml_multiline``."""
     return (f"description = {_gemini_toml_basic(description)}\n\n"
-            f'prompt = """\n{prompt}\n"""\n')
+            f'prompt = """\n{_gemini_toml_multiline(prompt)}\n"""\n')
 
 
 class GeminiCliSerializer:

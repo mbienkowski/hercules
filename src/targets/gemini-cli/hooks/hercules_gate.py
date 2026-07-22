@@ -28,26 +28,50 @@ from frozen_tests import decide  # noqa: E402  (canonical guard entry point — 
 
 # Gemini's file-mutating tools → the canonical guard's tool names. A tool absent here is not a write,
 # so it is allowed silently (reads included). ``replace`` is Gemini's in-place edit; ``write_file`` its
-# whole-file write — both carry the target path in ``tool_input.file_path``, which the guard reads.
+# whole-file write. Both carry the target path in ``tool_input.file_path``; the path is nonetheless
+# extracted defensively (below), since Gemini is a JS host and the exact key casing/shape is unverified.
 _MUTATING = {"write_file": "Write", "replace": "Edit"}
 
 # The exact literal Gemini expects on stdout to veto a tool call (``block`` is a documented alias;
 # ``deny`` is the value the official docs' example uses). Hardcoded so a mutant flipping it is caught.
 _DENY = "deny"
 
+# Argument keys the target path may arrive under (Gemini is a JS/TS host — casing/shape is unverified,
+# so several plausible spellings are tried, mirroring the Copilot adapter). If none match, fail OPEN.
+_PATH_KEYS = ("file_path", "filePath", "path", "absolute_path", "absolutePath", "file", "filename")
+
+
+def _extract_path(args):
+    """Return the target file path from Gemini tool arguments, or None. Accepts a dict or an unparsed
+    JSON string; never raises."""
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except Exception:
+            return None
+    if isinstance(args, dict):
+        for key in _PATH_KEYS:
+            value = args.get(key)
+            if isinstance(value, str) and value:
+                return value
+    return None
+
 
 def decide_gemini(evt, home=None):
-    """Return the Gemini ``BeforeTool`` decision dict to BLOCK *evt*, or ``None`` to allow silently."""
+    """Return the Gemini ``BeforeTool`` decision dict to BLOCK *evt*, or ``None`` to allow silently.
+
+    Accepts either payload casing — ``tool_name``/``tool_input`` (snake_case) or ``toolName``/``toolArgs``
+    (camelCase, Gemini's JS-native shape) — so a casing difference can't silently no-op the veto."""
     if not isinstance(evt, dict):
         return None
-    mapped = _MUTATING.get(evt.get("tool_name"))
+    mapped = _MUTATING.get(evt.get("tool_name") or evt.get("toolName"))
     if mapped is None:
         return None
-    payload = {
-        "tool_name": mapped,
-        "tool_input": evt.get("tool_input") or {},
-        "cwd": evt.get("cwd") or os.getcwd(),
-    }
+    args = evt.get("tool_input") if evt.get("tool_input") is not None else evt.get("toolArgs")
+    path = _extract_path(args)
+    if not path:
+        return None
+    payload = {"tool_name": mapped, "tool_input": {"file_path": path}, "cwd": evt.get("cwd") or os.getcwd()}
     code, reason = decide(payload, home=home)
     if code == 2:
         return {"decision": _DENY, "reason": reason}

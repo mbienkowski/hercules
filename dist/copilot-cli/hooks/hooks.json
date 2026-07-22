@@ -4,9 +4,9 @@
     "preToolUse": [
       {
         "type": "command",
-        "matcher": "create|edit|str_replace_editor|apply_patch",
+        "matcher": "create|edit|str_replace_editor|apply_patch|write|Write|Edit|MultiEdit|NotebookEdit",
         "bash": "python3 \"$PLUGIN_ROOT/hooks/hercules_gate.py\" preToolUse || exit 0",
-        "powershell": "python3 \"$env:PLUGIN_ROOT/hooks/hercules_gate.py\" preToolUse; exit 0"
+        "powershell": "try { python3 \"$env:PLUGIN_ROOT/hooks/hercules_gate.py\" preToolUse } catch {}; exit 0"
       }
     ]
   }

@@ -1,9 +1,10 @@
 # Hercules on Grok Build — capabilities & disclosed gaps
 
 Hercules ships the full Discover → Design → Build → Ship methodology on Grok Build as a native,
-installable plugin (`.grok-plugin/marketplace.json` → `dist/grok-build`), reusing Grok's documented
-Claude-Code compatibility (it reads Claude-format plugins, agents, commands, skills, hooks, and a
-`CLAUDE.md` instruction file). Gaps disclosed here (the "disclose gaps, never hide" principle):
+installable plugin (`.grok-plugin/marketplace.json` → `dist/grok-build`). Grok Build's plugin format
+mirrors Claude Code's — the same `agents/`/`commands/`/`skills/`/`hooks/` layout, a `plugin.json`, and a
+`CLAUDE.md` instruction file — so the components load as a native Grok plugin, rooted at
+`${GROK_PLUGIN_ROOT}`. Gaps disclosed here (the "disclose gaps, never hide" principle):
 
 - **Frozen-test write-gate: enforced (needs `python3`).** The plugin's `PreToolUse` hook
   (`hooks/hooks.json`, matcher `Edit|MultiEdit|Write|NotebookEdit`) invokes the same canonical guard

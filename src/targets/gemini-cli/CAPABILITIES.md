@@ -30,6 +30,13 @@ capability gaps disclosed here (the "disclose gaps, never hide" principle).
     gate is inactive, the **acceptance backstop** (every frozen test re-hashed against a baseline before a
     spec retires, halting on un-overridden drift) remains the protection; Build announces this at start.
     The block is runtime-*mediated*, not tamper-proof against a model that rewrites its own state.
+  - **Shell/MCP writes are backstop-only.** The `BeforeTool` matcher gates Gemini's `write_file`/`replace`
+    edit tools; a write to a frozen test via `run_shell_command` (`echo > …`, `sed -i`, `git checkout`) or
+    an MCP filesystem server is **not** vetoed at write-time — only the edit-tool path is a hard block.
+    That gap is caught after the fact by the acceptance backstop (re-hash at retire), matching Cursor's
+    honestly-coarse guardrail scope. (The adapter accepts both snake_case and camelCase payloads and
+    resolves the path across the common key spellings, so a wire-format difference cannot silently no-op
+    the edit-tool veto.)
 
 - **No per-agent model tier.** Every Hercules subagent **inherits the model you select in Gemini CLI** —
   the build omits a per-agent `model:` on purpose (`models.json[gemini-cli]` is all-`null`), as OpenCode

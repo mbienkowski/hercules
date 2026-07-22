@@ -134,3 +134,27 @@ def test_fails_open_on_a_non_dict_payload(tmp_path, capsys):
     home.mkdir()
     assert gate.main(stdin_text="123", home=str(home)) == 0
     assert capsys.readouterr().out.strip() == ""
+
+
+def test_before_tool_blocks_a_frozen_edit_delivered_in_camelcase(active_build, capsys):
+    """Gemini is a JS host; a camelCase payload (``toolName``/``toolArgs``) must be understood exactly
+    like the snake_case shape — a casing difference must never silently no-op the veto."""
+    home, proj, frozen = active_build
+    evt = {"toolName": "replace", "toolArgs": {"file_path": str(frozen)}, "cwd": str(proj)}
+    assert _decide(evt, home, capsys)["decision"] == "deny"
+
+
+def test_before_tool_blocks_a_frozen_edit_when_args_arrive_as_a_json_string(active_build, capsys):
+    """A ``tool_input`` delivered as an unparsed JSON string (and under an alternate ``filePath`` key)
+    is still parsed and the frozen path found — the edit is denied."""
+    home, proj, frozen = active_build
+    evt = {"tool_name": "write_file", "tool_input": json.dumps({"filePath": str(frozen)}), "cwd": str(proj)}
+    assert _decide(evt, home, capsys)["decision"] == "deny"
+
+
+def test_before_tool_allows_a_mutating_tool_with_no_resolvable_path(active_build, capsys):
+    """A write tool whose arguments carry no recognizable path key fails OPEN (no path → allow), never a
+    crash or a spurious block."""
+    home, proj, _ = active_build
+    evt = {"tool_name": "write_file", "tool_input": {"unknown_key": "x"}, "cwd": str(proj)}
+    assert _decide(evt, home, capsys) == {}
