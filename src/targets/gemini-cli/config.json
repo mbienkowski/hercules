@@ -1,0 +1,12 @@
+{
+  "vars": {
+    "product": "Gemini CLI",
+    "host": "Gemini",
+    "ns": "/",
+    "instructions_file": "GEMINI.md",
+    "agent_ns": "",
+    "plugin_root": "${extensionPath}/",
+    "plan_enter": "plan mode",
+    "plan_exit": "approval"
+  }
+}

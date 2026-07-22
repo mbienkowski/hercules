@@ -229,6 +229,81 @@ class CursorSerializer:
         return fm_block + render_body(body, self.target, tokens)
 
 
+def _gemini_toml_basic(s: str) -> str:
+    """A TOML basic (double-quoted) single-line string: escape backslash then double-quote."""
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _gemini_toml_command(description: str, prompt: str) -> str:
+    """A Gemini custom-command TOML file: a one-line ``description`` + a multiline ``prompt``.
+
+    The ``prompt`` uses a TOML multiline basic string whose opening ``\"\"\"`` is followed by a newline
+    (TOML trims that first newline) so the body starts on its own line. Command bodies carry no ``\\``
+    or ``\"\"\"`` sequences (asserted by ``test_gemini_cli_build``), so the body needs no escaping."""
+    return (f"description = {_gemini_toml_basic(description)}\n\n"
+            f'prompt = """\n{prompt}\n"""\n')
+
+
+class GeminiCliSerializer:
+    """Emit a Gemini CLI extension's components (subagents, TOML commands, the GEMINI.md context).
+
+    Gemini reads Markdown-with-frontmatter subagents (``agents/<name>.md``: ``name`` + ``description``,
+    body = system prompt), TOML custom commands (``commands/<name>.toml`` with a required ``prompt`` and
+    optional ``description``), and a plain ``GEMINI.md`` context file. Per-agent ``model``/``model_tier``/
+    ``tools`` are dropped — subagents inherit the user's selected model (``models.json[gemini-cli]`` is
+    all-``null``), as OpenCode and Cursor do. Dispatch is by source ``rel`` (path-aware): the persona is
+    frontmatter-less (relocated to ``GEMINI.md`` by ``gemini_dest``) and falls through the no-frontmatter
+    branch; ``agents/`` and ``commands/`` take their shapes; every other frontmatter'd file (skills)
+    keeps its frontmatter and renders its body.
+    """
+
+    target = "gemini-cli"
+
+    def serialize_agent(self, frontmatter: dict[str, str], body: str, tokens: dict[str, str]) -> str:
+        out = {
+            "name": require_field(frontmatter, "name"),
+            "description": render_body(require_field(frontmatter, "description"), self.target, tokens),
+        }
+        return render_frontmatter(out) + "\n\n" + render_body(body, self.target, tokens)
+
+    def serialize_command(self, frontmatter: dict[str, str], body: str, tokens: dict[str, str]) -> str:
+        """Emit a Gemini TOML command: ``description`` + the rendered prompt body. Claude's
+        ``disable-model-invocation`` marker is dropped (Gemini has no such field)."""
+        description = render_body(require_field(frontmatter, "description"), self.target, tokens)
+        prompt = render_body(body, self.target, tokens).strip("\n")
+        return _gemini_toml_command(description, prompt)
+
+    def serialize_file(self, text: str, tokens: dict[str, str], models: dict, rel: str | None = None) -> str:
+        fm_block, body = split_document(text)
+        if fm_block is None:  # the frontmatter-less persona (→ GEMINI.md), protocols, any plain file
+            return render_body(text, self.target, tokens)
+        meta, _ = parse_frontmatter(fm_block)
+        if rel is not None and rel.startswith("agents/"):
+            return self.serialize_agent(meta, body, tokens)
+        if rel is not None and rel.startswith("commands/"):
+            return self.serialize_command(meta, body, tokens)
+        return fm_block + render_body(body, self.target, tokens)
+
+
+# Gemini relocations that are load-bearing (a wrong extension loads as absent): the frontmatter-less
+# persona → GEMINI.md context, and a command's .md → .toml (Gemini parses commands as TOML).
+_GEMINI_PERSONA_DEST = "GEMINI.md"
+
+
+def gemini_dest(rel: str) -> str:
+    """Map a ``src/content`` path into the Gemini extension tree.
+
+    ``persona.md`` becomes the ``GEMINI.md`` context file; a ``commands/<name>.md`` source becomes
+    ``commands/<name>.toml`` (Gemini reads commands as TOML — a ``.md`` command is ignored). Both are
+    load-bearing, so — like ``cursor_dest``'s ``.mdc`` mapping — they live in this mutation-covered
+    module and are wired into the Gemini ``Target`` via ``dest_fn``."""
+    if rel == _PERSONA_SRC:
+        return _GEMINI_PERSONA_DEST
+    if rel.startswith("commands/") and rel.endswith(".md"):
+        return rel[: -len(".md")] + ".toml"
+    return rel
+
+
 def cursor_dest(rel: str) -> str:
     """Map a ``src/content`` source path to its destination inside the Cursor plugin tree.
 
@@ -262,3 +337,4 @@ register(ClaudeCodeSerializer())
 register(OpenCodeSerializer())
 register(CursorSerializer())
 register(GrokBuildSerializer())
+register(GeminiCliSerializer())

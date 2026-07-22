@@ -28,7 +28,7 @@ def test_every_build_target_has_a_serializer():
 
 
 def test_registered_target_names_is_the_single_ecosystem_list():
-    assert target_registry.registered_target_names() == ["claude-code", "cursor", "grok-build", "opencode"]
+    assert target_registry.registered_target_names() == ["claude-code", "cursor", "gemini-cli", "grok-build", "opencode"]
     assert tuple(target_registry.registered_target_names()) == cli.TARGETS
 
 

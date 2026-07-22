@@ -1,0 +1,6 @@
+{
+  "name": "hercules",
+  "version": "${version}",
+  "description": "Methodology & workflow system for software delivery with AI",
+  "contextFileName": "GEMINI.md"
+}

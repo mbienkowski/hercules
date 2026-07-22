@@ -71,6 +71,16 @@ GATE_EXPECTATIONS: dict[str, dict] = {
             "guard": "frozen_tests.py",
         },
     },
+    # Gemini CLI: a BeforeTool hook denies a frozen write_file/replace before it lands (Claude-shape veto).
+    "gemini-cli": {
+        "files": ["hooks/hooks.json", "hooks/hercules_gate.py", "hooks/frozen_tests.py", _STATE],
+        "hooks_json": {
+            "path": "hooks/hooks.json",
+            "event": "BeforeTool",
+            "matcher_tokens": ["write_file", "replace"],
+            "guard": "hercules_gate.py",
+        },
+    },
 }
 
 
