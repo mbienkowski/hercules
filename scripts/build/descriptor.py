@@ -43,12 +43,14 @@ _TEMPLATE_VALUE_KINDS = {
     "role_entries_js": {"from", "role", "drop", "body_key", "key_prefix"},
 }
 _PLACEHOLDER = re.compile(r"__[A-Z_]+__\Z")
-# The write-gate protocols the shared adapter (src/hooks/hercules_gate.py) implements. A new host
-# behavior is a new named protocol in that mutation-covered file — never logic in the descriptor.
-_GATE_PROTOCOLS = {"pre_tool", "cursor_events"}
+# The write-gate protocols the shared adapter (src/hooks/hercules_gate.py) implements — named by
+# CAPABILITY, not by ecosystem: `pre_tool` is a pre-write tool veto; `event_guards` is the
+# shell/MCP/after-edit guard set for IDE-class hosts. A new host behavior is a new named protocol in
+# that mutation-covered file — never logic in the descriptor.
+_GATE_PROTOCOLS = {"pre_tool", "event_guards"}
 _GATE_KEYS = {
     "pre_tool": {"protocol", "tools", "path_keys", "nested_keys", "allow", "deny", "reason_key"},
-    "cursor_events": {"protocol"},
+    "event_guards": {"protocol", "allow", "deny", "user_key", "agent_key"},
 }
 _ROLE_NAMES = ("agent", "command", "persona", "default")
 _MODES = {"preserve", "fields", "wrap", "plain", "toml_command"}
@@ -303,6 +305,12 @@ def _parse_gate(name: str, raw: object) -> dict:
         _check_str(name, "gate 'reason_key'", raw.get("reason_key"))
         if "nested_keys" in raw and not isinstance(raw["nested_keys"], list):
             _fail(name, "gate 'nested_keys' must be a list")
+    if protocol == "event_guards":
+        for key in ("allow", "deny"):
+            if not isinstance(raw.get(key), dict):
+                _fail(name, f"gate {key!r} must be an object (the host's decision shape)")
+        _check_str(name, "gate 'user_key'", raw.get("user_key"))
+        _check_str(name, "gate 'agent_key'", raw.get("agent_key"))
     return dict(raw)
 
 

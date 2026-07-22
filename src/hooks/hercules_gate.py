@@ -16,10 +16,11 @@ tests, never logic in the JSON):
   handled), and gives the host's decision shapes: an optional ``allow`` object (Copilot always emits
   a decision; Gemini stays silent to allow) and a ``deny`` object + ``reason_key`` carrying the
   canonical block message.
-- ``cursor_events`` — Cursor's three-surface guardrail (``shell`` / ``mcp`` / ``after_edit`` via
-  argv), including the runtime-aware after-edit path: advisory in the interactive IDE (no
-  working-tree mutation), an honest ``git checkout`` restore only in headless runs
-  (``HERCULES_RUNTIME_MODE=headless``). Its machinery is host-shaped, so it takes no tunables.
+- ``event_guards`` — the guard set for IDE-class hosts with shell/MCP/after-edit hook surfaces
+  (``shell`` / ``mcp`` / ``after_edit`` selected via argv), including the runtime-aware after-edit
+  path: advisory in the interactive IDE (no working-tree mutation), an honest ``git checkout``
+  restore only in headless runs (``HERCULES_RUNTIME_MODE=headless``). The host's decision shapes
+  (allow/deny objects, user/agent message keys) are config data; the guard algorithms are shared.
 
 Invoked as ``python3 hercules_gate.py [<mode>]`` with the host event JSON on stdin. Fails OPEN on
 any error, malformed input, or missing/unreadable config — matching the canonical frozen hook's
@@ -110,7 +111,7 @@ def _pre_tool_reason(cfg, evt, home=None):
     return None
 
 
-# ── protocol: cursor_events (shell / mcp deny + runtime-aware after-edit) ───────────────────────
+# ── protocol: event_guards (shell / mcp write-guards + runtime-aware after-edit) ────────────────
 
 # Command wrappers that may precede the real verb — consumed so ``time git add …`` / ``xargs rm …`` /
 # ``env X=1 sed -i …`` are still caught. Covers known wrappers, their flags, env assignments, numbers.
@@ -190,7 +191,7 @@ def _restore(cwd: str, fp: str) -> bool:
 
 
 def _ide_advisory(fp: str) -> str:
-    """Cursor-specific, plain-language advisory for the interactive IDE (no working-tree mutation)."""
+    """Plain-language advisory for the interactive IDE (no working-tree mutation)."""
     return (
         f"Hercules: {os.path.basename(fp)} is a locked acceptance test for this Build. "
         "The goal is to write code that makes it pass — not to change the test, which would let the "
@@ -210,8 +211,8 @@ def frozen_map(cwd: str, home=None) -> dict:
     no build is active), so a block can quote that session's spec/round via the canonical ``_reason``.
 
     A path covered by a live, user-granted ``frozen_override`` is omitted — the exact same policy
-    Claude/OpenCode apply, via the shared ``frozen_tests._override_allows``, so the documented
-    "change this test" escape hatch works identically on Cursor.
+    every ecosystem applies, via the shared ``frozen_tests._override_allows``, so the documented
+    "change this test" escape hatch works identically on every host.
     """
     frozen: dict = {}
     for session, roots, project in resolve_build_contexts(cwd, home=home):
@@ -226,12 +227,19 @@ def frozen_map(cwd: str, home=None) -> dict:
     return frozen
 
 
-def _allow() -> None:
-    print(json.dumps({"permission": "allow"}))
+def _guards_allow(cfg) -> None:
+    print(json.dumps(cfg["allow"]))
 
 
-def _deny(user: str, agent: str) -> None:
-    print(json.dumps({"permission": "deny", "userMessage": user, "agentMessage": agent}))
+def _guards_deny(cfg, user: str, agent: str) -> None:
+    decision = dict(cfg["deny"])
+    decision[cfg["user_key"]] = user
+    decision[cfg["agent_key"]] = agent
+    print(json.dumps(decision))
+
+
+def _guards_notify(cfg, note: str) -> None:
+    print(json.dumps({cfg["user_key"]: note, cfg["agent_key"]: note}))
 
 
 def _writes_frozen(cmd: str, frozen: dict):
@@ -290,29 +298,29 @@ def _mcp_hits_frozen(evt: dict, frozen: dict):
     return None
 
 
-def _cursor_decide(mode: str, evt: dict, home=None) -> None:
-    """Emit the Cursor decision for *mode* given event *evt*. Never raises for a resolvable state."""
+def _event_guards_decide(cfg, mode: str, evt: dict, home=None) -> None:
+    """Emit the host's decision for *mode* given event *evt*. Never raises for a resolvable state."""
     cwd = _cwd(evt)
     frozen = frozen_map(cwd, home=home)
     if not frozen:
         if mode in ("shell", "mcp"):
-            _allow()
+            _guards_allow(cfg)
         return
     if mode == "shell":
         cmd = evt.get("command", "")
         hit = _writes_frozen(cmd, frozen)
         if hit is not None:
-            reason = _reason(hit, frozen[hit])  # the canonical block message Claude/OpenCode also emit
-            _deny(reason, reason)
+            reason = _reason(hit, frozen[hit])  # the canonical block message every ecosystem emits
+            _guards_deny(cfg, reason, reason)
         else:
-            _allow()
+            _guards_allow(cfg)
     elif mode == "mcp":
         hit = _mcp_hits_frozen(evt, frozen)
         if hit is not None:
             reason = _reason(hit, frozen[hit])
-            _deny(reason, reason)
+            _guards_deny(cfg, reason, reason)
         else:
-            _allow()
+            _guards_allow(cfg)
     elif mode == "after_edit":
         fp = evt.get("file_path")
         c = canon(fp) if fp else None
@@ -327,11 +335,11 @@ def _cursor_decide(mode: str, evt: dict, home=None) -> None:
                     note = (_reason(fp, frozen[c])
                             + " (Hercules could NOT auto-restore it — not a git repo, or the test is "
                               "untracked. Revert it manually before continuing.)")
-                print(json.dumps({"userMessage": note, "agentMessage": note}))
+                _guards_notify(cfg, note)
             else:
                 # Interactive IDE — never mutate the user's tree; advise loudly and let them decide.
                 note = _ide_advisory(fp)
-                print(json.dumps({"userMessage": note, "agentMessage": note}))
+                _guards_notify(cfg, note)
 
 
 # ── entry point ─────────────────────────────────────────────────────────────────────────────────
@@ -348,14 +356,14 @@ def main(argv=None, stdin_text=None, home=None, config=None) -> int:
         evt = json.loads(raw) if raw and raw.strip() else {}
         if protocol == "pre_tool":
             _emit_pre_tool(cfg, _pre_tool_reason(cfg, evt, home=home))
-        elif protocol == "cursor_events":
-            _cursor_decide(mode, evt if isinstance(evt, dict) else {}, home=home)
+        elif protocol == "event_guards":
+            _event_guards_decide(cfg, mode, evt if isinstance(evt, dict) else {}, home=home)
     except Exception:
         # Fail OPEN per protocol: hosts that expect an explicit allow get one; silent hosts get silence.
         if protocol == "pre_tool":
             _emit_pre_tool(cfg, None)
-        elif protocol == "cursor_events" and mode in ("shell", "mcp"):
-            _allow()
+        elif protocol == "event_guards" and mode in ("shell", "mcp"):
+            _guards_allow(cfg)
     return 0
 
 

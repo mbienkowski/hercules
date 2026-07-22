@@ -165,6 +165,14 @@
     "hercules_gate.py"
   ],
   "gate": {
-    "protocol": "cursor_events"
+    "protocol": "event_guards",
+    "allow": {
+      "permission": "allow"
+    },
+    "deny": {
+      "permission": "deny"
+    },
+    "user_key": "userMessage",
+    "agent_key": "agentMessage"
   }
 }

@@ -121,7 +121,7 @@ what differs per host is **descriptor data** (the `guard`/`gate` sections of
 - **Gemini CLI / Copilot CLI** — the generic adapter's `pre_tool` protocol: the host's `BeforeTool`/
   `preToolUse` event is mapped through the descriptor's tool map onto the canonical guard, a true
   pre-write veto; the host's decision shapes (deny/allow JSON) are descriptor data.
-- **Cursor** — the generic adapter's `cursor_events` protocol: `beforeShellExecution`/
+- **Cursor** — the generic adapter's `event_guards` protocol: `beforeShellExecution`/
   `beforeMCPExecution` **deny** a frozen write/commit (a coarse guardrail — reads are not blocked; the
   agent must read the test it makes pass). Since `afterFileEdit` is notification-only, the edit path is
   **runtime-aware**: **advisory** in the interactive IDE (a loud notice, **no** working-tree mutation —
