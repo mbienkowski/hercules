@@ -243,6 +243,16 @@ def cursor_dest(rel: str) -> str:
     return rel
 
 
+class GrokBuildSerializer(ClaudeCodeSerializer):
+    """Grok Build reads Claude-format plugins natively, so it reuses Claude-Code serialization
+    verbatim — with per-agent ``model:`` dropped. ``models.json[grok-build]`` is all-``null``, so
+    ``resolve_model`` returns ``None`` and no ``model`` key is emitted (Grok's model line-up does not
+    map onto Hercules' opus/sonnet/haiku tiers; every agent runs on the user's selected Grok model).
+    Body ``${target:…}`` switches take the ``grok-build`` → ``grok`` → ``default`` fallthrough."""
+
+    target = "grok-build"
+
+
 def serialize_file(target: str, text: str, tokens: dict[str, str], models: dict, rel: str | None = None) -> str:
     """Serialize *text* for *target* using its registered serializer."""
     return get(target).serialize_file(text, tokens, models, rel)
@@ -251,3 +261,4 @@ def serialize_file(target: str, text: str, tokens: dict[str, str], models: dict,
 register(ClaudeCodeSerializer())
 register(OpenCodeSerializer())
 register(CursorSerializer())
+register(GrokBuildSerializer())

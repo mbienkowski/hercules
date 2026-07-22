@@ -1,0 +1,12 @@
+{
+  "vars": {
+    "product": "Grok Build",
+    "host": "Grok",
+    "ns": "/hercules:",
+    "instructions_file": "CLAUDE.md",
+    "agent_ns": "hercules:",
+    "plugin_root": "${GROK_PLUGIN_ROOT}/",
+    "plan_enter": "plan mode",
+    "plan_exit": "approval"
+  }
+}

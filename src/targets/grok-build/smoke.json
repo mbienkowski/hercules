@@ -1,0 +1,6 @@
+{
+  "npm_package": "@xai-official/grok",
+  "npm_version": "0.2.106",
+  "cli": "grok",
+  "test": "tests/build/test_grok_build_smoke.py"
+}

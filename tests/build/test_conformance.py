@@ -47,7 +47,7 @@ def test_every_target_ships_all_operational_guidance_in_its_reference_skill(tmp_
     covering things like artifact root resolution, agent scaling, and the debate protocol -- must
     appear in the auto-loaded reference skill. A section left out of this file never reaches the
     running agent, since nothing else loads it automatically."""
-    for tgt in ("claude-code", "opencode", "cursor"):
+    for tgt in ("claude-code", "opencode", "cursor", "grok-build"):
         out = tmp_path / tgt
         build_target(tgt, out)
         skill = out / "skills" / "hercules-reference" / "SKILL.md"

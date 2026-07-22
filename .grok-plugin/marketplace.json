@@ -1,0 +1,14 @@
+{
+  "name": "mbienkowski",
+  "owner": {
+    "name": "Michal Bienkowski",
+    "url": "https://github.com/mbienkowski"
+  },
+  "plugins": [
+    {
+      "name": "hercules",
+      "source": "./dist/grok-build",
+      "description": "Methodology & workflow system for software delivery with AI"
+    }
+  ]
+}

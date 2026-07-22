@@ -24,7 +24,7 @@ test-mutation:
 # Claude Code + OpenCode with `npm install -g @anthropic-ai/claude-code opencode-ai`, and Cursor
 # with `curl https://cursor.com/install -fsSL | bash`, to run the whole set.
 test-smoke: build-check
-	python -m pytest tests/build/test_claude_code_smoke.py tests/build/test_opencode_smoke.py tests/build/test_cursor_smoke.py -v
+	python -m pytest tests/build/test_claude_code_smoke.py tests/build/test_opencode_smoke.py tests/build/test_cursor_smoke.py tests/build/test_grok_build_smoke.py -v
 
 # ── CI entry points ──────────────────────────────────────────────────────────
 # The GitHub Actions workflows call ONLY `make <target>` — every step's logic lives here and under

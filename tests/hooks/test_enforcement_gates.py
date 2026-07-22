@@ -60,6 +60,17 @@ GATE_EXPECTATIONS: dict[str, dict] = {
             "guard": "hercules_gate.py",
         },
     },
+    # Grok Build: reads Claude-format hooks, so it reuses the PreToolUse wiring (rooted at
+    # ${GROK_PLUGIN_ROOT}) and the byte-identical canonical guard to deny a frozen write before it lands.
+    "grok-build": {
+        "files": ["hooks/hooks.json", "hooks/frozen_tests.py", _STATE],
+        "hooks_json": {
+            "path": "hooks/hooks.json",
+            "event": "PreToolUse",
+            "matcher_tokens": ["Edit", "Write", "MultiEdit"],
+            "guard": "frozen_tests.py",
+        },
+    },
 }
 
 
