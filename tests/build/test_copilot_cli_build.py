@@ -101,7 +101,9 @@ def test_plugin_manifest_is_valid_and_version_injected_from_canonical(tmp_path):
     out = _build(tmp_path)
     manifest = json.loads((out / "plugin.json").read_text(encoding="utf-8"))
     assert re.fullmatch(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?", manifest["name"]), "name must be kebab-case"
-    source_text = (REPO_ROOT / "src" / "targets" / "copilot-cli" / "plugin.json").read_text(encoding="utf-8")
+    from scripts.build.descriptor import discover
+    art = next(a for a in discover()["copilot-cli"].artifacts if a.dest == "plugin.json")
+    source_text = json.dumps(art.content, indent=2, ensure_ascii=False) + "\n"
     assert '"version": "${version}"' in source_text, "source manifest must carry the token, not a literal"
     canonical = read_canonical_version(REPO_ROOT)
     assert manifest["version"] == canonical, "dist version must be the injected canonical version"

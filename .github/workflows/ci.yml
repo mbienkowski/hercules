@@ -43,7 +43,7 @@ jobs:
   # Runs FIRST: a src/ edit pushed without a rebuild fails here (drift), before any
   # test burns minutes. Also proves the build is deterministic (two runs byte-equal)
   # and that dist/ is tracked, not silently git-ignored. Emits the smoke matrix (one leg per
-  # registered ecosystem, from src/targets/<eco>/smoke.json) so `smoke` needs no discovery job.
+  # registered ecosystem, from its src/ecosystems/<eco>.json smoke config) so `smoke` needs no discovery job.
   build:
     name: Build
     runs-on: ubuntu-latest

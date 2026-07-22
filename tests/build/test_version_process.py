@@ -117,12 +117,15 @@ def test_build_injects_the_canonical_version_into_the_consumed_manifest(tmp_path
     assert not any(rel.startswith("dist/") for rel in version_paths), (
         "a build OUTPUT must never be a version target — it is regenerated from src on every build"
     )
-    # The build-consumed source manifests hold the token, never a literal (nothing to hand-bump).
-    for eco in ("claude-code", "cursor"):
-        src_manifest = (REPO_ROOT / "src" / "targets" / eco / "plugin.json").read_text(encoding="utf-8")
-        assert '"version": "${version}"' in src_manifest, (
-            f"src/targets/{eco}/plugin.json must carry the ${{version}} token, not a literal"
-        )
+    # The build-consumed source manifests (inline descriptor artifacts) hold the token, never a
+    # literal (nothing to hand-bump).
+    from scripts.build.descriptor import discover
+    for eco, desc in discover().items():
+        for art in desc.artifacts:
+            if art.versioned:
+                assert art.content.get("version") == "${version}", (
+                    f"{eco}: versioned artifact {art.dest} must carry the ${{version}} token, not a literal"
+                )
     # Behavioural: a fresh build injects the canonical (pyproject) version into the consumed manifest.
     canonical = read_canonical_version(REPO_ROOT)
     out = tmp_path / "claude-code"

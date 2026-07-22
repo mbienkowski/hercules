@@ -39,7 +39,7 @@ capability gaps disclosed here (the "disclose gaps, never hide" principle).
     the edit-tool veto.)
 
 - **No per-agent model tier.** Every Hercules subagent **inherits the model you select in Gemini CLI** —
-  the build omits a per-agent `model:` on purpose (`models.json[gemini-cli]` is all-`null`), as OpenCode
+  the build omits a per-agent `model:` on purpose (the gemini-cli descriptor's `models` are all-`null`), as OpenCode
   and Cursor do. Claude Code assigns a heavier model to the orchestrator and lighter models to routine
   advisors; on Gemini that tiering is intentionally not applied — your one selected model drives everything.
 

@@ -9,12 +9,11 @@ from __future__ import annotations
 
 import argparse
 import filecmp
-import json
 import sys
 import tempfile
 from pathlib import Path
 
-from scripts.build import emit, targets
+from scripts.build import descriptor, emit, targets
 from scripts.build.layout import discover_sources
 from scripts.build.serialize import serialize_file
 from scripts.build.targets.base import ExtrasContext
@@ -36,15 +35,14 @@ def _targets_for(name: str) -> list[str]:
 
 
 def _load_models() -> dict:
-    path = SRC / "models.json"
-    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    """Every ecosystem's model-tier row, from the descriptors (the one per-ecosystem source)."""
+    return {name: dict(d.models) for name, d in descriptor.discover().items()}
 
 
 def _load_tokens(target: str) -> dict[str, str]:
-    path = SRC / "targets" / target / "config.json"
-    if not path.exists():
-        return {}
-    return json.loads(path.read_text(encoding="utf-8")).get("vars", {})
+    """The target's token ``vars`` from its descriptor; ``{}`` for an unknown target (test stubs)."""
+    found = descriptor.discover().get(target)
+    return dict(found.vars) if found else {}
 
 
 def build_target(target: str, out_root: Path) -> list[str]:
@@ -64,7 +62,7 @@ def build_target(target: str, out_root: Path) -> list[str]:
         written.append(spec.dest(rel))
     ctx = ExtrasContext(
         out_root=out_root,
-        src_target_dir=SRC / "targets" / target,
+        src_target_dir=SRC / "ecosystems",
         shared_hooks_src=_SHARED_HOOKS_SRC,
         src_content=SRC_CONTENT,
         tokens=tokens,

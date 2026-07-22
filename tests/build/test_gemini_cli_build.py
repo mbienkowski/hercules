@@ -124,7 +124,9 @@ def test_extension_manifest_is_valid_and_version_injected_from_canonical(tmp_pat
     manifest = json.loads((out / "gemini-extension.json").read_text(encoding="utf-8"))
     assert re.fullmatch(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?", manifest["name"]), "name must be kebab-case"
     assert manifest.get("contextFileName") == "GEMINI.md"
-    source_text = (REPO_ROOT / "src" / "targets" / "gemini-cli" / "gemini-extension.json").read_text(encoding="utf-8")
+    from scripts.build.descriptor import discover
+    art = next(a for a in discover()["gemini-cli"].artifacts if a.dest == "gemini-extension.json")
+    source_text = json.dumps(art.content, indent=2, ensure_ascii=False) + "\n"
     assert '"version": "${version}"' in source_text, "source manifest must carry the token, not a literal"
     canonical = read_canonical_version(REPO_ROOT)
     assert manifest["version"] == canonical

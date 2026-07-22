@@ -43,7 +43,7 @@ capability gaps disclosed here (the "disclose gaps, never hide" principle):
       install rather than trusting CI alone. `preToolUse` command-hook **timeouts** are always fail-open
       by Copilot's design, so a slow guard never blocks work.
 - **No per-agent model tier.** Every Hercules agent **inherits the model you select in Copilot** — the
-  build omits a per-agent `model:` on purpose (`models.json[copilot-cli]` is all-`null`), matching
+  build omits a per-agent `model:` on purpose (the copilot-cli descriptor's `models` are all-`null`), matching
   OpenCode and Cursor. Claude Code assigns a heavier model to the orchestrator and lighter models to
   routine advisors; on Copilot that tiering is intentionally not applied — your one selected model drives
   everything.

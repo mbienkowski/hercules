@@ -4,15 +4,15 @@ Frozen for spec-02-claude-code-target.
 """
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 
 from scripts.build.cli import build_target
+from scripts.build.descriptor import discover
 from scripts.build.serialize import serialize_file
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MODELS = json.loads((REPO_ROOT / "src" / "models.json").read_text(encoding="utf-8"))
+MODELS = {name: dict(d.models) for name, d in discover().items()}
 AGENT = "---\nname: x\ndescription: d\nmodel_tier: {tier}\ntools: Read\n---\n\n# X\n"
 
 

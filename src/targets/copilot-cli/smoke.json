@@ -1,6 +1,0 @@
-{
-  "npm_package": "@github/copilot",
-  "npm_version": "1.0.73",
-  "cli": "copilot",
-  "test": "tests/build/test_copilot_cli_smoke.py"
-}
