@@ -371,38 +371,103 @@ Hercules makes it easier to do that well.
 
 ## Updating
 
-Update Hercules with the `claude` **CLI** — this is a terminal command, **not** a Claude Code slash
-command (there is no in-session update command). Run it in your shell, or via the Bash tool in a
-session:
+<details>
+<summary><b>Claude Code</b></summary>
 
-```bash
-claude plugin update hercules@mbienkowski
-```
+- **Update** — `claude plugin update hercules@mbienkowski` (a terminal **CLI** command, **not** a slash command), then `/reload-plugins` to apply mid-session (a restart also picks it up). It compares the released version and skips if you're already current.
+- **Hands-off** — auto-update is **opt-in**, marketplace-level only (no per-plugin toggle): enable it under `/plugin` → **Marketplaces**; plugins from that source then refresh at startup and prompt `/reload-plugins`. See, pin, or roll back the version under `/plugin` → **Installed**.
 
-That updates this one plugin. Then run the `/reload-plugins` slash command to apply it mid-session (a
-restart also picks it up). `claude plugin update` compares the released version and skips if you're
-already current.
+</details>
 
-Prefer it hands-off? Claude Code's auto-update is **opt-in** and only at the marketplace level — there
-is no per-plugin toggle. If you want it, enable auto-update for the marketplace under `/plugin` →
-**Marketplaces**; every plugin from that source then refreshes at startup and prompts `/reload-plugins`
-when something changed. To see the installed version, open `/plugin` → **Installed** and select
-Hercules. You can pin or roll back through Claude Code's plugin manager.
+<details>
+<summary><b>OpenCode</b></summary>
+
+- Restart OpenCode to re-resolve the GitHub plugin and pull the latest; pin a `ref` (or the npm version) in `opencode.json` for reproducible installs.
+
+</details>
+
+<details>
+<summary><b>Cursor</b></summary>
+
+- Re-copy the freshly built `dist/cursor/` over `~/.cursor/plugins/local/hercules/`, then restart Cursor.
+
+</details>
+
+<details>
+<summary><b>Grok Build</b></summary>
+
+- `grok plugin update hercules` — or reinstall from `/marketplace` (each catalog plugin is SHA-pinned).
+
+</details>
+
+<details>
+<summary><b>Gemini CLI</b></summary>
+
+- `gemini extensions update hercules` (pulls the latest from the source).
+
+</details>
+
+<details>
+<summary><b>GitHub Copilot CLI</b></summary>
+
+- `copilot plugin update hercules`.
+
+</details>
 
 ---
 
 ## Uninstalling
 
-To remove the plugin and its marketplace entry (your delivery state survives in `~/.hercules/` —
-delete that folder too for a full removal). In repos where you ran the onboarding, two files are
-yours to keep or remove: `code-of-conduct.md` and the `@./code-of-conduct.md` line it added to your
-`CLAUDE.md` — both keep steering plain Claude sessions until removed. Everything under `docs/`
-(requirements, INDEX, learnings) is your content and stays.
+<details>
+<summary><b>Claude Code</b></summary>
 
 ```
 /plugin uninstall hercules@mbienkowski
 /plugin marketplace remove mbienkowski
 ```
+
+</details>
+
+<details>
+<summary><b>OpenCode</b></summary>
+
+- Remove the `"plugin": ["github:mbienkowski/hercules"]` entry from your `opencode.json`, then restart OpenCode.
+
+</details>
+
+<details>
+<summary><b>Cursor</b></summary>
+
+- Delete `~/.cursor/plugins/local/hercules/`, then restart Cursor.
+
+</details>
+
+<details>
+<summary><b>Grok Build</b></summary>
+
+- `grok plugin uninstall hercules` (or remove it from `/marketplace`); drop the source from `~/.grok/config.toml` if you added one.
+
+</details>
+
+<details>
+<summary><b>Gemini CLI</b></summary>
+
+- `gemini extensions uninstall hercules`.
+
+</details>
+
+<details>
+<summary><b>GitHub Copilot CLI</b></summary>
+
+- `copilot plugin uninstall hercules`, then `copilot plugin marketplace remove hercules` (add `--force` to also remove every plugin from that marketplace).
+
+</details>
+
+**Common cleanup (any ecosystem).** Your delivery state survives in `~/.hercules/` — delete that folder
+for a full removal. In repos where you ran onboarding, two files are yours to keep or remove:
+`code-of-conduct.md` and the `@./code-of-conduct.md` line it added to your instructions file (`CLAUDE.md`
+on Claude Code, `AGENTS.md`/`GEMINI.md` elsewhere) — both keep steering plain sessions until removed.
+Everything under `docs/` (requirements, INDEX, learnings) is your content and stays.
 
 ---
 
