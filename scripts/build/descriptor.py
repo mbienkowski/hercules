@@ -2,9 +2,9 @@
 
 An ecosystem is described entirely by ``src/ecosystems/<name>.json``: token ``vars``, ``models``
 tiers, the ``smoke`` install matrix entry, per-role output shapes (``roles``), destination
-``routes``, inline JSON ``artifacts``, shared-``guard`` modules, write-``gate`` params, and named
-``generate`` steps. The filename is the registry key; discovery is a glob — a new ecosystem is one
-new JSON file, never new Python.
+``routes``, inline JSON ``artifacts``, shared-``guard`` modules, write-``gate`` params, and rendered
+``templates``. The filename is the registry key; discovery is a glob — a new ecosystem is one new
+JSON file, never new Python.
 
 The DIRECTORY itself has a definitive schema, validated on discovery: every file is either a
 ``<name>.json`` descriptor or a ``<name>.dist.<dest>`` shipped file — the filename IS the contract
@@ -59,7 +59,7 @@ _FIELD_FROMS = {"frontmatter", "stem", "literal", "primary_mode", "flag_if_name_
 _ROUTE_KINDS = {"exact", "suffix_swap", "omit"}
 _DISPATCHES = {"path", "frontmatter"}
 _MODEL_TIERS = {"high", "medium", "low"}
-_SMOKE_KEYS = {"cli", "test", "npm_package", "npm_version", "install"}
+_SMOKE_KEYS = {"cli", "test", "npm_package", "npm_version", "install", "expect"}
 # Per-mode allowed role-spec keys — the schema's shape lives here, not in prose.
 _ROLE_KEYS = {
     "preserve": {"mode", "resolve_model_tier", "required"},
@@ -393,6 +393,16 @@ def parse_descriptor(name: str, raw: object) -> EcosystemDescriptor:
     _check_keys(name, "'smoke'", smoke, _SMOKE_KEYS)
     for key in ("cli", "test"):
         _check_str(name, f"smoke[{key!r}]", smoke.get(key))
+    if "expect" in smoke:
+        expect = smoke["expect"]
+        if not isinstance(expect, dict):
+            _fail(name, "smoke 'expect' must be an object")
+        _check_keys(name, "smoke 'expect'", expect, {"version_cmd"})
+        cmd = expect.get("version_cmd")
+        if not isinstance(cmd, list) or not cmd:
+            _fail(name, "smoke expect 'version_cmd' must be a non-empty command list")
+        for part in cmd:
+            _check_str(name, "'version_cmd' entry", part)
     if raw["dispatch"] not in _DISPATCHES:
         _fail(name, f"'dispatch' must be one of {sorted(_DISPATCHES)}, got {raw['dispatch']!r}")
     roles_raw = raw["roles"]

@@ -23,6 +23,12 @@
       "method": "script",
       "url": "https://cursor.com/install",
       "flags": "-fsSL"
+    },
+    "expect": {
+      "version_cmd": [
+        "cursor-agent",
+        "--version"
+      ]
     }
   },
   "dispatch": "path",

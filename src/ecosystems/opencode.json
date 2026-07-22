@@ -20,7 +20,13 @@
     "npm_package": "opencode-ai",
     "npm_version": "1.18.3",
     "cli": "opencode",
-    "test": "tests/build/test_opencode_smoke.py"
+    "test": "tests/build/test_opencode_smoke.py",
+    "expect": {
+      "version_cmd": [
+        "opencode",
+        "--version"
+      ]
+    }
   },
   "dispatch": "frontmatter",
   "roles": {
@@ -108,8 +114,14 @@
       "src": "opencode.template.plugin.js",
       "dest": "plugin.js",
       "values": {
-        "__DEFAULT_AGENT__": {"from": "js_string", "value": "hercules"},
-        "__SKILLS_PATH__": {"from": "js_string", "value": "skills"},
+        "__DEFAULT_AGENT__": {
+          "from": "js_string",
+          "value": "hercules"
+        },
+        "__SKILLS_PATH__": {
+          "from": "js_string",
+          "value": "skills"
+        },
         "__ASSET_LIST__": {
           "from": "js_string_list",
           "values": [

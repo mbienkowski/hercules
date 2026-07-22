@@ -1,27 +1,32 @@
-"""Spec 02 — the byte-identity gate: generated dist/claude-code == today's plugin/.
+"""Spec 02 (generalized) — the byte-identity gate: every generated dist/<eco> == the committed tree.
 
-Frozen for spec-02-claude-code-target.
+Frozen for spec-02-claude-code-target; parametrized over every registered target so ALL committed
+trees are byte-pinned INSIDE the pytest run (the mutation gate's highest-kill test — an
+output-affecting engine mutant for any ecosystem fails here).
 """
 import os
 from pathlib import Path
 
 import pytest
 
-from scripts.build.cli import _dir_diff, build_target
+from scripts.build.cli import TARGETS, _dir_diff, build_target
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PLUGIN = REPO_ROOT / "dist" / "claude-code"
 
 
-@pytest.mark.skipif(not PLUGIN.exists(), reason="dist/claude-code/ retired (post-cutover)")
-def test_building_claude_code_reproduces_the_published_plugin_exactly(tmp_path):
-    """Rebuilding the claude-code target from source must produce output that is byte-for-byte
-    identical to the plugin already checked into the repo. If it ever drifts, the published
-    plugin a user installs would no longer match what the build actually produces."""
-    out = tmp_path / "claude-code"
-    build_target("claude-code", out)
-    diffs = _dir_diff(PLUGIN, out)
-    assert diffs == [], f"dist/claude-code drifts from plugin/: {diffs}"
+@pytest.mark.parametrize("target", TARGETS)
+def test_building_each_target_reproduces_the_committed_dist_exactly(target, tmp_path):
+    """Rebuilding any target from source must produce output byte-for-byte identical to the tree
+    already checked into the repo. If it ever drifts, the published plugin a user installs would
+    no longer match what the build actually produces."""
+    committed = REPO_ROOT / "dist" / target
+    if not committed.exists():
+        pytest.skip(f"dist/{target}/ not committed")
+    out = tmp_path / target
+    build_target(target, out)
+    diffs = _dir_diff(committed, out)
+    assert diffs == [], f"dist/{target} drifts from a fresh build: {diffs}"
 
 
 def test_a_content_edit_is_detected_even_when_file_size_and_timestamp_match(tmp_path):

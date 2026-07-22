@@ -20,7 +20,13 @@
     "npm_package": "@google/gemini-cli",
     "npm_version": "0.51.0",
     "cli": "gemini",
-    "test": "tests/build/test_gemini_cli_smoke.py"
+    "test": "tests/build/test_gemini_cli_smoke.py",
+    "expect": {
+      "version_cmd": [
+        "gemini",
+        "--version"
+      ]
+    }
   },
   "dispatch": "path",
   "roles": {
