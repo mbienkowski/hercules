@@ -473,7 +473,7 @@ Everything under `docs/` (requirements, INDEX, learnings) is your content and st
 
 ## Requirements
 
-- **Claude Code** — the plugin runs entirely inside it.
+- **One of many supported ecosystems** — the plugin runs entirely inside your chosen host (see § Install).
 - **Python 3 (≥ 3.9) on your PATH as `python3`** — the enforcement hooks run through it (no packages
   needed). Without it the hooks fail open: everything works, but the frozen-test guard becomes
   prompt-only. Note for Windows: python.org installs ship `python`/`py`, not `python3`, so the guard
