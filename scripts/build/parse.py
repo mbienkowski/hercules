@@ -19,18 +19,20 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
     text = text.strip()
     if not text.startswith(_FENCE):
         return {}, text
-    parts = text.split(_FENCE, 2)
-    if len(parts) < 3:
+    # Split on FENCE *lines*, not the bare substring: a frontmatter VALUE containing "---" (e.g.
+    # ``description: pros --- cons``) must not be mistaken for the closing fence, which would
+    # truncate the value and silently drop every key after it.
+    lines = text.splitlines()
+    close = next((i for i in range(1, len(lines)) if lines[i].strip() == _FENCE), None)
+    if close is None:
         return {}, text
-    front_text = parts[1].strip()
-    body = parts[2].strip()
     metadata: dict[str, str] = {}
-    for line in front_text.splitlines():
+    for line in lines[1:close]:
         if ":" not in line:
             continue
         key, value = line.split(":", 1)
         metadata[key.strip()] = value.strip()
-    return metadata, body
+    return metadata, "\n".join(lines[close + 1:]).strip()
 
 
 def render_frontmatter(metadata: dict[str, str]) -> str:

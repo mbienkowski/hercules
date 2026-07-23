@@ -1,18 +1,24 @@
 """Parity: the standalone ``dist/opencode/{agents,commands}/*.md`` files mirror the plugin.js entries.
 
 OpenCode loads agents/commands at runtime from the inlined ``cfg.agent`` / ``cfg.command`` maps in
-``plugin.js`` (built by ``targets.opencode._agents_and_commands``) — NOT from these standalone ``.md``
-files, which are emitted as a human-readable, diff-friendly mirror. Two independent code paths render
-the same source (``targets.opencode._agents_and_commands`` vs ``OpenCodeSerializer``), so this guards
-them against silently diverging (the class of bug N5 fixed: one path rendered the description, the
-other didn't).
+``plugin.js`` (built by ``genextras.role_entries`` through the generic template) — NOT from these standalone ``.md`` files,
+which are emitted as a human-readable, diff-friendly mirror. Both paths are now driven by the SAME
+descriptor role fields, so this is the wiring guard that the shared source stays actually shared
+(the class of bug N5 fixed: one path rendered the description, the other didn't).
 """
 from __future__ import annotations
 
 from scripts.build import cli
+from scripts.build.descriptor import discover
+from scripts.build.genextras import role_entries
 from scripts.build.parse import parse_frontmatter, split_document
 from scripts.build.serialize import serialize_file
-from scripts.build.targets.opencode import _agents_and_commands
+
+def _agents_and_commands(src_content, tokens):
+    """Thin adapter over the descriptor API so the call sites below read unchanged."""
+    d = discover()["opencode"]
+    return (role_entries(d, src_content, tokens, "agent"),
+            role_entries(d, src_content, tokens, "command"))
 
 
 def _standalone_fields(kind: str, name: str, tokens: dict, models: dict) -> tuple[dict, str]:

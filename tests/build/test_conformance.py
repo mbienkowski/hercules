@@ -6,7 +6,7 @@ runtime-misfiring content defects. These tests pin each fix so it can't regress.
 from pathlib import Path
 import re
 
-from scripts.build import targets as target_registry
+from scripts.build import descriptor
 from scripts.build.cli import build_target
 
 
@@ -157,7 +157,7 @@ def test_no_registered_target_renders_a_plan_gate_empty(tmp_path):
     plan-approval discipline. The assertion pins the *switched* sentence "Plan mode — required" (which
     lives ONLY inside the switch block, unlike the static "## Plan mode" heading a global search would
     mask), per command file, parametrized over the live registry so a new ecosystem is auto-covered."""
-    for tgt in target_registry.registered_target_names():
+    for tgt in descriptor.names():
         out = tmp_path / tgt
         build_target(tgt, out)
         cmd_files = list((out / "commands").glob("*"))

@@ -2,7 +2,7 @@
 
 Hercules ships the full Discover → Design → Build → Ship methodology on Gemini CLI as an extension
 (`gemini-extension.json` + `agents/`, `commands/`, `skills/`, `GEMINI.md`, `hooks/`), with the
-capability gaps disclosed here (the "disclose gaps, never hide" principle).
+capability gaps disclosed here (the "disclose gaps, never hide" principle):
 
 - **Install.** `gemini extensions install <git-url-or-path>` pointing at the built `dist/gemini-cli/`
   directory (or a repo containing it) — the `gemini-extension.json` at that root **is** the install
@@ -24,7 +24,8 @@ capability gaps disclosed here (the "disclose gaps, never hide" principle).
     payload shape and the deny contract are confirmed against the Gemini CLI hooks docs, but that the
     event fires for *both* edit tools (and that a `deny` decision aborts the edit) is verified on a real
     `gemini` install before release, not by CI alone — the same posture as Cursor's `${CURSOR_PLUGIN_ROOT}`
-    firing check. If Gemini adds another file-mutating tool name, add it to `_MUTATING` in the adapter.
+    firing check. If Gemini adds another file-mutating tool name, add it to the gate's tool map in the
+    ecosystem descriptor.
   - **Fail-open.** The hook needs `python3` on PATH and fails **open** (prints nothing, exit 0) on any
     error, malformed input, or a missing `python3` — a gate bug never bricks an unrelated edit. Where the
     gate is inactive, the **acceptance backstop** (every frozen test re-hashed against a baseline before a
@@ -38,10 +39,11 @@ capability gaps disclosed here (the "disclose gaps, never hide" principle).
     resolves the path across the common key spellings, so a wire-format difference cannot silently no-op
     the edit-tool veto.)
 
-- **No per-agent model tier.** Every Hercules subagent **inherits the model you select in Gemini CLI** —
-  the build omits a per-agent `model:` on purpose (`models.json[gemini-cli]` is all-`null`), as OpenCode
-  and Cursor do. Claude Code assigns a heavier model to the orchestrator and lighter models to routine
-  advisors; on Gemini that tiering is intentionally not applied — your one selected model drives everything.
+- **No per-agent model tier.** Every Hercules agent **inherits the model you select in Gemini CLI** —
+  the build omits a per-agent `model:` on purpose (this ecosystem's descriptor `models` are
+  all-`null`). Claude Code assigns a heavier model to the orchestrator and lighter models to routine
+  advisors; on Gemini CLI that tiering is intentionally not applied — your one selected model drives
+  everything.
 
 - **Independent review relies on subagent delegation.** The Design coverage and Build traceability gates
   delegate to a fresh `cynical-reviewer` subagent (shipped under `agents/`). Gemini CLI supports subagents,

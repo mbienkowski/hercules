@@ -1,38 +1,31 @@
-"""Cursor write-gate adapter (G1) — reuses the CANONICAL frozen-guard policy, not a re-port.
+"""The ONE write-gate adapter (G1) — generic, parameterized by the ecosystem's ``hooks/gate.json``.
 
-Cursor's ``afterFileEdit`` is notification-only — it cannot veto an edit that has already landed. (Cursor
-also exposes a generic ``preToolUse`` deny hook; whether it can block the in-editor Composer edit path is
-unverified, so it is not relied on here.) This adapter therefore enforces via the hooks that reliably CAN
-block, all keyed off the SAME frozen-test state and the SAME override policy Claude Code and OpenCode read
-(``hercules_state`` + ``frozen_tests._override_allows``, both shipped alongside):
+Every ecosystem's gate is this same file; what differs per host is DATA, emitted at build time from
+the ecosystem descriptor (``src/ecosystems/<name>.json`` → ``gate``) into a ``gate.json`` beside it.
+The verdict logic is never re-implemented per host: everything delegates to the CANONICAL guard
+shipped alongside (``frozen_tests`` + ``hercules_state``, byte-identical on every ecosystem), so the
+frozen set, the block message, and the user-granted ``frozen_override`` escape hatch are identical
+across Claude Code, OpenCode, Cursor, Gemini CLI, Copilot CLI, and Grok Build.
 
-- ``shell`` (``beforeShellExecution``): DENY a shell command that writes to / commits a frozen test
-  path during an active build — a real hard block on the shell write-path. Coarse *guardrail*, not a
-  sound sandbox (``python -c``/heredocs/cross-pipe evade it — disclosed in CAPABILITIES.md).
-- ``mcp`` (``beforeMCPExecution``): DENY a *write-ish* MCP tool call whose arguments name a frozen test
-  during a build — closes the "an MCP git/filesystem server commits around the shell gate" hole. Also a
-  coarse guardrail: it can only see the serialized arguments the MCP server exposes.
-- ``after_edit`` (``afterFileEdit``): notification-only — Cursor has already applied the edit. Behaviour
-  is **runtime-aware** (``HERCULES_RUNTIME_MODE``):
-    * **interactive IDE (default)** — Hercules does **not** touch your working tree; it surfaces a loud,
-      plain-language ``userMessage`` and lets you decide (undo it, or grant a ``frozen_override``). The
-      human owns their tree; a silent revert would fight Cursor's model (least-astonishment).
-    * **headless** (``HERCULES_RUNTIME_MODE=headless``, set by Hercules when it drives ``cursor-agent -p``
-      — no human present) — restore the frozen path via ``git checkout`` and say so **only if it actually
-      succeeded** (never a false "reverted" claim on an untracked file / non-git tree).
+Two named protocols (a closed set — a new host behavior is a new named protocol in THIS file, with
+tests, never logic in the JSON):
 
-Shell/MCP block messages reuse the CANONICAL ``frozen_tests._reason`` — the exact wording Claude Code and
-OpenCode emit. The IDE after-edit advisory is Cursor-specific plain-language copy (there is no Claude/
-OpenCode equivalent surface), but it carries the SAME ``frozen_override`` escape hatch.
+- ``pre_tool`` — a real pre-write veto (Gemini's ``BeforeTool``, Copilot's ``preToolUse``). The
+  config maps host tool names to the canonical guard's vocabulary, lists the argument keys a target
+  path may arrive under (JS hosts vary casing/shape; a JSON-string payload and nested edit lists are
+  handled), and gives the host's decision shapes: an optional ``allow`` object (Copilot always emits
+  a decision; Gemini stays silent to allow) and a ``deny`` object + ``reason_key`` carrying the
+  canonical block message.
+- ``event_guards`` — the guard set for IDE-class hosts with shell/MCP/after-edit hook surfaces
+  (``shell`` / ``mcp`` / ``after_edit`` selected via argv), including the runtime-aware after-edit
+  path: advisory in the interactive IDE (no working-tree mutation), an honest ``git checkout``
+  restore only in headless runs (``HERCULES_RUNTIME_MODE=headless``). The host's decision shapes
+  (allow/deny objects, user/agent message keys) are config data; the guard algorithms are shared.
 
-Reads are NOT blocked: the doctrine locks frozen tests against *edits*, not reads (the implementing
-agent must read the very test it makes pass), matching Claude Code and OpenCode. A user-sanctioned
-``frozen_override`` lifts the gate for its files this round — identical to the other ecosystems,
-because the override check is the canonical one, not a second implementation.
-
-Invoked as ``python3 hercules_gate.py <mode>`` with the Cursor event JSON on stdin; prints the Cursor
-decision JSON on stdout. Fails OPEN (allow / no-op) on any error or missing ``python3`` — matching the
-Claude frozen hook's policy, so a gate bug never bricks an unrelated command (disclosed in CAPABILITIES).
+Invoked as ``python3 hercules_gate.py [<mode>]`` with the host event JSON on stdin. Fails OPEN on
+any error, malformed input, or missing/unreadable config — matching the canonical frozen hook's
+policy, so a gate bug never bricks an unrelated edit (disclosed per ecosystem in CAPABILITIES.md).
+Reads are never blocked: the doctrine locks frozen tests against edits, not reads.
 """
 from __future__ import annotations
 
@@ -43,8 +36,85 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from frozen_tests import _override_allows, _reason  # noqa: E402  (canonical override policy + block message)
+from frozen_tests import _override_allows, _reason, decide  # noqa: E402  (canonical policy — one source of truth)
 from hercules_state import canon, frozen_candidates, resolve_build_contexts  # noqa: E402
+
+
+def _read_config():
+    """Load ``gate.json`` from this script's own directory (how the shipped copy finds its host
+    parameters). Returns None — fail OPEN — when absent or unreadable."""
+    try:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gate.json")
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:
+        return None
+
+
+# ── protocol: pre_tool (Gemini BeforeTool / Copilot preToolUse — a true pre-write veto) ─────────
+
+def _extract_paths(args, path_keys, nested_keys):
+    """Return EVERY target file path a host tool's arguments name, in order (deduped). Accepts a
+    dict or an unparsed JSON string, and recurses into nested edit lists (``nested_keys``) so a
+    batched multi-edit is seen in FULL — a frozen file in any later hunk must still block, so this
+    can never stop at the first path. Never raises."""
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except Exception:
+            return []
+    found: list = []
+    if isinstance(args, dict):
+        for key in path_keys:
+            value = args.get(key)
+            if isinstance(value, str) and value:
+                found.append(value)
+        for key in nested_keys:
+            seq = args.get(key)
+            if isinstance(seq, list):
+                for item in seq:
+                    found.extend(_extract_paths(item, path_keys, nested_keys))
+    seen: set = set()
+    return [p for p in found if not (p in seen or seen.add(p))]
+
+
+def _emit_pre_tool(cfg, reason) -> None:
+    """Print the host's decision: the ``deny`` shape with the canonical *reason* under
+    ``reason_key``, or the ``allow`` shape — omitted entirely for hosts (Gemini) whose silence
+    means allow."""
+    if reason is None:
+        allow = cfg.get("allow")
+        if allow is not None:
+            print(json.dumps(allow))
+        return
+    denial = dict(cfg["deny"])
+    denial[cfg["reason_key"]] = reason
+    print(json.dumps(denial))
+
+
+def _pre_tool_reason(cfg, evt, home=None):
+    """The canonical block reason for *evt*, or None to allow. Accepts both payload casings
+    (``tool_name``/``tool_input`` and ``toolName``/``toolArgs``) — a casing difference must never
+    silently no-op the veto."""
+    if not isinstance(evt, dict):
+        return None
+    mapped = cfg["tools"].get(evt.get("tool_name") or evt.get("toolName") or "")
+    if mapped is None:
+        return None
+    args = evt.get("tool_input") if evt.get("tool_input") is not None else evt.get("toolArgs")
+    paths = _extract_paths(args, cfg["path_keys"], cfg.get("nested_keys") or [])
+    cwd = evt.get("cwd") or os.getcwd()
+    # Check EVERY named path — a batched edit whose first target is innocuous but a later one is a
+    # frozen test must still be denied; stopping at the first path was a real bypass.
+    for path in paths:
+        payload = {"tool_name": mapped, "tool_input": {"file_path": path}, "cwd": cwd}
+        code, reason = decide(payload, home=home)
+        if code == 2:
+            return reason
+    return None
+
+
+# ── protocol: event_guards (shell / mcp write-guards + runtime-aware after-edit) ────────────────
 
 # Command wrappers that may precede the real verb — consumed so ``time git add …`` / ``xargs rm …`` /
 # ``env X=1 sed -i …`` are still caught. Covers known wrappers, their flags, env assignments, numbers.
@@ -60,9 +130,27 @@ _SEG_WRITE = re.compile(
 _FIND_DELETE = re.compile(r"\bfind\b.*\s-delete\b")  # `find … -delete` carries no `rm` token
 _SEGMENT = re.compile(r"[\n;|&()]")                  # shell separators between pipeline segments
 _REDIRECT = re.compile(r">>?[|&]?\s*(\S+)")           # output redirection (incl. >| clobber, >&) + target
-# Quoted spans are stripped before the frozen-path scan, so a commit message that merely NAMES a frozen
-# test (``git commit -m "fix test_login.py"``) is not mistaken for an operation on that file.
+# A quoted span in a shell command. Spans are UNWRAPPED to their inner text before the frozen-path
+# scan (so ``rm "tests/test_frozen.py"`` — quoting the path is normal — is still caught), EXCEPT a
+# span that is a ``-m``/``--message`` commit message, which is dropped (prose, not a file op) so
+# ``git commit -m "fix test_login.py"`` stays allowed.
 _QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
+_MSG_FLAG = re.compile(r"(?:^|\s)(?:-m|--message)=?\s*$")
+
+
+def _unquote(cmd: str) -> str:
+    """Replace each quoted span with its INNER text so a quoted frozen path is still scanned; drop a
+    span that directly follows ``-m``/``--message`` (a commit message, not a path). Closes the
+    'quote the path to evade the gate' bypass while keeping a message that merely names a test."""
+    out: list = []
+    last = 0
+    for m in _QUOTED.finditer(cmd):
+        preceding = cmd[last:m.start()]
+        out.append(preceding)
+        out.append(" " if _MSG_FLAG.search(preceding) else m.group(0)[1:-1])
+        last = m.end()
+    out.append(cmd[last:])
+    return "".join(out)
 # A *write-ish* MCP tool name (an MCP git/filesystem server) — used to avoid blocking pure reads of a
 # frozen test (the doctrine allows reads), while catching write/commit MCP ops on frozen paths.
 _MCP_WRITE_HINT = re.compile(
@@ -124,7 +212,7 @@ def _restore(cwd: str, fp: str) -> bool:
 
 
 def _ide_advisory(fp: str) -> str:
-    """Cursor-specific, plain-language advisory for the interactive IDE (no working-tree mutation)."""
+    """Plain-language advisory for the interactive IDE (no working-tree mutation)."""
     return (
         f"Hercules: {os.path.basename(fp)} is a locked acceptance test for this Build. "
         "The goal is to write code that makes it pass — not to change the test, which would let the "
@@ -144,8 +232,8 @@ def frozen_map(cwd: str, home=None) -> dict:
     no build is active), so a block can quote that session's spec/round via the canonical ``_reason``.
 
     A path covered by a live, user-granted ``frozen_override`` is omitted — the exact same policy
-    Claude/OpenCode apply, via the shared ``frozen_tests._override_allows``, so the documented
-    "change this test" escape hatch works identically on Cursor.
+    every ecosystem applies, via the shared ``frozen_tests._override_allows``, so the documented
+    "change this test" escape hatch works identically on every host.
     """
     frozen: dict = {}
     for session, roots, project in resolve_build_contexts(cwd, home=home):
@@ -160,21 +248,28 @@ def frozen_map(cwd: str, home=None) -> dict:
     return frozen
 
 
-def _allow() -> None:
-    print(json.dumps({"permission": "allow"}))
+def _guards_allow(cfg) -> None:
+    print(json.dumps(cfg["allow"]))
 
 
-def _deny(user: str, agent: str) -> None:
-    print(json.dumps({"permission": "deny", "userMessage": user, "agentMessage": agent}))
+def _guards_deny(cfg, user: str, agent: str) -> None:
+    decision = dict(cfg["deny"])
+    decision[cfg["user_key"]] = user
+    decision[cfg["agent_key"]] = agent
+    print(json.dumps(decision))
+
+
+def _guards_notify(cfg, note: str) -> None:
+    print(json.dumps({cfg["user_key"]: note, cfg["agent_key"]: note}))
 
 
 def _writes_frozen(cmd: str, frozen: dict):
     """Return the frozen canon-path *cmd* writes to / deletes, or None. Coarse and basename-level by
-    design: quoted spans (a commit message) are stripped first; an output redirection counts only when
-    its TARGET is the frozen file (so ``pytest test_x.py > log`` is allowed); and a write/delete verb
-    counts only when a frozen filename shares its pipeline segment (so ``pytest test_x.py | tee log`` —
-    read here, write there — is not a write)."""
-    unquoted = _QUOTED.sub(" ", cmd)
+    design: quoted spans are UNWRAPPED (a quoted path stays visible; only a ``-m`` message is dropped);
+    an output redirection counts only when its TARGET is the frozen file (so ``pytest test_x.py > log``
+    is allowed); and a write/delete verb counts only when a frozen filename shares its pipeline segment
+    (so ``pytest test_x.py | tee log`` — read here, write there — is not a write)."""
+    unquoted = _unquote(cmd)
     by_base = {}
     for p in frozen:
         by_base.setdefault(os.path.basename(p), p)
@@ -224,29 +319,29 @@ def _mcp_hits_frozen(evt: dict, frozen: dict):
     return None
 
 
-def decide(mode: str, evt: dict, home=None) -> None:
-    """Emit the Cursor decision for *mode* given event *evt*. Never raises for a resolvable state."""
+def _event_guards_decide(cfg, mode: str, evt: dict, home=None) -> None:
+    """Emit the host's decision for *mode* given event *evt*. Never raises for a resolvable state."""
     cwd = _cwd(evt)
     frozen = frozen_map(cwd, home=home)
     if not frozen:
         if mode in ("shell", "mcp"):
-            _allow()
+            _guards_allow(cfg)
         return
     if mode == "shell":
         cmd = evt.get("command", "")
         hit = _writes_frozen(cmd, frozen)
         if hit is not None:
-            reason = _reason(hit, frozen[hit])  # the canonical block message Claude/OpenCode also emit
-            _deny(reason, reason)
+            reason = _reason(hit, frozen[hit])  # the canonical block message every ecosystem emits
+            _guards_deny(cfg, reason, reason)
         else:
-            _allow()
+            _guards_allow(cfg)
     elif mode == "mcp":
         hit = _mcp_hits_frozen(evt, frozen)
         if hit is not None:
             reason = _reason(hit, frozen[hit])
-            _deny(reason, reason)
+            _guards_deny(cfg, reason, reason)
         else:
-            _allow()
+            _guards_allow(cfg)
     elif mode == "after_edit":
         fp = evt.get("file_path")
         c = canon(fp) if fp else None
@@ -261,26 +356,39 @@ def decide(mode: str, evt: dict, home=None) -> None:
                     note = (_reason(fp, frozen[c])
                             + " (Hercules could NOT auto-restore it — not a git repo, or the test is "
                               "untracked. Revert it manually before continuing.)")
-                print(json.dumps({"userMessage": note, "agentMessage": note}))
+                _guards_notify(cfg, note)
             else:
                 # Interactive IDE — never mutate the user's tree; advise loudly and let them decide.
                 note = _ide_advisory(fp)
-                print(json.dumps({"userMessage": note, "agentMessage": note}))
+                _guards_notify(cfg, note)
 
 
-def main(argv, stdin_text=None, home=None) -> int:
+# ── entry point ─────────────────────────────────────────────────────────────────────────────────
+
+def main(argv=None, stdin_text=None, home=None, config=None) -> int:
+    argv = argv if argv is not None else sys.argv
     mode = argv[1] if len(argv) > 1 else ""
+    cfg = config if config is not None else _read_config()
+    if not isinstance(cfg, dict):
+        return 0  # no readable host config → fail OPEN (never brick an edit)
+    protocol = cfg.get("protocol")
     try:
         raw = stdin_text if stdin_text is not None else sys.stdin.read()
         evt = json.loads(raw) if raw and raw.strip() else {}
-        decide(mode, evt, home=home)
+        if protocol == "pre_tool":
+            _emit_pre_tool(cfg, _pre_tool_reason(cfg, evt, home=home))
+        elif protocol == "event_guards":
+            _event_guards_decide(cfg, mode, evt if isinstance(evt, dict) else {}, home=home)
     except Exception:
-        if mode in ("shell", "mcp"):  # fail OPEN, like the Claude frozen hook (a gate bug never bricks
-            _allow()                    # an unrelated command); after_edit fails open by emitting nothing
+        # Fail OPEN per protocol: hosts that expect an explicit allow get one; silent hosts get silence.
+        if protocol == "pre_tool":
+            _emit_pre_tool(cfg, None)
+        elif protocol == "event_guards" and mode in ("shell", "mcp"):
+            _guards_allow(cfg)
     return 0
 
 
-# The __main__ guard is the one mutmut footgun with no behavioural mutant (a wrapped "__main__" never
-# equals the real dunder, so the branch is unreachable under test) — pragma'd like frozen_tests.py.
+# The __main__ guard carries no behavioural mutant under test (a wrapped "__main__" never equals the
+# real dunder), so it is pragma'd like frozen_tests.py.
 if __name__ == "__main__":  # pragma: no mutate
-    sys.exit(main(sys.argv))
+    sys.exit(main())

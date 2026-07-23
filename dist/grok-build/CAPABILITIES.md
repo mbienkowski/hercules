@@ -2,8 +2,8 @@
 
 Hercules ships the full Discover → Design → Build → Ship methodology on Grok Build as a native,
 installable plugin (`.grok-plugin/marketplace.json` → `dist/grok-build`). Grok Build's plugin format
-mirrors Claude Code's — the same `agents/`/`commands/`/`skills/`/`hooks/` layout, a `plugin.json`, and a
-`CLAUDE.md` instruction file — so the components load as a native Grok plugin, rooted at
+mirrors Claude Code's — the same `agents/`/`commands/`/`skills/`/`hooks/` layout, a `plugin.json`,
+and a `CLAUDE.md` instruction file — so the components load as a native Grok plugin, rooted at
 `${GROK_PLUGIN_ROOT}`. Gaps disclosed here (the "disclose gaps, never hide" principle):
 
 - **Frozen-test write-gate: enforced (needs `python3`).** The plugin's `PreToolUse` hook
@@ -17,6 +17,10 @@ mirrors Claude Code's — the same `agents/`/`commands/`/`skills/`/`hooks/` layo
   version that `PreToolUse` fires for the file-edit tool** (not only shell) — if it fires for shell
   only, the edit-path veto degrades to the best-effort shell/MCP-deny tier and the acceptance re-hash
   is the backstop.
-- **No per-agent model tier.** Every Hercules agent runs on the model you select in Grok Build (the
-  build omits per-agent `model:` on purpose). Claude Code assigns a heavier model to the orchestrator
-  and lighter models to routine advisors; on Grok Build that tiering is intentionally not applied.
+
+- **No per-agent model tier.** Every Hercules agent **inherits the model you select in Grok Build** —
+  the build omits a per-agent `model:` on purpose (this ecosystem's descriptor `models` are
+  all-`null`). Claude Code assigns a heavier model to the orchestrator and lighter models to routine
+  advisors; on Grok Build that tiering is intentionally not applied — your one selected model drives
+  everything.
+

@@ -8,7 +8,12 @@ from scripts.build import serialize
 from scripts.build.model_map import resolve
 from scripts.build.parse import parse_frontmatter, split_document
 from scripts.build.render import RenderError, render_body
-from scripts.build.serialize import ClaudeCodeSerializer
+from scripts.build.serialize import get
+
+
+def ClaudeCodeSerializer():
+    """The registered claude-code serializer (kept as a callable so the assertions read unchanged)."""
+    return get("claude-code")
 
 
 # --- parse ---------------------------------------------------------------

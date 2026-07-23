@@ -1,0 +1,40 @@
+{
+  "protocol": "pre_tool",
+  "tools": {
+    "create": "Edit",
+    "edit": "Edit",
+    "str_replace_editor": "Edit",
+    "apply_patch": "Edit",
+    "write": "Edit",
+    "Write": "Edit",
+    "Edit": "Edit",
+    "MultiEdit": "Edit",
+    "NotebookEdit": "Edit"
+  },
+  "path_keys": [
+    "path",
+    "file_path",
+    "filePath",
+    "filename",
+    "fileName",
+    "file",
+    "notebook_path",
+    "notebookPath",
+    "target_file",
+    "targetFile",
+    "absolute_path",
+    "absolutePath"
+  ],
+  "nested_keys": [
+    "edits",
+    "changes",
+    "operations"
+  ],
+  "allow": {
+    "permissionDecision": "allow"
+  },
+  "deny": {
+    "permissionDecision": "deny"
+  },
+  "reason_key": "permissionDecisionReason"
+}

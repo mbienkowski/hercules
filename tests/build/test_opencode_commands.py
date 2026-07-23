@@ -9,7 +9,14 @@ carry ``{description, agent, ...}`` and ``template`` is the prompt BODY only.
 from pathlib import Path
 
 from scripts.build.cli import SRC_CONTENT, _load_tokens, build_target
-from scripts.build.targets.opencode import _agents_and_commands
+from scripts.build.descriptor import discover
+from scripts.build.genextras import role_entries
+
+
+def _agents_and_commands(src_content, tokens):
+    d = discover()["opencode"]
+    return (role_entries(d, src_content, tokens, "agent"),
+            role_entries(d, src_content, tokens, "command"))
 
 
 def test_opencode_commands_have_real_descriptions_and_clean_prompt_text():

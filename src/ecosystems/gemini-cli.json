@@ -1,0 +1,143 @@
+{
+  "schema": 1,
+  "name": "gemini-cli",
+  "vars": {
+    "product": "Gemini CLI",
+    "host": "Gemini",
+    "ns": "/",
+    "instructions_file": "GEMINI.md",
+    "agent_ns": "",
+    "plugin_root": "${extensionPath}/",
+    "plan_enter": "plan mode",
+    "plan_exit": "approval"
+  },
+  "models": {
+    "high": null,
+    "medium": null,
+    "low": null
+  },
+  "smoke": {
+    "npm_package": "@google/gemini-cli",
+    "npm_version": "0.51.0",
+    "cli": "gemini",
+    "test": "tests/build/test_gemini_cli_smoke.py",
+    "expect": {
+      "version_cmd": [
+        "gemini",
+        "--version"
+      ]
+    }
+  },
+  "dispatch": "path",
+  "roles": {
+    "agent": {
+      "mode": "fields",
+      "body": "keep",
+      "fields": [
+        {
+          "key": "name",
+          "from": "frontmatter",
+          "field": "name"
+        },
+        {
+          "key": "description",
+          "from": "frontmatter",
+          "field": "description",
+          "render": true
+        }
+      ]
+    },
+    "command": {
+      "mode": "toml_command",
+      "body": "strip_newlines",
+      "fields": [
+        {
+          "key": "description",
+          "from": "frontmatter",
+          "field": "description",
+          "render": true
+        }
+      ]
+    },
+    "persona": {
+      "mode": "plain"
+    },
+    "default": {
+      "mode": "preserve"
+    }
+  },
+  "routes": [
+    {
+      "kind": "exact",
+      "src": "capabilities.md",
+      "dest": "CAPABILITIES.md"
+    },
+    {
+      "kind": "exact",
+      "src": "persona.md",
+      "dest": "GEMINI.md"
+    },
+    {
+      "kind": "suffix_swap",
+      "prefix": "commands/",
+      "from_suffix": ".md",
+      "to_suffix": ".toml"
+    }
+  ],
+  "artifacts": [
+    {
+      "dest": "hooks/hooks.json",
+      "content": {
+        "hooks": {
+          "BeforeTool": [
+            {
+              "matcher": "write_file|replace",
+              "hooks": [
+                {
+                  "type": "command",
+                  "command": "python3 ${extensionPath}/hooks/hercules_gate.py || exit 0"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "dest": "gemini-extension.json",
+      "versioned": true,
+      "content": {
+        "name": "hercules",
+        "version": "${version}",
+        "description": "Methodology & workflow system for software delivery with AI",
+        "contextFileName": "GEMINI.md"
+      }
+    }
+  ],
+  "guard": [
+    "hercules_state.py",
+    "frozen_tests.py",
+    "hercules_gate.py"
+  ],
+  "gate": {
+    "protocol": "pre_tool",
+    "tools": {
+      "write_file": "Write",
+      "replace": "Edit"
+    },
+    "path_keys": [
+      "file_path",
+      "filePath",
+      "path",
+      "absolute_path",
+      "absolutePath",
+      "file",
+      "filename"
+    ],
+    "nested_keys": [],
+    "deny": {
+      "decision": "deny"
+    },
+    "reason_key": "reason"
+  }
+}

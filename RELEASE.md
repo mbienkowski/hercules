@@ -13,7 +13,7 @@ On every merge to `main`, `release.yml` runs after CI succeeds:
    by setuptools) and `package.json` (read by npm/OpenCode). The plugin manifests
    (`dist/{claude-code,cursor}/…/plugin.json`) are **not** stamped — their source carries a
    `${version}` token that the build injects from `pyproject.toml` (step below), so there is one
-   version of record and nothing to hand-bump under `src/targets/`.
+   version of record and nothing to hand-bump under `src/ecosystems/`.
 3. `make build` regenerates `dist/`, injecting the canonical version into each plugin manifest.
 4. Commits the bump + rebuilt `dist/` (`chore(release): X.Y.Z [skip ci]`), tags `vX.Y.Z`, pushes.
 5. Publishes the GitHub Release.
@@ -52,8 +52,8 @@ needs a live, paid session and stays a manual, release-gating check.
 
 | # | OpenCode item | Status |
 |---|---|---|
-| 1 | `config` hook fires (agents/commands register) | ⚠️ blocked — [issue #15](https://github.com/mbienkowski/hercules/issues/15): the real OpenCode loader rejects the built `plugin.js` today, so this is encoded as an `xfail(strict=True)` smoke test rather than a pass; it flips to a hard failure (forcing the marker's removal) the moment the loader bug is actually fixed |
-| 2 | `plugin.js` loads with no missing-asset throw | ⚠️ blocked — same root cause as #1 |
+| 1 | `config` hook fires (agents/commands register) | ✅ automated — [issue #15](https://github.com/mbienkowski/hercules/issues/15) is fixed (the entry exports `{ id, server }`); `test_opencode_plugin_starts_up_with_every_agent_and_command_registered` loads the built `plugin.js` in a real Node process and asserts every agent/command registers (skips only when `node` is absent) |
+| 2 | `plugin.js` loads with no missing-asset throw | ✅ automated — `test_opencode_plugin_refuses_to_start_if_its_bundled_files_are_missing` (same file) drives the real loader |
 | 3 | `default_agent` is `hercules`; a subagent spawns | manual |
 | 4 | `/hercules:discover` resolves and runs | manual |
 | 5 | A skill auto-fires from its description | manual |
@@ -173,7 +173,7 @@ proves structure + the in-process guard; these load-time behaviours are verified
 
 - [ ] `pyproject.toml` and `package.json` — the two literal version sources
       (`scripts/build/version_targets.py::VERSION_TARGETS`) — both show the release version (matches the
-      git tag). The plugin manifests under `src/targets/` carry a `${version}` token (not a literal); the
+      git tag). The plugin manifests (versioned artifacts in `src/ecosystems/*.json`) carry a `${version}` token (not a literal); the
       build injects the canonical `pyproject.toml` version into every `dist/…/plugin.json`.
 
 Each shipped ecosystem carries its own smoke section above; add one per target

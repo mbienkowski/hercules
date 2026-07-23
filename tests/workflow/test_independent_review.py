@@ -25,8 +25,8 @@ def _dist(tree: str) -> Path:
 
 
 def _agent_ns(tree: str) -> str:
-    cfg = json.loads((REPO / "src" / "targets" / tree / "config.json").read_text(encoding="utf-8"))
-    return cfg["vars"]["agent_ns"]
+    from scripts.build.descriptor import discover
+    return discover()[tree].vars["agent_ns"]
 
 
 def _slice(text: str, start: str, end: str | None) -> str:

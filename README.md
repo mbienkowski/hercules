@@ -494,7 +494,7 @@ contributor workflow (build, test locally, open a PR, test a branch before relea
 ## Plugin permissions
 
 Hercules is mostly Markdown — commands, agents, and skills — interpreted by Claude Code, plus a small
-set of local enforcement **hooks** (`src/targets/claude-code/hooks/*.py`, dependency-free standard-library Python). What
+set of local enforcement **hooks** (`src/hooks/*.py`, dependency-free standard-library Python). What
 it can do is exactly what Claude Code can do in your session:
 
 - **Project files** — reads your project files to understand context; writes to `docs/` (or wherever

@@ -91,6 +91,7 @@ def test_mutation_testing_targets_the_current_hooks_location_not_the_retired_one
     would silently exercise the wrong (or no longer existing) files, giving false confidence in
     how well the real hooks code is covered."""
     pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert "src/targets/claude-code/hooks/" in pyproject
+    assert "src/hooks/" in pyproject
+    assert "src/targets/" not in pyproject
     assert "plugin/hooks/" not in pyproject
 

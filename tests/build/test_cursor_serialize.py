@@ -1,24 +1,27 @@
-"""Unit tests for ``CursorSerializer`` + ``cursor_dest`` — the pure, mutation-covered Cursor logic.
+"""Unit tests for the cursor target on the generic engine — frontmatter shaping + dest routing.
 
-``serialize.py`` is in ``paths_to_mutate``; these exact-output tests kill mutants in the frontmatter
-shaping and the destination routing (especially the ``.md`` -> ``.mdc`` persona extension, whose flip
-is Cursor's dominant silent-fail).
+``genserialize.py`` is in ``paths_to_mutate``; these exact-output tests kill mutants in the field
+generators and the route interpreter (especially the ``.md`` -> ``.mdc`` persona extension, whose
+flip is Cursor's dominant silent-fail), pinned against the REAL cursor descriptor's data.
 """
 from __future__ import annotations
 
-from scripts.build.serialize import CursorSerializer, cursor_dest
+from scripts.build.descriptor import discover
+from scripts.build.genserialize import dest
+from scripts.build.serialize import get
 
-CUR = CursorSerializer()
+CURSOR = discover()["cursor"]
+CUR = get("cursor")
 
 
 def test_cursor_dest_relocates_only_the_persona():
     """persona.md becomes an .mdc rule; every other component keeps its source path (Cursor's
     agents/commands/skills dirs match src/content)."""
-    assert cursor_dest("persona.md") == "rules/hercules-persona.mdc"
-    assert cursor_dest("agents/cynical-reviewer.md") == "agents/cynical-reviewer.md"
-    assert cursor_dest("commands/workflow.md") == "commands/workflow.md"
-    assert cursor_dest("skills/hercules-reference/SKILL.md") == "skills/hercules-reference/SKILL.md"
-    assert cursor_dest("protocols/workflow-protocol.md") == "protocols/workflow-protocol.md"
+    assert dest(CURSOR, "persona.md") == "rules/hercules-persona.mdc"
+    assert dest(CURSOR, "agents/cynical-reviewer.md") == "agents/cynical-reviewer.md"
+    assert dest(CURSOR, "commands/workflow.md") == "commands/workflow.md"
+    assert dest(CURSOR, "skills/hercules-reference/SKILL.md") == "skills/hercules-reference/SKILL.md"
+    assert dest(CURSOR, "protocols/workflow-protocol.md") == "protocols/workflow-protocol.md"
 
 
 def test_agent_frontmatter_drops_model_and_tools():
@@ -32,11 +35,14 @@ def test_agent_frontmatter_drops_model_and_tools():
 
 def test_readonly_set_is_exactly_the_gate_verdict_roles():
     """Pin the exact read-locked set, not just that its members get readonly:true — otherwise a
-    wrong membership (a verdict-giver dropped, or a name typo'd) ships silently and a mutmut mutation
-    of a name inside the frozenset survives (the per-agent build test reads the same live constant)."""
-    assert CursorSerializer.readonly_agents == {
+    wrong membership (a verdict-giver dropped, or a name typo'd) ships silently. The set is
+    descriptor DATA now; this pin is the reader-end guard on that data."""
+    fields = CURSOR.roles["agent"].fields
+    readonly = next(f for f in fields if f.key == "readonly")
+    assert set(readonly.names) == {
         "cynical-reviewer", "security-expert", "source-checker", "senior-qa-engineer", "maintainer",
     }
+    assert readonly.value == "true"
 
 
 def test_reviewer_agent_is_read_locked():
@@ -57,7 +63,7 @@ def test_command_gets_stem_name_and_drops_claude_marker():
     """Commands need name (the file stem) + description for the official validator; Claude's
     disable-model-invocation marker is dropped."""
     meta = {"description": "Guided delivery.", "disable-model-invocation": "true"}
-    out = CUR.serialize_command("workflow", meta, "Do the thing.", {})
+    out = CUR.serialize_command(meta, "Do the thing.", {}, stem="workflow")
     assert out == "---\nname: workflow\ndescription: Guided delivery.\n---\n\nDo the thing."
 
 

@@ -2,33 +2,37 @@
 
 ``--target {<name>|all} [--check]``. Without ``--check`` it writes ``dist/<target>/``; with
 ``--check`` it renders to a temp dir and diffs against the committed ``dist/`` (exit non-zero on
-drift). One code path for local dev and CI. The accepted target names derive from the target
-registry, so ``all`` and the valid values extend automatically as targets are registered.
+drift). One code path for local dev and CI. The accepted target names derive from the ecosystem
+descriptors on disk, so ``all`` and the valid values extend automatically when a descriptor is added.
+
+Dispatch is entirely generic: for every source the content loop calls ``genserialize.dest`` (the
+descriptor's route interpreter) and ``genextras.emit_extras`` (the descriptor's non-content emitter).
+There are **zero** per-ecosystem branches here — a target is one ``src/ecosystems/<name>.json`` file.
 """
 from __future__ import annotations
 
 import argparse
 import filecmp
-import json
 import sys
 import tempfile
 from pathlib import Path
 
-from scripts.build import emit, targets
+from scripts.build import descriptor, emit, genextras, genserialize
+from scripts.build.genextras import ExtrasContext
 from scripts.build.layout import discover_sources
 from scripts.build.serialize import serialize_file
-from scripts.build.targets.base import ExtrasContext
 from scripts.build.version_targets import read_canonical_version
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC = REPO_ROOT / "src"
 SRC_CONTENT = SRC / "content"
 DIST = REPO_ROOT / "dist"
-# The canonical frozen-test guard lives with the Claude hooks; OpenCode and Cursor ship COPIES of the
-# same files so the write-gate logic has one source of truth across every ecosystem.
-_SHARED_HOOKS_SRC = SRC / "targets" / "claude-code" / "hooks"
-# The one authoritative ecosystem list — every accepted --target value and `all` derive from it.
-TARGETS = tuple(targets.registered_target_names())
+# The canonical frozen-test guard + the one generic write-gate adapter live in the NEUTRAL
+# src/hooks/ tree; every ecosystem ships byte-copies, so the write-gate logic has one source of truth.
+_SHARED_HOOKS_SRC = SRC / "hooks"
+# The one authoritative ecosystem list — every accepted --target value and `all` derive from the
+# descriptor files themselves (descriptor.names()), so there is no separate registry to drift.
+TARGETS = tuple(descriptor.names())
 
 
 def _targets_for(name: str) -> list[str]:
@@ -36,41 +40,43 @@ def _targets_for(name: str) -> list[str]:
 
 
 def _load_models() -> dict:
-    path = SRC / "models.json"
-    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    """Every ecosystem's model-tier row, from the descriptors (the one per-ecosystem source)."""
+    return {name: dict(d.models) for name, d in descriptor.discover().items()}
 
 
 def _load_tokens(target: str) -> dict[str, str]:
-    path = SRC / "targets" / target / "config.json"
-    if not path.exists():
-        return {}
-    return json.loads(path.read_text(encoding="utf-8")).get("vars", {})
+    """The target's token ``vars`` from its descriptor; ``{}`` for an unknown target (test stubs)."""
+    found = descriptor.discover().get(target)
+    return dict(found.vars) if found else {}
 
 
 def build_target(target: str, out_root: Path) -> list[str]:
     """Render *target* into *out_root*; return the sorted list of written relative paths.
 
-    The body holds no per-ecosystem branches: the content loop relocates each source via the target's
-    ``dest`` and the non-content artifacts come from the target's ``emit_extras``.
+    The body holds no per-ecosystem branches: the content loop relocates each source via the generic
+    route interpreter (``genserialize.dest``) and the non-content artifacts come from the generic
+    emitter (``genextras.emit_extras``), both driven wholly by the target's descriptor.
     """
+    desc = descriptor.discover()[target]
     models = _load_models()
     tokens = _load_tokens(target)
-    spec = targets.get(target)
     written: list[str] = []
     for src in discover_sources(SRC_CONTENT):
         rel = src.relative_to(SRC_CONTENT).as_posix()
-        emit.write(out_root / spec.dest(rel),
+        dest = genserialize.dest(desc, rel)
+        if dest is None:  # an `omit` route — this source ships nothing on this target
+            continue
+        emit.write(out_root / dest,
                    serialize_file(target, src.read_text(encoding="utf-8"), tokens, models, rel))
-        written.append(spec.dest(rel))
+        written.append(dest)
     ctx = ExtrasContext(
         out_root=out_root,
-        src_target_dir=SRC / "targets" / target,
         shared_hooks_src=_SHARED_HOOKS_SRC,
         src_content=SRC_CONTENT,
         tokens=tokens,
         version=read_canonical_version(REPO_ROOT),
     )
-    written += spec.emit_extras(ctx)
+    written += genextras.emit_extras(ctx, desc)
     return sorted(written)
 
 
@@ -115,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     rc = 0
     for target in _targets_for(args.target):
-        if target not in targets.registered_target_names():
+        if target not in descriptor.names():
             continue
         if args.check:
             rc |= check_target(target)

@@ -16,7 +16,7 @@ from pathlib import Path
 # (``read_canonical_version``); ``package.json`` is cross-checked against it every CI ``validate`` run.
 # The plugin manifests (claude-code, cursor) are deliberately NOT here: they're build *outputs'* sources
 # that carry a ``${version}`` token, injected from the canonical version at build (``emit.copy_versioned``)
-# — so a human never sees a literal version in ``src/targets/<eco>/plugin.json`` to forget to bump.
+# — so a human never sees a literal version in the descriptor's versioned manifest artifact to forget to bump.
 VERSION_TARGETS: list[tuple[str, str]] = [
     ("pyproject.toml", "toml"),
     ("package.json", "json"),
@@ -68,7 +68,7 @@ def read_canonical_version(root: Path = Path(".")) -> str:
     """The single source of truth for the build's version: ``pyproject.toml``.
 
     Build-consumed manifests (``dist/<eco>/…/plugin.json``) are *injected* from this at build time
-    (see ``emit.copy_versioned``), never restating it — so a human reading ``src/targets/<eco>/plugin.json``
+    (see ``emit.copy_versioned``), never restating it — so a human reading the descriptor's versioned manifest artifact
     sees a ``${version}`` token, not a literal they'd have to remember to bump (CoC single-source rule).
     """
     return read_versions(root)["pyproject.toml"]

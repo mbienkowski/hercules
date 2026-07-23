@@ -38,12 +38,15 @@ hide" principle):
   **over-block** (matching is basename-level, so a write to an *unrelated* file that happens to share a
   frozen test's basename can be denied during a build). Turn on Cursor's *ask-before-applying-edits*
   approval for an additional in-IDE backstop.
-- **No per-agent model tier.** Every Hercules subagent **inherits the model you select in Cursor** — the
-  build omits a per-agent `model:` on purpose (Cursor's `inherit` default), because forcing advisors onto
-  a cheap `fast` tier would degrade the reasoning-heavy reviewers, and Cursor's `model: inherit` is itself
-  unreliable in nested cases. Claude Code assigns a heavier model to the orchestrator and lighter models
-  to routine advisors; on Cursor that tiering is intentionally not applied — your one selected model
-  drives everything.
+
+- **No per-agent model tier.** Every Hercules agent **inherits the model you select in Cursor** —
+  the build omits a per-agent `model:` on purpose (this ecosystem's descriptor `models` are
+  all-`null`). Claude Code assigns a heavier model to the orchestrator and lighter models to routine
+  advisors; on Cursor that tiering is intentionally not applied — your one selected model drives
+  everything.
+  (On Cursor specifically, forcing advisors onto a cheap `fast` tier would also degrade the
+  reasoning-heavy reviewers, and Cursor's `model: inherit` is itself unreliable in nested cases.)
+
 - **Independent review is best-effort in the IDE.** The Design coverage and Build traceability gates
   delegate to a fresh, isolated `cynical-reviewer` subagent (**Cursor >= 2.5**, which added plugin
   packaging; isolated subagents landed in 2.4). Cursor exposes **no** orchestrator-forced spawn —
@@ -53,6 +56,7 @@ hide" principle):
   silent self-review into a loud stop. The closest to a forced, isolated reviewer is to run the review
   packet through the headless `cursor-agent -p` CLI — a fresh agent process with its own context;
   Cursor's CLI has no flag to select a named subagent, so the packet carries the reviewer mandate.
+
 - **Plugin loading in the headless CLI is a young feature (external risk Hercules cannot pin).** Cursor
   loads plugin agents/commands/rules/hooks reliably in the IDE, but its `cursor-agent` CLI gained plugin
   support only recently and has toggled it via a feature flag; if a Cursor update disables or regresses
