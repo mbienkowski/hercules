@@ -57,7 +57,7 @@ def _versioned_text(text: str, version: str, dest: str) -> str:
     new, n = _VERSION_TOKEN.subn(version, text)
     if n != 1:
         raise SystemExit(  # pragma: no mutate - message text only
-            f"genextras: expected exactly one ${{version}} token in artifact {dest!r}, found {n}"
+            f"genextras: expected exactly one ${{version}} token in artifact {dest!r}, found {n}"  # pragma: no mutate
         )
     return new
 

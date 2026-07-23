@@ -8,8 +8,14 @@ computed-value vocabulary), so these pin the JS-serialization helpers and the re
 from pathlib import Path
 
 from scripts.build.cli import build_target
-from scripts.build.descriptor import discover
-from scripts.build.genextras import js_object_literal, js_string
+from scripts.build.descriptor import REPO_ROOT as DESC_REPO_ROOT, discover
+from scripts.build.genextras import (
+    ExtrasContext,
+    _dump_json,
+    emit_extras,
+    js_object_literal,
+    js_string,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -97,3 +103,32 @@ def test_the_template_source_is_sibling_data_not_python(tmp_path):
     text = template.read_text(encoding="utf-8")
     assert "__AGENT_ENTRIES__" in text and "__COMMAND_ENTRIES__" in text
     assert "tool.execute.before" in text, "the JS write-gate wiring lives in the template data"
+
+
+def test_dump_json_keeps_non_ascii_literal_not_escaped():
+    """The canonical artifact JSON format keeps non-ASCII characters literal (ensure_ascii=False):
+    a ``\\u2192``-escaped arrow would change the bytes of any manifest that ships one and break the
+    drift gate — so the format is pinned here directly."""
+    assert _dump_json({"k": "a→b"}) == '{\n  "k": "a→b"\n}\n'
+
+
+def test_js_object_literal_indents_a_dict_nested_inside_a_list():
+    """A dict nested inside a list is indented relative to the list's own indent (indent+2), so the
+    generated code stays readable — pins the list-branch indent arithmetic that a scalar-only list
+    can't exercise."""
+    assert js_object_literal([{"a": 1}], 8) == "[{\n            a: 1,\n          }]"
+
+
+def test_emit_extras_returns_every_written_rel_across_all_categories(tmp_path):
+    """The returned rel list must ACCUMULATE across categories (artifacts, then shipped siblings,
+    then guard modules, then gate.json) — a ``=`` where a ``+=`` belongs would silently drop the
+    earlier categories. cursor is the one ecosystem that ships all four, so its return must contain
+    a representative of each."""
+    cursor = discover()["cursor"]
+    ctx = ExtrasContext(out_root=tmp_path, shared_hooks_src=DESC_REPO_ROOT / "src" / "hooks",
+                        src_content=DESC_REPO_ROOT / "src" / "content", tokens=cursor.vars,
+                        version="9.9.9")
+    written = emit_extras(ctx, cursor)
+    for rel in (".cursor-plugin/plugin.json", "README.md", "logo.svg",
+                "hooks/hercules_gate.py", "hooks/gate.json"):
+        assert rel in written, f"emit_extras dropped {rel!r} from its returned rels: {written}"

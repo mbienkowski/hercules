@@ -9,12 +9,25 @@ generator names, and path safety.
 from __future__ import annotations
 
 import copy
+import dataclasses
 import json
 from pathlib import Path
 
 import pytest
 
-from scripts.build.descriptor import DescriptorError, discover, load, parse_descriptor
+from scripts.build.descriptor import (
+    Artifact,
+    DescriptorError,
+    EcosystemDescriptor,
+    FieldSpec,
+    Route,
+    RoleSpec,
+    Template,
+    TemplateValue,
+    discover,
+    load,
+    parse_descriptor,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ECOSYSTEMS = REPO_ROOT / "src" / "ecosystems"
@@ -360,6 +373,30 @@ _MALFORMED = [
     ("gate-deny-not-object", lambda: _minimal(gate={**_GATE_OK, "deny": "deny"})),
     ("gate-allow-not-object", lambda: _minimal(gate={**_GATE_OK, "allow": "allow"})),
     ("gate-nested-keys-not-list", lambda: _minimal(gate={**_GATE_OK, "nested_keys": "edits"})),
+    # Boolean-operator + guard branches that mutation testing would flag but that carry real
+    # security/correctness weight — pinned behaviorally because descriptor.py is off the mutation
+    # gate (see [tool.mutmut]). An `... or not X` weakened to `... and X` would let these through.
+    ("route-dest-absolute-path", lambda: _minimal(
+        routes=[{"kind": "exact", "src": "persona.md", "dest": "/etc/passwd"}])),
+    ("route-dest-empty-string", lambda: _minimal(
+        routes=[{"kind": "exact", "src": "persona.md", "dest": ""}])),
+    ("models-empty-dict", lambda: _minimal(models={})),
+    ("template-js-string-list-empty", lambda: _minimal(templates=[
+        {"src": "eco.template.x", "dest": "x", "values": {"__X__": {"from": "js_string_list", "values": []}}}])),
+    ("template-js-root-joins-empty", lambda: _minimal(templates=[
+        {"src": "eco.template.x", "dest": "x", "values": {"__X__": {"from": "js_root_joins", "paths": []}}}])),
+    ("template-src-nested-not-flat", lambda: _minimal(templates=[
+        {"src": "sub/eco.template.x", "dest": "x", "values": {}}])),
+    ("wrap-role-empty-fields", lambda: _minimal(roles={
+        **_MINIMAL["roles"], "persona": {"mode": "wrap", "fields": []}})),
+    ("toml-command-empty-fields", lambda: _minimal(roles={
+        **_MINIMAL["roles"], "command": {"mode": "toml_command", "fields": []}})),
+    ("gate-event-guards-missing-user-key", lambda: _minimal(
+        gate={"protocol": "event_guards", "allow": {}, "deny": {}, "agent_key": "a"})),
+    ("gate-event-guards-missing-agent-key", lambda: _minimal(
+        gate={"protocol": "event_guards", "allow": {}, "deny": {}, "user_key": "u"})),
+    ("smoke-expect-version-cmd-empty", lambda: _minimal(
+        smoke={"cli": "e", "test": "t.py", "expect": {"version_cmd": []}})),
 ]
 
 
@@ -379,3 +416,29 @@ def test_load_uses_the_filename_stem_as_the_name(tmp_path):
 def test_smoke_requires_cli_and_test():
     with pytest.raises(DescriptorError, match="smoke"):
         parse_descriptor("eco", _minimal(smoke={"cli": "eco"}))
+
+
+@pytest.mark.parametrize("obj", [
+    FieldSpec(key="k", source="stem"),
+    RoleSpec(mode="preserve"),
+    Route(kind="exact", src="a", dest="b"),
+    Artifact(dest="p.json"),
+    TemplateValue(kind="js_string", value="v"),
+    Template(src="eco.template.x", dest="x"),
+    EcosystemDescriptor(name="eco", vars={}, models={}, smoke={}, dispatch="path", roles={}),
+], ids=lambda o: type(o).__name__)
+def test_descriptor_dataclasses_are_frozen(obj):
+    """Every parsed descriptor structure is an immutable snapshot — assigning to a field raises,
+    so a validated descriptor can't be mutated out from under the build mid-run."""
+    field_name = dataclasses.fields(obj)[0].name
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        setattr(obj, field_name, "mutated")
+
+
+def test_a_hidden_dotfile_sibling_is_skipped_not_failed(tmp_path):
+    """The layout schema tolerates hidden dotfiles (editor/OS droppings) — a ``.DS_Store`` beside a
+    valid descriptor must be silently skipped, NOT fail discovery the way a stray real file does.
+    Pins the ``startswith('.')`` skip clause in _validate_layout."""
+    (tmp_path / "eco.json").write_text(json.dumps(_minimal()), encoding="utf-8")
+    (tmp_path / ".DS_Store").write_text("junk", encoding="utf-8")
+    assert sorted(discover(tmp_path)) == ["eco"]

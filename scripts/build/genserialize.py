@@ -35,10 +35,10 @@ class SerializeError(ValueError):
 def require_field(meta: dict, key: str) -> str:
     """Return ``meta[key]`` or raise :class:`SerializeError` with a scripted, actionable message."""
     if key not in meta:
-        name = meta.get("name", "<unnamed>")
+        name = meta.get("name", "<unnamed>")  # pragma: no mutate - only feeds the message below
         raise SerializeError(  # pragma: no mutate - message text only
-            f"source artifact {name!r} is missing required frontmatter field {key!r} "
-            f"— add a '{key}:' line to its frontmatter"
+            f"source artifact {name!r} is missing required frontmatter field {key!r} "  # pragma: no mutate
+            f"— add a '{key}:' line to its frontmatter"  # pragma: no mutate
         )
     return meta[key]
 
@@ -109,7 +109,7 @@ def _stem(rel: Optional[str]) -> Optional[str]:
     """The source file stem (``commands/build.md`` → ``build``) for the ``stem`` field generator."""
     if rel is None:
         return None
-    base = rel.rsplit("/", 1)[-1]
+    base = rel.rsplit("/", 1)[-1]  # pragma: no mutate - maxsplit is immaterial to [-1]; index pinned by test_stem_*
     return base[: -len(".md")] if base.endswith(".md") else base
 
 
@@ -129,7 +129,7 @@ def compute_fields(fields: tuple, meta: dict, target: str, tokens: dict,
         elif spec.source == "stem":
             if stem is None:
                 raise SerializeError(  # pragma: no mutate - message text only
-                    f"field {spec.key!r} needs the source file stem, but none was provided"
+                    f"field {spec.key!r} needs the source file stem, but none was provided"  # pragma: no mutate
                 )
             out[spec.key] = stem
         elif spec.source == "literal":
