@@ -1,22 +1,27 @@
 {
-  // Shared compiler options. Two projects extend this and differ ONLY in module format:
+  // Shared compiler options. Two projects extend this:
   //
-  //   tsconfig.build.json  — scripts-ts/  -> CommonJS, emitted to .ts-out/
+  //   tsconfig.build.json  — scripts-ts/  -> ESM, .mts sources emitted as .mjs into .ts-out/
   //   tsconfig.tests.json  — tests-ts/    -> ESM, type-checked only (Vitest executes from source)
   //
-  // ── Why scripts-ts/ is CommonJS (do not "modernise" this) ────────────────────────────────────
-  // package.json deliberately carries NO "type" field, so Node treats .js as CommonJS. That is a
-  // SHIPPED-PRODUCT contract, not a style choice: package.json's `main` is dist/opencode/plugin.js,
-  // the compiled OpenCode plugin, and that file is CommonJS (require / __dirname / module.exports).
-  // Adding "type": "module" would reinterpret it as ESM and break the plugin for every OpenCode
-  // user. tests-ts/packaging.spec.ts pins the absent type field so this cannot regress silently.
+  // ── Why package.json has NO "type" field (do not add one) ────────────────────────────────────
+  // package.json's `main` is dist/opencode/plugin.js — the compiled, SHIPPED OpenCode plugin — and
+  // that file is CommonJS (require / __dirname / module.exports). Node decides a .js file's module
+  // format from the nearest package.json "type" field, so declaring "type": "module" would
+  // reinterpret the shipped plugin as ESM and break it for every OpenCode user.
   //
-  // Tests are ESM because Vitest's own API is ESM-only; Vitest compiles them from source, so their
-  // module format never reaches Node's loader and cannot affect the shipped plugin.
+  // The toolchain sidesteps that entirely by using .mts sources, which emit .mjs — a file Node
+  // always loads as ESM regardless of any "type" field. So scripts-ts/ gets modern ESM and the
+  // shipped plugin stays CommonJS, with no shared switch between them. It also avoids a real
+  // dependency problem: js-tiktoken publishes ONE `types` condition shared by its CJS and ESM
+  // entries, so a CommonJS consumer cannot type-check against it at all.
   //
-  // `verbatimModuleSyntax` is NOT set: it is incompatible with CommonJS emit (it would force
-  // `import x = require(...)` syntax throughout scripts-ts/). `isolatedModules` plus explicit
-  // `import type` covers the import-elision correctness it would otherwise buy.
+  // tests-ts/packaging.spec.ts pins the absent "type" field, paired with a positive assertion that
+  // the shipped plugin really does use require/__dirname, so this cannot regress silently.
+  //
+  // `verbatimModuleSyntax` is deliberately NOT set: it forbids the resolution-mode-inferred imports
+  // this layout relies on. `isolatedModules` plus explicit `import type` covers the import-elision
+  // correctness it would otherwise buy.
   "compilerOptions": {
     "target": "es2023",
     "lib": ["es2023"],

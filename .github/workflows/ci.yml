@@ -107,6 +107,14 @@ jobs:
           path: ~/.cache/tiktoken
           key: tiktoken-cl100k
 
+      # Runs BEFORE the suites: the token budgets in tests/testdata/thresholds.json were generated
+      # with Python tiktoken, so if js-tiktoken ever disagrees the budgets are measuring two
+      # different things and every downstream token result is suspect.
+      - name: Token parity (python tiktoken vs js-tiktoken)
+        run: make parity-tokens
+        env:
+          TIKTOKEN_CACHE_DIR: /home/runner/.cache/tiktoken
+
       - name: Run tests with coverage
         run: make test
         env:

@@ -6,7 +6,7 @@
  * failure modes, same wording. A contributor who has debugged one has debugged both — which is the
  * whole point of splitting the mutation run across two runtimes rather than one.
  *
- * Usage: node .ts-out/checkMutationGate.js
+ * Usage: node .ts-out/bin/mutationGate.mjs
  */
 
 import { readFileSync } from 'node:fs';

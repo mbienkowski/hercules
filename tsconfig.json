@@ -2,7 +2,7 @@
   // Root project. Holds no files of its own — it exists so editors and `tsc -b` see both halves of
   // the tree. `npm run typecheck` builds both referenced projects.
   //
-  //   tsconfig.build.json  — scripts-ts/  -> CommonJS, emitted to .ts-out/  (shipped-product constraint)
+  //   tsconfig.build.json  — scripts-ts/  -> ESM, .mts sources emitted as .mjs into .ts-out/
   //   tsconfig.tests.json  — tests-ts/    -> ESM, type-checked only
   //
   // Shared compiler options live in tsconfig.base.json.

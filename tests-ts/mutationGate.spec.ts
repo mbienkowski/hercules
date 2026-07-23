@@ -11,7 +11,7 @@ import {
   readThresholds,
   statusesFromReport,
   tally,
-} from '../scripts-ts/checkMutationGate';
+} from '../scripts-ts/checkMutationGate.mjs';
 import { readRepoJson, repoRoot } from './support/repo';
 
 /** Collect the gate's output instead of writing it to the real streams. */

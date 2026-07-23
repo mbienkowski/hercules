@@ -1,6 +1,7 @@
+import { globSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { readRepoFile, readRepoJson } from './support/repo';
+import { readRepoFile, readRepoJson, readRepoJsonc, repoRoot } from './support/repo';
 
 interface PackageManifest {
   type?: string;
@@ -52,6 +53,31 @@ describe('the published npm package', () => {
 
   it('requires the Node version CI actually provisions', () => {
     expect(manifest.engines?.node).toBe('>=22');
+  });
+});
+
+describe('the module format of the toolchain', () => {
+  const configs = ['tsconfig.json', 'tsconfig.base.json', 'tsconfig.build.json', 'Makefile'];
+
+  it('emits scripts-ts as ESM, so every source there is .mts', () => {
+    // The positive half. .mts emits .mjs, which Node loads as ESM whatever package.json says —
+    // that is what lets the toolchain use ESM-only dependencies while the shipped plugin stays
+    // CommonJS. A stray .ts here would compile to a format the include glob does not even match,
+    // silently dropping the file from the build, the coverage gate and the mutation gate.
+    const build = readRepoJsonc<{ include: string[] }>('tsconfig.build.json');
+    expect(build.include).toEqual(['scripts-ts/**/*.mts']);
+
+    const sources = globSync('scripts-ts/**/*.{ts,mts,cts}', { cwd: repoRoot });
+    expect(sources.length).toBeGreaterThan(0);
+    expect(sources.filter((f) => !f.endsWith('.mts'))).toEqual([]);
+  });
+
+  it('has no configuration still describing scripts-ts as CommonJS', () => {
+    // The negative half, paired with the assertion above. These comments are the repo's only
+    // guard against someone "modernising" the module split back into a broken state, so a stale
+    // one aims that guard at the wrong target. They drifted once already, across four files.
+    const stale = configs.filter((f) => /scripts-ts[^\n]*CommonJS|CommonJS[^\n]*scripts-ts/.test(readRepoFile(f)));
+    expect(stale).toEqual([]);
   });
 });
 

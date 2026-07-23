@@ -1,10 +1,12 @@
 {
-  // Emit config: compiles ONLY scripts-ts/ (the production toolchain) into .ts-out/ as CommonJS.
-  // See tsconfig.base.json for why CommonJS is a shipped-product contract, not a preference.
+  // Emit config: compiles ONLY scripts-ts/ (the production toolchain) into .ts-out/.
+  // See tsconfig.base.json for why package.json must never gain a "type" field.
   //
-  // `module: node16` reads package.json's absent "type" field and emits CommonJS accordingly,
-  // while still honouring dependencies' "exports" maps — which js-tiktoken's /lite and
-  // /ranks/cl100k_base subpaths require.
+  // Sources are .mts and emit .mjs, which Node always loads as ESM regardless of package.json.
+  // That is what keeps the "type" field absent — and therefore dist/opencode/plugin.js CommonJS —
+  // while letting the toolchain import ESM-only dependencies normally. js-tiktoken in particular
+  // publishes one shared `types` condition for both its CJS and ESM entries, so a CommonJS
+  // consumer cannot type-check against it at all.
   //
   // .ts-out/ is gitignored and is deliberately NOT named build/: /build/ is already an ignore rule
   // and pytest's norecursedirs is documented around that name, so reusing it would collide with
@@ -19,5 +21,5 @@
     "rootDir": "scripts-ts",
     "sourceMap": true
   },
-  "include": ["scripts-ts/**/*.ts"]
+  "include": ["scripts-ts/**/*.mts"]
 }

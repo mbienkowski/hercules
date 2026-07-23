@@ -14,13 +14,13 @@ export default defineConfig({
     root: import.meta.dirname,
     coverage: {
       provider: 'v8',
-      include: ['scripts-ts/**/*.ts'],
+      include: ['scripts-ts/**/*.mts'],
       // scripts-ts/bin/ holds logic-free process entry points — a few lines that resolve a path and
       // call process.exit. They are exercised by `make mutation-ts` and `make build`, not by unit
       // specs, and counting them would push the gate toward testing process.exit wiring instead of
       // logic. stryker.conf.json excludes the same directory for the same reason; keep the two
       // exclusions in step.
-      exclude: ['scripts-ts/**/*.d.ts', 'scripts-ts/bin/**'],
+      exclude: ['scripts-ts/**/*.d.mts', 'scripts-ts/bin/**'],
       reporter: ['text', 'json-summary'],
       thresholds: {
         branches: 90,

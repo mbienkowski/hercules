@@ -1,5 +1,5 @@
 .PHONY: test test-mutation test-smoke install install-py install-ts build build-check \
-        typecheck compile test-py test-ts mutation-py mutation-ts \
+        typecheck compile test-py test-ts mutation-py mutation-ts parity-tokens \
         ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate \
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
 
@@ -35,8 +35,8 @@ test-ts:
 	npm run typecheck
 	npx vitest run --coverage
 
-# Type-check both TypeScript projects (scripts-ts as CommonJS, tests-ts as ESM) without running
-# anything. Compile emits scripts-ts/ to .ts-out/.
+# Type-check both TypeScript projects without running anything. Both are ESM; compile emits
+# scripts-ts/'s .mts sources as .mjs into .ts-out/.
 typecheck:
 	npm run typecheck
 
@@ -54,7 +54,7 @@ mutation-py:
 # Python gate reads (scripts/mutation-gate.json), so the two runtimes cannot drift to two answers.
 mutation-ts: compile
 	npx stryker run || true
-	node .ts-out/bin/mutationGate.js
+	node .ts-out/bin/mutationGate.mjs
 
 # Live CLI smoke checks — do the built plugins actually install/load in the real Claude Code,
 # OpenCode, and Cursor binaries? Skips silently if a given CLI isn't installed locally; install
@@ -70,6 +70,12 @@ test-smoke: build-check
 
 ci-build:
 	bash scripts/ci/build_gates.sh
+
+# Go/no-go gate for moving token counting off Python: js-tiktoken must tokenize cl100k_base
+# byte-identically to Python's tiktoken across this repo's real corpus. A single-token
+# disagreement is a spec change to the budgets in tests/testdata/thresholds.json, not a port.
+parity-tokens: compile
+	bash scripts/ci/parity_tokens.sh
 
 validate:
 	python -m scripts.ci.validate_package
