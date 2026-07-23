@@ -6,6 +6,7 @@ runtime-misfiring content defects. These tests pin each fix so it can't regress.
 from pathlib import Path
 import re
 
+from scripts.build import descriptor
 from scripts.build.cli import build_target
 
 
@@ -46,7 +47,7 @@ def test_every_target_ships_all_operational_guidance_in_its_reference_skill(tmp_
     covering things like artifact root resolution, agent scaling, and the debate protocol -- must
     appear in the auto-loaded reference skill. A section left out of this file never reaches the
     running agent, since nothing else loads it automatically."""
-    for tgt in ("claude-code", "opencode", "cursor"):
+    for tgt in ("claude-code", "opencode", "cursor", "grok-build", "gemini-cli", "copilot-cli"):
         out = tmp_path / tgt
         build_target(tgt, out)
         skill = out / "skills" / "hercules-reference" / "SKILL.md"
@@ -146,3 +147,23 @@ def test_opencode_users_are_warned_about_the_edit_approval_prompt_where_they_wil
     build_target("opencode", out)
     instr = (out / "instructions.md").read_text(encoding="utf-8")
     assert 'edit: "ask"' in instr, "write-gate mitigation must be in the loaded instructions.md"
+
+
+# ── Fix 6: no target renders a plan-mode/CoC triad empty (the ${target:default} guard) ─────────
+def test_no_registered_target_renders_a_plan_gate_empty(tmp_path):
+    """Every registered target must render the plan-mode instruction in every command. ${target:…}
+    switches resolve exact-name → short-alias → default → empty (render.py), so a command whose
+    plan-mode switch lost its `default` branch would render to nothing -- shipping a phase with no
+    plan-approval discipline. The assertion pins the *switched* sentence "Plan mode — required" (which
+    lives ONLY inside the switch block, unlike the static "## Plan mode" heading a global search would
+    mask), per command file, parametrized over the live registry so a new ecosystem is auto-covered."""
+    for tgt in descriptor.names():
+        out = tmp_path / tgt
+        build_target(tgt, out)
+        cmd_files = list((out / "commands").glob("*"))
+        assert cmd_files, f"{tgt}: no command files built"
+        for cf in cmd_files:
+            assert "Plan mode — required" in cf.read_text(encoding="utf-8"), \
+                f"{tgt}: {cf.name} plan-mode switch rendered empty"
+        assert "${target:" not in "\n".join(_files(out).values()), \
+            f"{tgt}: unresolved target switch left in output"

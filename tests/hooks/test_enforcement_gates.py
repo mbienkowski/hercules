@@ -60,6 +60,38 @@ GATE_EXPECTATIONS: dict[str, dict] = {
             "guard": "hercules_gate.py",
         },
     },
+    # Grok Build: reads Claude-format hooks, so it reuses the PreToolUse wiring (rooted at
+    # ${GROK_PLUGIN_ROOT}) and the byte-identical canonical guard to deny a frozen write before it lands.
+    "grok-build": {
+        "files": ["hooks/hooks.json", "hooks/frozen_tests.py", _STATE],
+        "hooks_json": {
+            "path": "hooks/hooks.json",
+            "event": "PreToolUse",
+            "matcher_tokens": ["Edit", "Write", "MultiEdit"],
+            "guard": "frozen_tests.py",
+        },
+    },
+    # Gemini CLI: a BeforeTool hook denies a frozen write_file/replace before it lands (Claude-shape veto).
+    "gemini-cli": {
+        "files": ["hooks/hooks.json", "hooks/hercules_gate.py", "hooks/frozen_tests.py", _STATE],
+        "hooks_json": {
+            "path": "hooks/hooks.json",
+            "event": "BeforeTool",
+            "matcher_tokens": ["write_file", "replace"],
+            "guard": "hercules_gate.py",
+        },
+    },
+    # Copilot CLI: a preToolUse hook denies an edit to a frozen test before it lands.
+    "copilot-cli": {
+        "files": ["plugin.json", ".github/plugin/marketplace.json", "hooks/hooks.json",
+                  "hooks/hercules_gate.py", "hooks/frozen_tests.py", _STATE],
+        "copilot_hooks": {
+            "path": "hooks/hooks.json",
+            "event": "preToolUse",
+            "matcher_tokens": ["create", "edit"],
+            "guard": "hercules_gate.py",
+        },
+    },
 }
 
 
@@ -125,6 +157,18 @@ def test_target_ships_its_write_gate(target, built):
         for token in spec["plugin_js"]:
             assert token in js, f"{target}: plugin.js missing write-gate token {token!r}"
 
+    # Copilot CLI: the preToolUse hook matches the edit tools and invokes the guard adapter.
+    if "copilot_hooks" in spec:
+        ch = spec["copilot_hooks"]
+        data = json.loads((out / ch["path"]).read_text(encoding="utf-8"))
+        entries = data.get("hooks", {}).get(ch["event"], [])
+        assert entries, f"{target}: no {ch['event']} hook wired"
+        matchers = " ".join(e.get("matcher", "") for e in entries)
+        for tok in ch["matcher_tokens"]:
+            assert tok in matchers, f"{target}: {ch['event']} matcher must cover {tok}"
+        wired = json.dumps(entries)
+        assert ch["guard"] in wired, f"{target}: {ch['event']} must invoke {ch['guard']}"
+
     # Cursor: manifest points at the hooks file, which wires all three gate modes to the guard.
     if "manifest_hooks_pointer" in spec:
         manifest = json.loads((out / spec["manifest_hooks_pointer"]).read_text(encoding="utf-8"))
@@ -149,7 +193,7 @@ def test_frozen_state_reader_is_byte_identical_across_all_gated_targets(built):
             continue
         shipped[target] = (built[target] / _STATE).read_bytes()
     assert len(shipped) >= 2, "expected at least two gated targets to ship the shared state reader"
-    reference = REPO_ROOT / "src" / "targets" / "claude-code" / "hooks" / "hercules_state.py"
+    reference = REPO_ROOT / "src" / "hooks" / "hercules_state.py"
     ref_bytes = reference.read_bytes()
     for target, data in shipped.items():
         assert data == ref_bytes, f"{target}: hercules_state.py diverged from the canonical source"

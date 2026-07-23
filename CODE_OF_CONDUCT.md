@@ -18,11 +18,15 @@ fails when it is hand-edited or left stale.
 - **`src/content/`** — ecosystem-neutral content: `agents/`, `commands/`, `skills/{name}/SKILL.md`,
   `protocols/`, and `persona.md` (the project instructions, rendered to each host's convention —
   Claude Code's `CLAUDE.md`, OpenCode's `instructions.md`).
-- **`src/targets/<ecosystem>/`** — an ecosystem's **data**: a `config.json` (token `vars`), a
-  `smoke.json`, an optional versioned manifest, an optional `hooks/` dir on any host that supports
-  enforcement (`claude-code`, `cursor`), and an optional `CAPABILITIES.md` (disclosed gaps, prose). The
-  small per-ecosystem build **code** — its `Serializer` and `Target` — lives under `scripts/build/`
-  (see **Adding an ecosystem**), not here; `src/` holds no code the compiler executes.
+- **`src/ecosystems/<ecosystem>.json`** — ONE descriptor per ecosystem, the whole target as **data**
+  (see **Adding an ecosystem**): token `vars`, `models`, `smoke`, role shapes, routes, inline JSON
+  artifacts, guard/gate wiring, named generators. Shipped prose/SVG siblings follow the definitive
+  filename schema **`<ecosystem>.dist.<dest>`** (ships byte-identically at plugin-root `<dest>`;
+  the directory layout is schema-validated on discovery — a stray file fails the build). No
+  per-ecosystem directories, no per-ecosystem code anywhere.
+- **`src/hooks/`** — the SHARED enforcement code (stdlib Python, authored once, byte-copied to every
+  ecosystem): the canonical frozen-test guard and the one generic write-gate adapter. `src/` holds no
+  code the compiler executes — the compiler only copies these for the host to run.
 - **`dist/<ecosystem>/`** — the built plugins (generated; the shipped output), one tree per target.
 
 Paths below name the **source** you edit; the compiler places the built copy under `dist/`.
@@ -62,8 +66,8 @@ Keep them in lock-step:
 - Any change to a phase or step — its definition, wording, or order — lands in the protocol's phase
   list / guardrail registry first, with the command and the detailed diagram never lagging it **in the
   same change** (persona.md follows only when the state schema or overview changes). A `hook`-class
-  registry row must match a live matcher in the **reference** gate,
-  `src/targets/claude-code/hooks/hooks.json` (CI-verified); each other ecosystem's equivalent gate is
+  registry row must match a live matcher in the **reference** gate — the `hooks/hooks.json` artifact
+  in `src/ecosystems/claude-code.json` (CI-verified); each other ecosystem's equivalent gate is
   pinned by its own wiring test under `tests/hooks/` (see § Hooks).
 - If the change is visible at the four-phase level, also update the simplified diagram, the README
   (end-user overview), and `CONTRIBUTING.md` (if the contributor workflow is affected).
@@ -97,8 +101,8 @@ Exception: `hercules.md`, the orchestrator persona.
   code-of-conduct the orchestrator refreshes it once at retire instead. An agent never updates a spec.
 - Replies follow the A2A `§ Agent-Injected Core` (`src/content/protocols/a2a-communication-protocol.md`).
 - Update the roster in **three places** — the agent list in `src/content/persona.md`, the `advisors[]` array
-  in `src/targets/claude-code/settings.json`, and `_ADVISOR_AGENTS` in `tests/agents/test_agents.py`; a sync test fails
-  on drift.
+  in the claude-code descriptor's `settings.json` artifact (`src/ecosystems/claude-code.json`), and
+  `_ADVISOR_AGENTS` in `tests/agents/test_agents.py`; a sync test fails on drift.
 - **Instruction load is a budget.** Say whose context new content lands in — a delegate's total stays
   under ~150 directives (own file + packet + A2A core + the project CoC). Always-loaded content spends
   everyone's headroom.
@@ -106,14 +110,18 @@ Exception: `hercules.md`, the orchestrator persona.
 ### Hooks
 
 Hooks are the plugin's **hard** enforcement — deterministic code the host runs, which a model cannot
-rationalise past. They ship **per ecosystem, wherever the host offers an enforcement surface**, all keyed
-off the same frozen-guard state so no logic is reimplemented per target:
+rationalise past. All hook code is authored ONCE in `src/hooks/` and byte-copied to every ecosystem;
+what differs per host is **descriptor data** (the `guard`/`gate` sections of
+`src/ecosystems/<eco>.json`, emitted as `hooks/gate.json` beside the shared adapter). The surfaces:
 
-- **Claude Code** — a `PreToolUse` hook (`src/targets/claude-code/hooks/`, auto-loaded via `hooks.json`)
-  denies a write before it lands. The reference gate.
+- **Claude Code** — a `PreToolUse` hook (the canonical guard itself, wired by the descriptor's
+  `hooks.json` artifact) denies a write before it lands. The reference gate.
 - **OpenCode** — a generated `tool.execute.before` hook (in `plugin.js`) throws to abort a frozen edit
-  before disk — a real pre-write veto. It shells to the byte-identical Claude guard, not a re-port.
-- **Cursor** — a `hooks.json` adapter (`src/targets/cursor/hooks/`) that `beforeShellExecution`/
+  before disk — a real pre-write veto. It shells to the byte-identical canonical guard, not a re-port.
+- **Gemini CLI / Copilot CLI** — the generic adapter's `pre_tool` protocol: the host's `BeforeTool`/
+  `preToolUse` event is mapped through the descriptor's tool map onto the canonical guard, a true
+  pre-write veto; the host's decision shapes (deny/allow JSON) are descriptor data.
+- **Cursor** — the generic adapter's `event_guards` protocol: `beforeShellExecution`/
   `beforeMCPExecution` **deny** a frozen write/commit (a coarse guardrail — reads are not blocked; the
   agent must read the test it makes pass). Since `afterFileEdit` is notification-only, the edit path is
   **runtime-aware**: **advisory** in the interactive IDE (a loud notice, **no** working-tree mutation —
@@ -139,9 +147,10 @@ Shared rules for every hook, on every ecosystem:
   untracked file or non-git tree. In the interactive IDE the after-edit path is **advisory only** (no
   mutation).
 - **Honest scope.** A hook reads model-authored state, so it is **runtime-mediated, not tamper-proof** —
-  say so, never "unbypassable"; disclose the per-ecosystem limits in `CAPABILITIES.md` (fail-open without
-  `python3`; Cursor's revert-only Composer path). User-granted overrides (`frozen_override`,
-  `frozen_hook: "off"`) are recorded state, not holes.
+  say so, never "unbypassable"; disclose the per-ecosystem limits in the compiled `CAPABILITIES.md`
+  (authored in `src/content/capabilities.md`: fail-open without `python3`; Cursor's revert-only
+  Composer path). User-granted overrides (`frozen_override`, `frozen_hook: "off"`) are recorded
+  state, not holes.
 - **Single source of truth.** The frozen-guard state reader (`hercules_state.py`) is authored once and
   shipped byte-identical to every ecosystem (a build-time copy, pinned by a byte-identity test).
 - Every hook ships with executable tests under `tests/hooks/` (scanned for hygiene across all ecosystems)
@@ -155,32 +164,47 @@ project has no `code-of-conduct.md`.
 
 ### Adding an ecosystem (target)
 
-One neutral `src/content/` compiles to every ecosystem through a generic engine: `cli.build_target`
-loops the content once and dispatches through two registries — it holds **zero** per-ecosystem
-branches, so onboarding a target is additive, never an edit to the orchestrator. A target is **data +
-one or two small code registrations**, in this fixed shape:
+One neutral `src/content/` compiles to every ecosystem through ONE generic engine: `cli.build_target`
+loops the content once and dispatches through registries populated from the ecosystem descriptors —
+it holds **zero** per-ecosystem branches, classes, or modules. **A target is one data file**:
 
-- **Data — `src/targets/<eco>/`:** `config.json` (token `vars`); `smoke.json` (its CLI + install method
-  + smoke-test path — CI-hard-failing if absent); optional `plugin.json` (a native manifest — its
-  `version` field carries the `${version}` token, injected from `pyproject.toml` at build via
-  `emit.copy_versioned`, **never** a hand-maintained literal); optional `hooks/` (the write-gate
-  adapter); optional `CAPABILITIES.md` (disclosed gaps — plain prose, **never** a Python string literal).
-- **Content transform — `scripts/build/serialize.py`:** one `Serializer` subclass, `register()`-ed.
-  This is genuine per-ecosystem *behaviour* (which frontmatter keys survive, how the body renders) and
-  stays code — it carries the mutation gate. It is the one irreducible code touch every target needs.
-- **Non-content extras — `scripts/build/targets/<eco>.py`:** one `register(Target(...))` — its
-  `renames`/`dest_fn` (destination routing) and `emit_extras_fn`. Copies/shared-hook/CAPABILITIES
-  plumbing goes through the shared helpers (`emit.copy_map`, `targets.base.emit_shared`); write bespoke
-  code here **only** for genuinely generated output (e.g. OpenCode's `plugin.js`). A target with no
-  extras beyond copies needs just the one `register()` call.
+- **Descriptor — `src/ecosystems/<eco>.json`:** the whole target, schema-validated
+  (`scripts/build/descriptor.py`): token `vars`; `models` tiers; the `smoke` matrix entry
+  (schema-required — a target cannot exist untestable); per-role output shapes (`roles` — named
+  serialization modes and field generators); destination `routes` (named kinds); inline JSON
+  `artifacts` (native manifests — a `version` field carries the `${version}` token, injected from
+  `pyproject.toml` at build, **never** a hand-maintained literal); shared-`guard` modules and
+  write-`gate` parameters; rendered `templates`. The vocabulary is **closed**: a descriptor selects
+  named, mutation-covered Python behaviors and supplies operands only — an unknown key or enum value
+  fails the build loudly at load, naming the allowed set.
+- **No executable content in descriptors.** No expressions, interpolation, conditionals, or code
+  references beyond the named vocabulary. A target needing behavior the vocabulary lacks gets a
+  **new named behavior in `scripts/build/` or `src/hooks/` Python** — mutation-gated, exact-output
+  tested — then referenced by name. Genuinely generated text (e.g. OpenCode's `plugin.js`) is a
+  `<eco>.template.<dest>` sibling rendered from closed, named computed-value kinds (`js_string`,
+  `role_entries_js`, …; the computations are mutation-covered functions in `genextras.py`), never
+  inline JSON logic, never auto-discovered code under `src/`. Growing descriptor expressiveness
+  instead of adding a named Python behavior is the failure mode to reject in review.
+- **Capability disclosures are compiled content.** `CAPABILITIES.md` is authored ONCE in
+  `src/content/capabilities.md` — shared claims live in shared lines, host-specific nuance in
+  `${target:…}` branches — and compiled per ecosystem like every other content file, so a shared
+  claim can never drift between ecosystems. An ecosystem routes it in with an `exact` route (or out
+  with `omit` — claude-code, the reference, ships none); conformance and gate-wiring sync tests pin
+  the rendered prose against the descriptor data it describes.
+- **Siblings — `src/ecosystems/<eco>.dist.<dest>` and `<eco>.template.<dest>`:** binary/marketplace
+  files byte-copied to plugin-root `<dest>` (cursor's logo/readme), and text templates rendered to
+  `<dest>` (OpenCode's `plugin.js`). The filename IS the routing — the `.dist.`/`.template.` marker
+  and dest are validated on discovery, pinned deterministic by tests, no separate mapping to drift.
+  No per-ecosystem directories.
 - **Enforcement + release:** a `GATE_EXPECTATIONS` entry (or explicit waiver) in
   `tests/hooks/test_enforcement_gates.py` — hand-authored on purpose, the forcing function that a new
   target cannot ship ungated; output-pinning tests under `tests/build/`; a `RELEASE.md` smoke section.
 
-The rule is the same for a trivial ecosystem and a complex one — the complex one just fills in more of
-the optional parts (a `hooks/` dir, a bespoke `emit_extras`). Do **not** invent a JSON config DSL for
-the serializer, or auto-discovered executable code under `src/`: control-flow stays typed,
-mutation-covered Python; `src/` stays data the compiler only reads.
+The rule is the same for a trivial ecosystem and a complex one — the complex one just fills in more
+of the optional sections. The old "no JSON config DSL" rule stands in spirit: the descriptor is a
+config **file**, not a DSL — control flow stays typed, mutation-covered Python; `src/` stays data the
+compiler only reads (and `src/hooks/` code it only copies). The committed-dist drift gate (`--check`)
+is what proves a descriptor reproduces the intended bytes.
 
 ### Failure moments
 
@@ -206,12 +230,11 @@ Enforced by `tests/` — a change that breaks one fails CI:
 - **The plugin version is single-sourced** — `pyproject.toml` is the canonical version of record
   (`read_canonical_version`); `package.json` is the only other literal (npm/OpenCode read it as-is) and
   is cross-checked against pyproject every CI `validate` run. The two are the whole canonical list
-  (`scripts/build/version_targets.py::VERSION_TARGETS`). Every ecosystem's versioned manifest
-  (`src/targets/<ecosystem>/plugin.json`, e.g. `claude-code`, `cursor`) carries a `${version}` **token**,
+  (`scripts/build/version_targets.py::VERSION_TARGETS`). Every ecosystem's versioned manifest (a
+  `"versioned": true` artifact in `src/ecosystems/<ecosystem>.json`) carries a `${version}` **token**,
   not a literal — a human never sees a version to hand-bump under `src/`; the build injects the canonical
-  version into each `dist/…/plugin.json` (`emit.copy_versioned`, fail-loud if the token is absent or
-  duplicated). Tests assert every shipped manifest equals the canonical version and that no `${…}` token
-  survives. Literal version sources are build *inputs* (`pyproject.toml`, `package.json`), never `dist/`
+  version into each `dist/…/plugin.json` (fail-loud if the token is absent or duplicated). Tests assert
+  every shipped manifest equals the canonical version and that no `${…}` token survives. Literal version sources are build *inputs* (`pyproject.toml`, `package.json`), never `dist/`
   outputs (a `dist/` file would be regenerated from `src/` on the next build).
 - **Red first, red possible forever.** A new test is born failing — write it before the feature, watch it
   fail for the right reason, then make it pass. Anchor it so it stays able to fail; `"auto" in lower`

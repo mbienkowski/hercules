@@ -1,0 +1,16 @@
+{
+  "name": "hercules",
+  "owner": {
+    "name": "Michal Bienkowski"
+  },
+  "metadata": {
+    "description": "Methodology & workflow system for software delivery with AI"
+  },
+  "plugins": [
+    {
+      "name": "hercules",
+      "source": "./dist/copilot-cli",
+      "description": "Methodology & workflow system for software delivery with AI"
+    }
+  ]
+}

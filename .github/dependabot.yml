@@ -4,7 +4,7 @@ version: 2
 # silently — a re-pin lands as a reviewable PR instead of a stale, unowned version. Grouped so it
 # opens one PR per week, not one per action.
 #
-# NOTE: the ecosystem CLI pins live in src/targets/<eco>/smoke.json (not a package manifest), so
+# NOTE: the ecosystem CLI pins live in src/ecosystems/<eco>.json smoke config (not a package manifest), so
 # Dependabot cannot bump them, and no CI leg surfaces a stale one — the blocking smoke installs the
 # pinned version and stays green after an upstream release. Bump these pins by hand (see RELEASE.md).
 updates:

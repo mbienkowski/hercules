@@ -1,8 +1,8 @@
 """The CI smoke matrix (scripts/ci/smoke_matrix.py) — the registry-drift gate.
 
-Every registered ecosystem gets a smoke leg on every PR and on main (the workflow uses
-``on: pull_request`` with no secrets exposed to forks, so a script installer is no more dangerous
-there than an npm one; keyed live checks skip when their secret is absent).
+Every registered ecosystem gets a smoke leg on every commit (push, all branches) and on every PR —
+no secrets are exposed to forks, so a script installer is no more dangerous there than an npm one;
+keyed live checks skip when their secret is absent.
 
 The matrix derives from the build's target registry (the single source of truth), so it also fails
 closed on drift: a registered ecosystem missing its smoke.json, or a smoke.json for an unregistered
@@ -59,7 +59,7 @@ def test_every_leg_carries_the_fields_the_install_and_run_scripts_read(monkeypat
 def test_the_matrix_targets_come_from_the_build_registry(monkeypatch):
     """The smoke legs are exactly the registered ecosystems (single source of truth), not an
     independently-maintained list that could drift from what actually ships."""
-    from scripts.build.targets import registered_target_names
+    from scripts.build.descriptor import names as registered_target_names
     legs = _targets({"GITHUB_REF": "refs/heads/main"}, monkeypatch)
     assert set(legs) == set(registered_target_names())
 
@@ -87,6 +87,17 @@ def test_a_smoke_json_for_an_unregistered_ecosystem_fails_closed(monkeypatch):
 def test_smoke_is_a_peer_of_test_and_validate():
     """Smoke fans out right after build (needs only build), not gated behind the unit suite."""
     assert CI_JOBS["smoke"]["needs"] == ["build"], "smoke must need only [build] (peer of test/validate)"
+
+
+def test_smoke_runs_on_every_commit_not_only_pr_or_main():
+    """Smoke is a fast peer gate that runs on EVERY commit (push, all branches) and every PR — so a
+    broken install or a plugin that no longer loads is caught on the commit that introduced it, not
+    only once a PR is opened. Its `if:` may still guard on a green build, but must not gate on the
+    event type or the branch ref (that restriction is what mutation carries, not smoke)."""
+    smoke_if = CI_JOBS["smoke"]["if"]
+    assert "needs.build.result == 'success'" in smoke_if, "smoke must still require a green build"
+    assert "refs/heads/main" not in smoke_if, "smoke must NOT be gated to main"
+    assert "pull_request" not in smoke_if, "smoke must NOT be gated to pull_request — it runs every commit"
 
 
 def test_mutation_waits_for_test_validate_and_smoke():

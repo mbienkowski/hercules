@@ -70,9 +70,7 @@ Artifact-root resolution, code-of-conduct resolution, machine-local state (`~/.h
 Four sequential steps, each a wizard command. **Every step opens in plan mode** — opened with
 ${target:claude}
 `${plan_enter}`, closed at the single **Plan approval** gate with `${plan_exit}` (`auto`), after which
-${target:opencode}
-plan mode, closed at the single **Plan approval** gate on the user's approval, after which
-${target:cursor}
+${target:default}
 plan mode, closed at the single **Plan approval** gate on the user's approval, after which
 ${target:end}
 the step proceeds without further prompts. Discover and Design present a document draft and write it

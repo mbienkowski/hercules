@@ -16,7 +16,7 @@ https://github.com/mbienkowski/hercules/issues/15 has the full root-cause diagno
    only by running the real binary: "must export id" -- a path-installed plugin also requires a
    top-level `id` field that the Node probe never exercised.
 
-Both are now fixed in `scripts/build/manifests.py`'s `_PLUGIN_JS_TEMPLATE` (exports
+Both are now fixed in `src/ecosystems/opencode.template.plugin.js` (exports
 `{ id: "hercules", server: fn }`), verified against the real installed `opencode` binary before
 this test's `xfail` marker was removed.
 """
@@ -34,7 +34,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 pytestmark = pytest.mark.skipif(shutil.which("opencode") is None, reason="opencode CLI not available")
 
-_TIMEOUT = 30
+# 60s (matching the cursor/gemini/copilot smoke legs): a cold `opencode agent list` warms the Bun
+# runtime and loads the plugin on first invocation, which can exceed a tight 30s on a loaded CI runner
+# (a real timeout there was a flake, not a plugin defect — the built bytes are drift-gate-pinned).
+_TIMEOUT = 60
 
 
 @pytest.fixture

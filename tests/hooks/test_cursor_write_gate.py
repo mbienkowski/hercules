@@ -1,4 +1,4 @@
-"""The Cursor write-gate adapter (G1) — ``src/targets/cursor/hooks/hercules_gate.py``.
+"""The write-gate on Cursor — the ONE generic adapter running its ``cursor_events`` protocol.
 
 Cursor has no pre-file-edit veto, so the adapter enforces what Cursor's hooks CAN, all keyed off the
 SAME frozen-test state AND the SAME ``frozen_override`` policy Claude Code and OpenCode read
@@ -31,19 +31,21 @@ import pytest
 from scripts.build.cli import build_target
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CURSOR_HOOKS = REPO_ROOT / "src" / "targets" / "cursor" / "hooks"
-CLAUDE_HOOKS = REPO_ROOT / "src" / "targets" / "claude-code" / "hooks"
+SHARED_HOOKS = REPO_ROOT / "src" / "hooks"
 _HAVE_GIT = shutil.which("git") is not None
+
+from scripts.build.descriptor import discover  # noqa: E402
+
+GATE_CONFIG = discover()["cursor"].gate
 
 
 def _load_gate():
-    """Import the adapter in-process. It does ``from frozen_tests/hercules_state import …`` off its own
-    dir, so both shared modules (which live in the claude-code tree in source) must be on sys.path."""
+    """Import the shared adapter in-process. It does ``from frozen_tests/hercules_state import …`` off
+    its own dir — src/hooks/, where both guard modules live alongside it."""
     import sys
-    for d in (str(CLAUDE_HOOKS), str(CURSOR_HOOKS)):
-        if d not in sys.path:
-            sys.path.insert(0, d)
-    spec = importlib.util.spec_from_file_location("hercules_gate", CURSOR_HOOKS / "hercules_gate.py")
+    if str(SHARED_HOOKS) not in sys.path:
+        sys.path.insert(0, str(SHARED_HOOKS))
+    spec = importlib.util.spec_from_file_location("hercules_gate_generic", SHARED_HOOKS / "hercules_gate.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -72,9 +74,10 @@ def active_build(tmp_path):
 
 
 def _decide(mode: str, evt: dict, home: Path, capsys) -> dict:
-    """Run the adapter's ``main`` for *mode*/*evt* and return the parsed Cursor decision (or {} when the
-    adapter emitted nothing — the after_edit-on-clean case)."""
-    gate.main(["hercules_gate.py", mode], stdin_text=json.dumps(evt), home=str(home))
+    """Run the adapter's ``main`` for *mode*/*evt* under cursor's gate config and return the parsed
+    Cursor decision (or {} when the adapter emitted nothing — the after_edit-on-clean case)."""
+    gate.main(["hercules_gate.py", mode], stdin_text=json.dumps(evt), home=str(home),
+              config=GATE_CONFIG)
     out = capsys.readouterr().out.strip()
     return json.loads(out) if out else {}
 
@@ -118,6 +121,12 @@ _DENY_COMMANDS = [
     "git --git-dir=/r/.git add tests/test_frozen.py",  # --git-dir=… (=value form)
     "echo x >| tests/test_frozen.py",                  # >| clobber-override redirect to a frozen file
     "echo x >& tests/test_frozen.py",                  # >& redirect to a frozen file
+    # Quoted paths — the common way an agent writes a path — must NOT evade the deny (the span is
+    # unwrapped, not stripped). Regression for the quote-to-bypass hole.
+    'rm "tests/test_frozen.py"',                        # double-quoted frozen path
+    "git add 'tests/test_frozen.py'",                  # single-quoted frozen path
+    'echo x > "tests/test_frozen.py"',                 # quoted redirect target
+    'sed -i s/a/b/ "tests/test_frozen.py"',            # quoted arg to an in-place edit
 ]
 
 
@@ -138,6 +147,7 @@ _ALLOW_COMMANDS = [
     "cat tests/test_frozen.py > /dev/null",              # read it, redirect elsewhere
     "diff tests/test_frozen.py b.py > d.txt",            # compare it, redirect elsewhere
     "git add src/feature.py",                            # write verb, unrelated file
+    'git commit -m "rewrite test_frozen.py assertions"', # -m message NAMING the file is not an op on it
     "find . -name conftest.py -delete",                  # find -delete, but not a frozen file
     "git -C . diff tests/test_frozen.py > /tmp/d",       # B2: read (diff) via a global option, output elsewhere
     "rm mytest_frozen.py.bak",                           # B2: substring of a frozen basename, not the file itself
@@ -331,7 +341,7 @@ def test_mcp_fails_open_on_malformed_event(tmp_path, capsys):
     """Garbage on stdin must still yield allow for mcp — a gate bug never bricks an MCP call."""
     home = tmp_path / "home"
     home.mkdir()
-    gate.main(["hercules_gate.py", "mcp"], stdin_text="{not json", home=str(home))
+    gate.main(["hercules_gate.py", "mcp"], stdin_text="{not json", home=str(home), config=GATE_CONFIG)
     assert json.loads(capsys.readouterr().out.strip())["permission"] == "allow"
 
 
@@ -354,7 +364,7 @@ def test_shell_fails_open_on_malformed_event(tmp_path, capsys):
     """Garbage on stdin must still yield allow for shell — a gate bug never bricks a command."""
     home = tmp_path / "home"
     home.mkdir()
-    gate.main(["hercules_gate.py", "shell"], stdin_text="{not json", home=str(home))
+    gate.main(["hercules_gate.py", "shell"], stdin_text="{not json", home=str(home), config=GATE_CONFIG)
     assert json.loads(capsys.readouterr().out.strip())["permission"] == "allow"
 
 
@@ -368,7 +378,7 @@ def test_cursor_ships_the_gate_and_the_canonical_guard_files(tmp_path):
     for name in ("hercules_gate.py", "hooks.json", "hercules_state.py", "frozen_tests.py"):
         assert (out / "hooks" / name).is_file(), f"dist/cursor/hooks/{name} must ship"
     for name in ("hercules_state.py", "frozen_tests.py"):
-        assert (out / "hooks" / name).read_bytes() == (CLAUDE_HOOKS / name).read_bytes(), \
+        assert (out / "hooks" / name).read_bytes() == (SHARED_HOOKS / name).read_bytes(), \
             f"{name} must not diverge across dists"
 
 

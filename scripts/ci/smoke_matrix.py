@@ -1,9 +1,10 @@
 """Assemble the ecosystem smoke matrix from the build's target registry (invoked by ``make smoke-matrix``).
 
-The ecosystem list comes from ``scripts.build.targets`` — the SAME registry the build dispatches on —
-so the smoke matrix cannot drift from what actually ships. Each registered ecosystem must declare a
-``src/targets/<name>/smoke.json`` (its CLI + install method + smoke-test path); it becomes one parallel
-smoke leg that runs on every PR and on ``main``. This workflow uses ``on: pull_request`` with
+The ecosystem list comes from ``descriptor.names()`` — the SAME source the build dispatches on —
+so the smoke matrix cannot drift from what actually ships. Each ecosystem's descriptor
+(``src/ecosystems/<name>.json``) must declare a ``smoke`` section (its CLI + install method +
+smoke-test path — schema-required); it becomes one parallel smoke leg that runs on every PR and on
+``main``. This workflow uses ``on: pull_request`` with
 ``permissions: contents: read`` — a fork PR gets no repository secrets — so every ecosystem's installer
 (npm-pinned or a script installer like Cursor's) runs on PRs; the keyed live checks (e.g. Cursor's
 ``cursor-agent -p`` needing ``CURSOR_API_KEY``) simply skip when the secret is absent. NOTE: a script
@@ -14,13 +15,10 @@ Writes ``matrix=<json>`` to ``$GITHUB_OUTPUT`` when set, else prints it (for loc
 """
 from __future__ import annotations
 
-import glob
 import json
 import os
 
-from scripts.build.targets import registered_target_names
-
-_TARGETS_DIR = "src/targets"
+from scripts.build.descriptor import discover, names as registered_target_names
 
 
 def build_matrix() -> dict:
@@ -29,24 +27,23 @@ def build_matrix() -> dict:
     Fail CLOSED in three ways, because an empty/partial matrix expands to fewer jobs and GitHub counts
     a skipped leg as success — which would let an ungated build reach release:
 
-    - a registered ecosystem with no ``smoke.json`` is untestable → error (don't silently skip it);
-    - a ``smoke.json`` for an unregistered ecosystem is a phantom leg → error (don't smoke a ghost);
+    - a registered ecosystem with no descriptor ``smoke`` config is untestable → error (don't skip it);
+    - a smoke config for an unregistered ecosystem is a phantom leg → error (don't smoke a ghost);
     - a matrix that resolves to zero legs → error (the whole gate would vanish).
     """
     registered = registered_target_names()
-    on_disk = {p.split("/")[2] for p in glob.glob(f"{_TARGETS_DIR}/*/smoke.json")}
+    descriptors = discover()
 
-    missing = sorted(set(registered) - on_disk)
+    missing = sorted(set(registered) - set(descriptors))
     if missing:
-        raise SystemExit(f"registered ecosystems with no smoke.json (untestable, gate would skip them): {missing}")
-    orphan = sorted(on_disk - set(registered))
+        raise SystemExit(f"registered ecosystems with no smoke.json config (untestable, gate would skip them): {missing}")
+    orphan = sorted(set(descriptors) - set(registered))
     if orphan:
-        raise SystemExit(f"smoke.json for unregistered ecosystems (phantom smoke legs): {orphan}")
+        raise SystemExit(f"smoke config for unregistered ecosystems (phantom smoke legs): {orphan}")
 
     legs = []
     for name in registered:
-        with open(f"{_TARGETS_DIR}/{name}/smoke.json", encoding="utf-8") as fh:
-            cfg = json.load(fh)
+        cfg = descriptors[name].smoke
         install = cfg.get("install", {"method": "npm"})
         method = install.get("method", "npm")
         legs.append({

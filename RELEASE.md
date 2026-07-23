@@ -13,7 +13,7 @@ On every merge to `main`, `release.yml` runs after CI succeeds:
    by setuptools) and `package.json` (read by npm/OpenCode). The plugin manifests
    (`dist/{claude-code,cursor}/…/plugin.json`) are **not** stamped — their source carries a
    `${version}` token that the build injects from `pyproject.toml` (step below), so there is one
-   version of record and nothing to hand-bump under `src/targets/`.
+   version of record and nothing to hand-bump under `src/ecosystems/`.
 3. `make build` regenerates `dist/`, injecting the canonical version into each plugin manifest.
 4. Commits the bump + rebuilt `dist/` (`chore(release): X.Y.Z [skip ci]`), tags `vX.Y.Z`, pushes.
 5. Publishes the GitHub Release.
@@ -52,8 +52,8 @@ needs a live, paid session and stays a manual, release-gating check.
 
 | # | OpenCode item | Status |
 |---|---|---|
-| 1 | `config` hook fires (agents/commands register) | ⚠️ blocked — [issue #15](https://github.com/mbienkowski/hercules/issues/15): the real OpenCode loader rejects the built `plugin.js` today, so this is encoded as an `xfail(strict=True)` smoke test rather than a pass; it flips to a hard failure (forcing the marker's removal) the moment the loader bug is actually fixed |
-| 2 | `plugin.js` loads with no missing-asset throw | ⚠️ blocked — same root cause as #1 |
+| 1 | `config` hook fires (agents/commands register) | ✅ automated — [issue #15](https://github.com/mbienkowski/hercules/issues/15) is fixed (the entry exports `{ id, server }`); `test_opencode_plugin_starts_up_with_every_agent_and_command_registered` loads the built `plugin.js` in a real Node process and asserts every agent/command registers (skips only when `node` is absent) |
+| 2 | `plugin.js` loads with no missing-asset throw | ✅ automated — `test_opencode_plugin_refuses_to_start_if_its_bundled_files_are_missing` (same file) drives the real loader |
 | 3 | `default_agent` is `hercules`; a subagent spawns | manual |
 | 4 | `/hercules:discover` resolves and runs | manual |
 | 5 | A skill auto-fires from its description | manual |
@@ -115,8 +115,7 @@ they must be confirmed live before release:
 
 **Install:** Cursor consumes the built plugin at `dist/cursor/` (`.cursor-plugin/plugin.json` + native
 component dirs). Copy `dist/cursor/` into `~/.cursor/plugins/local/hercules/` and restart Cursor (the
-documented local-plugin path); a public marketplace listing is a planned follow-up (a repo-root
-`.cursor-plugin/marketplace.json` sourcing `dist/cursor` is included for it). Requires Cursor ≥ 2.5
+documented local-plugin path). Requires Cursor ≥ 2.5
 (the version that added plugin packaging). There is **no registry publish step** — like Claude Code,
 Cursor is git-consumed.
 
@@ -153,12 +152,29 @@ opt-in — it needs a `CURSOR_API_KEY` secret and skips without it) — confirm 
 | 5 | Independent-review handshake returns (or HALTs) | manual |
 | 6 | `CAPABILITIES.md` gaps read true | manual |
 
+### Grok Build · Gemini CLI · Copilot CLI
+
+Installable via `@xai-official/grok` (`/marketplace`), `@google/gemini-cli` (`gemini extensions install
+./dist/gemini-cli`), and `@github/copilot` (`copilot plugin install hercules@mbienkowski`). The build
+proves structure + the in-process guard; these load-time behaviours are verified live before release
+(the `test_<target>_smoke` legs run the real CLI on PR + main; each write-gate test never skips):
+
+- [ ] **Write-gate fires on the file-edit tool** (the 100%-tier claim): a frozen-test edit *during a
+      build* is denied — Grok `PreToolUse` (exit 2), Gemini `BeforeTool` (`decision:"deny"`), Copilot
+      `preToolUse` (`permissionDecision:"deny"`). If a host vetoes only shell, re-file it best-effort in
+      its `CAPABILITIES.md` — never a false "blocked".
+- [ ] **Fail-open** when `python3` is absent (Copilot's hook wrapper keeps a missing interpreter from
+      failing closed); the acceptance-gate `frozen_baseline` re-hash is the backstop.
+- [ ] Persona/commands load, `/…workflow` resolves, and each `CAPABILITIES.md`'s disclosed gaps read true.
+- [ ] **Rollback:** repo-hosted install — revert the `dist/<target>/` commit and re-tag; the marketplace
+      descriptors point at the prior good tag.
+
 ### Cross-ecosystem
 
 - [ ] `pyproject.toml` and `package.json` — the two literal version sources
       (`scripts/build/version_targets.py::VERSION_TARGETS`) — both show the release version (matches the
-      git tag). The plugin manifests under `src/targets/` carry a `${version}` token (not a literal); the
+      git tag). The plugin manifests (versioned artifacts in `src/ecosystems/*.json`) carry a `${version}` token (not a literal); the
       build injects the canonical `pyproject.toml` version into every `dist/…/plugin.json`.
 
-v1 ships **Claude Code + OpenCode + Cursor**. Codex is TBD — add its smoke section when delivered
+Each shipped ecosystem carries its own smoke section above; add one per target
 (see [CONTRIBUTING.md](CONTRIBUTING.md) § Adding a new target for the proven extension procedure).

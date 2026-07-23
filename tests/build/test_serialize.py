@@ -1,13 +1,18 @@
-"""Spec 01 — the Claude serializer stub + the target registry / extensibility contract.
+"""Spec 01 — the Claude serialization contract + the target registry / extensibility contract.
 
-Frozen for spec-01-build-compiler-core.
+Frozen for spec-01-build-compiler-core (import paths migrated to the generic descriptor engine;
+every behavioral assertion preserved verbatim).
 """
 import pytest
 
 from scripts.build import serialize
-from scripts.build.serialize import ClaudeCodeSerializer
 
 MODELS = {"claude-code": {"high": "opus", "medium": "sonnet", "low": "haiku"}}
+
+
+def ClaudeCodeSerializer():
+    """The registered claude-code serializer (kept as a callable so the assertions read unchanged)."""
+    return serialize.get("claude-code")
 
 
 def test_agent_definition_translates_model_tier_to_concrete_model_name():
@@ -67,4 +72,4 @@ def test_agent_missing_required_fields_fails_with_a_helpful_error():
     with pytest.raises(serialize.SerializeError, match="description"):
         ClaudeCodeSerializer().serialize_agent({"name": "challenger"}, "# Challenger\n", {}, MODELS)
     with pytest.raises(serialize.SerializeError, match="name"):
-        serialize.OpenCodeSerializer().serialize_agent({"description": "d"}, "# X\n", {}, MODELS)
+        serialize.get("opencode").serialize_agent({"description": "d"}, "# X\n", {}, MODELS)

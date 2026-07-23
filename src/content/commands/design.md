@@ -11,9 +11,7 @@ Turn a business requirement into numbered technical specs ready for Build. Plugi
 
 ${target:claude}
 **Plan mode — required.** Call `${plan_enter}` at the start. Every draft is a full inline proposal; iterate freely; always regenerate the complete draft — never patch sections. At the **Plan approval** gate, on the user's approval, call `${plan_exit}` (`auto`), then write.
-${target:opencode}
-**Plan mode — required.** Enter plan mode at the start. Every draft is a full inline proposal; iterate freely; always regenerate the complete draft — never patch sections. At the **Plan approval** gate, on the user's approval, leave plan mode, then write.
-${target:cursor}
+${target:default}
 **Plan mode — required.** Enter plan mode at the start. Every draft is a full inline proposal; iterate freely; always regenerate the complete draft — never patch sections. At the **Plan approval** gate, on the user's approval, leave plan mode, then write.
 ${target:end}
 
@@ -96,9 +94,7 @@ Synthesise the reviewer's findings (that synthesis is the terminal judgment): if
 
 ${target:claude}
 This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback, not approval. **Do not write the specs until the user approves.** On approval, call `${plan_exit}` (`auto`), then write (Step 9).
-${target:opencode}
-This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback, not approval. **Do not write the specs until the user approves.** On approval, leave plan mode, then write (Step 9).
-${target:cursor}
+${target:default}
 This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback, not approval. **Do not write the specs until the user approves.** On approval, leave plan mode, then write (Step 9).
 ${target:end}
 

@@ -1,0 +1,21 @@
+{
+  "protocol": "pre_tool",
+  "tools": {
+    "write_file": "Write",
+    "replace": "Edit"
+  },
+  "path_keys": [
+    "file_path",
+    "filePath",
+    "path",
+    "absolute_path",
+    "absolutePath",
+    "file",
+    "filename"
+  ],
+  "nested_keys": [],
+  "deny": {
+    "decision": "deny"
+  },
+  "reason_key": "reason"
+}

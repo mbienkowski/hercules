@@ -1,5 +1,0 @@
-{
-  "claude-code": {"high": "opus", "medium": "sonnet", "low": "haiku"},
-  "opencode":    {"high": null, "medium": null, "low": null},
-  "cursor":      {"high": null, "medium": null, "low": null}
-}

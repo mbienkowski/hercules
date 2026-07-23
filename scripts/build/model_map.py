@@ -1,8 +1,8 @@
 """Tier → per-target model resolution (pure).
 
-``models.json`` maps ``model_tier`` (``high|medium|low``) to a per-target value. A missing tier falls
-back toward higher capability (``low`` → ``medium`` → ``high``). A ``null`` value is first-class and
-means **omit the field**.
+Each ecosystem descriptor's ``models`` maps ``model_tier`` (``high|medium|low``) to a per-target
+value. A missing tier falls back toward higher capability (``low`` → ``medium`` → ``high``). A
+``null`` value is first-class and means **omit the field**.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def resolve(models: dict, target: str, tier: str) -> str | None:
     if tier not in TIER_FALLBACK:
         raise ModelMapError(f"unknown tier: {tier!r}")  # pragma: no mutate
     if target not in models:
-        raise ModelMapError(f"target not configured in models.json: {target!r}")  # pragma: no mutate
+        raise ModelMapError(f"target not configured in any models map: {target!r}")  # pragma: no mutate
     tmap = models[target]
     idx = TIER_FALLBACK.index(tier)
     order = [tier, *reversed(TIER_FALLBACK[:idx])]  # requested tier, then higher tiers

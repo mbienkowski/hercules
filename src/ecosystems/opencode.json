@@ -1,0 +1,161 @@
+{
+  "schema": 1,
+  "name": "opencode",
+  "vars": {
+    "product": "OpenCode",
+    "host": "OpenCode",
+    "ns": "/hercules:",
+    "instructions_file": "AGENTS.md",
+    "agent_ns": "",
+    "plugin_root": "",
+    "plan_enter": "plan mode",
+    "plan_exit": "approval"
+  },
+  "models": {
+    "high": null,
+    "medium": null,
+    "low": null
+  },
+  "smoke": {
+    "npm_package": "opencode-ai",
+    "npm_version": "1.18.3",
+    "cli": "opencode",
+    "test": "tests/build/test_opencode_smoke.py",
+    "expect": {
+      "version_cmd": [
+        "opencode",
+        "--version"
+      ]
+    }
+  },
+  "dispatch": "frontmatter",
+  "roles": {
+    "agent": {
+      "mode": "fields",
+      "body": "keep",
+      "fields": [
+        {
+          "key": "name",
+          "from": "frontmatter",
+          "field": "name"
+        },
+        {
+          "key": "description",
+          "from": "frontmatter",
+          "field": "description",
+          "render": true
+        },
+        {
+          "key": "mode",
+          "from": "primary_mode",
+          "primary": "hercules"
+        }
+      ]
+    },
+    "command": {
+      "mode": "fields",
+      "body": "lstrip_newlines",
+      "fields": [
+        {
+          "key": "description",
+          "from": "frontmatter",
+          "field": "description",
+          "render": true
+        },
+        {
+          "key": "agent",
+          "from": "literal",
+          "value": "hercules"
+        }
+      ]
+    },
+    "persona": {
+      "mode": "plain"
+    },
+    "default": {
+      "mode": "preserve"
+    }
+  },
+  "routes": [
+    {
+      "kind": "exact",
+      "src": "capabilities.md",
+      "dest": "CAPABILITIES.md"
+    },
+    {
+      "kind": "exact",
+      "src": "persona.md",
+      "dest": "instructions.md"
+    }
+  ],
+  "artifacts": [
+    {
+      "dest": "opencode.json",
+      "content": {
+        "$schema": "https://opencode.ai/config.json",
+        "default_agent": "hercules",
+        "instructions": [
+          "instructions.md"
+        ],
+        "skills": {
+          "paths": [
+            "skills"
+          ]
+        }
+      }
+    }
+  ],
+  "guard": [
+    "frozen_tests.py",
+    "hercules_state.py"
+  ],
+  "templates": [
+    {
+      "src": "opencode.template.plugin.js",
+      "dest": "plugin.js",
+      "values": {
+        "__DEFAULT_AGENT__": {
+          "from": "js_string",
+          "value": "hercules"
+        },
+        "__SKILLS_PATH__": {
+          "from": "js_string",
+          "value": "skills"
+        },
+        "__ASSET_LIST__": {
+          "from": "js_string_list",
+          "values": [
+            "instructions.md",
+            "protocols/a2a-communication-protocol.md",
+            "protocols/debate-consensus-protocol.md",
+            "protocols/workflow-protocol.md",
+            "skills"
+          ]
+        },
+        "__INSTRUCTION_JOINS__": {
+          "from": "js_root_joins",
+          "paths": [
+            "instructions.md",
+            "protocols/a2a-communication-protocol.md",
+            "protocols/debate-consensus-protocol.md",
+            "protocols/workflow-protocol.md"
+          ]
+        },
+        "__AGENT_ENTRIES__": {
+          "from": "role_entries_js",
+          "role": "agent",
+          "drop": [],
+          "body_key": "prompt",
+          "key_prefix": ""
+        },
+        "__COMMAND_ENTRIES__": {
+          "from": "role_entries_js",
+          "role": "command",
+          "drop": [],
+          "body_key": "template",
+          "key_prefix": "hercules:"
+        }
+      }
+    }
+  ]
+}

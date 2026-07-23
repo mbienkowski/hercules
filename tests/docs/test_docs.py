@@ -107,7 +107,7 @@ def test_readme_truthfully_discloses_that_the_plugin_runs_code_automatically(rea
     content = read_file("README.md")
     low = content.lower()
     assert "no executable code of its own" not in low, \
-        "README must not claim the plugin has no executable code — it ships src/targets/claude-code/hooks/*.py"
+        "README must not claim the plugin has no executable code — it ships src/hooks/*.py"
     assert "hook" in low, "README 'Plugin permissions' must disclose the enforcement hooks"
     assert "pretooluse" in low, "README must name the PreToolUse hook surface"
     # The three safety properties a reader relies on before trusting a shipped hook:

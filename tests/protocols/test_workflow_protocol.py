@@ -146,7 +146,9 @@ def test_every_guardrail_rule_is_completely_and_correctly_documented(read_file):
 def _hook_wiring(repo_root, read_file):
     """(hook-class registry rows, PreToolUse matchers, wired commands) — shared by the hook tests."""
     hook_rows = [r for r in _registry_rows(_section(read_file(_PROTOCOL), "registry")) if r[-1] == "hook"]
-    pre = json.loads((repo_root / "src" / "targets" / "claude-code" / "hooks" / "hooks.json").read_text())["hooks"]["PreToolUse"]
+    from scripts.build.descriptor import discover
+    hooks_artifact = next(a for a in discover()["claude-code"].artifacts if a.dest == "hooks/hooks.json")
+    pre = hooks_artifact.content["hooks"]["PreToolUse"]
     matchers = [entry["matcher"] for entry in pre]
     # Fold exec-form `args` into the command string — the script path lives in `args` under exec
     # form, in `command` under shell form; joining keeps the wiring checks form-agnostic.
