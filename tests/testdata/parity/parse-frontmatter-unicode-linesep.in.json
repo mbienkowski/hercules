@@ -1,0 +1,7 @@
+{
+ "module": "parse",
+ "fn": "parse_frontmatter",
+ "args": [
+  "---\nname: ls\n injected: yes\n---\nBody\n"
+ ]
+}

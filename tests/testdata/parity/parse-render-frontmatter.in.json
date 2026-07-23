@@ -1,0 +1,16 @@
+{
+ "module": "parse",
+ "fn": "render_frontmatter",
+ "args": [
+  [
+   [
+    "name",
+    "alpha"
+   ],
+   [
+    "model",
+    "x"
+   ]
+  ]
+ ]
+}

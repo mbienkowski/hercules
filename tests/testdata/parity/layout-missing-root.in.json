@@ -1,0 +1,10 @@
+{
+ "module": "layout",
+ "fn": "discover_sources",
+ "args": [
+  "does-not-exist"
+ ],
+ "pathArgs": [
+  0
+ ]
+}

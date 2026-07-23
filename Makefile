@@ -1,5 +1,5 @@
 .PHONY: test test-mutation test-smoke install install-py install-ts build build-check \
-        typecheck compile test-py test-ts mutation-py mutation-ts parity-tokens \
+        typecheck compile test-py test-ts mutation-py mutation-ts parity parity-tokens pycompat-golden-check \
         ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate \
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
 
@@ -40,7 +40,11 @@ test-ts:
 typecheck:
 	npm run typecheck
 
+# Drop the incremental build stamp when the output tree is gone: tsc -b trusts tsbuildinfo, so a
+# manually deleted .ts-out would otherwise leave `make compile` a no-op with nothing emitted.
+# Not `tsc -b --force`, which would forfeit incremental builds on every target that depends on this.
 compile:
+	@[ -d .ts-out ] || rm -f tsconfig.build.tsbuildinfo tsconfig.tests.tsbuildinfo
 	npm run compile
 
 test-mutation: mutation-py mutation-ts
@@ -76,6 +80,17 @@ ci-build:
 # disagreement is a spec change to the budgets in tests/testdata/thresholds.json, not a port.
 parity-tokens: compile
 	bash scripts/ci/parity_tokens.sh
+
+# The dual-run oracle for the migration: every fixture under tests/testdata/parity/ is fed to BOTH
+# compilers and their canonical output byte-diffed. A port commit is not done until this is green.
+parity: compile
+	bash scripts/ci/parity.sh
+
+# The pyCompat character tables encode a specific Unicode version. This proves the committed golden
+# dump matches the interpreter actually running, so the tables cannot silently encode a different
+# Unicode database than the one the parity harness compares against.
+pycompat-golden-check:
+	bash scripts/ci/pycompat_golden_check.sh
 
 validate:
 	python -m scripts.ci.validate_package

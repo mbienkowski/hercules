@@ -1,0 +1,9 @@
+{
+ "module": "render",
+ "fn": "render_body",
+ "args": [
+  "a\n${target:opencode}\nOPEN\n${target:default}\nFALLBACK\n${target:end}\nz",
+  "cursor",
+  {}
+ ]
+}

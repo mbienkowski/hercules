@@ -1,0 +1,7 @@
+{
+ "module": "parse",
+ "fn": "parse_frontmatter",
+ "args": [
+  "---\ndescription: a: b: c\n---\nBody\n"
+ ]
+}

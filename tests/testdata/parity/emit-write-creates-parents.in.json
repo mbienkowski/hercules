@@ -1,0 +1,14 @@
+{
+ "module": "emit",
+ "fn": "write",
+ "args": [
+  "deep/nested/out.md",
+  "hello\n"
+ ],
+ "pathArgs": [
+  0
+ ],
+ "capture": [
+  "deep/nested/out.md"
+ ]
+}

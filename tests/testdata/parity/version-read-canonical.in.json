@@ -1,0 +1,14 @@
+{
+ "module": "version_targets",
+ "fn": "read_canonical_version",
+ "files": {
+  "pyproject.toml": "version = \"9.9.9\"\n",
+  "package.json": "{\"version\": \"9.9.9\"}"
+ },
+ "args": [
+  "."
+ ],
+ "pathArgs": [
+  0
+ ]
+}

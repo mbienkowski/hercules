@@ -1,0 +1,11 @@
+{
+ "module": "model_map",
+ "fn": "resolve",
+ "args": [
+  {
+   "claude-code": {}
+  },
+  "claude-code",
+  "high"
+ ]
+}

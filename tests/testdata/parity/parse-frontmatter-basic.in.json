@@ -1,0 +1,7 @@
+{
+ "module": "parse",
+ "fn": "parse_frontmatter",
+ "args": [
+  "---\nname: alpha\ndescription: does things\n---\n\nBody text.\n"
+ ]
+}

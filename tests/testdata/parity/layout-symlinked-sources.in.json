@@ -1,0 +1,19 @@
+{
+ "module": "layout",
+ "fn": "discover_sources",
+ "files": {
+  "real/target.md": "x",
+  "root/plain.md": "y",
+  "root/sub/nested.md": "z"
+ },
+ "symlinks": {
+  "root/linked.md": "real/target.md",
+  "root/linkeddir": "real"
+ },
+ "args": [
+  "root"
+ ],
+ "pathArgs": [
+  0
+ ]
+}

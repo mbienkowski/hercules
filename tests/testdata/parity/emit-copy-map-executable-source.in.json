@@ -1,0 +1,30 @@
+{
+ "module": "emit",
+ "fn": "copy_map",
+ "files": {
+  "in/tool.md": {
+   "text": "A",
+   "mode": "755"
+  },
+  "in/plain.md": {
+   "text": "B",
+   "mode": "600"
+  }
+ },
+ "args": [
+  "in",
+  ".",
+  {
+   "tool.md": "out/tool.md",
+   "plain.md": "out/plain.md"
+  }
+ ],
+ "pathArgs": [
+  0,
+  1
+ ],
+ "capture": [
+  "out/tool.md",
+  "out/plain.md"
+ ]
+}

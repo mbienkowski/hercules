@@ -1,0 +1,17 @@
+{
+ "module": "layout",
+ "fn": "discover_sources",
+ "files": {
+  "c/z.md": "z",
+  "a/b.md": "b",
+  "a.md": "a",
+  "d/e/f.md": "f",
+  "ignored.txt": "x"
+ },
+ "args": [
+  "."
+ ],
+ "pathArgs": [
+  0
+ ]
+}

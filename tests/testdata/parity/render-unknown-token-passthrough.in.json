@@ -1,0 +1,9 @@
+{
+ "module": "render",
+ "fn": "render_body",
+ "args": [
+  "${unknown} stays",
+  "claude-code",
+  {}
+ ]
+}

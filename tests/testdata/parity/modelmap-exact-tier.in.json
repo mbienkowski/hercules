@@ -1,0 +1,15 @@
+{
+ "module": "model_map",
+ "fn": "resolve",
+ "args": [
+  {
+   "claude-code": {
+    "high": "opus",
+    "medium": "sonnet",
+    "low": "haiku"
+   }
+  },
+  "claude-code",
+  "medium"
+ ]
+}

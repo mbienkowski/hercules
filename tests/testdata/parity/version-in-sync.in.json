@@ -1,0 +1,15 @@
+{
+ "module": "version_targets",
+ "fn": "check_in_sync",
+ "files": {
+  "pyproject.toml": "version = \"1.0.0\"\n",
+  "package.json": "{\"version\":\"1.0.0\"}"
+ },
+ "args": [
+  ".",
+  null
+ ],
+ "pathArgs": [
+  0
+ ]
+}

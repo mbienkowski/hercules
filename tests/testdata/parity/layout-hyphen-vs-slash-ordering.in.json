@@ -1,0 +1,14 @@
+{
+ "module": "layout",
+ "fn": "discover_sources",
+ "files": {
+  "x/a-c.md": "1",
+  "x/a/b.md": "2"
+ },
+ "args": [
+  "."
+ ],
+ "pathArgs": [
+  0
+ ]
+}

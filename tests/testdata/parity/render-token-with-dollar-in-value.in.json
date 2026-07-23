@@ -1,0 +1,11 @@
+{
+ "module": "render",
+ "fn": "render_body",
+ "args": [
+  "v=${name}",
+  "claude-code",
+  {
+   "name": "$& and $1"
+  }
+ ]
+}

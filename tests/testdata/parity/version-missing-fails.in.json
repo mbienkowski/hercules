@@ -1,0 +1,14 @@
+{
+ "module": "version_targets",
+ "fn": "read_versions",
+ "files": {
+  "pyproject.toml": "[project]\nname = \"x\"\n",
+  "package.json": "{\"version\":\"1.0.0\"}"
+ },
+ "args": [
+  "."
+ ],
+ "pathArgs": [
+  0
+ ]
+}

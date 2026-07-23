@@ -1,0 +1,7 @@
+{
+ "module": "parse",
+ "fn": "parse_frontmatter",
+ "args": [
+  "---\ndescription: pros --- cons\nname: beta\n---\nBody\n"
+ ]
+}

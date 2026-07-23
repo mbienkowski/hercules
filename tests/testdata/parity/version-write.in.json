@@ -1,0 +1,19 @@
+{
+ "module": "version_targets",
+ "fn": "write_version",
+ "files": {
+  "pyproject.toml": "[project]\nversion = \"1.0.0\"\n",
+  "package.json": "{\n  \"version\": \"1.0.0\"\n}\n"
+ },
+ "args": [
+  "2.0.0",
+  "."
+ ],
+ "pathArgs": [
+  1
+ ],
+ "capture": [
+  "pyproject.toml",
+  "package.json"
+ ]
+}

@@ -1,0 +1,11 @@
+{
+ "module": "render",
+ "fn": "render_body",
+ "args": [
+  "Hello ${name}, root is ${CLAUDE_PLUGIN_ROOT}.",
+  "claude-code",
+  {
+   "name": "World"
+  }
+ ]
+}

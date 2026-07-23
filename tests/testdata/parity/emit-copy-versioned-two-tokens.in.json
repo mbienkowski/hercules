@@ -1,0 +1,16 @@
+{
+ "module": "emit",
+ "fn": "copy_versioned",
+ "files": {
+  "src.json": "{\"a\":\"${version}\",\"b\":\"${version}\"}"
+ },
+ "args": [
+  "src.json",
+  "out.json",
+  "1.2.3"
+ ],
+ "pathArgs": [
+  0,
+  1
+ ]
+}

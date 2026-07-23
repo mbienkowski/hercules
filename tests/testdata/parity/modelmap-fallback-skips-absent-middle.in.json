@@ -1,0 +1,14 @@
+{
+ "module": "model_map",
+ "fn": "resolve",
+ "args": [
+  {
+   "t": {
+    "high": "HIGH",
+    "low": "LOW"
+   }
+  },
+  "t",
+  "medium"
+ ]
+}

@@ -1,0 +1,7 @@
+{
+ "module": "parse",
+ "fn": "parse_frontmatter",
+ "args": [
+  "---\r\nname: crlf\r\n---\r\nBody\r\n"
+ ]
+}
