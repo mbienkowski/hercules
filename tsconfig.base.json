@@ -1,0 +1,41 @@
+{
+  // Shared compiler options. Two projects extend this and differ ONLY in module format:
+  //
+  //   tsconfig.build.json  — scripts-ts/  -> CommonJS, emitted to .ts-out/
+  //   tsconfig.tests.json  — tests-ts/    -> ESM, type-checked only (Vitest executes from source)
+  //
+  // ── Why scripts-ts/ is CommonJS (do not "modernise" this) ────────────────────────────────────
+  // package.json deliberately carries NO "type" field, so Node treats .js as CommonJS. That is a
+  // SHIPPED-PRODUCT contract, not a style choice: package.json's `main` is dist/opencode/plugin.js,
+  // the compiled OpenCode plugin, and that file is CommonJS (require / __dirname / module.exports).
+  // Adding "type": "module" would reinterpret it as ESM and break the plugin for every OpenCode
+  // user. tests-ts/packaging.spec.ts pins the absent type field so this cannot regress silently.
+  //
+  // Tests are ESM because Vitest's own API is ESM-only; Vitest compiles them from source, so their
+  // module format never reaches Node's loader and cannot affect the shipped plugin.
+  //
+  // `verbatimModuleSyntax` is NOT set: it is incompatible with CommonJS emit (it would force
+  // `import x = require(...)` syntax throughout scripts-ts/). `isolatedModules` plus explicit
+  // `import type` covers the import-elision correctness it would otherwise buy.
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023"],
+    "types": ["node"],
+
+    // Strictness. TypeScript was chosen here for precision — these are the flags that deliver it,
+    // not `strict` alone.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "useUnknownInCatchVariables": true,
+
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  }
+}

@@ -1,0 +1,18 @@
+{
+  // Type-check config for the specs and the Vitest config. ESM, never emitted — Vitest compiles
+  // tests from source, so this project's module format never reaches Node's loader and cannot
+  // affect the shipped CommonJS plugin.
+  //
+  // `moduleResolution: bundler` matches how Vite actually resolves these files at runtime, so what
+  // type-checks here is what executes there.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "noEmit": true
+  },
+  // Specs import the modules under test from scripts-ts/, which is a separate project.
+  "references": [{ "path": "./tsconfig.build.json" }],
+  "include": ["tests-ts/**/*.ts", "*.config.mts"]
+}

@@ -1,0 +1,23 @@
+{
+  // Emit config: compiles ONLY scripts-ts/ (the production toolchain) into .ts-out/ as CommonJS.
+  // See tsconfig.base.json for why CommonJS is a shipped-product contract, not a preference.
+  //
+  // `module: node16` reads package.json's absent "type" field and emits CommonJS accordingly,
+  // while still honouring dependencies' "exports" maps — which js-tiktoken's /lite and
+  // /ranks/cl100k_base subpaths require.
+  //
+  // .ts-out/ is gitignored and is deliberately NOT named build/: /build/ is already an ignore rule
+  // and pytest's norecursedirs is documented around that name, so reusing it would collide with
+  // two live rules.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "module": "node16",
+    "moduleResolution": "node16",
+    "outDir": ".ts-out",
+    "rootDir": "scripts-ts",
+    "sourceMap": true
+  },
+  "include": ["scripts-ts/**/*.ts"]
+}

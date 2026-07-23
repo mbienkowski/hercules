@@ -89,6 +89,15 @@ jobs:
           cache: "pip"
           cache-dependency-path: "pyproject.toml"
 
+      # `make install` and `make test` each run a Python half and a TypeScript half, so this job
+      # provisions both runtimes. The split is visible in the target names: test-py covers
+      # src/hooks/ and the compiler suite, test-ts covers scripts-ts/.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
+
       - name: Install dependencies
         run: make install
 
@@ -158,8 +167,10 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: make install
 
       # Pinned to the version verified when the check was written; the retry+timeout absorbs a
@@ -236,6 +247,15 @@ jobs:
           cache: "pip"
           cache-dependency-path: "pyproject.toml"
 
+      # Both runtimes: `make test-mutation` runs mutation-py (mutmut) and mutation-ts (Stryker).
+      # They are split into two parallel CI jobs in a later commit — that parallelism is the whole
+      # reason the Python island is worth keeping. Until then they run sequentially here.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
+
       - name: Install dependencies
         run: make install
 
@@ -254,5 +274,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: mutmut-results
-          path: mutmut-results.txt
+          name: mutation-results
+          path: |
+            mutmut-results.txt
+            reports/mutation/mutation.json

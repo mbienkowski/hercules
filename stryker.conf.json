@@ -1,0 +1,41 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": [
+    "Mutation testing for the TypeScript side. The Python side keeps mutmut over src/hooks/ (see",
+    "pyproject.toml [tool.mutmut]); the two runs are separate CI jobs named mutation-ts and",
+    "mutation-py so they execute in PARALLEL rather than serially — that parallelism is the reason",
+    "the Python island is worth keeping at all.",
+    "",
+    "The kill-rate gate itself is NOT enforced here. Stryker's own thresholds would report a second,",
+    "independently-configured number; instead scripts-ts/checkMutationGate.ts reads the JSON report",
+    "and applies scripts/mutation-gate.json — the same file the Python gate reads. One threshold,",
+    "two runtimes.",
+    "",
+    "`mutate` covers scripts-ts/ except scripts-ts/bin/. The bin/ shims are logic-free process",
+    "entry points: a `require.main === module` guard is a branch no unit test can exercise from",
+    "either side, so mutating it would park unkillable survivors in the report forever. Excluding a",
+    "logic-free directory is honest; silencing individual mutants inside real logic is not, and the",
+    "code-of-conduct forbids it.",
+    "",
+    "`coverageAnalysis: all` rather than perTest — perTest mis-attributed coverage under the Vitest",
+    "runner and reported mutants as survived that the suite demonstrably kills."
+  ],
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vitest.config.mts"
+  },
+  "reporters": ["progress", "clear-text", "json"],
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "coverageAnalysis": "all",
+  "mutate": [
+    "scripts-ts/**/*.ts",
+    "!scripts-ts/bin/**"
+  ],
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": true,
+  "timeoutMS": 60000,
+  "concurrency": 4
+}

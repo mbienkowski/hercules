@@ -1,9 +1,22 @@
-.PHONY: test test-mutation test-smoke install build build-check \
+.PHONY: test test-mutation test-smoke install install-py install-ts build build-check \
+        typecheck compile test-py test-ts mutation-py mutation-ts \
         ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate \
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
 
-install:
+# ── Which runtime owns what ──────────────────────────────────────────────────
+# Python: src/hooks/ (shipped to users, run as python3) and its tests. Gated by test-py/mutation-py.
+# TypeScript: everything else executable — the compiler, the CI scripts, and their tests. Gated by
+# test-ts/mutation-ts.
+# The -py/-ts suffix is the SAME string in the make target, the CI job id and the CI display name,
+# so a red check can be reproduced by copying its name into a terminal. Keep it that way.
+
+install: install-py install-ts
+
+install-py:
 	pip install -e ".[dev]"
+
+install-ts:
+	npm ci
 
 build:
 	python -m scripts.build.cli --target all
@@ -11,13 +24,37 @@ build:
 build-check:
 	python -m scripts.build.cli --target all --check
 
-test: build-check
+test: test-py test-ts
+
+# The Python suite. During the migration this still covers the compiler; it narrows to the
+# src/hooks/ island as each area is ported.
+test-py: build-check
 	python -m pytest tests/ -v --cov=scripts/build --cov=tests.metrics --cov=src/hooks --cov-branch --cov-report=term-missing --cov-fail-under=90
 
-test-mutation:
+test-ts:
+	npm run typecheck
+	npx vitest run --coverage
+
+# Type-check both TypeScript projects (scripts-ts as CommonJS, tests-ts as ESM) without running
+# anything. Compile emits scripts-ts/ to .ts-out/.
+typecheck:
+	npm run typecheck
+
+compile:
+	npm run compile
+
+test-mutation: mutation-py mutation-ts
+
+mutation-py:
 	mutmut run || true
 	mutmut results | tee mutmut-results.txt
 	python scripts/check_mutation_gate.py
+
+# Stryker writes reports/mutation/mutation.json; the gate script applies the SAME thresholds the
+# Python gate reads (scripts/mutation-gate.json), so the two runtimes cannot drift to two answers.
+mutation-ts: compile
+	npx stryker run || true
+	node .ts-out/bin/mutationGate.js
 
 # Live CLI smoke checks — do the built plugins actually install/load in the real Claude Code,
 # OpenCode, and Cursor binaries? Skips silently if a given CLI isn't installed locally; install

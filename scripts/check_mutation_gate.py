@@ -2,11 +2,16 @@
 
 Usage: python scripts/check_mutation_gate.py
 """
+import json
 import subprocess
 import sys
+from pathlib import Path
 
-GATE = 90
-WARN = 95
+# Thresholds are single-sourced in scripts/mutation-gate.json, shared with the TypeScript gate
+# (scripts-ts/checkMutationGate.ts). Two runtimes each hardcoding 90/95 is how the two gates drift.
+_THRESHOLDS = json.loads((Path(__file__).resolve().parent / "mutation-gate.json").read_text())
+GATE = _THRESHOLDS["gate"]
+WARN = _THRESHOLDS["warn"]
 
 
 def _count(status: str) -> int:
