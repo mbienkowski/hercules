@@ -34,7 +34,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 pytestmark = pytest.mark.skipif(shutil.which("opencode") is None, reason="opencode CLI not available")
 
-_TIMEOUT = 30
+# 60s (matching the cursor/gemini/copilot smoke legs): a cold `opencode agent list` warms the Bun
+# runtime and loads the plugin on first invocation, which can exceed a tight 30s on a loaded CI runner
+# (a real timeout there was a flake, not a plugin defect — the built bytes are drift-gate-pinned).
+_TIMEOUT = 60
 
 
 @pytest.fixture
