@@ -59,7 +59,7 @@ def test_every_leg_carries_the_fields_the_install_and_run_scripts_read(monkeypat
 def test_the_matrix_targets_come_from_the_build_registry(monkeypatch):
     """The smoke legs are exactly the registered ecosystems (single source of truth), not an
     independently-maintained list that could drift from what actually ships."""
-    from scripts.build.targets import registered_target_names
+    from scripts.build.descriptor import names as registered_target_names
     legs = _targets({"GITHUB_REF": "refs/heads/main"}, monkeypatch)
     assert set(legs) == set(registered_target_names())
 

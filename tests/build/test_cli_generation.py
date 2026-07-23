@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.build import cli, serialize
+from scripts.build import cli
 
 
 def test_building_the_claude_target_produces_all_required_files(tmp_path):
@@ -20,22 +20,13 @@ def test_building_the_claude_target_produces_all_required_files(tmp_path):
 
 
 def test_building_a_non_claude_target_skips_claude_specific_files(tmp_path):
-    """When building a target other than claude-code, files that only make sense for
-    Claude Code (such as the plugin manifest folder) are not created, keeping other
-    targets free of irrelevant, Claude-only artifacts."""
-    class _Stub:
-        target = "stub-cli-target"
-
-        def serialize_agent(self, frontmatter, body, tokens, models):
-            return body
-
-        def serialize_file(self, text, tokens, models, rel=None):
-            return text
-
-    serialize.register(_Stub())
-    out = tmp_path / "stub"
-    cli.build_target("stub-cli-target", out)
-    assert not (out / ".claude-plugin").exists()  # claude-only copies skipped
+    """When building a real target other than claude-code (gemini-cli here), files that only make
+    sense for Claude Code (the ``.claude-plugin`` manifest folder) are not created — each target's
+    artifacts come from its OWN descriptor, so nothing Claude-only leaks in."""
+    out = tmp_path / "gemini-cli"
+    cli.build_target("gemini-cli", out)
+    assert not (out / ".claude-plugin").exists()  # claude-only artifacts never emitted for gemini
+    assert (out / "gemini-extension.json").is_file()  # its own manifest is
 
 
 def test_checking_a_target_flags_files_that_were_edited_by_hand(tmp_path, monkeypatch):

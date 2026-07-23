@@ -41,7 +41,7 @@ norecursedirs = ["*.egg", ".*", "_darcs", "CVS", "dist", "node_modules", "venv",
 # Pure transform layer (parse/render/model_map/serialize/version_targets), the generic
 # descriptor engine (descriptor/genserialize/genextras), the shared enforcement hooks (src/hooks/ —
 # the ONE gate adapter every ecosystem ships), and metrics carry the mutation gate. The FS boundary
-# (cli/layout/emit) and the registry shell (targets/) are round-trip-covered and under the
+# (cli/layout/emit) is round-trip-covered and under the
 # branch-coverage gate but not mutated — their shutil/tempfile/string mutants are largely equivalent
 # and would only add noise. NOTE: emit.py stays out of the gate as FS-boundary noise, but its one
 # real conditional — copy_versioned's fail-loud ${version}-injection guard (n != 1 → SystemExit) —

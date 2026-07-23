@@ -1,6 +1,6 @@
 """Assemble the ecosystem smoke matrix from the build's target registry (invoked by ``make smoke-matrix``).
 
-The ecosystem list comes from ``scripts.build.targets`` — the SAME registry the build dispatches on —
+The ecosystem list comes from ``descriptor.names()`` — the SAME source the build dispatches on —
 so the smoke matrix cannot drift from what actually ships. Each ecosystem's descriptor
 (``src/ecosystems/<name>.json``) must declare a ``smoke`` section (its CLI + install method +
 smoke-test path — schema-required); it becomes one parallel smoke leg that runs on every PR and on
@@ -18,8 +18,7 @@ from __future__ import annotations
 import json
 import os
 
-from scripts.build.descriptor import discover
-from scripts.build.targets import registered_target_names
+from scripts.build.descriptor import discover, names as registered_target_names
 
 
 def build_matrix() -> dict:

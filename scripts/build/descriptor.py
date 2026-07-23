@@ -483,3 +483,9 @@ def discover(root: Path = ECOSYSTEMS_DIR) -> dict:
         _validate_layout(root, set(found))
         _CACHE[key] = found
     return _CACHE[key]
+
+
+def names(root: Path = ECOSYSTEMS_DIR) -> list:
+    """The one authoritative ecosystem list (sorted) — the descriptor files ARE the registry, so the
+    CLI target set and the CI smoke matrix derive from here; there is no separate registry to drift."""
+    return sorted(discover(root))

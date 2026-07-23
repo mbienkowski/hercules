@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from scripts.build import emit
@@ -31,6 +32,18 @@ from scripts.build.render import render_body
 
 _VERSION_TOKEN = re.compile(r"\$\{version\}")
 _PLACEHOLDER = re.compile(r"__[A-Z_]+__")
+
+
+@dataclass(frozen=True)
+class ExtrasContext:
+    """Everything :func:`emit_extras` needs to emit a target's non-content artifacts, bundled so the
+    orchestrator (``cli``) never has to be imported here."""
+
+    out_root: Path
+    shared_hooks_src: Path  # src/hooks — canonical guard + generic gate adapter, byte-copied everywhere
+    src_content: Path       # src/content
+    tokens: dict            # the target's token vars
+    version: str            # canonical build version (from pyproject) — injected into versioned manifests
 
 
 def _dump_json(content: dict) -> str:
