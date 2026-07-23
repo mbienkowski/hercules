@@ -38,16 +38,23 @@ testpaths = ["tests"]
 norecursedirs = ["*.egg", ".*", "_darcs", "CVS", "dist", "node_modules", "venv", "{arch}"]
 
 [tool.mutmut]
-# Pure transform layer (parse/render/model_map/serialize/version_targets), the generic
-# descriptor engine (descriptor/genserialize/genextras), the shared enforcement hooks (src/hooks/ —
-# the ONE gate adapter every ecosystem ships), and metrics carry the mutation gate. The FS boundary
-# (cli/layout/emit) is round-trip-covered and under the
-# branch-coverage gate but not mutated — their shutil/tempfile/string mutants are largely equivalent
-# and would only add noise. NOTE: emit.py stays out of the gate as FS-boundary noise, but its one
-# real conditional — copy_versioned's fail-loud ${version}-injection guard (n != 1 → SystemExit) —
-# is directly unit-tested at n=0/n=1/n=2 in tests/build/test_version_process.py, so a `!= 1`
-# operator slip fails CI regardless of the gate.
-paths_to_mutate = "tests/metrics/,src/hooks/,scripts/build/parse.py,scripts/build/render.py,scripts/build/model_map.py,scripts/build/serialize.py,scripts/build/descriptor.py,scripts/build/genserialize.py,scripts/build/genextras.py,scripts/build/version_targets.py"
+# Pure transform layer (parse/render/model_map/serialize/version_targets), the two generic
+# serialization/emission engines (genserialize/genextras — the behavior every ecosystem's output
+# flows through), the shared enforcement hooks (src/hooks/ — the ONE gate adapter every ecosystem
+# ships), and metrics carry the mutation gate. Two categories stay OUT — round-trip-/branch-covered
+# but not mutated because their mutants are largely equivalent noise:
+#   • The FS boundary (cli/layout/emit) — shutil/tempfile/string mutants. NOTE: emit.py's one real
+#     conditional — copy_versioned's fail-loud ${version}-injection guard (n != 1 → SystemExit) — is
+#     directly unit-tested at n=0/n=1/n=2 in tests/build/test_version_process.py, so a `!= 1`
+#     operator slip fails CI regardless of the gate.
+#   • descriptor.py — a declarative schema VALIDATOR. Measured, ~85% of its mutants are pure noise
+#     (error-message text funnelled through _fail/_check_str, and dataclass field defaults the parser
+#     always overrides), so gating it forced ~130 lines of `# pragma: no mutate` for no behavioral
+#     signal AND ~doubled the run past its CI ceiling. Its reject LOGIC is instead pinned behaviorally
+#     by tests/build/test_descriptor_schema.py — every reject branch (the _MALFORMED table), the
+#     boolean-operator weakenings (an `or`→`and` that would let empty/wrong-typed values through), the
+#     absolute-path/`..` tree-escape guard, and the frozen dataclasses — under the branch-coverage gate.
+paths_to_mutate = "tests/metrics/,src/hooks/,scripts/build/parse.py,scripts/build/render.py,scripts/build/model_map.py,scripts/build/serialize.py,scripts/build/genserialize.py,scripts/build/genextras.py,scripts/build/version_targets.py"
 paths_to_exclude = "test_*.py,__init__.py,conftest.py"
 backup = false
 runner = "python -m pytest tests/ -x -q --tb=no --no-header"

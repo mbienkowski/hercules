@@ -223,9 +223,13 @@ jobs:
       && needs.validate.result == 'success'
       && needs.smoke.result == 'success'
     runs-on: ubuntu-latest
-    # Generous ceiling: it runs once per merge to main (not per PR), and the single-process run lands
-    # around ~40 min — a tight 40 timeout killed it 8s short, so give real margin.
-    timeout-minutes: 60
+    # Ceiling: it runs once per merge to main (not per PR). Bringing the generic engine under the gate
+    # overran the old 60 ceiling (cancelled at exactly 60:00) two ways: the noise-dominated validator
+    # descriptor.py roughly doubled the mutant count, and the engine's own surviving mutants each ran
+    # the full suite to completion. Both are now addressed at the source — descriptor.py is off the gate
+    # (its logic is branch-covered; see [tool.mutmut] in pyproject) and genserialize/genextras survivors
+    # are killed (a killed mutant exits early) — so the run lands ~50 min. 90 leaves near-2x margin.
+    timeout-minutes: 90
 
     steps:
       - uses: actions/checkout@v7

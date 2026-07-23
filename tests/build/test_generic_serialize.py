@@ -13,6 +13,8 @@ from scripts.build.descriptor import discover, parse_descriptor
 from scripts.build.genserialize import (
     DescriptorSerializer,
     SerializeError,
+    _apply_body_policy,
+    _stem,
     compute_fields,
     dest,
     toml_basic,
@@ -228,6 +230,14 @@ def test_serialize_command_sugar_takes_an_explicit_stem():
     assert out == "---\nname: build\ndescription: Build the thing\n---\n\nBody.\n"
 
 
+def test_serialize_command_sugar_emits_toml_for_a_toml_command_ecosystem():
+    """The command sugar must route a ``toml_command`` role to the TOML emitter (gemini-cli),
+    not fall through to the fields path — pins the ``mode == "toml_command"`` branch in the
+    sugar entry point that the file-path serializer's own toml test can't reach."""
+    out = _ser("gemini-cli").serialize_command({"description": "Build the thing"}, "Run it.", {})
+    assert out == 'description = "Build the thing"\n\nprompt = """\nRun it.\n"""\n'
+
+
 def test_serialize_persona_sugar_wraps_or_renders_per_mode():
     assert _ser("copilot-cli").serialize_persona("P for ${product}.\n", {"product": "GitHub Copilot CLI"}) \
         == "P for GitHub Copilot CLI.\n"
@@ -272,6 +282,54 @@ def test_corpus_guard_command_marker_appears_only_under_commands():
         if not rel.startswith("commands/"):
             assert "disable-model-invocation" not in p.read_text(encoding="utf-8"), \
                 f"{rel}: command marker outside commands/ breaks dispatch equivalence"
+
+
+def test_toml_multiline_breaks_every_third_quote_across_long_runs():
+    """A run of 5+ quotes must be broken at EACH third quote, not just the first: the ``run``
+    counter resets to 0 after an escape (``run = 1`` would let a later triple slip through). Four
+    quotes can't tell the two apart — five can."""
+    assert toml_multiline('"' * 5) == '""\\"""'
+    assert toml_multiline('"' * 6) == '""\\"""\\"'
+
+
+def test_body_policies_trim_newlines_only_never_other_characters():
+    """``lstrip_newlines``/``strip_newlines`` pass only ``"\\n"`` to (l)strip — a wider char set
+    (e.g. stripping a leading/trailing ``X``) would silently eat body content."""
+    assert _apply_body_policy("\nX body", "lstrip_newlines") == "X body"
+    assert _apply_body_policy("X body\n", "strip_newlines") == "X body"
+
+
+def test_stem_takes_the_last_path_segment_even_without_a_separator():
+    """``_stem`` returns the final segment; a slash-less rel (the ``[-1]`` vs ``[1]`` distinction)
+    must still resolve rather than IndexError."""
+    assert _stem("commands/build.md") == "build"
+    assert _stem("build.md") == "build"
+
+
+def test_frontmatter_dispatch_sniffs_an_agent_by_tools_alone():
+    """The OpenCode agent sniff is ``name`` AND (``model_tier`` OR ``tools``) — a source with
+    ``tools`` but no ``model_tier`` must still register as an agent (pins the ``tools`` disjunct,
+    which the model_tier-bearing AGENT_SRC short-circuits past)."""
+    ser = _ser("opencode")
+    assert ser._role_by_frontmatter("---\nname: t\ntools: Read\n---\n\nBody.\n") == "agent"
+
+
+def test_plain_mode_keeps_frontmatter_lines_as_body_text():
+    """A ``plain`` role renders the WHOLE text (frontmatter fence included) as body — distinct from
+    the fields-mode fall-through that would parse and drop the fence. A frontmatter-bearing source
+    exercises the ``mode == "plain"`` branch that a fm-less persona can't (both render alike there)."""
+    raw = {
+        "schema": 1, "name": "eco", "vars": {"product": "Eco"},
+        "models": {"high": None, "medium": None, "low": None},
+        "smoke": {"cli": "eco", "test": "t.py"}, "dispatch": "path",
+        "roles": {"agent": {"mode": "preserve"}, "command": {"mode": "preserve"},
+                  "persona": {"mode": "plain"}, "default": {"mode": "plain"}},
+        "routes": [],
+    }
+    ser = DescriptorSerializer(parse_descriptor("eco", raw))
+    out = ser.serialize_file("---\ntitle: X\n---\n\nBody for ${product}.\n", {"product": "Eco"},
+                             rel="skills/x.md")
+    assert out == "---\ntitle: X\n---\n\nBody for Eco.\n"
 
 
 def test_synthetic_preserve_without_resolve_leaves_model_tier_untouched():
