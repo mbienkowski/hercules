@@ -264,9 +264,12 @@ def _parse_route(name: str, raw: object) -> Route:
                      dest=_check_rel_path(name, "route 'dest'", raw.get("dest")))
     if kind == "omit":
         return Route(kind=kind, src=_check_rel_path(name, "route 'src'", raw.get("src")))
-    return Route(kind=kind, prefix=_check_str(name, "route 'prefix'", raw.get("prefix")),
-                 from_suffix=_check_str(name, "route 'from_suffix'", raw.get("from_suffix")),
-                 to_suffix=_check_str(name, "route 'to_suffix'", raw.get("to_suffix")))
+    # suffix_swap builds its destination as ``rel[:-len(from_suffix)] + to_suffix``; guard every
+    # operand against a tree escape (``..``/leading ``/``) the SAME way exact-route dest is guarded,
+    # so a swapped extension can never write outside the built plugin tree.
+    return Route(kind=kind, prefix=_check_rel_path(name, "route 'prefix'", raw.get("prefix")),
+                 from_suffix=_check_rel_path(name, "route 'from_suffix'", raw.get("from_suffix")),
+                 to_suffix=_check_rel_path(name, "route 'to_suffix'", raw.get("to_suffix")))
 
 
 def _parse_artifact(name: str, raw: object) -> Artifact:

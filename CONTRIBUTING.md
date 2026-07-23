@@ -36,10 +36,12 @@ git config core.hooksPath .githooks
 - `src/ecosystems/<name>.json` — ONE descriptor per ecosystem (the filename is the registry key):
   token `vars`, `models` tiers, the `smoke` matrix entry, per-role output shapes (`roles`),
   destination `routes`, inline JSON `artifacts` (manifests, settings, hook wiring), shared-`guard`
-  modules, write-`gate` params, and named `generate` steps. Binary/marketplace siblings follow the
-  filename schema `<name>.dist.<dest>` (byte-copied to plugin-root `<dest>`; the directory layout is
-  schema-validated — a stray file fails the build); capability disclosures are compiled from the
-  shared `src/content/capabilities.md` — no per-ecosystem directories, no per-ecosystem Python.
+  modules, write-`gate` params, and rendered `templates`. Siblings follow a filename schema:
+  `<name>.dist.<dest>` (byte-copied to plugin-root `<dest>`) for binary/marketplace assets, and
+  `<name>.template.<dest>` (rendered from named computed values) for generated text like OpenCode's
+  `plugin.js`; the directory layout is schema-validated — a stray file fails the build. Capability
+  disclosures are compiled from the shared `src/content/capabilities.md` — no per-ecosystem
+  directories, no per-ecosystem Python.
 - `src/hooks/` — the shared enforcement code, authored once and byte-copied to every ecosystem:
   the canonical frozen-test guard + the ONE generic write-gate adapter (`hercules_gate.py`).
 - `scripts/build/` — the generic compiler: `parse` → `render` → `genserialize` (descriptor-driven)
@@ -68,10 +70,13 @@ late CI failure. The procedure:
    - `artifacts` — host manifests/settings/hook wiring as inline JSON, emitted canonically;
      `"versioned": true` injects the canonical version into a `${version}` token (fail-loud).
    - `guard` + `gate` — which `src/hooks/` modules ship, and the write-gate parameters the ONE
-     generic adapter reads (`pre_tool` tool maps + decision shapes, or `cursor_events`).
-   - `generate` — named Python generators for genuinely generated output (e.g. OpenCode's
-     `plugin.js`). A need the vocabulary can't express = a new NAMED behavior in `scripts/build/`
-     with tests, then referenced by name — never logic in the JSON.
+     generic adapter reads (`pre_tool` tool maps + decision shapes, or `event_guards`).
+   - `templates` — for genuinely generated text (e.g. OpenCode's `plugin.js`): a
+     `<name>.template.<dest>` sibling whose `__PLACEHOLDER__`s are filled from closed, named
+     computed-value kinds (`js_string`, `js_string_list`, `js_root_joins`, `role_entries_js` — the
+     computations are mutation-covered functions in `genextras.py`). A need the vocabulary can't
+     express = a new NAMED value kind in `scripts/build/` with tests, then referenced by name —
+     never logic in the JSON.
 2. **Disclose capability gaps** — add a `${target:<name>}` branch to the shared
    `src/content/capabilities.md` (compiled per ecosystem; shared claims stay on shared lines) and
    route it with `{"kind": "exact", "src": "capabilities.md", "dest": "CAPABILITIES.md"}`. For

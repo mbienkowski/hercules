@@ -25,6 +25,16 @@ def test_the_real_plugin_file_corpus_is_not_accidentally_empty():
     assert len(PLUGIN_MD) >= 25
 
 
+def test_a_frontmatter_value_containing_a_triple_dash_is_not_mistaken_for_the_fence():
+    """The fence split is line-based, so a value that merely CONTAINS ``---`` (``pros --- cons``)
+    keeps its full value and every key after it — a substring split would truncate the value and
+    silently drop model_tier/tools, corrupting the built agent."""
+    text = ("---\nname: x\ndescription: pros --- cons\nmodel_tier: high\ntools: Read\n---\n\nBody.\n")
+    meta, body = parse_frontmatter(text)
+    assert meta == {"name": "x", "description": "pros --- cons", "model_tier": "high", "tools": "Read"}
+    assert body == "Body."
+
+
 @pytest.mark.parametrize("rel", PLUGIN_MD)
 def test_splitting_a_file_into_metadata_and_content_loses_no_bytes(rel):
     """Taking apart one of the real shipped files into its metadata header and main content,

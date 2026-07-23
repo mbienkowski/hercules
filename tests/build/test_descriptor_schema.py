@@ -168,6 +168,15 @@ def test_route_dest_may_not_escape_the_tree():
         parse_descriptor("eco", _minimal(routes=routes))
 
 
+def test_suffix_swap_to_suffix_may_not_escape_the_tree():
+    """suffix_swap's computed dest gets the same tree-escape guard as an exact route's dest — a
+    ``..`` in to_suffix must fail, not silently write outside the plugin tree."""
+    routes = [{"kind": "suffix_swap", "prefix": "commands/", "from_suffix": ".md",
+               "to_suffix": "../../../etc/x"}]
+    with pytest.raises(DescriptorError, match="without '\\.\\.'"):
+        parse_descriptor("eco", _minimal(routes=routes))
+
+
 def test_artifact_content_must_be_a_json_object():
     artifacts = [{"dest": "plugin.json", "content": "raw text"}]
     with pytest.raises(DescriptorError, match="JSON object"):

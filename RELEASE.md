@@ -52,8 +52,8 @@ needs a live, paid session and stays a manual, release-gating check.
 
 | # | OpenCode item | Status |
 |---|---|---|
-| 1 | `config` hook fires (agents/commands register) | ⚠️ blocked — [issue #15](https://github.com/mbienkowski/hercules/issues/15): the real OpenCode loader rejects the built `plugin.js` today, so this is encoded as an `xfail(strict=True)` smoke test rather than a pass; it flips to a hard failure (forcing the marker's removal) the moment the loader bug is actually fixed |
-| 2 | `plugin.js` loads with no missing-asset throw | ⚠️ blocked — same root cause as #1 |
+| 1 | `config` hook fires (agents/commands register) | ✅ automated — [issue #15](https://github.com/mbienkowski/hercules/issues/15) is fixed (the entry exports `{ id, server }`); `test_opencode_plugin_starts_up_with_every_agent_and_command_registered` loads the built `plugin.js` in a real Node process and asserts every agent/command registers (skips only when `node` is absent) |
+| 2 | `plugin.js` loads with no missing-asset throw | ✅ automated — `test_opencode_plugin_refuses_to_start_if_its_bundled_files_are_missing` (same file) drives the real loader |
 | 3 | `default_agent` is `hercules`; a subagent spawns | manual |
 | 4 | `/hercules:discover` resolves and runs | manual |
 | 5 | A skill auto-fires from its description | manual |

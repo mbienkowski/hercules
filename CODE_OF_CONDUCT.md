@@ -174,25 +174,27 @@ it holds **zero** per-ecosystem branches, classes, or modules. **A target is one
   serialization modes and field generators); destination `routes` (named kinds); inline JSON
   `artifacts` (native manifests — a `version` field carries the `${version}` token, injected from
   `pyproject.toml` at build, **never** a hand-maintained literal); shared-`guard` modules and
-  write-`gate` parameters; named `generate` steps. The vocabulary is **closed**: a descriptor
-  selects named, mutation-covered Python behaviors and supplies operands only — an unknown key or
-  enum value fails the build loudly at load, naming the allowed set.
+  write-`gate` parameters; rendered `templates`. The vocabulary is **closed**: a descriptor selects
+  named, mutation-covered Python behaviors and supplies operands only — an unknown key or enum value
+  fails the build loudly at load, naming the allowed set.
 - **No executable content in descriptors.** No expressions, interpolation, conditionals, or code
   references beyond the named vocabulary. A target needing behavior the vocabulary lacks gets a
   **new named behavior in `scripts/build/` or `src/hooks/` Python** — mutation-gated, exact-output
-  tested — then referenced by name. Genuinely generated output (e.g. OpenCode's `plugin.js`) stays a
-  named Python generator (`generate`), never inline JSON logic, never auto-discovered code under
-  `src/`. Growing descriptor expressiveness instead of adding a named Python behavior is the failure
-  mode to reject in review.
+  tested — then referenced by name. Genuinely generated text (e.g. OpenCode's `plugin.js`) is a
+  `<eco>.template.<dest>` sibling rendered from closed, named computed-value kinds (`js_string`,
+  `role_entries_js`, …; the computations are mutation-covered functions in `genextras.py`), never
+  inline JSON logic, never auto-discovered code under `src/`. Growing descriptor expressiveness
+  instead of adding a named Python behavior is the failure mode to reject in review.
 - **Capability disclosures are compiled content.** `CAPABILITIES.md` is authored ONCE in
   `src/content/capabilities.md` — shared claims live in shared lines, host-specific nuance in
   `${target:…}` branches — and compiled per ecosystem like every other content file, so a shared
   claim can never drift between ecosystems. An ecosystem routes it in with an `exact` route (or out
   with `omit` — claude-code, the reference, ships none); conformance and gate-wiring sync tests pin
   the rendered prose against the descriptor data it describes.
-- **Shipped siblings — `src/ecosystems/<eco>.dist.<dest>`:** optional binary/marketplace files that
-  ship byte-identically at plugin-root `<dest>` (cursor's logo/readme). The filename IS the
-  routing — validated on discovery, pinned deterministic by tests, no separate mapping to drift.
+- **Siblings — `src/ecosystems/<eco>.dist.<dest>` and `<eco>.template.<dest>`:** binary/marketplace
+  files byte-copied to plugin-root `<dest>` (cursor's logo/readme), and text templates rendered to
+  `<dest>` (OpenCode's `plugin.js`). The filename IS the routing — the `.dist.`/`.template.` marker
+  and dest are validated on discovery, pinned deterministic by tests, no separate mapping to drift.
   No per-ecosystem directories.
 - **Enforcement + release:** a `GATE_EXPECTATIONS` entry (or explicit waiver) in
   `tests/hooks/test_enforcement_gates.py` — hand-authored on purpose, the forcing function that a new

@@ -53,28 +53,29 @@ def _read_config():
 
 # ── protocol: pre_tool (Gemini BeforeTool / Copilot preToolUse — a true pre-write veto) ─────────
 
-def _extract_path(args, path_keys, nested_keys):
-    """Return the target file path from a host tool's arguments, or None. Accepts a dict or an
-    unparsed JSON string, and recurses into nested edit lists (``nested_keys``) so a batched
-    multi-edit is still seen. Never raises."""
+def _extract_paths(args, path_keys, nested_keys):
+    """Return EVERY target file path a host tool's arguments name, in order (deduped). Accepts a
+    dict or an unparsed JSON string, and recurses into nested edit lists (``nested_keys``) so a
+    batched multi-edit is seen in FULL — a frozen file in any later hunk must still block, so this
+    can never stop at the first path. Never raises."""
     if isinstance(args, str):
         try:
             args = json.loads(args)
         except Exception:
-            return None
+            return []
+    found: list = []
     if isinstance(args, dict):
         for key in path_keys:
             value = args.get(key)
             if isinstance(value, str) and value:
-                return value
+                found.append(value)
         for key in nested_keys:
             seq = args.get(key)
             if isinstance(seq, list):
                 for item in seq:
-                    found = _extract_path(item, path_keys, nested_keys)
-                    if found:
-                        return found
-    return None
+                    found.extend(_extract_paths(item, path_keys, nested_keys))
+    seen: set = set()
+    return [p for p in found if not (p in seen or seen.add(p))]
 
 
 def _emit_pre_tool(cfg, reason) -> None:
@@ -101,13 +102,15 @@ def _pre_tool_reason(cfg, evt, home=None):
     if mapped is None:
         return None
     args = evt.get("tool_input") if evt.get("tool_input") is not None else evt.get("toolArgs")
-    path = _extract_path(args, cfg["path_keys"], cfg.get("nested_keys") or [])
-    if not path:
-        return None
-    payload = {"tool_name": mapped, "tool_input": {"file_path": path}, "cwd": evt.get("cwd") or os.getcwd()}
-    code, reason = decide(payload, home=home)
-    if code == 2:
-        return reason
+    paths = _extract_paths(args, cfg["path_keys"], cfg.get("nested_keys") or [])
+    cwd = evt.get("cwd") or os.getcwd()
+    # Check EVERY named path — a batched edit whose first target is innocuous but a later one is a
+    # frozen test must still be denied; stopping at the first path was a real bypass.
+    for path in paths:
+        payload = {"tool_name": mapped, "tool_input": {"file_path": path}, "cwd": cwd}
+        code, reason = decide(payload, home=home)
+        if code == 2:
+            return reason
     return None
 
 
@@ -127,9 +130,27 @@ _SEG_WRITE = re.compile(
 _FIND_DELETE = re.compile(r"\bfind\b.*\s-delete\b")  # `find … -delete` carries no `rm` token
 _SEGMENT = re.compile(r"[\n;|&()]")                  # shell separators between pipeline segments
 _REDIRECT = re.compile(r">>?[|&]?\s*(\S+)")           # output redirection (incl. >| clobber, >&) + target
-# Quoted spans are stripped before the frozen-path scan, so a commit message that merely NAMES a frozen
-# test (``git commit -m "fix test_login.py"``) is not mistaken for an operation on that file.
+# A quoted span in a shell command. Spans are UNWRAPPED to their inner text before the frozen-path
+# scan (so ``rm "tests/test_frozen.py"`` — quoting the path is normal — is still caught), EXCEPT a
+# span that is a ``-m``/``--message`` commit message, which is dropped (prose, not a file op) so
+# ``git commit -m "fix test_login.py"`` stays allowed.
 _QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
+_MSG_FLAG = re.compile(r"(?:^|\s)(?:-m|--message)=?\s*$")
+
+
+def _unquote(cmd: str) -> str:
+    """Replace each quoted span with its INNER text so a quoted frozen path is still scanned; drop a
+    span that directly follows ``-m``/``--message`` (a commit message, not a path). Closes the
+    'quote the path to evade the gate' bypass while keeping a message that merely names a test."""
+    out: list = []
+    last = 0
+    for m in _QUOTED.finditer(cmd):
+        preceding = cmd[last:m.start()]
+        out.append(preceding)
+        out.append(" " if _MSG_FLAG.search(preceding) else m.group(0)[1:-1])
+        last = m.end()
+    out.append(cmd[last:])
+    return "".join(out)
 # A *write-ish* MCP tool name (an MCP git/filesystem server) — used to avoid blocking pure reads of a
 # frozen test (the doctrine allows reads), while catching write/commit MCP ops on frozen paths.
 _MCP_WRITE_HINT = re.compile(
@@ -244,11 +265,11 @@ def _guards_notify(cfg, note: str) -> None:
 
 def _writes_frozen(cmd: str, frozen: dict):
     """Return the frozen canon-path *cmd* writes to / deletes, or None. Coarse and basename-level by
-    design: quoted spans (a commit message) are stripped first; an output redirection counts only when
-    its TARGET is the frozen file (so ``pytest test_x.py > log`` is allowed); and a write/delete verb
-    counts only when a frozen filename shares its pipeline segment (so ``pytest test_x.py | tee log`` —
-    read here, write there — is not a write)."""
-    unquoted = _QUOTED.sub(" ", cmd)
+    design: quoted spans are UNWRAPPED (a quoted path stays visible; only a ``-m`` message is dropped);
+    an output redirection counts only when its TARGET is the frozen file (so ``pytest test_x.py > log``
+    is allowed); and a write/delete verb counts only when a frozen filename shares its pipeline segment
+    (so ``pytest test_x.py | tee log`` — read here, write there — is not a write)."""
+    unquoted = _unquote(cmd)
     by_base = {}
     for p in frozen:
         by_base.setdefault(os.path.basename(p), p)

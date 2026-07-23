@@ -121,6 +121,12 @@ _DENY_COMMANDS = [
     "git --git-dir=/r/.git add tests/test_frozen.py",  # --git-dir=… (=value form)
     "echo x >| tests/test_frozen.py",                  # >| clobber-override redirect to a frozen file
     "echo x >& tests/test_frozen.py",                  # >& redirect to a frozen file
+    # Quoted paths — the common way an agent writes a path — must NOT evade the deny (the span is
+    # unwrapped, not stripped). Regression for the quote-to-bypass hole.
+    'rm "tests/test_frozen.py"',                        # double-quoted frozen path
+    "git add 'tests/test_frozen.py'",                  # single-quoted frozen path
+    'echo x > "tests/test_frozen.py"',                 # quoted redirect target
+    'sed -i s/a/b/ "tests/test_frozen.py"',            # quoted arg to an in-place edit
 ]
 
 
@@ -141,6 +147,7 @@ _ALLOW_COMMANDS = [
     "cat tests/test_frozen.py > /dev/null",              # read it, redirect elsewhere
     "diff tests/test_frozen.py b.py > d.txt",            # compare it, redirect elsewhere
     "git add src/feature.py",                            # write verb, unrelated file
+    'git commit -m "rewrite test_frozen.py assertions"', # -m message NAMING the file is not an op on it
     "find . -name conftest.py -delete",                  # find -delete, but not a frozen file
     "git -C . diff tests/test_frozen.py > /tmp/d",       # B2: read (diff) via a global option, output elsewhere
     "rm mytest_frozen.py.bak",                           # B2: substring of a frozen basename, not the file itself

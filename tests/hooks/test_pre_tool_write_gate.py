@@ -255,6 +255,18 @@ def test_an_edit_list_whose_items_name_no_path_fails_open(eco, active_build, cap
     _assert_allow(eco, _decide(eco, evt, home, capsys))
 
 
+@pytest.mark.parametrize("eco", [e for e in ECOS if PRE_TOOL_EXPECTATIONS[e]["nested_edits"]])
+def test_a_batched_edit_with_a_frozen_file_in_a_LATER_hunk_is_denied(eco, active_build, capsys):
+    """A batched multi-edit whose FIRST target is innocuous but a later one is a frozen test must be
+    denied — the gate checks every named path, not just the first (regression for the first-path-only
+    bypass: a mixed [non-frozen, frozen] patch previously sailed through)."""
+    home, proj, frozen = active_build
+    tool = PRE_TOOL_EXPECTATIONS[eco]["write_tools"][-1]
+    evt = {"toolName": tool, "toolArgs": {"edits": [{"file_path": str(proj / "src" / "ok.py")},
+                                                    {"file_path": str(frozen)}]}, "cwd": str(proj)}
+    _assert_deny(eco, _decide(eco, evt, home, capsys))
+
+
 @pytest.mark.parametrize("eco", ECOS)
 def test_a_relative_path_is_resolved_against_the_event_cwd(eco, active_build, capsys):
     home, proj, _ = active_build
