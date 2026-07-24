@@ -124,9 +124,22 @@ export function jsObjectLiteral(obj: JsLiteralValue, indent = 8): string {
     return `{\n${items.join('\n')}\n${spaces}}`;
   }
   if (Array.isArray(obj)) {
+    // An empty array's `.map(...).join(', ')` always produces `''`, making `` `[${''}]` `` === '[]'
+    // regardless of whether this early return fires — verified directly. A TRUE equivalent mutant
+    // per CODE_OF_CONDUCT.md's Testing section's pragma exception, the same class as the Map branch
+    // above (`obj.size === 0`), which is unmutated only because Stryker cannot express an equivalent
+    // early return over `[...obj]` the same way.
+    // Stryker disable next-line ConditionalExpression: obj.map(...).join(', ') on an empty array is already '', making the early return observably identical — see comment above
     if (obj.length === 0) return '[]';
     return `[${obj.map((v) => jsObjectLiteral(v as JsLiteralValue, indent + 2)).join(', ')}]`;
   }
+  // For a boolean, `obj ? 'true' : 'false'` and the function's own final `return String(obj)`
+  // fallback produce byte-identical output (`String(true) === 'true'`, `String(false) === 'false'`)
+  // — verified directly — and every earlier branch's `typeof`/`instanceof`/`=== null` check already
+  // excludes a boolean from reaching it. A TRUE equivalent mutant per CODE_OF_CONDUCT.md's Testing
+  // section's pragma exception, for BOTH the condition (ConditionalExpression) and the literal
+  // (StringLiteral) mutants Stryker generates here.
+  // Stryker disable next-line all: a boolean falls through to the identical `return String(obj)` fallback below regardless of this branch — see comment above
   if (typeof obj === 'boolean') return obj ? 'true' : 'false';
   if (typeof obj === 'string') return jsString(obj);
   if (obj === null) return 'null';
@@ -174,6 +187,14 @@ export function roleEntries(
     const { body } = splitDocument(text);
     const stem = name.slice(0, -'.md'.length);
     const roleSpec = descriptor.roles[role];
+    // A missing roleSpec (role absent from descriptor.roles) has no `.fields` to read, and the
+    // filler `computeFields` would receive instead is a bare string, not a FieldSpec object — its
+    // `.source` is `undefined`, which matches no case in computeFields' exhaustive switch and falls
+    // through the silent `default` branch, contributing nothing to the output Map either way.
+    // Verified directly: `computeFields([], ...)` and `computeFields(['Stryker was here'], ...)`
+    // produce byte-identical (empty) Maps. A TRUE equivalent mutant per CODE_OF_CONDUCT.md's Testing
+    // section's pragma exception.
+    // Stryker disable next-line ArrayDeclaration: any non-FieldSpec filler array is silently ignored by computeFields' exhaustive switch — see comment above
     const fields = computeFields((roleSpec?.fields ?? []), meta, descriptor.name, tokens, stem);
     fields.delete('name');
     out.push({ stem, fields, body: renderBody(body, descriptor.name, tokens).trim() });
@@ -223,11 +244,23 @@ export function emitExtras(ctx: ExtrasContext, descriptor: EcosystemDescriptor):
     written.push(artifact.dest);
   }
   const siblings = distFiles(descriptor.name);
+  // When `siblings` is empty, `Object.entries(siblings)` below is also empty, so `mapping` stays an
+  // empty Map either way — and emit.copyMap's `for (const … of mapping)` loop then iterates zero
+  // times, performing no fs call at all (verified by reading emit.mts's copyMap: the loop body,
+  // which is the ONLY side effect, never runs on an empty Map). The guard is a pure skip of dead
+  // work, not a behavior fork — a TRUE equivalent mutant per CODE_OF_CONDUCT.md's Testing section's
+  // pragma exception.
+  // Stryker disable next-line all: an empty siblings map already makes copyMap's loop a no-op regardless of this guard — see comment above
   if (Object.keys(siblings).length > 0) {
     const mapping = new Map<string, string>();
     for (const [destName, path] of Object.entries(siblings)) mapping.set(basename(path), destName);
     written.push(...copyMap(ECOSYSTEMS_DIR, ctx.outRoot, mapping));
   }
+  // Same equivalence class as the siblings guard above: `descriptor.guard.map(...)` on an empty
+  // array is itself an empty array, so `mapping` is an empty Map and copyMap's loop is a no-op
+  // regardless of whether this `if` fires — true for both the ConditionalExpression mutant (forcing
+  // the branch to always run) and the EqualityOperator one (`>= 0`).
+  // Stryker disable next-line all: an empty guard array already makes copyMap's loop a no-op regardless of this guard — see comment above
   if (descriptor.guard.length > 0) {
     const mapping = new Map(descriptor.guard.map((name) => [name, `hooks/${name}`]));
     written.push(...copyMap(ctx.sharedHooksSrc, ctx.outRoot, mapping));

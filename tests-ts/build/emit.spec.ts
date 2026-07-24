@@ -1,7 +1,18 @@
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+// vi.mock('node:fs') wraps (not replaces) writeFileSync so every test still hits real disk — only
+// the CALL ARGUMENTS are additionally observable, for the one test below that needs to pin the
+// exact encoding write() passes (content-based verification alone can't distinguish 'utf-8' from ''
+// here: Node treats an empty-string encoding identically to 'utf-8' at the byte level for every
+// string write() ever writes) — same pattern as tests-ts/build/versionTargets.spec.ts's own
+// writeFileSync encoding pin.
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return { ...actual, writeFileSync: vi.fn(actual.writeFileSync) };
+});
 
 import { EmitError, copyMap, copyVersioned, readSource, write } from '../../scripts-ts/build/emit.mjs';
 
@@ -14,6 +25,11 @@ function workspace(files: Record<string, string> = {}): string {
     mkdirSync(dirname(join(root, rel)), { recursive: true });
     writeFileSync(join(root, rel), text, 'utf-8');
   }
+  // The setup writes above already called the mocked writeFileSync with 'utf-8' — clearing here
+  // means every remaining recorded call in a test belongs to the code under test, not to fixture
+  // setup (an unguarded assertion would otherwise trivially match these SETUP calls regardless of
+  // what write() itself passes).
+  vi.mocked(writeFileSync).mockClear();
   return root;
 }
 
@@ -34,6 +50,12 @@ describe('writing a file into the build output', () => {
     const root = workspace();
     write(join(root, 'out.md'), 'x');
     expect(mode(join(root, 'out.md'))).toBe('644');
+  });
+
+  it('writes with explicit utf-8 encoding, not the platform default', () => {
+    const root = workspace();
+    write(join(root, 'out.md'), 'x');
+    expect(writeFileSync).toHaveBeenCalledWith(join(root, 'out.md'), 'x', 'utf-8');
   });
 });
 
@@ -131,9 +153,28 @@ describe('identifying its own failures', () => {
 
   it('reads a file with no replacement character at all without re-decoding it', () => {
     // The strict re-decode is only reached when a replacement character is present; ordinary
-    // sources must not pay for it.
-    const root = workspace({ 'plain.md': 'ordinary ascii\n' });
-    expect(readSource(join(root, 'plain.md'))).toBe('ordinary ascii\n');
+    // sources must not pay for it. Counts constructions of the global TextDecoder — content alone
+    // can't distinguish this from an always-re-decode implementation, since re-decoding
+    // already-valid UTF-8 produces an identical result either way; only the CONSTRUCTION COUNT
+    // tells them apart (`text.includes('')` is always true, which would make every source
+    // re-decode unconditionally). A `class extends TextDecoder`, not `vi.fn(TextDecoder)`: wrapping
+    // a native constructor in a plain mock function breaks its `new`-ability (the resulting
+    // "instance" loses `.decode`), a class subclass does not.
+    let constructions = 0;
+    class CountingTextDecoder extends TextDecoder {
+      constructor(...args: ConstructorParameters<typeof TextDecoder>) {
+        super(...args);
+        constructions += 1;
+      }
+    }
+    vi.stubGlobal('TextDecoder', CountingTextDecoder);
+    try {
+      const root = workspace({ 'plain.md': 'ordinary ascii\n' });
+      expect(readSource(join(root, 'plain.md'))).toBe('ordinary ascii\n');
+      expect(constructions).toBe(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

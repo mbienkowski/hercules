@@ -41,11 +41,13 @@ describe('targets', () => {
 
 describe('buildTarget', () => {
   it('has no per-ecosystem branches: every real target renders without throwing', () => {
+    // A full build of all 6 real targets — same CPU-contention-under-load reasoning as
+    // checkTarget's/main's own explicit timeouts elsewhere in this file.
     for (const t of targets()) {
       const out = tmpDir(`hercules-cli-build-${t}-`);
       expect(() => buildTarget(t, out)).not.toThrow();
     }
-  });
+  }, 20_000);
 
   it('returns the sorted list of written relative paths', () => {
     const out = tmpDir('hercules-cli-build-');
@@ -154,8 +156,10 @@ describe('main', () => {
   });
 
   it('--check exits 0 for "all"', () => {
+    // A full build+diff of all 6 real targets via the "all" alias — same CPU-contention-under-load
+    // reasoning as checkTarget's own explicit timeout above.
     expect(main(['--check'])).toBe(0);
-  });
+  }, 20_000);
 
   it('silently skips an unknown target rather than throwing', () => {
     expect(() => main(['--target', 'does-not-exist', '--check'])).not.toThrow();

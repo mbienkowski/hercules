@@ -55,7 +55,13 @@ export function readSource(path: string): string {
   if (text.includes('�')) {
     // U+FFFD may legitimately appear in a source file; only flag it when it was MANUFACTURED by
     // decoding, which a strict re-decode detects precisely.
+    // `ignoreBOM` only controls whether a leading U+FEFF is stripped from the DECODED TEXT — and
+    // that text is discarded here; only whether `.decode()` throws matters. Verified directly:
+    // `ignoreBOM: true` and `ignoreBOM: false` throw identically for every malformed byte sequence
+    // tested, so this argument's value is unobservable in this call — a TRUE equivalent mutant per
+    // CODE_OF_CONDUCT.md's Testing section's pragma exception.
     try {
+      // Stryker disable next-line BooleanLiteral: ignoreBOM never affects whether a fatal decode throws — see comment above
       new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
     } catch {
       throw new EmitError(`${path}: not valid UTF-8`);

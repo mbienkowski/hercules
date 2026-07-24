@@ -68,6 +68,14 @@ function soleVersionMatch(text: string, format: VersionFormat, rel: string): Reg
   return matches[0] as RegExpMatchArray;
 }
 
+// `root`'s default value ('.') only ever reaches `join(root, rel)` below, and Node's `path.join`
+// normalizes a leading '.' segment away — verified directly for both real VERSION_TARGETS entries,
+// `join('.', 'pyproject.toml') === join('', 'pyproject.toml')` and likewise for `package.json`. No
+// test can ever observe a difference, so mutating this default's literal is a TRUE equivalent
+// mutant per CODE_OF_CONDUCT.md's Testing section's pragma exception (a default-parameter string
+// feeding only a path-join, never a branch/comparison/return value) — same reasoning already
+// applied to `setVersion.mts`'s own `root` defaults.
+// Stryker disable next-line StringLiteral: root='.' and root='' resolve identically through join(root, rel) — see comment above
 /** Write `version` into every canonical file, in place, preserving formatting. */
 export function writeVersion(version: string, root = '.'): void {
   for (const [rel, format] of VERSION_TARGETS) {
@@ -83,6 +91,9 @@ export function writeVersion(version: string, root = '.'): void {
   }
 }
 
+// Same TRUE equivalent mutant class as writeVersion()'s own `root` default above (path.join('.', x)
+// === path.join('', x) for every real VERSION_TARGETS entry).
+// Stryker disable next-line StringLiteral: root='.' and root='' resolve identically through join(root, rel) — see writeVersion()'s comment above
 /** `{relativePath: version}` read from every canonical file. */
 export function readVersions(root = '.'): Record<string, string> {
   const out: Record<string, string> = {};
@@ -100,10 +111,14 @@ export function readVersions(root = '.'): Record<string, string> {
  * restating it, so a human reading a descriptor's versioned manifest sees a `${version}` token
  * rather than a literal they would have to remember to bump.
  */
+// Same TRUE equivalent mutant class as writeVersion()'s own `root` default (see that comment).
+// Stryker disable next-line StringLiteral: root='.' and root='' resolve identically through join(root, rel) — see writeVersion()'s comment above
 export function readCanonicalVersion(root = '.'): string {
   return readVersions(root)['package.json'] as string;
 }
 
+// Same TRUE equivalent mutant class as writeVersion()'s own `root` default (see that comment).
+// Stryker disable next-line StringLiteral: root='.' and root='' resolve identically through join(root, rel) — see writeVersion()'s comment above
 /** Throw if the canonical files disagree, or (when given) differ from `expected`. */
 export function checkInSync(root = '.', expected?: string): void {
   const versions = readVersions(root);

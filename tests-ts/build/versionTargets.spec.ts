@@ -1,7 +1,18 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+// vi.mock('node:fs') wraps (not replaces) writeFileSync so every test still hits real disk — only
+// the CALL ARGUMENTS are additionally observable, for the one test below that needs to pin the
+// exact encoding writeVersion() passes (content-based verification alone can't distinguish 'utf-8'
+// from '' here: Node treats an empty-string encoding identically to 'utf-8' at the byte level for
+// every string writeVersion() ever writes, verified directly — same pattern as
+// tests-ts/updateChangelog.spec.ts's own writeFileSync encoding pins).
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return { ...actual, writeFileSync: vi.fn(actual.writeFileSync) };
+});
 
 import {
   VERSION_TARGETS,
@@ -19,6 +30,13 @@ function workspace(pyproject: string, packageJson: string): string {
   dirs.push(root);
   writeFileSync(join(root, 'pyproject.toml'), pyproject, 'utf-8');
   writeFileSync(join(root, 'package.json'), packageJson, 'utf-8');
+  // The two writes above (workspace setup) already called the mocked writeFileSync with 'utf-8' —
+  // clearing here means every remaining recorded call in a test belongs to the code under test,
+  // not to fixture setup. Without this, an assertion pinning writeVersion()'s own encoding arg
+  // would trivially pass by matching these SETUP calls instead, regardless of what writeVersion()
+  // itself actually passes — verified directly: this exact bug was caught live by a manual mutation
+  // rehearsal (writeVersion()'s 'utf-8' changed to '' still left the unguarded assertion green).
+  vi.mocked(writeFileSync).mockClear();
   return root;
 }
 
@@ -75,6 +93,13 @@ describe('writing a new version', () => {
     expect(readVersions(root)).toEqual({ 'pyproject.toml': '2.0.0', 'package.json': '2.0.0' });
   });
 
+  it('writes with explicit utf-8 encoding, not the platform default', () => {
+    const root = workspace('version = "1.0.0"\n', '{"version": "1.0.0"}');
+    writeVersion('2.0.0', root);
+    expect(writeFileSync).toHaveBeenCalledWith(join(root, 'pyproject.toml'), expect.any(String), 'utf-8');
+    expect(writeFileSync).toHaveBeenCalledWith(join(root, 'package.json'), expect.any(String), 'utf-8');
+  });
+
   it('preserves the surrounding formatting exactly', () => {
     // These files are hand-maintained; a rewrite that reflowed them would show up as noise in
     // every release commit.
@@ -89,6 +114,37 @@ describe('writing a new version', () => {
   it('refuses to write into a file with no version, rather than adding one', () => {
     const root = workspace('[project]\nname = "x"\n', '{"version": "1.0.0"}');
     expect(() => writeVersion('2.0.0', root)).toThrow('found 0');
+  });
+
+  it('the TOML write pattern is anchored to the START of the line, not a substring match anywhere', () => {
+    // Without the line anchor, `.replace()` (no global flag) would rewrite the FIRST occurrence of
+    // "version = " textually — which is the one inside the comment, not the real field below it.
+    const root = workspace(
+      '# was version = "0.9.0"\nversion = "1.0.0"\n',
+      '{"version": "1.0.0"}',
+    );
+    writeVersion('2.0.0', root);
+    expect(readFileSync(join(root, 'pyproject.toml'), 'utf-8')).toBe(
+      '# was version = "0.9.0"\nversion = "2.0.0"\n',
+    );
+  });
+
+  it.each([
+    ['no spaces around the equals', 'version="1.0.0"\n', 'version="2.0.0"\n'],
+    ['extra spaces around the equals', 'version   =   "1.0.0"\n', 'version   =   "2.0.0"\n'],
+  ])('the TOML write pattern tolerates %s', (_label, before, after) => {
+    const root = workspace(before, '{"version": "1.0.0"}');
+    writeVersion('2.0.0', root);
+    expect(readFileSync(join(root, 'pyproject.toml'), 'utf-8')).toBe(after);
+  });
+
+  it.each([
+    ['no spaces around the colon', '{"version":"1.0.0"}', '{"version":"2.0.0"}'],
+    ['extra spaces around the colon', '{"version"  :  "1.0.0"}', '{"version"  :  "2.0.0"}'],
+  ])('the JSON write pattern tolerates %s', (_label, before, after) => {
+    const root = workspace('version = "1.0.0"\n', before);
+    writeVersion('2.0.0', root);
+    expect(readFileSync(join(root, 'package.json'), 'utf-8')).toBe(after);
   });
 });
 

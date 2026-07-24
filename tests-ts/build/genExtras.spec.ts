@@ -1,10 +1,11 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { discover } from '../../scripts-ts/build/descriptor.mjs';
+import type { EcosystemDescriptor } from '../../scripts-ts/build/descriptor.mjs';
 import type { ExtrasContext } from '../../scripts-ts/build/genExtras.mjs';
 import { emitExtras, GenExtrasError, jsObjectLiteral, jsString, roleEntries } from '../../scripts-ts/build/genExtras.mjs';
 import { ECOSYSTEMS } from '../support/descriptorFixtures';
@@ -62,6 +63,22 @@ describe('jsObjectLiteral', () => {
     expect(jsObjectLiteral({ ok_key: 1, 'needs:quote': 2 })).toContain('"needs:quote": 2,');
   });
 
+  it('separates multiple plain-object entries with a real newline, not a bare concatenation', () => {
+    // Same distinction as the Map branch's own join test above, but for the plain-object branch's
+    // separate recursive call site.
+    const out = jsObjectLiteral({ a: '1', b: '2' });
+    expect(out).toContain('"1",\n');
+    expect(out.split('\n')).toHaveLength(4); // "{", "  a: ...,", "  b: ...,", "}"
+  });
+
+  it('indents a nested plain-object value one level deeper, not shallower', () => {
+    // Same distinction as the Map branch's own nesting test above, but for the plain-object
+    // branch's separate recursive call site (a separate mutant site from the Map branch's).
+    const out = jsObjectLiteral({ outer: { inner: 'v' } }, 4);
+    expect(out).toContain('\n        inner: "v",\n');
+    expect(out).toContain('\n      },\n');
+  });
+
   it('a plain object with an integer-like key diverges from Python — V8 reorders it first (documented, not parity-fixtured)', () => {
     // Verified directly against the real Python engine (python3 -m scripts.ci.parity_run):
     // js_object_literal({"b": 1, "1": "one", "a": 2, "0": "zero"}) there renders key order
@@ -74,6 +91,34 @@ describe('jsObjectLiteral', () => {
     const out = jsObjectLiteral(obj);
     const keyOrder = [...out.matchAll(/"?([\w:]+)"?: /g)].map((m) => m[1]);
     expect(keyOrder).toEqual(['0', '1', 'b', 'a']);
+  });
+
+  it('separates multiple entries with a real newline, not a bare concatenation', () => {
+    // Content alone doesn't distinguish items.join('\n') from items.join('') UNLESS there are at
+    // least two entries and the assertion checks for the newline explicitly — a single-entry
+    // rendering (as in the tests above) can't tell the two apart.
+    const out = jsObjectLiteral(new Map([['a', '1'], ['b', '2']]));
+    expect(out).toContain('"1",\n');
+    expect(out.split('\n')).toHaveLength(4); // "{", "  a: ...,", "  b: ...,", "}"
+  });
+
+  it('indents a nested map one level deeper inside an array element, not shallower', () => {
+    // Distinguishes indent + 2 from indent - 2 in the array branch's recursive call: at the
+    // (arbitrary, non-default) starting indent used here, decrementing would still produce valid
+    // (non-negative) spacing, so only an exact space count — not merely "did it throw" — proves
+    // which direction indent actually moved.
+    const out = jsObjectLiteral([new Map([['k', 'v']])], 4);
+    // Outer array item is rendered at indent 4+2=6; its own nested entry line is prefixed with
+    // that nested "spaces" (6) plus the literal "  " the entry-line template always adds = 8.
+    expect(out).toContain('\n        k: "v",\n');
+    expect(out).toContain('\n      }]');
+  });
+
+  it('indents a nested map one level deeper inside a map value, not shallower', () => {
+    // Same proof as above for the map/object branch's own recursive call (a separate mutant site).
+    const out = jsObjectLiteral(new Map([['outer', new Map([['inner', 'v']])]]), 4);
+    expect(out).toContain('\n        inner: "v",\n');
+    expect(out).toContain('\n      },\n');
   });
 });
 
@@ -103,6 +148,12 @@ describe('the plugin.js template is sibling data, not TypeScript', () => {
 });
 
 describe('roleEntries', () => {
+  const dirs: string[] = [];
+
+  afterEach(() => {
+    while (dirs.length > 0) rmSync(dirs.pop() as string, { recursive: true, force: true });
+  });
+
   it('drops the name key and strips the rendered body', () => {
     const opencode = DESCRIPTORS['opencode'];
     if (opencode === undefined) throw new Error('opencode descriptor missing');
@@ -112,6 +163,41 @@ describe('roleEntries', () => {
     expect(backend?.fields.has('name')).toBe(false);
     expect(backend?.body.startsWith('\n')).toBe(false);
     expect(backend?.body.endsWith('\n')).toBe(false);
+  });
+
+  it('only collects .md files, ignoring any other file the directory happens to hold', () => {
+    // Every real src/content/agents entry is already a .md file, so this can only be proven with a
+    // synthetic directory that deliberately mixes in a non-.md sibling.
+    const root = mkdtempSync(join(tmpdir(), 'hercules-role-entries-'));
+    dirs.push(root);
+    const agentsDir = join(root, 'agents');
+    mkdirSync(agentsDir, { recursive: true });
+    writeFileSync(
+      join(agentsDir, 'real.md'),
+      '---\nname: real\ndescription: d\nmodel_tier: medium\ntools: Read\n---\nbody\n',
+      'utf-8',
+    );
+    writeFileSync(join(agentsDir, 'README.txt'), 'not a role file', 'utf-8');
+    const opencode = DESCRIPTORS['opencode'];
+    if (opencode === undefined) throw new Error('opencode descriptor missing');
+    const entries = roleEntries(opencode, root, new Map(Object.entries(opencode.vars)), 'agent');
+    expect(entries.map((e) => e.stem)).toEqual(['real']);
+  });
+
+  it('does not crash when a role has no field spec at all, falling back to no computed fields', () => {
+    // Every real descriptor defines every role roleEntries is ever called with — this can only be
+    // reached by constructing a descriptor that deliberately omits one. Proves the `?.` on
+    // `descriptor.roles[role]` is load-bearing: without it, reading `.fields` off the missing
+    // roleSpec would throw instead of falling back.
+    const opencode = DESCRIPTORS['opencode'];
+    if (opencode === undefined) throw new Error('opencode descriptor missing');
+    const withNoRoles: EcosystemDescriptor = { ...opencode, roles: {} };
+    expect(() =>
+      roleEntries(withNoRoles, SRC_CONTENT, new Map(Object.entries(opencode.vars)), 'agent'),
+    ).not.toThrow();
+    const entries = roleEntries(withNoRoles, SRC_CONTENT, new Map(Object.entries(opencode.vars)), 'agent');
+    expect(entries.length).toBeGreaterThan(0); // files are still enumerated
+    expect([...(entries[0]?.fields.keys() ?? ['not empty'])]).toEqual([]); // but no fields computed
   });
 });
 
@@ -203,5 +289,46 @@ describe('emitExtras', () => {
     const ctx = ctxFor('claude-code');
     expect(() => emitExtras(ctx, withBadArtifact)).toThrow(GenExtrasError);
     expect(() => emitExtras(ctx, withBadArtifact)).toThrow(/expected exactly one \$\{version\} token/);
+  });
+
+  it('names its own failures as such', () => {
+    const zero = DESCRIPTORS['claude-code'];
+    if (zero === undefined) throw new Error('claude-code descriptor missing');
+    const withBadArtifact = {
+      ...zero,
+      artifacts: [{ dest: 'bad.json', content: { v: 'no token here' }, versioned: true }],
+    };
+    const ctx = ctxFor('claude-code');
+    try {
+      emitExtras(ctx, withBadArtifact);
+      expect.unreachable('should have thrown');
+    } catch (error) {
+      expect((error as Error).name).toBe('GenExtrasError');
+    }
+  });
+
+  it('falls back to no key prefix when a template value leaves it unset (null), not a filler string', () => {
+    // Every real descriptor's role_entries_js key_prefix is either "" or "hercules:" — a defined,
+    // non-nullish string — so the `spec.keyPrefix ?? ''` fallback is never exercised by real data
+    // (it exists only because the schema types key_prefix nullable). Forcing it to `null` here is
+    // the only way to reach the fallback at all, and matches the type exactly (not `undefined`).
+    const opencode = DESCRIPTORS['opencode'];
+    if (opencode === undefined) throw new Error('opencode descriptor missing');
+    const template = opencode.templates[0];
+    if (template === undefined) throw new Error('opencode template missing');
+    const agentEntries = template.values['__AGENT_ENTRIES__'];
+    if (agentEntries === undefined) throw new Error('__AGENT_ENTRIES__ value missing');
+    const withNullPrefix = {
+      ...opencode,
+      templates: [
+        { ...template, values: { ...template.values, __AGENT_ENTRIES__: { ...agentEntries, keyPrefix: null } } },
+      ],
+    };
+    const ctx = ctxFor('opencode');
+    emitExtras(ctx, withNullPrefix);
+    const js = readFileSync(join(ctx.outRoot, 'plugin.js'), 'utf-8');
+    // "backend-engineer" is not a bare-identifier-safe key (hyphen), so it renders quoted; a filler
+    // prefix would land INSIDE that same quoted string, ahead of the stem, breaking this exact match.
+    expect(js).toContain('"backend-engineer":');
   });
 });
