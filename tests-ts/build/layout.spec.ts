@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative, sep } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { discoverSources } from '../../scripts-ts/build/layout.mjs';
+import { compareCodePoints, comparePathParts, discoverSources } from '../../scripts-ts/build/layout.mjs';
 
 const dirs: string[] = [];
 
@@ -127,5 +127,65 @@ describe('following symbolic links the way Python does', () => {
     symlinkSync(join(root, 'real'), join(root, 'root/linkeddir'));
     const names = discoverSources(join(root, 'root')).map((p) => p.split(sep).pop());
     expect(names).toEqual(['plain.md']);
+  });
+});
+
+describe('compareCodePoints, tested directly rather than through a real directory walk', () => {
+  // A real-filesystem test cannot force a non-alphabetical readdirSync result on APFS, so these
+  // control the input strings directly instead.
+
+  it('orders by the first differing character', () => {
+    expect(compareCodePoints('a', 'b')).toBeLessThan(0);
+    expect(compareCodePoints('b', 'a')).toBeGreaterThan(0);
+  });
+
+  it('treats equal strings as equal', () => {
+    expect(compareCodePoints('same', 'same')).toBe(0);
+  });
+
+  it('orders the shorter of two prefix-related strings first', () => {
+    // The length tiebreak specifically: characters match up to the shorter string's length, so
+    // only the LENGTH difference decides it. An addition-based typo (`left.length + right.length`)
+    // can never be negative, so it can only ever agree with subtraction when a<b happens to also
+    // hold some other way — these two assertions cover left-shorter and right-shorter respectively,
+    // so a `+`-for-`-` typo is wrong in at least one of them.
+    expect(compareCodePoints('a', 'ab')).toBeLessThan(0);
+    expect(compareCodePoints('ab', 'a')).toBeGreaterThan(0);
+  });
+
+  it('compares by Unicode code point, not by UTF-16 code unit', () => {
+    // A code-UNIT compare (plain `charCodeAt` / `<` over a JS string) would put a supplementary-
+    // plane character BEFORE a Basic Multilingual Plane character from the E000-FFFF range,
+    // because a surrogate pair's leading unit falls in D800-DBFF -- numerically below E000 -- even
+    // though the supplementary character's actual CODE POINT (0x10000+) is higher. This is the one
+    // assertion a naive `a < b` string compare would get backwards; codePointAt gets it right.
+    const bmpHigh = String.fromCodePoint(0xe000);
+    const supplementary = String.fromCodePoint(0x10000);
+    expect(supplementary.codePointAt(0) as number).toBeGreaterThan(bmpHigh.codePointAt(0) as number);
+    expect(compareCodePoints(supplementary, bmpHigh)).toBeGreaterThan(0);
+    expect(compareCodePoints(bmpHigh, supplementary)).toBeLessThan(0);
+  });
+});
+
+describe('comparePathParts, tested directly', () => {
+  it('orders by the first differing path segment', () => {
+    expect(comparePathParts(join('a', 'z'), join('b', 'a'))).toBeLessThan(0);
+  });
+
+  it('stops at the first difference rather than continuing to compare later segments', () => {
+    expect(comparePathParts(join('a', 'z'), join('a', 'a'))).toBeGreaterThan(0);
+  });
+
+  it('treats identical paths as equal', () => {
+    expect(comparePathParts(join('a', 'b'), join('a', 'b'))).toBe(0);
+  });
+
+  it('orders the shallower of two paths first when every shared segment is equal', () => {
+    // The outer length tiebreak. Two DISTINCT real files can never actually reach this branch (a
+    // path component cannot be simultaneously a leaf file and an ancestor directory), so no
+    // filesystem-driven test can exercise it — comparePathParts is a general comparator and this
+    // pins its behaviour directly regardless.
+    expect(comparePathParts(join('a', 'b'), join('a', 'b', 'c'))).toBeLessThan(0);
+    expect(comparePathParts(join('a', 'b', 'c'), join('a', 'b'))).toBeGreaterThan(0);
   });
 });

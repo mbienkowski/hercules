@@ -131,3 +131,41 @@ describe('locating the frontmatter fence precisely', () => {
     expect(splitDocument('---\n').block).toBeNull();
   });
 });
+
+describe('the no-fence guard actually prevents misreading later dashes as frontmatter', () => {
+  it('does not scan for a closing fence when the document never opens with one', () => {
+    // A document that starts with prose but happens to contain two '---' lines LATER must not be
+    // misread as if those were a frontmatter block — the guard must stop that before the scan ever
+    // starts, not merely happen to produce the right answer some other way.
+    const source = 'Body\n---\nkey: val\n---\nMore';
+    const { metadata, body } = parseFrontmatter(source);
+    expect(metadata.size).toBe(0);
+    expect(body).toBe(source);
+  });
+});
+
+describe('an unclosed fence falls back to the FULL original text as body', () => {
+  it('is not merely "no metadata" but the untouched original, dashes included', () => {
+    // The weaker assertion (metadata is empty) cannot tell "correctly fell back to the whole
+    // document" apart from "incorrectly treated line 1 as a phantom closing fence and dropped
+    // everything before it" — both leave metadata empty, only the BODY reveals which happened.
+    const source = '---\nname: x\nbody text\n';
+    const { metadata, body } = parseFrontmatter(source);
+    expect(metadata.size).toBe(0);
+    expect(body).toBe(source.trim());
+  });
+});
+
+describe('splitDocument’s closing-fence search skips past the opening fence itself', () => {
+  it('does not recognise two fences on adjacent lines as an empty frontmatter block', () => {
+    // Mirrors the Python original's `text.find("\n" + FENCE, len(FENCE) + 1)`: the search starts
+    // just past the OPENING fence's own text, not at its second character. Starting one character
+    // too early would let the opening fence's own trailing dash be mistaken for a closing one.
+    const { block, body } = splitDocument('---\n---\n');
+    expect(block).toBeNull();
+    expect(body).toBe('---\n---\n');
+  });
+  // The "still finds a real closing fence one full line later" contrast case is deliberately not
+  // repeated here — it would be structurally identical to the pre-existing "splits a document whose
+  // body starts immediately after the closing fence" test above, adding no incremental coverage.
+});

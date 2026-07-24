@@ -14,8 +14,14 @@ import { join, relative, sep } from 'node:path';
  * JavaScript's `<` compares UTF-16 code units, which orders supplementary-plane characters before
  * U+E000–U+FFFF instead of after. Filenames here are ASCII today, so this changes nothing now — it
  * is here so that the day one is not, the ordering does not quietly shift.
+ *
+ * Exported (not just used internally) so its branches can be unit-tested directly, with synthetic
+ * strings whose order is fully controlled. A real-filesystem test cannot do that reliably: APFS's
+ * `readdirSync` already returns entries in name order regardless of creation order, so on a
+ * developer's Mac a real directory walk can pass every ordering assertion even with the comparator
+ * disabled entirely. ext4 (the CI runner) does not make that guarantee — see `discoverSources`.
  */
-function compareCodePoints(a: string, b: string): number {
+export function compareCodePoints(a: string, b: string): number {
   const left = [...a];
   const right = [...b];
   for (let i = 0; i < Math.min(left.length, right.length); i += 1) {
@@ -35,7 +41,7 @@ function compareCodePoints(a: string, b: string): number {
  * ways, so a plain sort would pass every current fixture and silently reorder the build the first
  * time someone adds a file whose name contains a hyphen next to a directory sharing its prefix.
  */
-function comparePathParts(a: string, b: string): number {
+export function comparePathParts(a: string, b: string): number {
   const left = a.split(sep);
   const right = b.split(sep);
   for (let i = 0; i < Math.min(left.length, right.length); i += 1) {
