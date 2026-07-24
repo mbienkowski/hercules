@@ -24,6 +24,16 @@ describe('loadThresholds: load-time validation errors', () => {
     expect(() => loadThresholds(file)).toThrow(/unknown metric/);
   });
 
+  it('lists every known metric name, sorted, in the unknown-metric error', () => {
+    const root = tmpWorkspace();
+    const file = writeThresholds(root, [
+      { name: 'bad-metric', target: 'x.md', metric: 'nonexistent_metric', op: '<=', limit: 100, severity: 'gate' },
+    ]);
+    expect(() => loadThresholds(file)).toThrow(
+      '["core_entry_count","core_token_count","instruction_count","token_count"]',
+    );
+  });
+
   it('an unknown severity value raises a clear error', () => {
     const root = tmpWorkspace();
     const file = writeThresholds(root, [
@@ -46,6 +56,24 @@ describe('loadThresholds: load-time validation errors', () => {
       { name: 'bad-op', target: 'x.md', metric: 'token_count', op: '!=', limit: 100, severity: 'gate' },
     ]);
     expect(() => loadThresholds(file)).toThrow(/unknown op/);
+  });
+
+  it('lists every known operator, sorted, in the unknown-op error', () => {
+    const root = tmpWorkspace();
+    const file = writeThresholds(root, [
+      { name: 'bad-op', target: 'x.md', metric: 'token_count', op: '!=', limit: 100, severity: 'gate' },
+    ]);
+    expect(() => loadThresholds(file)).toThrow('["<","<=","==",">",">="]');
+  });
+
+  it('skips the warn_at-vs-limit check entirely when warn_at is not provided, even for a negative limit', () => {
+    // If the omitted-check guard were dropped, a negative limit would make `warnAt > limit` (with
+    // warnAt coerced from null to 0) spuriously true, and this would throw instead of loading clean.
+    const root = tmpWorkspace();
+    const file = writeThresholds(root, [
+      { name: 'neg-limit', target: 'f.md', metric: 'token_count', op: '<=', limit: -5, severity: 'gate' },
+    ]);
+    expect(() => loadThresholds(file)).not.toThrow();
   });
 });
 
@@ -79,6 +107,14 @@ describe('loadThresholds: accepted values', () => {
       { name: 'lt', target: 'f.md', metric: 'token_count', op: '<', limit: 100, severity: 'gate' },
     ]);
     expect(loadThresholds(file)[0]?.op).toBe('<');
+  });
+
+  it('accepts the greater-than comparison', () => {
+    const root = tmpWorkspace();
+    const file = writeThresholds(root, [
+      { name: 'gt', target: 'f.md', metric: 'token_count', op: '>', limit: 100, severity: 'gate' },
+    ]);
+    expect(loadThresholds(file)[0]?.op).toBe('>');
   });
 
   it('defaults a rule without a severity to a hard gate', () => {

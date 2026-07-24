@@ -51,6 +51,29 @@ describe('resolveTargets', () => {
     expect(resolveTargets(root, 'a[12].md')).toHaveLength(2);
   });
 
+  it('trims whitespace around comma-separated target patterns', () => {
+    const root = tmpWorkspace();
+    writeFileSync(join(root, 'a.md'), 'x');
+    writeFileSync(join(root, 'b.md'), 'y');
+    const names = new Set(resolveTargets(root, 'a.md, b.md').map((t) => basename(t)));
+    expect(names).toEqual(new Set(['a.md', 'b.md']));
+  });
+
+  it('treats a duplicate literal (non-glob) target as a single result', () => {
+    const root = tmpWorkspace();
+    writeFileSync(join(root, 'a.md'), 'x');
+    expect(resolveTargets(root, 'a.md,a.md')).toHaveLength(1);
+  });
+
+  it('returns glob-matched targets in sorted order, regardless of creation order', () => {
+    const root = tmpWorkspace();
+    writeFileSync(join(root, 'zeta.md'), 'z');
+    writeFileSync(join(root, 'alpha.md'), 'a');
+    writeFileSync(join(root, 'mid.md'), 'm');
+    const names = resolveTargets(root, '*.md').map((t) => basename(t));
+    expect(names).toEqual(['alpha.md', 'mid.md', 'zeta.md']);
+  });
+
   it('an accidental double comma does not drop later files', () => {
     const root = tmpWorkspace();
     writeFileSync(join(root, 'a.md'), 'x');

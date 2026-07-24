@@ -55,6 +55,28 @@ describe('countAtomicInstructions: hand-labelled fixtures', () => {
       .toBe(0);
   });
 
+  it('matches a bullet marker followed by more than one space', () => {
+    expect(countAtomicInstructions('-   extra spaced bullet')).toBe(1);
+  });
+
+  it('matches a numbered marker followed by more than one space', () => {
+    expect(countAtomicInstructions('1.   extra spaced number')).toBe(1);
+  });
+
+  it('recognizes a bullet indented with leading whitespace', () => {
+    expect(countAtomicInstructions('  - indented bullet')).toBe(1);
+  });
+
+  it('drops a whitespace-only fragment rather than counting it as a word', () => {
+    // The fragment after the comma is pure whitespace — it must contribute zero words, not get
+    // miscounted as satisfying the two-word threshold.
+    expect(countAtomicInstructions('- word,    ')).toBe(1);
+  });
+
+  it('counts two words separated by multiple internal spaces as exactly two', () => {
+    expect(countAtomicInstructions('- one   two')).toBe(1); // one unit, no separator, still >=2 words
+  });
+
   it('sums multiple units in one document', () => {
     // "two, and three" splits into "two" (2 words incl. the bullet dash, counts) and "three"
     // (1 word once the splitting "and" itself is consumed by String.split — not counted): the
@@ -83,6 +105,20 @@ describe('extractSection', () => {
 
   it('returns empty when start is not found', () => {
     expect(extractSection('no headers here', '## A')).toBe('');
+  });
+
+  it('returns the full remainder when stop is omitted, even if the text contains the literal word "undefined"', () => {
+    // Pins the omitted-stop short-circuit itself: without it, `stop` would flow into
+    // `text.indexOf(stop, ...)` as the string "undefined" and truncate the result at that word.
+    const text = '## A undefined-marker\nmore content';
+    expect(extractSection(text, '## A')).toBe('## A undefined-marker\nmore content');
+  });
+
+  it('never searches for stop within the start marker\'s own text', () => {
+    // "STOP" appears once, entirely BEFORE the start marker. The search for `stop` must begin only
+    // after `start` ends, so this earlier occurrence must never be found.
+    const text = 'STOP here ## Section body text';
+    expect(extractSection(text, '## Section', 'STOP')).toBe('## Section body text');
   });
 });
 

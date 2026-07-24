@@ -38,33 +38,39 @@ const NUMBERED_RE = /^\d+\.\s+\S/;
 const BOLD_LABEL_RE = /^\*\*[A-Z0-9]/;
 
 /**
- * The same UNIT identification `_count_instruction_blocks` used: a bullet, a numbered item outside
- * a fence, a bold-labelled block, or a numbered rule INSIDE a fence.
+ * The same UNIT identification `_count_instruction_blocks` used: a bullet, a numbered item, or a
+ * bold-labelled block. Matched unconditionally regardless of fence state — a fence delimiter line
+ * always starts with three backticks, which can never satisfy any of the three unit patterns above
+ * (each requires `-`/`*`/a digit/`**` as its first character), so a numbered rule inside a fenced
+ * fixture is already caught by the same unconditional check. No separate fence-tracking is needed:
+ * an earlier version both toggled an `inFence` flag AND special-cased skipping the delimiter line
+ * itself — neither could ever change this function's output, since a delimiter line can never match
+ * any unit pattern with or without being skipped, and a numbered rule INSIDE a fence had already
+ * been matched (or not) by the same unconditional check regardless of fence state.
  */
 function findUnits(text: string): string[] {
   const units: string[] = [];
-  let inFence = false;
   for (const rawLine of text.split('\n')) {
     const line = rawLine.trim();
-    if (line.startsWith('```')) {
-      inFence = !inFence;
-      continue;
-    }
     if (BULLET_RE.test(line) || NUMBERED_RE.test(line) || BOLD_LABEL_RE.test(line)) {
-      units.push(line);
-    } else if (inFence && NUMBERED_RE.test(line)) {
       units.push(line);
     }
   }
   return units;
 }
 
-/** Every separator-delimited fragment of `unit` with at least two words counts as one directive. */
+/**
+ * Every separator-delimited fragment of `unit` with at least two words counts as one directive.
+ *
+ * Words are counted via `\S+` runs directly — not `split(/\s+/)` — so leading/trailing whitespace
+ * on a fragment (from `SEPARATOR_RE` not itself trimming) never needs a separate `.trim()` pass:
+ * `\S+` only ever matches non-whitespace runs, so there is nothing left for a boundary-whitespace
+ * artifact to slip through as a false "word".
+ */
 function countAtomicDirectives(unit: string): number {
   const fragments = unit
     .split(SEPARATOR_RE)
-    .map((f) => f.trim())
-    .filter((f) => f.split(/\s+/).filter(Boolean).length >= 2);
+    .filter((f) => (f.match(/\S+/g)?.length ?? 0) >= 2);
   return Math.max(fragments.length, 1); // the unit itself is still one directive, even if too short to split
 }
 

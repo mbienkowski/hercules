@@ -64,6 +64,16 @@ describe('summed mode', () => {
     expect(results[0]?.value).toBe(0);
   });
 
+  it('is never flagged as near-warn when no warn_at is configured, even though the check passes', () => {
+    const results = runOneCheck(
+      tmpWorkspace(),
+      { name: 'no-warn-at', target: 'a.md', metric: 'instruction_count', op: '<=', limit: 100, severity: 'gate' },
+      { 'a.md': '- one\n- two\n' },
+    );
+    expect(results[0]?.passed).toBe(true);
+    expect(results[0]?.nearWarn).toBe(false);
+  });
+
   it('a value comfortably below the warning level is not flagged', () => {
     const results = runOneCheck(
       tmpWorkspace(),
