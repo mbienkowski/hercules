@@ -22,7 +22,6 @@
  * key that looks like an array index ahead of the rest.
  */
 
-import { parseDescriptor } from './descriptor.mjs';
 import type { EcosystemDescriptor, FieldSpec, RoleSpec } from './descriptor.mjs';
 import type { ModelsMap } from './modelMap.mjs';
 import { resolve as resolveModel } from './modelMap.mjs';
@@ -336,23 +335,4 @@ export class DescriptorSerializer {
     }
     return this.fields(spec, meta, body, tokens, stem);
   }
-}
-
-/**
- * `parseDescriptor` + `DescriptorSerializer.serializeFile`, composed into ONE module-level function
- * so the parity harness — which only knows how to call a single named function per fixture (see
- * `scripts-ts/bin/parityRun.mts`) — can drive `serializeFile`'s real mode dispatch from a raw
- * descriptor JSON value, the same wire shape the `descriptor` module's own fixtures already use.
- * Test-support only; the real CLI composes these two steps itself (commit 8's `serialize.mts`).
- */
-export function serializeFileForFixture(
-  descriptorRaw: unknown,
-  text: string,
-  tokens: ReadonlyMap<string, string>,
-  models: ModelsMap | null,
-  rel: string | null,
-): string {
-  const name = (descriptorRaw as { name: string }).name;
-  const d = parseDescriptor(name, descriptorRaw);
-  return new DescriptorSerializer(d).serializeFile(text, tokens, models, rel);
 }

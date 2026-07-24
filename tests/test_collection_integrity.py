@@ -1,9 +1,12 @@
 """Guard: every test directory is actually collected by ``pytest tests/``.
 
-pytest's default ``norecursedirs`` includes ``build`` and ``dist``, so a directory named
-``tests/build/`` is silently skipped during recursion — its tests only run when the path is named
-explicitly. That once hid the entire compiler suite (152 tests) from CI. This meta-test fails if any
-reserved-name pattern would exclude a real test directory, so the regression cannot return unnoticed.
+pytest's default ``norecursedirs`` includes ``build`` and ``dist``, so a directory named, say,
+``tests/build/`` would be silently skipped during recursion -- its tests only run when the path is
+named explicitly. That once hid an entire suite of 152 tests from CI (back when the now-retired
+Python compiler's tests lived at ``tests/build/`` -- ported to TypeScript and removed by the same
+commit that deleted the compiler itself, so the directory that incident was named after no longer
+exists). This meta-test fails if any reserved-name pattern would exclude a real test directory
+under ``tests/``, so the regression cannot return unnoticed under a different directory name.
 
 Frozen for spec-05-ci-release-integration.
 """
@@ -33,17 +36,3 @@ def test_no_test_folder_is_silently_skipped_when_running_the_full_suite(request)
         f"test directories match a norecursedirs pattern and will be skipped under "
         f"`pytest tests/`: {hidden} (patterns: {patterns})"
     )
-
-
-def test_the_compiler_test_suite_still_exists_and_actually_runs(request):
-    """The compiler test suite (tests/build/) must both be present and not excluded by the
-    test runner's default skip rules. This is the positive check paired with the folder-name
-    guard above: it catches the case where the suite is accidentally deleted or moved, not just
-    the case where it silently stops running."""
-    # Positive companion: the compiler suite exists and is not excluded.
-    build_dir = TESTS_ROOT / "build"
-    assert build_dir.is_dir(), "tests/build/ (the compiler suite) is missing"
-    assert list(build_dir.glob("test_*.py")), "tests/build/ has no test files"
-    patterns = request.config.getini("norecursedirs")
-    assert not any(fnmatch.fnmatch("build", pat) for pat in patterns), \
-        "norecursedirs excludes 'build' — tests/build/ would be skipped during recursion"

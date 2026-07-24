@@ -1,9 +1,13 @@
 #!/bin/sh
 # Optional pre-commit hook: regenerate dist/ when the source or the build tool changes.
 # Enable with: git config core.hooksPath .githooks
+#
+# Calls back through `make build` rather than hardcoding the compiler directly, so this hook keeps
+# working unchanged across a compiler runtime flip (few-shot rule #2 in the TypeScript migration
+# plan: a script invoked by a Makefile target — or, here, a git hook — calls back through `make`).
 
-if git diff --cached --name-only | grep -qE "^src/|^scripts/build/"; then
+if git diff --cached --name-only | grep -qE "^src/|^scripts-ts/build/|^scripts-ts/bin/cli\.mts$"; then
     echo "src/ changed — regenerating dist/ ..."
-    python3 -m scripts.build.cli --target all || exit 1
+    make build || exit 1
     git add dist
 fi

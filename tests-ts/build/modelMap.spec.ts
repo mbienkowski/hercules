@@ -22,6 +22,13 @@ describe('choosing which model a target uses for a tier', () => {
     ).toBe('M');
   });
 
+  it('never falls back DOWN to a lower tier that happens to be configured', () => {
+    // Fallback only ever moves toward higher capability. Asking for 'high' when only a lower
+    // 'low' tier is configured must not silently hand back the weaker model — it must report no
+    // selection, the same as if nothing were configured at all.
+    expect(resolve({ t: { low: 'L' } }, 't', 'high')).toBeNull();
+  });
+
   it('treats a tier configured as null as "omit the field", not as unset', () => {
     // Presence, not truthiness. A null must STOP the fallback: it is a deliberate instruction to
     // emit no model field, and falling through to a higher tier would override that.

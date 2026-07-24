@@ -1,7 +1,0 @@
-{
- "module": "parse",
- "fn": "split_document",
- "args": [
-  "Body only\n"
- ]
-}

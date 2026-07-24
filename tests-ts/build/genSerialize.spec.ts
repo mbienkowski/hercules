@@ -191,6 +191,34 @@ describe('dispatch and routing', () => {
     expect(dest(d, 'commands/ship.md')).toBe('commands/ship.prompt.md');
     expect(dest(d, 'persona.md')).toBe('AGENTS.md');
   });
+
+  it('cursor relocates only the persona — every other component keeps its source path', () => {
+    // Ported from tests/build/test_cursor_serialize.py's test_cursor_dest_relocates_only_the_persona:
+    // pinned against the REAL cursor descriptor's routes, since Cursor's agents/commands/skills
+    // dirs match src/content exactly and only persona.md's .md -> .mdc + relocation is special.
+    const d = DESCRIPTORS['cursor'] as NonNullable<(typeof DESCRIPTORS)['cursor']>;
+    expect(dest(d, 'persona.md')).toBe('rules/hercules-persona.mdc');
+    expect(dest(d, 'agents/cynical-reviewer.md')).toBe('agents/cynical-reviewer.md');
+    expect(dest(d, 'commands/workflow.md')).toBe('commands/workflow.md');
+    expect(dest(d, 'skills/hercules-reference/SKILL.md')).toBe('skills/hercules-reference/SKILL.md');
+    expect(dest(d, 'protocols/workflow-protocol.md')).toBe('protocols/workflow-protocol.md');
+  });
+});
+
+describe('cursor: the readonly field is exactly the gate-verdict roles (descriptor-level pin)', () => {
+  it('pins the exact read-locked membership, not just that members get readonly:true', () => {
+    // Ported from test_cursor_serialize.py's test_readonly_set_is_exactly_the_gate_verdict_roles.
+    // The set is descriptor DATA now; this pin is the reader-end guard on that data — a wrong
+    // membership (a verdict-giver dropped, or a name typo'd) must not ship silently.
+    const cursor = DESCRIPTORS['cursor'] as NonNullable<(typeof DESCRIPTORS)['cursor']>;
+    const fields = cursor.roles['agent']?.fields ?? [];
+    const readonlyField = fields.find((f) => f.key === 'readonly');
+    if (readonlyField === undefined) throw new Error('cursor agent role has no readonly field');
+    expect(new Set(readonlyField.names)).toEqual(new Set([
+      'cynical-reviewer', 'security-expert', 'source-checker', 'senior-qa-engineer', 'maintainer',
+    ]));
+    expect(readonlyField.value).toBe('true');
+  });
 });
 
 describe('role-direct sugar', () => {
@@ -210,6 +238,50 @@ describe('role-direct sugar', () => {
   it('serializeCommand takes an explicit stem', () => {
     const out = ser('cursor').serializeCommand(meta({ description: 'Build the thing' }), '\nBody.\n', tokens({}), 'build');
     expect(out).toBe('---\nname: build\ndescription: Build the thing\n---\n\nBody.\n');
+  });
+
+  it('cursor serializeAgent drops model and tools — a subagent carries only name+description', () => {
+    // Ported from test_cursor_serialize.py's test_agent_frontmatter_drops_model_and_tools: the
+    // Claude model_tier and tools are dropped (Cursor subagents inherit the user's model).
+    const s = ser('cursor');
+    const m = meta({
+      name: 'backend-engineer', description: 'Implements server code.',
+      model_tier: 'high', tools: 'Read, Write',
+    });
+    const out = s.serializeAgent(m, 'Body here.', tokens({}));
+    expect(out).toBe('---\nname: backend-engineer\ndescription: Implements server code.\n---\n\nBody here.');
+  });
+
+  it('cursor serializeAgent read-locks a reviewer role with an exact field order', () => {
+    // Ported from test_cursor_serialize.py's test_reviewer_agent_is_read_locked: review/audit
+    // roles ship readonly:true so an isolated reviewer can never become an author.
+    const s = ser('cursor');
+    const m = meta({ name: 'cynical-reviewer', description: 'Finds problems.', model_tier: 'high' });
+    const out = s.serializeAgent(m, 'Body.', tokens({}));
+    expect(out.startsWith('---\nname: cynical-reviewer\ndescription: Finds problems.\nreadonly: true\n---')).toBe(true);
+    expect(out).toContain('readonly: true');
+  });
+
+  it('cursor serializeCommand drops the disable-model-invocation marker', () => {
+    // Ported from test_cursor_serialize.py's test_command_gets_stem_name_and_drops_claude_marker:
+    // commands need name (the file stem) + description for the official validator; Claude's
+    // disable-model-invocation marker must not leak through.
+    const s = ser('cursor');
+    const m = meta({ description: 'Guided delivery.', 'disable-model-invocation': 'true' });
+    const out = s.serializeCommand(m, 'Do the thing.', tokens({}), 'workflow');
+    expect(out).toBe('---\nname: workflow\ndescription: Guided delivery.\n---\n\nDo the thing.');
+  });
+
+  it('cursor serializeAgent selects the cursor switch branch and renders tokens', () => {
+    // Ported from test_cursor_serialize.py's test_switch_and_token_rendering_selects_the_cursor_branch:
+    // the body is rendered for the cursor target — switch branches select cursor, and ${var}
+    // tokens substitute — end to end through the serializeAgent sugar.
+    const body = '${target:opencode}\nOC\n${target:cursor}\nCUR\n${target:end}\nrun ${ns}design';
+    const m = meta({ name: 'hercules', description: 'd', model_tier: 'high' });
+    const out = ser('cursor').serializeAgent(m, body, tokens({ ns: '/' }));
+    expect(out).toContain('CUR');
+    expect(out).not.toContain('OC');
+    expect(out).toContain('run /design');
   });
 
   it('serializePersona wraps or renders per mode', () => {

@@ -20,7 +20,7 @@
     "npm_package": "@xai-official/grok",
     "npm_version": "0.2.106",
     "cli": "grok",
-    "test": "tests/build/test_grok_build_smoke.py",
+    "test": "tests-ts/build/grokBuildSmoke.spec.ts",
     "expect": {
       "version_cmd": [
         "grok",

@@ -1,9 +1,0 @@
-{
- "module": "render",
- "fn": "render_body",
- "args": [
-  "a\n${target:claude-code}\nX\n",
-  "claude-code",
-  {}
- ]
-}

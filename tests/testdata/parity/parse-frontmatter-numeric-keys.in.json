@@ -1,7 +1,0 @@
-{
- "module": "parse",
- "fn": "parse_frontmatter",
- "args": [
-  "---\n2: two\n1: one\nname: after\n---\nBody\n"
- ]
-}

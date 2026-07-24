@@ -32,10 +32,10 @@
  */
 
 import { readdirSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { basename, join } from 'node:path';
 
 import { copyMap, readSource, write } from './emit.mjs';
-import { ECOSYSTEMS_DIR, distFiles, parseDescriptor } from './descriptor.mjs';
+import { ECOSYSTEMS_DIR, distFiles } from './descriptor.mjs';
 import type { EcosystemDescriptor, Template, TemplateValue } from './descriptor.mjs';
 import { computeFields } from './genSerialize.mjs';
 import { parseFrontmatter, splitDocument } from './parse.mjs';
@@ -236,33 +236,4 @@ export function emitExtras(ctx: ExtrasContext, descriptor: EcosystemDescriptor):
     written.push(template.dest);
   }
   return written;
-}
-
-/**
- * `parseDescriptor` + `ExtrasContext` + `emitExtras`, composed into ONE module-level function so
- * the parity harness — which only knows how to call a single named function per fixture (see
- * `scripts-ts/bin/parityRun.mts`) — can drive `emitExtras` from a raw descriptor JSON value, the
- * same wire shape the `descriptor`/`genSerialize` modules' own fixtures already use.
- * `sharedHooksSrc`/`srcContent` are the REAL repo directories (not fixture-supplied): every real
- * ecosystem's `guard`/`templates` data names real files there, so a synthetic stand-in would only
- * prove the composition works, not that it works against the actual shipped content the build
- * itself reads. Test-support only; the real CLI composes these steps itself (commit 8's `cli.mts`).
- */
-export function emitExtrasForFixture(
-  descriptorRaw: unknown,
-  tokens: ReadonlyMap<string, string>,
-  version: string,
-  outRoot: string,
-): string[] {
-  const name = (descriptorRaw as { name: string }).name;
-  const d = parseDescriptor(name, descriptorRaw);
-  const src = dirname(ECOSYSTEMS_DIR);
-  const ctx: ExtrasContext = {
-    outRoot,
-    sharedHooksSrc: join(src, 'hooks'),
-    srcContent: join(src, 'content'),
-    tokens,
-    version,
-  };
-  return emitExtras(ctx, d).slice().sort();
 }

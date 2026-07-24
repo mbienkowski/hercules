@@ -108,7 +108,10 @@ describe('checkTarget', () => {
       const tmp = tmpDir(`hercules-cli-check-${t}-`);
       expect(checkTarget(t, tmp)).toBe(0);
     }
-  });
+    // A full build+diff of all 6 real targets, sequentially — comfortably under 5s alone, but the
+    // suite has grown substantially (70+ files) and CPU contention under full-suite parallelism can
+    // push this past Vitest's default 5000ms. Explicit, generous timeout rather than a flaky default.
+  }, 20_000);
 
   it('reports 1 when the rendered tree diverges from a corrupted comparison root, 0 once fixed', () => {
     // checkTarget's `distRoot` param (an addition over the Python original's hardcoded DIST

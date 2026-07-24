@@ -1,7 +1,0 @@
-{
- "module": "parse",
- "fn": "parse_frontmatter",
- "args": [
-  "---\nname: delta\nnocolon\nother: x\n---\nBody\n"
- ]
-}

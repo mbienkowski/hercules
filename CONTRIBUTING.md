@@ -1,7 +1,7 @@
 # Contributing to Hercules
 
 Hercules is authored once in `src/` and compiled to per-ecosystem trees under `dist/`
-(`claude-code`, `opencode`, `cursor`) by the build pipeline in `scripts/build/`. CI regenerates and
+(`claude-code`, `opencode`, `cursor`) by the build pipeline in `scripts-ts/build/`. CI regenerates and
 drift-checks `dist/` on every push, so `main` always carries an in-sync build.
 
 The deep rules for *extending the methodology itself* (commands, agents, skills, hooks, invariants)
@@ -44,8 +44,8 @@ git config core.hooksPath .githooks
   directories, no per-ecosystem Python.
 - `src/hooks/` — the shared enforcement code, authored once and byte-copied to every ecosystem:
   the canonical frozen-test guard + the ONE generic write-gate adapter (`hercules_gate.py`).
-- `scripts/build/` — the generic compiler: `parse` → `render` → `genserialize` (descriptor-driven)
-  → `genextras` → `cli` (FS write). `descriptor.py` validates the closed vocabulary.
+- `scripts-ts/build/` — the generic compiler: `parse` → `render` → `genSerialize` (descriptor-driven)
+  → `genExtras` → the `bin/cli` entry point (FS write). `descriptor.mts` validates the closed vocabulary.
 - `dist/` — generated output, committed and tracked (never git-ignored).
 
 ## Adding a new target
@@ -57,7 +57,7 @@ write-gate declaration (step 4) — are called out so you don't pass local `make
 late CI failure. The procedure:
 
 1. **Add `src/ecosystems/<name>.json`** — copy the closest existing descriptor and adjust. Every
-   section is validated against a closed vocabulary (`scripts/build/descriptor.py`): an unknown key
+   section is validated against a closed vocabulary (`scripts-ts/build/descriptor.mts`): an unknown key
    or enum value fails the build loudly, naming the allowed set. The sections:
    - `vars` — token substitutions for `${token}` placeholders in source content.
    - `models` — `model_tier` (high/medium/low) → model id, or `null` to omit per-agent models.
@@ -74,8 +74,8 @@ late CI failure. The procedure:
    - `templates` — for genuinely generated text (e.g. OpenCode's `plugin.js`): a
      `<name>.template.<dest>` sibling whose `__PLACEHOLDER__`s are filled from closed, named
      computed-value kinds (`js_string`, `js_string_list`, `js_root_joins`, `role_entries_js` — the
-     computations are mutation-covered functions in `genextras.py`). A need the vocabulary can't
-     express = a new NAMED value kind in `scripts/build/` with tests, then referenced by name —
+     computations are mutation-covered functions in `genExtras.mts`). A need the vocabulary can't
+     express = a new NAMED value kind in `scripts-ts/build/` with tests, then referenced by name —
      never logic in the JSON.
 2. **Disclose capability gaps** — add a `${target:<name>}` branch to the shared
    `src/content/capabilities.md` (compiled per ecosystem; shared claims stay on shared lines) and

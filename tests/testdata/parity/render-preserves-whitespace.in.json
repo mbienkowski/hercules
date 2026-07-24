@@ -1,9 +1,0 @@
-{
- "module": "render",
- "fn": "render_body",
- "args": [
-  "  leading\n\ttab\n\n\nblank lines\n   ",
-  "claude-code",
-  {}
- ]
-}

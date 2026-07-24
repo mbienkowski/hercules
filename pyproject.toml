@@ -13,12 +13,8 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = [
-    "tiktoken>=0.7.0",
     "pytest>=8.0",
     "pytest-cov>=5.0",
-    "pytest-mock>=3.14",
-    "pyyaml>=6.0",
-    "tomli>=2.0; python_version < '3.11'",
     "mutmut>=2.4,<3",
 ]
 
@@ -29,39 +25,22 @@ py-modules = []
 
 [tool.pytest.ini_options]
 pythonpath = [".", "tests-python"]
-# tests-python/ is a SEPARATE tree from tests/ (see CODE_OF_CONDUCT.md § Testing) so the Python
-# hooks island survives commit 16's compiler deletion untouched — both must be listed explicitly.
+# tests-python/ is a SEPARATE tree from tests/ (see CODE_OF_CONDUCT.md § Testing) — the Python
+# hooks island — so both must be listed explicitly.
 testpaths = ["tests", "tests-python"]
-# pytest's DEFAULT norecursedirs includes "build" and "dist" — so a test dir named
-# tests/build/ is silently skipped during recursion (it collects only when named
-# explicitly). We override to the stock list MINUS "build" so tests/build/ (the
-# compiler suite) actually runs under `pytest tests/`. Guarded by
-# tests/test_collection_integrity.py so this can never silently regress.
-norecursedirs = ["*.egg", ".*", "_darcs", "CVS", "dist", "node_modules", "venv", "{arch}"]
 
 [tool.mutmut]
-# Pure transform layer (parse/render/model_map/serialize/version_targets), the generic
-# descriptor engine (descriptor/genserialize/genextras), and the shared enforcement hooks
-# (src/hooks/ — the ONE gate adapter every ecosystem ships) carry the mutation gate. The FS
-# boundary (cli/layout/emit) is round-trip-covered and under the branch-coverage gate but not
-# mutated — their shutil/tempfile/string mutants are largely equivalent and would only add noise.
-# NOTE: emit.py stays out of the gate as FS-boundary noise, but its one real conditional —
-# copy_versioned's fail-loud ${version}-injection guard (n != 1 → SystemExit) — is directly
-# unit-tested at n=0/n=1/n=2 in tests-ts/build/emit.spec.ts (its TypeScript port, copyVersioned),
-# so a `!= 1` operator slip fails CI regardless of the gate. `tests/metrics/` (which used to carry
-# real gate-checking logic,
-# not just tests, hence its own past presence here) was ported to scripts-ts/metrics/ and deleted;
-# TypeScript's own Stryker mutation gate covers it now. src/hooks/ and its Python island are the
-# only mutated surface here from commit 16 onward — commits 12-15 still carry the pre-TypeScript
-# compiler modules above too, deleted in commit 16 alongside this comment's own next rewrite.
-paths_to_mutate = "src/hooks/,scripts/build/parse.py,scripts/build/render.py,scripts/build/model_map.py,scripts/build/serialize.py,scripts/build/descriptor.py,scripts/build/genserialize.py,scripts/build/genextras.py,scripts/build/version_targets.py"
+# src/hooks/ — the shared enforcement hooks (the ONE gate adapter every ecosystem ships) — is the
+# only mutated surface now that the Python compiler is gone; TypeScript's own Stryker mutation gate
+# (`make mutation-ts`) covers everything that used to live in scripts/build/.
+paths_to_mutate = "src/hooks/"
 paths_to_exclude = "test_*.py,__init__.py,conftest.py"
 backup = false
-# tests-python/hooks/ is OUTSIDE tests/ (a deliberate parallel-tree split — see CODE_OF_CONDUCT.md
-# § Testing) specifically so it survives commit 16's compiler deletion untouched; both must be
-# named explicitly since mutmut's runner does not read pytest's own testpaths configuration.
-runner = "python -m pytest tests/ tests-python/ -x -q --tb=no --no-header"
-tests_dir = "tests/,tests-python/"
+# tests-python/hooks/ is the hooks island's own tree (see CODE_OF_CONDUCT.md § Testing); the main
+# tests/ tree carries nothing that exercises src/hooks/ mutation behavior, so narrowing the runner
+# to tests-python/ alone is both correct and considerably faster than the pre-split full-suite run.
+runner = "python -m pytest tests-python/ -x -q --tb=no --no-header"
+tests_dir = "tests-python/"
 
 [tool.coverage.run]
 omit = ["tests/**/test_*.py", "tests/**/__init__.py", "tests/**/conftest.py"]

@@ -1,7 +1,0 @@
-{
- "module": "parse",
- "fn": "split_document",
- "args": [
-  "---\nname: a\n---"
- ]
-}

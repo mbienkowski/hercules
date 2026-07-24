@@ -1,5 +1,5 @@
 .PHONY: test test-mutation test-smoke install install-py install-ts build build-check \
-        typecheck compile test-py test-ts mutation-py mutation-ts parity parity-tokens pycompat-golden-check \
+        typecheck compile test-py test-ts mutation-py mutation-ts pycompat-golden-check \
         ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate \
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
 
@@ -26,11 +26,10 @@ build-check: compile
 
 test: test-py test-ts
 
-# The Python suite. During the migration this still covers the compiler; it narrows to the
-# src/hooks/ island as each area is ported. tests-python/ is the hooks island's own tree (see
-# CODE_OF_CONDUCT.md § Testing) — separate from tests/ so it survives commit 16's compiler deletion.
+# The Python suite: src/hooks/ (the island, see CODE_OF_CONDUCT.md § Testing) plus whatever remains
+# under tests/ (meta-guards, not build output — the compiler itself is TypeScript now).
 test-py: build-check
-	python -m pytest tests/ tests-python/ -v --cov=scripts/build --cov=src/hooks --cov-branch --cov-report=term-missing --cov-fail-under=90
+	python -m pytest tests/ tests-python/ -v --cov=src/hooks --cov-branch --cov-report=term-missing --cov-fail-under=90
 
 test-ts:
 	npm run typecheck
@@ -66,7 +65,7 @@ mutation-ts: compile
 # Claude Code + OpenCode with `npm install -g @anthropic-ai/claude-code opencode-ai`, and Cursor
 # with `curl https://cursor.com/install -fsSL | bash`, to run the whole set.
 test-smoke: build-check
-	python -m pytest tests/build/test_claude_code_smoke.py tests/build/test_opencode_smoke.py tests/build/test_cursor_smoke.py tests/build/test_grok_build_smoke.py tests/build/test_gemini_cli_smoke.py tests/build/test_copilot_cli_smoke.py -v
+	npx vitest run tests-ts/build/claudeCodeSmoke.spec.ts tests-ts/build/opencodeSmoke.spec.ts tests-ts/build/cursorSmoke.spec.ts tests-ts/build/grokBuildSmoke.spec.ts tests-ts/build/geminiCliSmoke.spec.ts tests-ts/build/copilotCliSmoke.spec.ts
 
 # ── CI entry points ──────────────────────────────────────────────────────────
 # The GitHub Actions workflows call ONLY `make <target>` — every step's logic lives here and under
@@ -76,20 +75,11 @@ test-smoke: build-check
 ci-build:
 	bash scripts/ci/build_gates.sh
 
-# Go/no-go gate for moving token counting off Python: js-tiktoken must tokenize cl100k_base
-# byte-identically to Python's tiktoken across this repo's real corpus. A single-token
-# disagreement is a spec change to the budgets in tests/testdata/thresholds.json, not a port.
-parity-tokens: compile
-	bash scripts/ci/parity_tokens.sh
-
-# The dual-run oracle for the migration: every fixture under tests/testdata/parity/ is fed to BOTH
-# compilers and their canonical output byte-diffed. A port commit is not done until this is green.
-parity: compile
-	bash scripts/ci/parity.sh
-
 # The pyCompat character tables encode a specific Unicode version. This proves the committed golden
-# dump matches the interpreter actually running, so the tables cannot silently encode a different
-# Unicode database than the one the parity harness compares against.
+# dump matches the interpreter actually running — pyCompat.mts reproduces Python's own character
+# classification (str.isspace()/splitlines()/isprintable()), and this is what keeps its hand-ported
+# table honest against the real CPython behavior it must match, independent of the (now retired)
+# dual-run parity harness that originally motivated it.
 pycompat-golden-check:
 	bash scripts/ci/pycompat_golden_check.sh
 

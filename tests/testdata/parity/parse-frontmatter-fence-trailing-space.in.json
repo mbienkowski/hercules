@@ -1,7 +1,0 @@
-{
- "module": "parse",
- "fn": "parse_frontmatter",
- "args": [
-  "---\nname: alpha\n---   \nBody\n"
- ]
-}

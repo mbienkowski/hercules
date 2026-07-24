@@ -1,8 +1,0 @@
-{
- "module": "descriptor",
- "fn": "parse_descriptor",
- "args": [
-  "eco",
-  []
- ]
-}

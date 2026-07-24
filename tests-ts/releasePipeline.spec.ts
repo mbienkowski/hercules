@@ -106,19 +106,37 @@ describe('the CI job graph', () => {
     expect(smokeIf).not.toContain('pull_request');
   });
 
-  it('mutation waits for test, validate, and smoke to all succeed', () => {
-    expect(new Set(jobNeeds(CI_JOBS['mutation']))).toEqual(new Set(['test', 'validate', 'smoke']));
-    const mutationIf = CI_JOBS['mutation']?.if ?? '';
-    for (const job of ['test', 'validate', 'smoke']) {
-      expect(mutationIf).toContain(`needs.${job}.result == 'success'`);
-    }
-  });
+  // mutation-py and mutation-ts run as two PARALLEL jobs (split so the Python-only and
+  // TypeScript-only mutation gates no longer share one sequential ~40min job) — both must carry
+  // identical gating so neither is the weak link.
+  it.each(['mutation-py', 'mutation-ts'])(
+    "'%s' waits for test, validate, and smoke to all succeed",
+    (jobName) => {
+      expect(new Set(jobNeeds(CI_JOBS[jobName]))).toEqual(new Set(['test', 'validate', 'smoke']));
+      const mutationIf = CI_JOBS[jobName]?.if ?? '';
+      for (const job of ['test', 'validate', 'smoke']) {
+        expect(mutationIf).toContain(`needs.${job}.result == 'success'`);
+      }
+    },
+  );
 
-  it('mutation runs only on a push to main — the release gate', () => {
-    const mutationIf = CI_JOBS['mutation']?.if ?? '';
-    expect(mutationIf).toContain("github.event_name == 'push'");
-    expect(mutationIf).toContain("github.ref == 'refs/heads/main'");
-    expect(mutationIf).not.toContain('pull_request');
+  it.each(['mutation-py', 'mutation-ts'])(
+    "'%s' runs only on a push to main — the release gate",
+    (jobName) => {
+      const mutationIf = CI_JOBS[jobName]?.if ?? '';
+      expect(mutationIf).toContain("github.event_name == 'push'");
+      expect(mutationIf).toContain("github.ref == 'refs/heads/main'");
+      expect(mutationIf).not.toContain('pull_request');
+    },
+  );
+
+  it("the mutation job id, display name, and make target are the same string (mutation-py / mutation-ts)", () => {
+    // A red check can be reproduced by copying its name straight into a terminal (few-shot rule #12).
+    for (const jobName of ['mutation-py', 'mutation-ts']) {
+      expect(CI_JOBS[jobName]?.['name']).toBe(jobName);
+      const runSteps = (CI_JOBS[jobName]?.steps ?? []).map((s) => s.run).filter(Boolean) as string[];
+      expect(runSteps.some((run) => run.trim() === `make ${jobName}`)).toBe(true);
+    }
   });
 
   it('there is no separate discover job — the smoke matrix is a build output', () => {

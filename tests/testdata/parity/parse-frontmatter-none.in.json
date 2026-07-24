@@ -1,7 +1,0 @@
-{
- "module": "parse",
- "fn": "parse_frontmatter",
- "args": [
-  "No frontmatter here.\n\nJust body.\n"
- ]
-}

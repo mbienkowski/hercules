@@ -89,6 +89,14 @@ describe('splitting a document without touching its bytes', () => {
     expect(splitDocument('---\nname: a\nno close\n').block).toBeNull();
   });
 
+  it('returns the entire original text as the body when the fence is never closed', () => {
+    // Weaker than it looks: block being null alone doesn't prove the body is the FULL untouched
+    // original — a bug could still have truncated or reordered it. Only comparing body against the
+    // exact source text catches that.
+    const source = '---\nname: x\nnever closes';
+    expect(splitDocument(source)).toEqual({ block: null, body: source });
+  });
+
   it('handles a closing fence with no trailing newline', () => {
     const { block, body } = splitDocument('---\nname: a\n---');
     expect(block).toBe('---\nname: a\n---');

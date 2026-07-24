@@ -169,7 +169,7 @@ loops the content once and dispatches through registries populated from the ecos
 it holds **zero** per-ecosystem branches, classes, or modules. **A target is one data file**:
 
 - **Descriptor — `src/ecosystems/<eco>.json`:** the whole target, schema-validated
-  (`scripts/build/descriptor.py`): token `vars`; `models` tiers; the `smoke` matrix entry
+  (`scripts-ts/build/descriptor.mts`): token `vars`; `models` tiers; the `smoke` matrix entry
   (schema-required — a target cannot exist untestable); per-role output shapes (`roles` — named
   serialization modes and field generators); destination `routes` (named kinds); inline JSON
   `artifacts` (native manifests — a `version` field carries the `${version}` token, injected from
@@ -179,10 +179,10 @@ it holds **zero** per-ecosystem branches, classes, or modules. **A target is one
   fails the build loudly at load, naming the allowed set.
 - **No executable content in descriptors.** No expressions, interpolation, conditionals, or code
   references beyond the named vocabulary. A target needing behavior the vocabulary lacks gets a
-  **new named behavior in `scripts/build/` or `src/hooks/` Python** — mutation-gated, exact-output
+  **new named behavior in `scripts-ts/build/` or `src/hooks/`** — mutation-gated, exact-output
   tested — then referenced by name. Genuinely generated text (e.g. OpenCode's `plugin.js`) is a
   `<eco>.template.<dest>` sibling rendered from closed, named computed-value kinds (`js_string`,
-  `role_entries_js`, …; the computations are mutation-covered functions in `genextras.py`), never
+  `role_entries_js`, …; the computations are mutation-covered functions in `genExtras.mts`), never
   inline JSON logic, never auto-discovered code under `src/`. Growing descriptor expressiveness
   instead of adding a named Python behavior is the failure mode to reject in review.
 - **Capability disclosures are compiled content.** `CAPABILITIES.md` is authored ONCE in
