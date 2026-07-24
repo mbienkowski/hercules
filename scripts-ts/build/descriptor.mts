@@ -605,7 +605,10 @@ export function parseDescriptor(descriptorName: string, raw: unknown): Ecosystem
 // ── Filesystem boundary ─────────────────────────────────────────────────────
 
 const REPO_ROOT = join(import.meta.dirname, '..', '..');
-const ECOSYSTEMS_DIR = join(REPO_ROOT, 'src', 'ecosystems');
+// Exported (unlike REPO_ROOT) because genExtras.mts needs the SAME default `distFiles`/`discover`
+// use, for reading a template's own `.src` sibling file directly — matching Python's
+// `from scripts.build.descriptor import ECOSYSTEMS_DIR` import in `genextras.py`.
+export const ECOSYSTEMS_DIR = join(REPO_ROOT, 'src', 'ecosystems');
 
 /** Load and validate one descriptor file (the filename stem is the ecosystem name). */
 export function load(path: string): EcosystemDescriptor {

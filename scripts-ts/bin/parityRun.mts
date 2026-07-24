@@ -34,6 +34,7 @@ import { dirname, join } from 'node:path';
 
 import * as descriptorMod from '../build/descriptor.mjs';
 import * as emit from '../build/emit.mjs';
+import * as genExtras from '../build/genExtras.mjs';
 import * as genSerialize from '../build/genSerialize.mjs';
 import * as layout from '../build/layout.mjs';
 import * as modelMap from '../build/modelMap.mjs';
@@ -124,6 +125,15 @@ const FUNCTIONS: Record<string, (args: unknown[]) => unknown> = {
       models as modelMap.ModelsMap | null,
       rel as string | null,
     ),
+
+  'genextras.emit_extras_for_fixture': ([descriptorRaw, tokens, version, outRoot]) =>
+    genExtras.emitExtrasForFixture(
+      descriptorRaw,
+      new Map(Object.entries(tokens as Record<string, string>)),
+      version as string,
+      outRoot as string,
+    ),
+  'genextras.js_object_literal': ([obj]) => genExtras.jsObjectLiteral(obj as genExtras.JsLiteralValue),
 };
 
 /**

@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from scripts.build import emit
-from scripts.build.descriptor import ECOSYSTEMS_DIR, EcosystemDescriptor, dist_files
+from scripts.build.descriptor import ECOSYSTEMS_DIR, EcosystemDescriptor, dist_files, parse_descriptor
 from scripts.build.genserialize import compute_fields
 from scripts.build.parse import parse_frontmatter, split_document
 from scripts.build.render import render_body
@@ -163,3 +163,24 @@ def emit_extras(ctx, descriptor: EcosystemDescriptor) -> list:
         emit.write(ctx.out_root / template.dest, _render_template(descriptor, template, ctx))
         written.append(template.dest)
     return written
+
+
+def emit_extras_for_fixture(descriptor_raw: dict, tokens: dict, version: str, out_root: Path) -> list:
+    """`parse_descriptor` + `ExtrasContext` + `emit_extras`, composed into ONE module-level function
+    so the parity harness — which only knows how to call a single named function per fixture (see
+    ``scripts/ci/parity_run.py``) — can drive `emit_extras` from a raw descriptor JSON dict, the
+    same wire shape the `descriptor`/`genserialize` modules' own fixtures already use.
+    ``shared_hooks_src``/``src_content`` are the REAL repo directories (not fixture-supplied): every
+    real ecosystem's ``guard``/``templates`` data names real files there, so a synthetic stand-in
+    would only prove the composition works, not that it works against the actual shipped content
+    the build itself reads. Test-support only; the real CLI composes these steps itself
+    (``scripts/build/cli.py``)."""
+    d = parse_descriptor(descriptor_raw["name"], descriptor_raw)
+    ctx = ExtrasContext(
+        out_root=out_root,
+        shared_hooks_src=ECOSYSTEMS_DIR.parent / "hooks",
+        src_content=ECOSYSTEMS_DIR.parent / "content",
+        tokens=tokens,
+        version=version,
+    )
+    return sorted(emit_extras(ctx, d))

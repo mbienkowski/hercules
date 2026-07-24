@@ -51,6 +51,7 @@ import dataclasses
 from scripts.build import (  # noqa: E402
     descriptor,
     emit,
+    genextras,
     genserialize,
     layout,
     model_map,
@@ -68,6 +69,7 @@ _MODULES = {
     "version_targets": version_targets,
     "descriptor": descriptor,
     "genserialize": genserialize,
+    "genextras": genextras,
 }
 
 # See the module docstring: post-Zod, descriptor's error TEXT is no longer part of the parity
