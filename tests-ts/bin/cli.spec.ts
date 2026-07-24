@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { discover, names } from '../../scripts-ts/build/descriptor.mjs';
 import { buildTarget, checkTarget, main, targets } from '../../scripts-ts/bin/cli.mjs';
+import { buildRegistry } from '../../scripts-ts/build/serialize.mjs';
 import { ECOSYSTEMS } from '../support/descriptorFixtures';
 import { repoRoot } from '../support/repo';
 
@@ -151,5 +152,21 @@ describe('every ecosystem the descriptors declare has a working serializer', () 
 
   it('the ecosystem list is sorted, not filesystem order', () => {
     expect(targets()).toEqual([...targets()].sort());
+  });
+});
+
+describe('the generic build seam (ported from test_target_registry.py)', () => {
+  it('every build target has a registered serializer', () => {
+    const registry = buildRegistry(Object.values(discover(ECOSYSTEMS)));
+    for (const t of names(ECOSYSTEMS)) expect(registry.registeredTargets()).toContain(t);
+  });
+
+  it('cli.mts has no per-ecosystem branches', () => {
+    // The whole point of the generic engine: dispatch happens through the descriptor, never on the
+    // target name. Ported as a source-text smell check, same as the Python original.
+    const src = readFileSync(join(repoRoot, 'scripts-ts', 'bin', 'cli.mts'), 'utf-8');
+    expect(src).not.toMatch(/target ===/);
+    expect(src).not.toContain("'opencode'");
+    expect(src).not.toContain("'cursor'");
   });
 });
