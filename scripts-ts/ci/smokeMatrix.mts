@@ -16,6 +16,7 @@
 
 import { appendFileSync } from 'node:fs';
 
+import type { EcosystemDescriptor } from '../build/descriptor.mjs';
 import { discover, names as registeredTargetNames } from '../build/descriptor.mjs';
 
 export class SmokeMatrixError extends Error {
@@ -43,16 +44,16 @@ interface SmokeLeg {
  * - a smoke config for an unregistered ecosystem is a phantom leg → error (don't smoke a ghost);
  * - a matrix that resolves to zero legs → error (the whole gate would vanish).
  *
- * `registered` (an addition over the Python original's hardcoded `registered_target_names()` call,
- * purely for test benefit — same rationale as cli.mts's `distRoot` params) lets a test inject a
- * fabricated registry to exercise the drift-detection branches directly, since ESM import bindings
- * cannot be monkeypatched the way Python's `smoke_matrix.registered_target_names` could.
+ * `registered` and `descriptors` (additions over the Python original's hardcoded
+ * `registered_target_names()`/`discover()` calls, purely for test benefit — same rationale as
+ * cli.mts's `distRoot` params) let a test inject a fabricated registry/descriptor set to exercise
+ * the drift-detection branches directly, since ESM import bindings cannot be monkeypatched the way
+ * Python's `smoke_matrix.registered_target_names` could.
  */
 export function buildMatrix(
   registered: readonly string[] = registeredTargetNames(),
+  descriptors: Readonly<Record<string, EcosystemDescriptor>> = discover(),
 ): { readonly include: readonly SmokeLeg[] } {
-  const descriptors = discover();
-
   const missing = registered.filter((name) => !(name in descriptors)).sort();
   if (missing.length > 0) {
     throw new SmokeMatrixError(
@@ -72,7 +73,10 @@ export function buildMatrix(
   const legs: SmokeLeg[] = [];
   for (const name of registered) {
     const cfg = descriptors[name]!.smoke;
-    const install = (cfg['install'] as Record<string, unknown> | undefined) ?? { method: 'npm' };
+    // Defaults to `{}`, not `{ method: 'npm' }`: only `install['method']` is ever read off this
+    // object, and that read already falls back to 'npm' on the next line — a `method` key in this
+    // default would be immediately-shadowed dead weight (and, worse, an unkillable mutation target).
+    const install = (cfg['install'] as Record<string, unknown> | undefined) ?? {};
     const method = (install['method'] as string | undefined) ?? 'npm';
     legs.push({
       target: name,

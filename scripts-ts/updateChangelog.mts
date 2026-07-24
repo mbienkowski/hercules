@@ -81,6 +81,13 @@ export function main(
   updateChangelogFn(
     newTag,
     env['PREV_TAG'] ?? '',
+    // `?? 'false'`'s only consumer is the `=== 'true'` comparison on this same line: EVERY string
+    // other than (a case-insensitive spelling of) 'true' produces the same `false` result, so this
+    // default's specific literal content is unobservable — 'false', '', or any other non-'true'
+    // filler behave identically for every possible env. A TRUE equivalent mutant per
+    // CODE_OF_CONDUCT.md's Testing section's pragma exception (a static-string default feeding only
+    // an equality check, never a branch/comparison/return value in its own right).
+    // Stryker disable next-line StringLiteral: any non-'true' fallback here is behaviorally identical once compared with === 'true' — see comment above
     (env['IS_FIRST'] ?? 'false').toLowerCase() === 'true',
   );
 }

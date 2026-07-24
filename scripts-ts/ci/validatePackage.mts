@@ -31,6 +31,13 @@ export function marketplaces(): string[] {
 export function validateManifests(manifests: readonly string[]): void {
   for (const path of manifests) {
     const mk = JSON.parse(readFileSync(path, 'utf-8')) as MarketplaceManifest;
+    // `?? []`'s only consumer is `.some(p => p.name === 'hercules')` immediately below: an absent
+    // `plugins` key can therefore only ever produce `false` (no test manifest lacking `plugins` can
+    // ever legitimately list hercules), identically whether the fallback is `[]` or any other
+    // filler array — there is no element `.some()`'s predicate could match that would make a
+    // fallback's specific CONTENTS observable. A TRUE equivalent mutant per CODE_OF_CONDUCT.md's
+    // Testing section's pragma exception (a static literal default, not a branch/comparison).
+    // Stryker disable next-line ArrayDeclaration: no fallback array's contents can ever satisfy .some(p => p.name === 'hercules') — see comment above
     const listsHercules = (mk.plugins ?? []).some((p) => p.name === 'hercules');
     if (!listsHercules) {
       throw new Error(`${path} must list the hercules plugin`);

@@ -80,4 +80,17 @@ describe('main', () => {
     expect(main(['9.9.9', 'extra'])).toBe(1);
     expect(stderr).toContain('usage: setVersion.mjs X.Y.Z');
   });
+
+  it('reports a usage error and returns 1 when the single argument is undefined, not just when argv.length is wrong', () => {
+    // A length-1 argv whose sole element is undefined (a sparse-array hole reaching main, or a caller
+    // passing `undefined` through) must still be rejected by the `version === undefined` half of the
+    // guard clause, independent of the `argv.length !== 1` half.
+    let stderr = '';
+    process.stderr.write = ((chunk: string) => {
+      stderr += chunk;
+      return true;
+    }) as typeof process.stderr.write;
+    expect(main([undefined as unknown as string])).toBe(1);
+    expect(stderr).toContain('usage: setVersion.mjs X.Y.Z');
+  });
 });
