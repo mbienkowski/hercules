@@ -40,8 +40,10 @@ describe('reading the version', () => {
     expect(readVersions(root)).toEqual({ 'pyproject.toml': '1.2.3', 'package.json': '1.2.3' });
   });
 
-  it('treats pyproject.toml as the single source of truth', () => {
-    const root = workspace('version = "9.9.9"\n', '{"version": "9.9.9"}');
+  it('treats package.json as the single source of truth', () => {
+    // Deliberately DIFFERENT values, so this actually proves which file wins rather than passing
+    // vacuously because both happen to agree.
+    const root = workspace('version = "1.1.1"\n', '{"version": "9.9.9"}');
     expect(readCanonicalVersion(root)).toBe('9.9.9');
   });
 
@@ -123,8 +125,10 @@ describe('tolerating the formatting variations these files really carry', () => 
     ['extra spaces around the equals', 'version   =   "1.0.0"\n'],
     ['a tab before the equals', 'version\t= "1.0.0"\n'],
   ])('reads a TOML version written with %s', (_label, pyproject) => {
+    // Reads pyproject.toml directly (not readCanonicalVersion, which now resolves to package.json)
+    // — this is exercising TOML-parsing robustness, not canonical-source selection.
     const root = workspace(pyproject, '{"version": "1.0.0"}');
-    expect(readCanonicalVersion(root)).toBe('1.0.0');
+    expect(readVersions(root)['pyproject.toml']).toBe('1.0.0');
   });
 
   it.each([
@@ -138,9 +142,11 @@ describe('tolerating the formatting variations these files really carry', () => 
 
   it('ignores a version-like line that is not at the start of a line', () => {
     // Without the line anchor, `# bumped from version = "0.9.0"` in a comment would count as a
-    // second version and the file would be rejected as ambiguous.
+    // second version and the file would be rejected as ambiguous. Reads pyproject.toml directly
+    // (not readCanonicalVersion, which now resolves to package.json) — same reasoning as the TOML
+    // formatting-variation tests above.
     const root = workspace('# was version = "0.9.0"\nversion = "1.0.0"\n', '{"version": "1.0.0"}');
-    expect(readCanonicalVersion(root)).toBe('1.0.0');
+    expect(readVersions(root)['pyproject.toml']).toBe('1.0.0');
   });
 
   it('reads the repository’s own files when no root is given', () => {

@@ -98,7 +98,7 @@ def test_toml_escapers_handle_backslashes_and_triple_quotes():
 
 def test_extension_manifest_is_valid_and_version_injected_from_canonical(tmp_path):
     """gemini-extension.json is the source manifest with its ${version} token filled from the canonical
-    version (pyproject.toml) at build time — a kebab name, a version equal to canonical, contextFileName
+    version (package.json) at build time — a kebab name, a version equal to canonical, contextFileName
     = GEMINI.md, and identical to the source in every other field."""
     out = _build(tmp_path)
     manifest = json.loads((out / "gemini-extension.json").read_text(encoding="utf-8"))

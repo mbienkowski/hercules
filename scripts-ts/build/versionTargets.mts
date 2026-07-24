@@ -94,14 +94,14 @@ export function readVersions(root = '.'): Record<string, string> {
 }
 
 /**
- * The single source of truth for the build's version: `pyproject.toml`.
+ * The single source of truth for the build's version: `package.json`.
  *
  * Build-consumed manifests (`dist/<eco>/…/plugin.json`) are INJECTED from this at build time, never
  * restating it, so a human reading a descriptor's versioned manifest sees a `${version}` token
  * rather than a literal they would have to remember to bump.
  */
 export function readCanonicalVersion(root = '.'): string {
-  return readVersions(root)['pyproject.toml'] as string;
+  return readVersions(root)['package.json'] as string;
 }
 
 /** Throw if the canonical files disagree, or (when given) differ from `expected`. */

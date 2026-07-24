@@ -6,8 +6,8 @@ name: Release
 #   - anything else                 → MINOR   (default_bump: minor)
 #   - a BREAKING change             → MAJOR   (only when flagged: a `!` after the type, e.g. `feat!:`,
 #                                              or a `BREAKING CHANGE:` footer — never a plain `feat:`)
-# The new version is written into the two literal sources (pyproject.toml — canonical — and
-# package.json); the build then injects it into each dist plugin manifest (whose src carries a
+# The new version is written into the two literal sources (package.json — canonical — and
+# pyproject.toml); the build then injects it into each dist plugin manifest (whose src carries a
 # ${version} token). The bump + rebuilt dist/ are committed back with [skip ci], tagged v{version},
 # and published as a GitHub Release whose notes are the aggregated commits since the previous release.
 #
@@ -131,8 +131,8 @@ jobs:
           custom_tag: ${{ steps.meta.outputs.is_first == 'true' && '1.0.0' || '' }}
           dry_run: true
 
-      # 2. Write the new version into the two literal sources — pyproject.toml (canonical) and
-      #    package.json (VERSION_TARGETS). The plugin manifests are NOT touched here: their src carries
+      # 2. Write the new version into the two literal sources — package.json (canonical) and
+      #    pyproject.toml (VERSION_TARGETS). The plugin manifests are NOT touched here: their src carries
       #    a ${version} token, injected at build (step 2b), so there is nothing to bump under src/ecosystems/.
       - name: Bump version files
         env:
@@ -140,7 +140,7 @@ jobs:
         run: make release-version
 
       # 2b. Regenerate dist/ so the built + published artifacts carry the new version. The build injects
-      #     the canonical pyproject.toml version into each dist plugin manifest; without this rebuild the
+      #     the canonical package.json version into each dist plugin manifest; without this rebuild the
       #     committed dist/ would keep the old version and fail the drift gate on the next unrelated push.
       - name: Rebuild dist/ to propagate the version
         run: make build

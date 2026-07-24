@@ -9,10 +9,10 @@ On every merge to `main`, `release.yml` runs after CI succeeds:
 
 1. Computes the next version from Conventional Commits (`feat`/`fix`/`perf` bump the CHANGELOG).
 2. `scripts-ts/setVersion.mts` stamps that version into the two files that MUST carry a literal
-   (`scripts-ts/build/versionTargets.mts::VERSION_TARGETS`): `pyproject.toml` (the canonical source, read
-   by setuptools) and `package.json` (read by npm/OpenCode). The plugin manifests
+   (`scripts-ts/build/versionTargets.mts::VERSION_TARGETS`): `package.json` (the canonical source, read
+   by npm/OpenCode) and `pyproject.toml` (read by setuptools). The plugin manifests
    (`dist/{claude-code,cursor}/…/plugin.json`) are **not** stamped — their source carries a
-   `${version}` token that the build injects from `pyproject.toml` (step below), so there is one
+   `${version}` token that the build injects from `package.json` (step below), so there is one
    version of record and nothing to hand-bump under `src/ecosystems/`.
 3. `make build` regenerates `dist/`, injecting the canonical version into each plugin manifest.
 4. Commits the bump + rebuilt `dist/` (`chore(release): X.Y.Z [skip ci]`), tags `vX.Y.Z`, pushes.
@@ -174,7 +174,7 @@ proves structure + the in-process guard; these load-time behaviours are verified
 - [ ] `pyproject.toml` and `package.json` — the two literal version sources
       (`scripts-ts/build/versionTargets.mts::VERSION_TARGETS`) — both show the release version (matches the
       git tag). The plugin manifests (versioned artifacts in `src/ecosystems/*.json`) carry a `${version}` token (not a literal); the
-      build injects the canonical `pyproject.toml` version into every `dist/…/plugin.json`.
+      build injects the canonical `package.json` version into every `dist/…/plugin.json`.
 
 Each shipped ecosystem carries its own smoke section above; add one per target
 (see [CONTRIBUTING.md](CONTRIBUTING.md) § Adding a new target for the proven extension procedure).

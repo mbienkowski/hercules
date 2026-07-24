@@ -227,10 +227,10 @@ Enforced by `tests/` — a change that breaks one fails CI:
 
 - **Every shipped artifact has an owning test.** A new manifest, agent, command, or skill ships only with
   a test that fails when it is missing or malformed.
-- **The plugin version is single-sourced** — `pyproject.toml` is the canonical version of record
-  (`read_canonical_version`); `package.json` is the only other literal (npm/OpenCode read it as-is) and
-  is cross-checked against pyproject every CI `validate` run. The two are the whole canonical list
-  (`scripts/build/version_targets.py::VERSION_TARGETS`). Every ecosystem's versioned manifest (a
+- **The plugin version is single-sourced** — `package.json` is the canonical version of record
+  (`readCanonicalVersion`); `pyproject.toml` is the only other literal (setuptools reads it as-is) and
+  is cross-checked against package.json every CI `validate` run. The two are the whole canonical list
+  (`scripts-ts/build/versionTargets.mts::VERSION_TARGETS`). Every ecosystem's versioned manifest (a
   `"versioned": true` artifact in `src/ecosystems/<ecosystem>.json`) carries a `${version}` **token**,
   not a literal — a human never sees a version to hand-bump under `src/`; the build injects the canonical
   version into each `dist/…/plugin.json` (fail-loud if the token is absent or duplicated). Tests assert

@@ -13,8 +13,8 @@ from pathlib import Path
 
 # (relative path, format) — the format selects the write/read regex pair below.
 # Only files that MUST carry a literal version belong here: ``pyproject.toml`` (setuptools reads it at
-# build) and ``package.json`` (npm/OpenCode read it as-is). ``pyproject.toml`` is the canonical source
-# (``read_canonical_version``); ``package.json`` is cross-checked against it every CI ``validate`` run.
+# build) and ``package.json`` (npm/OpenCode read it as-is). ``package.json`` is the canonical source
+# (``read_canonical_version``); ``pyproject.toml`` is cross-checked against it every CI ``validate`` run.
 # The plugin manifests (claude-code, cursor) are deliberately NOT here: they're build *outputs'* sources
 # that carry a ``${version}`` token, injected from the canonical version at build (``emit.copy_versioned``)
 # — so a human never sees a literal version in the descriptor's versioned manifest artifact to forget to bump.
@@ -66,13 +66,13 @@ def read_versions(root: Path = Path(".")) -> dict[str, str]:
 
 
 def read_canonical_version(root: Path = Path(".")) -> str:
-    """The single source of truth for the build's version: ``pyproject.toml``.
+    """The single source of truth for the build's version: ``package.json``.
 
     Build-consumed manifests (``dist/<eco>/…/plugin.json``) are *injected* from this at build time
     (see ``emit.copy_versioned``), never restating it — so a human reading the descriptor's versioned manifest artifact
     sees a ``${version}`` token, not a literal they'd have to remember to bump (CoC single-source rule).
     """
-    return read_versions(root)["pyproject.toml"]
+    return read_versions(root)["package.json"]
 
 
 def check_in_sync(root: Path = Path("."), *, expected: str | None = None) -> None:

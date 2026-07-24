@@ -43,7 +43,7 @@ class ExtrasContext:
     shared_hooks_src: Path  # src/hooks — canonical guard + generic gate adapter, byte-copied everywhere
     src_content: Path       # src/content
     tokens: dict            # the target's token vars
-    version: str            # canonical build version (from pyproject) — injected into versioned manifests
+    version: str            # canonical build version (from package.json) — injected into versioned manifests
 
 
 def _dump_json(content: dict) -> str:
