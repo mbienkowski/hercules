@@ -4,7 +4,7 @@ import { globSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 import { countCoreEntries, extractA2aCore } from './a2aGrammar.mjs';
-import { countInstructions } from './markdownMetrics.mjs';
+import { countAtomicInstructions } from './instructionCounter.mjs';
 import { countTokens } from './tokenCounter.mjs';
 
 type MetricFn = (text: string) => number;
@@ -24,7 +24,7 @@ function coreEntryCount(text: string): number {
 }
 
 const METRIC_REGISTRY: Readonly<Record<string, MetricFn>> = {
-  instruction_count: countInstructions,
+  instruction_count: countAtomicInstructions,
   token_count: countTokens,
   core_entry_count: coreEntryCount,
   core_token_count: coreTokenCount,

@@ -1,28 +1,13 @@
-/** Instruction and status-table row counting in markdown files. */
-
-const NUMBERED_RE = /^\s*\d+\.\s/;
-const BULLET_RE = /^\s*[-*]\s/;
-
 /**
- * Count numbered and bulleted list items, excluding any inside fenced code blocks.
+ * Status-table row counting in markdown files.
  *
- * Table rows start with `|` and never match a list-item pattern, so they are excluded
- * automatically — no explicit table check is needed here.
+ * Instruction counting used to live here too (`countInstructions`, bullets/numbers only, no
+ * fenced content), alongside a SECOND, deliberately-different counter in the instruction-budget
+ * gate (`_count_instruction_blocks`, bullets/numbers/bold-labels/fenced-numbered-rules, then
+ * scaled ÷3 against a guessed multiplier). Commit 11 collapsed both into the ONE atomic counter —
+ * see `instructionCounter.mts`'s `countAtomicInstructions` — so this module now owns only the
+ * status-table concern.
  */
-export function countInstructions(text: string): number {
-  let n = 0;
-  let inFence = false;
-  for (const line of text.split('\n')) {
-    const stripped = line.trimStart();
-    if (stripped.startsWith('```')) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
-    if (NUMBERED_RE.test(line) || BULLET_RE.test(line)) n += 1;
-  }
-  return n;
-}
 
 /**
  * Count data rows in the STATUS reference table (header: `STATUS | Meaning | ACTION`).

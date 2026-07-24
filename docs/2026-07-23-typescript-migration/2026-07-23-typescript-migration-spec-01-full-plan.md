@@ -152,7 +152,7 @@ policy, not an oversight.
   12's rule to be honest about what a "done" commit actually covers.
 
 | 10 | ✅ done (scope reconciled) | `test: port the remaining non-hook test suites to vitest` | `scripts-ts/metrics/{a2aGrammar,markdownMetrics,thresholdRunner}.mts` (new production modules, alongside commit 1's `tokenCounter.mts`); `tests/{metrics,commands,workflow,protocols,plugin,skills,agents,docs}/` fully ported to `tests-ts/{metrics,commands,skillsAndAgents,docsAndPlugin,workflowAndProtocols}/` via 4 parallel background agents plus this commit's own metrics work, each independently verified against `pytest --collect-only` counts (104+88+37+60+66 = 355 new tests, exact 1:1 or better). All 8 fully-ported Python directories deleted (47 files) — and so were commits 4–9's now-superseded `tests/build/*.py` originals (12 files: `test_descriptor_schema`, `test_generic_serialize`, `test_manifests`, `test_serialize`, `test_model_map`, `test_target_registry`, `test_opencode_commands`, `test_opencode_mirror`, `test_dist_drift`, `test_model_tiering`, `test_conformance`, `test_universal_conformance`), retroactively satisfying locked decision 12 ("each Python test dies in the same commit its TS replacement lands") for the whole compiler port, not just this commit — a real gap found and closed during this commit's own pre-deletion audit. `tests/budgets/` (commit 11 — its instruction-counting logic is what commit 11 rewrites), `tests/release/` (commit 13 — tests a not-yet-ported script), `test_workflows_use_make`/`test_validate_package`/`test_ci_smoke_matrix` (commit 13), the six per-CLI smoke specs (deferred, no installed CLIs here to prove parity against), and ~11 smaller `tests/build/*.py` files (frontmatter roundtrip, render edge cases, mutation hardening, etc.) are explicitly NOT ported — recorded as a follow-up, not silently dropped | 934 TS tests total, all green; `make parity` (181 fixtures + full-tree leg) unaffected; remaining Python suite (420 tests) unaffected by the deletions. Pre-deletion audit caught and fixed 3 real issues: a vacuous test (`join(out, 'command')` singular vs the real `commands` directory — the `existsSync` guard was always false, so the test ran zero assertions), two Python tests silently un-ported from `test_opencode_commands.py` (now added), and one legitimate compile-time-only divergence (`ExtrasContext`'s Python `frozen=True` dataclass has no TS runtime equivalent — documented and pinned via `@ts-expect-error` instead of a runtime throw-assertion) |
-| 11 | ⬜ | `feat(budgets): count atomic directives across loading chains` | **The metric upgrade.** V2 splitter with a closed imperative vocabulary, absolute 150/130 ceiling, `÷3` deleted; chain definitions become data; the two divergent Python counters collapse into one. Source cites arXiv:2507.11538 for 150, marks 130 as a project margin, documents cl100k_base as a **frozen proxy** | Golden corpus of hand-labelled markdown fixtures; the measured table below reproduced exactly; every other chain unchanged or lower |
+| 11 | ✅ done | `feat(budgets): count atomic directives across loading chains` | **The metric upgrade — a real feature, not a port.** `instructionCounter.mts`'s `countAtomicInstructions`: same unit-detection as the old `_count_instruction_blocks` (bullets/numbers/bold-labels/fenced-numbered-rules), then splits each unit on `,`/`;`/`&`/`and`/`or`/`then` and counts every ≥2-word fragment — no vocabulary filter (one was tried, measured LOW against real content, dropped; see lesson 22). Absolute 150/130 ceiling (`÷3` deleted) applied UNIFORMLY, not per-chain-type. `loadingChains.mts`: chain definitions as data (`ChainTemplate[]`, a fixed-parts list + one optional glob that fans a template into one chain per matching file — agents/commands/skills), plus a `WAIVERS` list recording the one over-gate chain by name and exact measured value, checked both ways (a growing chain fails, a since-fixed chain's stale waiver fails too). `markdownMetrics.countInstructions` and `_count_instruction_blocks` (Python, deleted) collapse into this one counter; `thresholdRunner.mts`'s `instruction_count` metric now resolves to it | Hand-labelled golden corpus (`instructionCounter.spec.ts`) plus a reference-measurement pin against real shipped content; the measured table below reproduced EXACTLY (all six numbers, not approximately) by the real algorithm against real files, not asserted; every non-`build.md` chain — all 16 sub-agents, both smaller commands, all 4 skills — measures under the 150 gate; fault-injection-verified live (a waiver value edited to sit below the real measurement correctly fails the gate) |
 | 12 | ⬜ | `test(hooks): decouple the python island and re-home its wiring tests` | Six island tests re-pointed at committed `dist/<eco>/hooks/gate.json` instead of importing the compiler; `test_enforcement_gates`/`test_hooks_wiring` move to `tests-ts/build/` (compiler tests wearing a hooks name); `tests/hooks/` → `tests-python/hooks/`; CoC lines updated in the same diff | `grep -rl 'scripts\.build' tests-python/` empty; same test ids modulo path prefix |
 | 13 | ⬜ | `chore(ci): port the ci and release scripts and isolate npm from the release job` | `build_gates.sh`'s four hardcoded compiler calls → `make build`; `smoke_matrix`/`validate_package`/`set_version`/`update_changelog` → TS; `release.yml` split so `npm ci` never runs in the job holding `contents:write` | `make smoke-matrix` byte-identical to a golden Python capture; release dry-run shows zero `npm ci` in the privileged job |
 | 14 | ⬜ | `feat!: make package.json the canonical version source` | **Isolated by design.** `VERSION_TARGETS` reverses direction | All 6 `dist/*/plugin.json` manifests carry the identical version afterwards; **plus a full `release.yml` dry-run on a throwaway tag** |
@@ -549,11 +549,48 @@ must account for them; do not re-derive them from scratch.
     extends it to reviewing DELETIONS, which carry the same risk of an unverified "this is covered"
     claim standing in for actually checking.
 
+22. **A prose specification's stated mechanism ("a closed imperative vocabulary anchors the count")
+    can be wrong about ITS OWN reference numbers — measuring against real content beats parsing the
+    spec text more carefully.** The first implementation of `countAtomicInstructions` followed the
+    plan's own words literally: split each unit on `,`/`;`/`and`/`or`/`then`/`&`, then count a
+    fragment only when it was the unit's leading clause OR contained a word from a closed imperative
+    vocabulary (`always`/`never`/`ensure`/the RFC 2119 subset/etc.). Measured against the real,
+    current `dist/claude-code/` content, it came in LOW on every single reference number in the
+    plan's own table — CLAUDE.md 23 vs. a stated 39, the full orchestrator chain 84 vs. 160 — by a
+    consistent ~40-50%, not close enough to be a rounding difference. Dropping the vocabulary
+    requirement entirely — count EVERY separator-delimited fragment of at least two words, no
+    filter beyond that — reproduced all six reference numbers EXACTLY (39, 13, 38, 83, 160, 83) on
+    the first try. The corrected reading, only obvious after measuring: "closed imperative
+    vocabulary" in the plan's prose most likely refers to the CONJUNCTION words chosen for the
+    separator itself (`and`/`or`/`then`, matched as whole words), not a per-fragment counting
+    filter — but this is inferred FROM the working implementation, not independently confirmed,
+    because the reference implementation that produced the original table was never available to
+    consult directly. The generalizable lesson: when a spec describes an algorithm by prose AND
+    supplies concrete expected outputs, treat the outputs as the actual spec and the prose as a
+    hint — implement the simplest reading, measure against the real reference numbers immediately
+    (not after building out the surrounding feature), and let disagreement drive the design instead
+    of debugging a prose interpretation that already doesn't match. Also surfaced in passing: the
+    plan's "worst sub-agent (cynical-reviewer)" reference row (29 blocks) turned out to describe the
+    FULL sub-agent chain total (agent + A2A core + CLAUDE.md: 8+8+13=29), not the agent file alone
+    (8) — the same "measure, don't assume" check resolved the ambiguity in minutes once tried,
+    versus indefinitely if reasoned about from the table's row label alone.
+
 ---
 
 ## The instruction budget: a live breach the old metric hid
 
-(Unchanged from the original plan — not yet executed; lands in commit 11.)
+**✅ Executed in commit 11.** `scripts-ts/metrics/instructionCounter.mts` (`countAtomicInstructions`)
+plus `scripts-ts/metrics/loadingChains.mts` (chain definitions as data, the `HARD_GATE`/`WARN_AT`
+constants, and the `WAIVERS` list) implement everything this section describes. The measured table
+below was reproduced EXACTLY (39/13/38/83/160/83, all six numbers) by the shipped algorithm against
+the real, current `dist/claude-code/` content — see lesson 22 for how, and for the vocabulary-based
+design this section's prose implies that was tried, measured LOW, and abandoned in favor of the
+simpler one that matched. The orchestrator's `build.md` chain measures exactly the predicted 160 and
+carries the described named waiver (`WAIVERS[0]` in `loadingChains.mts`); every other chain —
+including all 16 sub-agent chains and 5 orchestrator-per-command chains, not just the two this
+section originally measured — is under the 150 gate (`commands/ship.md` at 132 is the closest,
+flagged as near-warn, not gated). See `tests-ts/metrics/instructionBudget.spec.ts` for the live gate
+and `tests-ts/metrics/instructionCounter.spec.ts` for the hand-labelled golden corpus.
 
 `tests/budgets/test_instruction_budget.py` already sums loading chains — sub-agent
 (`agent.md` + A2A core + `CLAUDE.md`), orchestrator (`CLAUDE.md` + heaviest command + every
