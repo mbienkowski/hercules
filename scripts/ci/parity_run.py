@@ -48,7 +48,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import dataclasses
 
-from scripts.build import descriptor, emit, layout, model_map, parse, render, version_targets  # noqa: E402
+from scripts.build import (  # noqa: E402
+    descriptor,
+    emit,
+    genserialize,
+    layout,
+    model_map,
+    parse,
+    render,
+    version_targets,
+)
 
 _MODULES = {
     "parse": parse,
@@ -58,6 +67,7 @@ _MODULES = {
     "emit": emit,
     "version_targets": version_targets,
     "descriptor": descriptor,
+    "genserialize": genserialize,
 }
 
 # See the module docstring: post-Zod, descriptor's error TEXT is no longer part of the parity

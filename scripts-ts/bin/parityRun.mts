@@ -34,6 +34,7 @@ import { dirname, join } from 'node:path';
 
 import * as descriptorMod from '../build/descriptor.mjs';
 import * as emit from '../build/emit.mjs';
+import * as genSerialize from '../build/genSerialize.mjs';
 import * as layout from '../build/layout.mjs';
 import * as modelMap from '../build/modelMap.mjs';
 import * as parse from '../build/parse.mjs';
@@ -114,6 +115,15 @@ const FUNCTIONS: Record<string, (args: unknown[]) => unknown> = {
   'descriptor.dist_files': ([name, root]) =>
     descriptorMod.distFiles(name as string, root as string | undefined),
   'descriptor.names': ([root]) => descriptorMod.names(root as string | undefined),
+
+  'genserialize.serialize_file_for_fixture': ([descriptorRaw, text, tokens, models, rel]) =>
+    genSerialize.serializeFileForFixture(
+      descriptorRaw,
+      text as string,
+      new Map(Object.entries(tokens as Record<string, string>)),
+      models as modelMap.ModelsMap | null,
+      rel as string | null,
+    ),
 };
 
 /**

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from scripts.build import descriptor as _descriptor
 from scripts.build.descriptor import EcosystemDescriptor, FieldSpec, RoleSpec
 from scripts.build.model_map import resolve as resolve_model
 from scripts.build.parse import parse_frontmatter, render_frontmatter, split_document
@@ -273,3 +274,15 @@ class DescriptorSerializer:
                     out[key] = value
             return render_frontmatter(out) + "\n\n" + render_body(body, self.target, tokens)
         return self._fields(spec, meta, body, tokens, stem=stem)
+
+
+def serialize_file_for_fixture(descriptor_raw: dict, text: str, tokens: dict,
+                               models: Optional[dict], rel: Optional[str]) -> str:
+    """`parse_descriptor` + `DescriptorSerializer.serialize_file`, composed into ONE module-level
+    function so the parity harness — which only knows how to call a single named function per
+    fixture (see ``scripts/ci/parity_run.py``) — can drive `serialize_file`'s real mode dispatch
+    from a raw descriptor JSON dict, the same wire shape the `descriptor` module's own fixtures
+    already use. Test-support only; the real CLI composes these two steps itself
+    (``scripts/build/serialize.py``)."""
+    d = _descriptor.parse_descriptor(descriptor_raw["name"], descriptor_raw)
+    return DescriptorSerializer(d).serialize_file(text, tokens, models, rel)

@@ -217,10 +217,19 @@ function discriminantError(field: string, values: readonly string[]) {
 
 // ── Shapes ──────────────────────────────────────────────────────────────────
 
+/**
+ * The closed field-generator vocabulary — kept as a literal union (not widened to `string`)
+ * specifically so a CONSUMER of `FieldSpec` (`genSerialize.mts`'s `computeFields`) can dispatch on
+ * `.source` through an exhaustive switch ending `satisfies never`: a sixth generator added here
+ * without a matching case there is then a compile error in the CONSUMER too, not just a runtime
+ * surprise discovered by running the build.
+ */
+export type FieldSource = 'flag_if_name_in' | 'frontmatter' | 'literal' | 'primary_mode' | 'stem';
+
 /** One emitted frontmatter field: its output `key` and the named generator producing it. */
 export interface FieldSpec {
   readonly key: string;
-  readonly source: string;
+  readonly source: FieldSource;
   readonly field: string | null;
   readonly render: boolean;
   readonly value: string | null;
