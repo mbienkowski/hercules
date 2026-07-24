@@ -18,11 +18,11 @@ install-py:
 install-ts:
 	npm ci
 
-build:
-	python -m scripts.build.cli --target all
+build: compile
+	node .ts-out/bin/cli.mjs --target all
 
-build-check:
-	python -m scripts.build.cli --target all --check
+build-check: compile
+	node .ts-out/bin/cli.mjs --target all --check
 
 test: test-py test-ts
 
