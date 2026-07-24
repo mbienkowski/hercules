@@ -1,0 +1,45 @@
+{
+ "module": "descriptor",
+ "fn": "parse_descriptor",
+ "args": [
+  "eco",
+  {
+   "schema": 1,
+   "name": "eco",
+   "vars": {
+    "product": "Eco"
+   },
+   "models": {
+    "high": null,
+    "medium": null,
+    "low": null
+   },
+   "smoke": {
+    "cli": "eco",
+    "test": "tests/build/test_eco_smoke.py"
+   },
+   "dispatch": "path",
+   "roles": {
+    "agent": {
+     "mode": "fields",
+     "fields": [
+      {
+       "key": "x",
+       "from": "conditional"
+      }
+     ]
+    },
+    "command": {
+     "mode": "preserve"
+    },
+    "persona": {
+     "mode": "plain"
+    },
+    "default": {
+     "mode": "preserve"
+    }
+   },
+   "routes": []
+  }
+ ]
+}

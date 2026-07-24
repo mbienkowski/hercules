@@ -465,3 +465,30 @@ export function pyReprMapping(mapping: Readonly<Record<string, string>>): string
     .join(', ');
   return `{${body}}`;
 }
+
+/**
+ * Python's `repr()` for an arbitrary JSON value: string, number, boolean, null, array, or a plain
+ * object with string keys — the full range of what a descriptor field can hold before it is
+ * validated. Every ported error message that interpolates raw, not-yet-validated input needs this
+ * rather than `pyRepr`, which only handles strings.
+ *
+ * Numbers are the one incomplete case: JSON has a single number type, but Python's `json.loads`
+ * distinguishes `2` (int, repr `'2'`) from `2.0` (float, repr `'2.0'`) by whether the source
+ * literal had a decimal point, and JavaScript's `number` cannot recover that distinction after
+ * parsing. This affects only an integer-valued float appearing where a non-string value is being
+ * rejected — never a legitimate field, since no descriptor field is numeric. Accepted as a
+ * documented gap rather than ported: fixtures avoid the case rather than papering over it.
+ */
+export function pyReprValue(value: unknown): string {
+  if (value === null || value === undefined) return 'None';
+  if (value === true) return 'True';
+  if (value === false) return 'False';
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'string') return pyRepr(value);
+  if (Array.isArray(value)) return `[${value.map(pyReprValue).join(', ')}]`;
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>);
+    return `{${entries.map(([k, v]) => `${pyRepr(k)}: ${pyReprValue(v)}`).join(', ')}}`;
+  }
+  return String(value);
+}

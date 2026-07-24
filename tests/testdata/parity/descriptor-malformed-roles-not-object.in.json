@@ -1,0 +1,26 @@
+{
+ "module": "descriptor",
+ "fn": "parse_descriptor",
+ "args": [
+  "eco",
+  {
+   "schema": 1,
+   "name": "eco",
+   "vars": {
+    "product": "Eco"
+   },
+   "models": {
+    "high": null,
+    "medium": null,
+    "low": null
+   },
+   "smoke": {
+    "cli": "eco",
+    "test": "tests/build/test_eco_smoke.py"
+   },
+   "dispatch": "path",
+   "roles": [],
+   "routes": []
+  }
+ ]
+}

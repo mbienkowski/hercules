@@ -25,6 +25,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
+import * as descriptorMod from '../build/descriptor.mjs';
 import * as emit from '../build/emit.mjs';
 import * as layout from '../build/layout.mjs';
 import * as modelMap from '../build/modelMap.mjs';
@@ -95,21 +96,36 @@ const FUNCTIONS: Record<string, (args: unknown[]) => unknown> = {
   // signature uses `undefined`, which is the TypeScript convention for "not supplied".
   'version_targets.check_in_sync': ([root, expected]) =>
     versionTargets.checkInSync(root as string, (expected as string | null) ?? undefined),
+
+  'descriptor.parse_descriptor': ([name, raw]) => descriptorMod.parseDescriptor(name as string, raw),
+  'descriptor.load': ([path]) => descriptorMod.load(path as string),
+  'descriptor.discover': ([root]) => descriptorMod.discover(root as string),
+  'descriptor.dist_files': ([name, root]) =>
+    descriptorMod.distFiles(name as string, root as string | undefined),
+  'descriptor.names': ([root]) => descriptorMod.names(root as string | undefined),
 };
 
 /**
  * Normalise a return value so both runtimes serialise it identically.
  *
- * Maps and the frontmatter record become ordered [key, value] PAIR LISTS, never JSON objects:
- * Python preserves insertion order while JavaScript hoists integer-like keys to the front, so a
- * frontmatter block whose first key is "1" would round-trip differently on the two sides.
+ * Maps and plain objects become [key, value] PAIR LISTS SORTED BY KEY, never JSON objects. Two
+ * reasons: (1) JavaScript hoists integer-like keys to the front of a plain object regardless of
+ * insertion order while Python's dict never does, so a frontmatter block whose first key is "1"
+ * would otherwise round-trip differently on the two sides; (2) sorting decouples the comparison
+ * from which order each engine's code happens to construct an object's properties in — the Python
+ * side sorts identically (see parity_run.py), so neither side has to match the other's
+ * construction order, only its final key/value set. Semantic order lives in ARRAYS, which are never
+ * sorted here, not in object keys.
  */
 function canonical(value: unknown): unknown {
   if (value === undefined) return null;
-  if (value instanceof Map) return [...value].map(([k, v]) => [k, canonical(v)]);
+  if (value instanceof Map) {
+    return [...value].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, v]) => [k, canonical(v)]);
+  }
   if (Array.isArray(value)) return value.map(canonical);
   if (value !== null && typeof value === 'object') {
-    return Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, canonical(v)]);
+    const obj = value as Record<string, unknown>;
+    return Object.keys(obj).sort().map((k) => [k, canonical(obj[k])]);
   }
   return value;
 }

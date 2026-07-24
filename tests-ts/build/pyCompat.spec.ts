@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { pyRepr, pyReprMapping, pySplitlines, pyStrip } from '../../scripts-ts/build/pyCompat.mjs';
+import { pyRepr, pyReprMapping, pyReprValue, pySplitlines, pyStrip } from '../../scripts-ts/build/pyCompat.mjs';
 import { readRepoJson } from '../support/repo';
 
 // These functions exist to reproduce Python semantics the JavaScript near-equivalents get wrong.
@@ -213,5 +213,34 @@ describe('the non-printable table escapes what CPython escapes', () => {
       if (!pyRepr(`a${ch}b`).includes(ch)) wrong.push(`U+${cp.toString(16)}`);
     }
     expect(wrong).toEqual([]);
+  });
+});
+
+describe('quoting an arbitrary not-yet-validated JSON value the way Python does', () => {
+  it('renders null as None and booleans as True/False', () => {
+    expect(pyReprValue(null)).toBe('None');
+    expect(pyReprValue(true)).toBe('True');
+    expect(pyReprValue(false)).toBe('False');
+  });
+
+  it('renders a number without quotes', () => {
+    expect(pyReprValue(42)).toBe('42');
+  });
+
+  it('quotes a string the same way pyRepr does', () => {
+    expect(pyReprValue('hi')).toBe("'hi'");
+  });
+
+  it('renders a list recursively, matching Python’s repr of a list', () => {
+    expect(pyReprValue([1, 'a', null, true, { x: 1 }])).toBe("[1, 'a', None, True, {'x': 1}]");
+  });
+
+  it('renders a nested object with quoted keys and recursively-reprd values', () => {
+    expect(pyReprValue({ a: 'b', c: 1 })).toBe("{'a': 'b', 'c': 1}");
+  });
+
+  it('renders an empty list and an empty object', () => {
+    expect(pyReprValue([])).toBe('[]');
+    expect(pyReprValue({})).toBe('{}');
   });
 });

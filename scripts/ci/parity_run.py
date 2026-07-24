@@ -38,7 +38,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from scripts.build import emit, layout, model_map, parse, render, version_targets  # noqa: E402
+import dataclasses
+
+from scripts.build import descriptor, emit, layout, model_map, parse, render, version_targets  # noqa: E402
 
 _MODULES = {
     "parse": parse,
@@ -47,6 +49,7 @@ _MODULES = {
     "layout": layout,
     "emit": emit,
     "version_targets": version_targets,
+    "descriptor": descriptor,
 }
 
 
@@ -60,6 +63,23 @@ _ARG_ADAPTERS = {
     # `expected` is keyword-only in the Python original; the fixture carries it positionally so the
     # wire format stays engine-neutral.
     "version_targets.check_in_sync": lambda args: ([args[0]], {"expected": args[1]}),
+    # descriptor.discover/dist_files/names default `root` to ECOSYSTEMS_DIR; a fixture passes it
+    # explicitly via pathArgs, which resolves relative to the fixture's own temp workspace.
+}
+
+
+# Python's dataclasses use snake_case field names (resolve_model_tier, from_suffix, to_suffix,
+# body_key, key_prefix); the TypeScript port uses idiomatic camelCase for the SAME fields — a naming
+# CONVENTION difference, not a behavioural one, since nothing outside this module ever addresses a
+# descriptor field by string key (every consumer uses dot access). The wire format this harness
+# compares on needs one convention; camelCase is chosen because that is what the TS structures
+# naturally produce, so only the Python side needs an explicit rename.
+_DATACLASS_FIELD_RENAME = {
+    "resolve_model_tier": "resolveModelTier",
+    "from_suffix": "fromSuffix",
+    "to_suffix": "toSuffix",
+    "body_key": "bodyKey",
+    "key_prefix": "keyPrefix",
 }
 
 
@@ -69,9 +89,26 @@ def _canonical(value):
     Dicts become ordered [key, value] PAIR LISTS, never JSON objects: Python preserves insertion
     order while JavaScript hoists integer-like keys to the front, so a frontmatter block whose first
     key is "1" would round-trip differently through an object on the two sides.
+
+    A dataclass (descriptor.EcosystemDescriptor and its nested FieldSpec/RoleSpec/Route/Artifact/
+    TemplateValue/Template) is walked field-by-field via dataclasses.fields() rather than blindly
+    asdict()-ed, so the snake_case-to-camelCase rename above applies ONLY to real dataclass
+    attributes — never to a free-form dict a descriptor carries as DATA (Artifact.content, the
+    gate params), where a key merely happening to spell "body_key" must pass through untouched.
     """
+    if hasattr(value, "__dataclass_fields__"):
+        renamed = {
+            _DATACLASS_FIELD_RENAME.get(f.name, f.name): _canonical(getattr(value, f.name))
+            for f in dataclasses.fields(value)
+        }
+        return [[k, renamed[k]] for k in sorted(renamed)]
     if isinstance(value, dict):
-        return [[k, _canonical(v)] for k, v in value.items()]
+        # Sorted by key, not insertion order: this decouples the comparison from which order each
+        # engine's code happens to construct an object's properties in, which is a real thing that
+        # otherwise drifts on an unrelated refactor (two field-order swaps in this very commit
+        # produced exactly that false failure). Semantic ORDER lives in arrays, never in dict/object
+        # keys, so nothing this harness compares loses meaning by sorting them.
+        return [[k, _canonical(value[k])] for k in sorted(value)]
     if isinstance(value, (list, tuple)):
         return [_canonical(v) for v in value]
     if isinstance(value, Path):
