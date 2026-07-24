@@ -523,7 +523,7 @@ const GUARD_ENTRY = nonEmptyStr().check((ctx) => {
 
 const DescriptorSchema = z.strictObject({
   schema: z.literal(1, { error: (issue) => `must be 1, got ${pyReprValue(issue.input)}` }),
-  name: z.string(),
+  name: z.string({ error: (issue) => `must be a string, got ${pyReprValue(issue.input)}` }),
   vars: z.record(
     z.string(),
     z.string({ error: (issue) => `must be a string, got ${pyReprValue(issue.input)}` }),

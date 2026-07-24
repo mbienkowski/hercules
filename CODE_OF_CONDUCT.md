@@ -100,9 +100,10 @@ Exception: `hercules.md`, the orchestrator persona.
 - A spec is read-only / write-once / **delete-once** (`git rm` at delivery); under a keep-specs
   code-of-conduct the orchestrator refreshes it once at retire instead. An agent never updates a spec.
 - Replies follow the A2A `§ Agent-Injected Core` (`src/content/protocols/a2a-communication-protocol.md`).
-- Update the roster in **three places** — the agent list in `src/content/persona.md`, the `advisors[]` array
-  in the claude-code descriptor's `settings.json` artifact (`src/ecosystems/claude-code.json`), and
-  `_ADVISOR_AGENTS` in `tests/agents/test_agents.py`; a sync test fails on drift.
+- Update the roster in **two places** — the agent list in `src/content/persona.md` and the
+  `advisors[]` array in the claude-code descriptor's `settings.json` artifact
+  (`src/ecosystems/claude-code.json`) — `tests-ts/build/rosterSync.spec.ts` reads the compiled
+  `settings.json` roster directly and fails on drift, so there is no third place to keep in sync.
 - **Instruction load is a budget.** Say whose context new content lands in — a delegate's total stays
   under ~150 directives (own file + packet + A2A core + the project CoC). Always-loaded content spends
   everyone's headroom.

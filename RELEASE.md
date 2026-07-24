@@ -41,19 +41,19 @@ needs a live, paid session and stays a manual, release-gating check.
 
 | # | Claude Code item | Status |
 |---|---|---|
-| 1 | Install from the marketplace | ✅ automated (`test_the_plugin_installs_from_a_local_checkout_and_shows_up_enabled`) |
+| 1 | Install from the marketplace | ✅ automated (`tests-ts/build/claudeCodeSmoke.spec.ts`'s "the plugin installs from a local checkout and shows up enabled") |
 | 2 | `hercules` is the default agent, answers in character | manual |
 | 3 | `/hercules:workflow` drives Discover → Design → Build → Ship | manual |
 | 4 | Write-gate hook blocks/allows | manual |
 | 5 | A specialist advisor spawns, replies in A2A format | manual |
-| 6 | `hercules-reference` skill loads, `§` sections available | manual (component *presence* is automated via `test_the_installed_plugin_declares_its_full_component_inventory`; loading behavior is not) |
+| 6 | `hercules-reference` skill loads, `§` sections available | manual (component *presence* is automated via the same file's "the installed plugin declares its full component inventory"; loading behavior is not) |
 | 7 | A fresh `cynical-reviewer` spawns at the coverage gate | manual |
 | 8 | A command's `${CLAUDE_PLUGIN_ROOT}/protocols/…` path resolves | manual |
 
 | # | OpenCode item | Status |
 |---|---|---|
-| 1 | `config` hook fires (agents/commands register) | ✅ automated — [issue #15](https://github.com/mbienkowski/hercules/issues/15) is fixed (the entry exports `{ id, server }`); `test_opencode_plugin_starts_up_with_every_agent_and_command_registered` loads the built `plugin.js` in a real Node process and asserts every agent/command registers (skips only when `node` is absent) |
-| 2 | `plugin.js` loads with no missing-asset throw | ✅ automated — `test_opencode_plugin_refuses_to_start_if_its_bundled_files_are_missing` (same file) drives the real loader |
+| 1 | `config` hook fires (agents/commands register) | ✅ automated — [issue #15](https://github.com/mbienkowski/hercules/issues/15) is fixed (the entry exports `{ id, server }`); `tests-ts/build/opencodeEntrypoint.spec.ts`'s "starts up and registers every agent and command from the roster, defaulting to hercules" loads the built `plugin.js` in a real Node process and asserts every agent/command registers |
+| 2 | `plugin.js` loads with no missing-asset throw | ✅ automated — the same file's "refuses to start if a bundled asset is missing, with a clear error" drives the real loader |
 | 3 | `default_agent` is `hercules`; a subagent spawns | manual |
 | 4 | `/hercules:discover` resolves and runs | manual |
 | 5 | A skill auto-fires from its description | manual |
@@ -144,7 +144,7 @@ opt-in — it needs a `CURSOR_API_KEY` secret and skips without it) — confirm 
 
 | # | Cursor item | Status |
 |---|---|---|
-| 1 | Real `cursor-agent` binary runs + built plugin is structurally valid | ✅ automated (`test_the_real_cursor_agent_binary_runs_and_the_plugin_is_well_formed`, runs on every PR + main) |
+| 1 | Real `cursor-agent` binary runs + built plugin is structurally valid | ✅ automated (`tests-ts/build/cursorSmoke.spec.ts`'s "the real cursor-agent binary runs and the plugin is well formed", runs on every PR + main) |
 | 2 | Headless `cursor-agent -p` completes a run | ⚙️ keyed (`CURSOR_API_KEY`; skips on forks) |
 | 3 | Persona rule always-applies; commands appear | manual |
 | 4 | Specialist spawns as an isolated subagent | manual |

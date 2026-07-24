@@ -784,15 +784,100 @@ Everything executable is TypeScript on Node 22 (ESM `.mts`→`.mjs`), except `sr
 | Sev | Risk | Mitigation | Status |
 |---|---|---|---|
 | **HIGH** | Node/Python tokenizer disagreement on `cl100k_base` | Commit 2 go/no-go spike | ✅ resolved — passed, no re-baseline needed |
-| **HIGH** | Commits 9–10 are the largest; a ported test becomes decorative | Gate on `make mutation-ts` ≥90%, not coverage alone; inject/revert recorded per spec | ⬜ pending |
-| **HIGH** | The version-flip (14) touches `release.yml`, no dry run, privileged token | Isolated commit; full release dry-run on a throwaway tag before merge | ⬜ pending |
-| MED | Commit 15 flips the whole pipeline in one edit | Commit 16's grep gate run as a dry check before 15 lands | ⬜ pending |
+| **HIGH** | Commits 9–10 are the largest; a ported test becomes decorative | Gate on `make mutation-ts` ≥90%, not coverage alone; inject/revert recorded per spec | ✅ resolved — commits 9/10 landed; mutation kill-rate itself verified in the final post-commit-17 pass (see below) |
+| **HIGH** | The version-flip (14) touches `release.yml`, no dry run, privileged token | Isolated commit; full release dry-run on a throwaway tag before merge | ✅ resolved — commit 14's worktree dry-run passed; the final review pass additionally found and fixed a DEEPER release.yml defect the commit-14 dry-run didn't exercise (see below) |
+| MED | Commit 15 flips the whole pipeline in one edit | Commit 16's grep gate run as a dry check before 15 lands | ✅ resolved — commits 15/16 landed, dry-check run early as planned |
 | MED | Stryker's wall-clock unmeasured | Profiled in commit 1: ~9s isolated, ~80–90s for the full suite at commit 4's size — well inside the 40–50 min Python budget | ✅ resolved, comfortable margin |
-| MED | The two cross-field rules can't be expressed by a discriminated union alone | Commit 5 names both ported tests as merge-gate items | ⬜ pending — commit 5 |
-| LOW | V8 reorders integer-like string keys where Python's dict does not | Latent; commit 7 ships an adversarial fixture documenting behaviour | ⬜ pending — commit 7 |
+| MED | The two cross-field rules can't be expressed by a discriminated union alone | Commit 5 names both ported tests as merge-gate items | ✅ resolved — commit 5 landed with both named tests |
+| LOW | V8 reorders integer-like string keys where Python's dict does not | Latent; commit 7 ships an adversarial fixture documenting behaviour | ✅ resolved — commit 7 landed; final review found and fixed ONE further undocumented instance in `genExtras.mts`'s `dumpJson` (see below) |
 | LOW | ~6 npm devDeps enter a zero-dependency repo | `ignore-scripts=true`, exact-pinned lockfile, dependabot npm entry, npm-pack guard | ✅ resolved |
 | **NEW — MED** | Isolated Stryker `--mutate` runs can disagree with direct `vitest run` verification of the same mutant (Lesson 5) | Treat isolated-run "Survived" as a lead to verify, not fact; the full `make mutation-ts` run is authoritative | ⚠ open, root cause not fully characterized |
 | **NEW — LOW** | A generated golden data table can silently encode the wrong tool version (Lesson 7) | `make pycompat-golden-check` in CI; apply the same discipline to any future generated table | ✅ resolved for pyCompat; watch for recurrence |
+
+---
+
+## Final review (post-commit-17)
+
+All 17 commits landed. Per the standing instruction to defer both the comprehensive fresh-eyes
+review and the mutation-testing pass to this point (rather than repeating a full multi-agent
+panel on every commit), this section records what that deferred pass actually found.
+
+**Method.** Four parallel `hercules:cynical-reviewer`/`hercules:maintainer` agents, each briefed on
+a different dimension and told to assume the work is wrong until proven otherwise, none aware of
+the others' scope: compiler correctness (does the TS port match the deleted Python original's
+behavior), CI/release pipeline security and correctness, ported-test-suite quality (a further pass
+against the recurring vacuous-test bug class), and docs/config-vs-reality consistency. Every
+finding below was independently re-verified by direct execution (not just re-reading the agent's
+claim) before being accepted and fixed.
+
+**Two genuine blockers found and fixed — both would have failed CI/release on the very first
+real run, not caught by any commit's own local `make ci-build`/dry-run because those always ran
+with a pre-warmed `node_modules`/`.ts-out`, never simulating a truly cold job:**
+
+1. **`ci.yml`'s `build` job ran `make ci-build` BEFORE installing/compiling the TypeScript
+   toolchain.** `make build`/`build-check` have run the TS compiler since commit 15, but the job's
+   step order was never updated when commit 13 originally added the Node setup steps (for the
+   *following* smoke-matrix step) — reproduced directly (`mv node_modules` aside, `make ci-build`
+   → `tsc: command not found`). Fixed by moving `setup-node`/`install-ts`/`compile` before the
+   build-gates step; the job's stale "still the Python compiler here" comment (also caught by the
+   docs-consistency agent, independently) corrected in the same edit.
+2. **`release.yml`'s `release` job could never actually complete a release.** `release-version`/
+   `build`/`changelog` all depend on the Makefile's `compile` target, which is `.PHONY` and
+   unconditionally re-runs `npm run compile` — but the whole point of the `prepare`/`release` split
+   (commit 13) was that `release` never runs `npm ci`, so it has no `node_modules` and thus no
+   `tsc` binary to compile with. Reproduced directly the same way. Fixed with two changes: (a) the
+   Makefile's `compile` target now checks for a local `tsc` first, falls back to trusting an
+   already-populated `.ts-out/` when there is none (erroring loudly only when NEITHER is
+   available), so every target depending on `compile` works unmodified in a job that intentionally
+   skips `npm ci`; (b) a second, deeper defect this same fix then surfaced under direct
+   end-to-end simulation — `make build` transitively imports `zod` via `descriptor.mts`, and `tsc`
+   only transforms syntax, it does not bundle dependencies, so the compiled `.mjs` still needs
+   `node_modules/zod` present at **runtime**. `.ts-out/` alone was never sufficient. `prepare` now
+   uploads `node_modules/` alongside `.ts-out/` in the same artifact — still zero fresh `npm ci`/
+   network fetch in the privileged job (it's the same already-resolved tree from the committed,
+   reviewed `package-lock.json`, relocated rather than re-fetched), just carrying its dependencies
+   with it. Verified end-to-end in an isolated worktree with a real `npm ci`-populated
+   `node_modules` standing in for the downloaded artifact: version bump → dist rebuild (both
+   canonical manifests show the new version) → changelog generation, all green.
+
+**Four smaller compiler-correctness findings, all fixed:** a hand-rolled `--target` CLI parser
+silently defaulted to `'all'` on `--target=value` syntax instead of erroring (the Python original's
+`argparse` accepted it) — now supported, with an `unrecognized argument` throw replacing the prior
+silent fall-through; two `.sort()` call sites (`genExtras.mts`'s `roleEntries`, `cli.mts`'s written-
+file list) used plain lexicographic order instead of the codepoint-safe `compareCodePoints`/
+`comparePathParts` helpers this exact codebase already built for this exact purpose — fixed for
+consistency, though latent today (no current filename triggers the divergence); `genExtras.mts`'s
+own V8-key-reorder documentation only covered `jsObjectLiteral`, not `dumpJson`'s equally-exposed
+`artifact.content`/`gate` serialization — doc comment extended (also latent, no current descriptor
+uses an integer-like key); `descriptor.mts`'s `name` field lacked the `pyRepr`-formatted custom
+error callback every sibling field has — added, with a regression test.
+
+**Docs/config drift found and fixed:** `CODE_OF_CONDUCT.md` referenced a `_ADVISOR_AGENTS` constant
+in a Python test file deleted back in commit 10 (the real, live sync check is
+`tests-ts/build/rosterSync.spec.ts`) — this one predates the TypeScript migration entirely, just
+never caught until this pass; `CONTRIBUTING.md` named `tests/build/` (gone since commit 16) twice,
+once for where to add new-target tests and once in a directory-layout summary; `RELEASE.md` cited
+several Python `test_snake_case` names for tests that no longer exist under those names (the
+project's own stated convention — "a red check can be reproduced by copying its name into a
+terminal" — depends on these being accurate) and attributed two tests to the wrong file
+(`opencodeSmoke.spec.ts` instead of `opencodeEntrypoint.spec.ts`); `release.yml`'s own npm-publish
+comment called it "the primary channel" while `RELEASE.md` correctly calls it an opt-in
+alternative to the canonical GitHub-repo-ref install — reconciled in favor of `RELEASE.md`'s more
+detailed, correct framing; and `release.yml`'s `release` job carried a dead `setup-python` step
+left over from before the compiler was TypeScript.
+
+**What the test-suite-quality review found:** no fourth instance of the recurring vacuous-test bug
+class (it specifically checked reachability of every `skipIf` gate, per-iteration loop assertions,
+and "throws" specificity) — one minor, non-blocking structural-coverage asymmetry noted (3 of 6
+live-CLI smoke files carry always-on structural checks alongside their live-CLI ones, 3 don't), not
+a bug (correctly skips rather than false-greens), logged as a deferred follow-up rather than fixed
+here.
+
+**Not yet done as of this section being written:** the mutation-testing pass itself
+(`make mutation-py` + `make mutation-ts` actually reporting a real, ≥90% kill rate) — this is the
+one piece of "final, after everything is done" work still pending. See the repo's actual CI run
+history / the session that follows this doc update for its outcome, since a `⬜`/`✅` marker written
+into this static doc cannot itself observe a future mutation run.
 
 ---
 

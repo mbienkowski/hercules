@@ -29,7 +29,7 @@ import { readSource, write } from '../build/emit.mjs';
 import { emitExtras } from '../build/genExtras.mjs';
 import type { ExtrasContext } from '../build/genExtras.mjs';
 import { dest } from '../build/genSerialize.mjs';
-import { discoverSources } from '../build/layout.mjs';
+import { comparePathParts, discoverSources } from '../build/layout.mjs';
 import type { ModelsMap, TierMap } from '../build/modelMap.mjs';
 import { buildRegistry } from '../build/serialize.mjs';
 import { readCanonicalVersion } from '../build/versionTargets.mjs';
@@ -95,7 +95,7 @@ export function buildTarget(target: string, outRoot: string): string[] {
     version: readCanonicalVersion(REPO_ROOT),
   };
   written.push(...emitExtras(ctx, desc));
-  return written.slice().sort();
+  return written.slice().sort(comparePathParts);
 }
 
 function relFiles(root: string): Set<string> {
@@ -153,15 +153,29 @@ export function checkTarget(target: string, tmpRoot: string, distRoot: string = 
   return dirDiff(committed, out).length > 0 ? 1 : 0;
 }
 
+/**
+ * Parses `--target {<name>|all} [--check]`, matching the Python original's `argparse` contract:
+ * both `--target foo` and `--target=foo` are accepted, and an unrecognized argument is a loud
+ * error rather than a silent no-op. Without this, `--target=cursor` (a reasonable, common CLI
+ * convention argparse also accepts) would fall through unmatched and silently default `target` to
+ * `'all'` — a correct-looking but wrong outcome, not something a typo should produce.
+ */
 function parseArgs(argv: readonly string[]): { target: string; check: boolean } {
   let target = 'all';
   let check = false;
   for (let i = 0; i < argv.length; i += 1) {
-    if (argv[i] === '--target') {
-      target = argv[i + 1] as string;
+    const arg = argv[i] as string;
+    if (arg === '--target') {
+      const value = argv[i + 1];
+      if (value === undefined) throw new Error('--target requires a value');
+      target = value;
       i += 1;
-    } else if (argv[i] === '--check') {
+    } else if (arg.startsWith('--target=')) {
+      target = arg.slice('--target='.length);
+    } else if (arg === '--check') {
       check = true;
+    } else {
+      throw new Error(`unrecognized argument: ${arg}`);
     }
   }
   return { target, check };

@@ -17,18 +17,22 @@
  *   descriptor role fields the standalone files use, so an inlined entry (e.g. OpenCode's
  *   `plugin.js` agent map) and its standalone mirror can never drift by construction.
  *
- * Accepted, documented divergence — NOT covered by `make parity`'s cross-engine fixtures, which
- * require byte-identical output and would simply fail on this input (verified directly: pinned by
- * `genExtras.spec.ts`'s own "V8 key reordering" test instead, the same way `descriptor.mts`
- * documents its own `Object.entries()` divergence rather than fixturing it):
+ * Accepted, documented V8-vs-Python key-order divergence: `Object.entries()`/plain-`JSON.stringify`
+ * iteration walks integer-like string keys FIRST (ascending, ahead of every other key) regardless
+ * of insertion order, unlike Python's `dict`, which always preserves insertion order. Pinned by
+ * `genExtras.spec.ts`'s "V8 key reordering" test, the same way `descriptor.mts` documents its own
+ * instance of this rather than fixturing it (the compiler is TypeScript-only now — there is no
+ * second engine left to cross-diff against):
  *
- * - `jsObjectLiteral`'s plain-object branch reads `Object.entries(obj)`, which V8 walks with
- *   integer-like string keys FIRST (ascending, ahead of every other key) regardless of insertion
- *   order; Python's `dict.items()` always preserves insertion order. `js_object_literal({"b": 1,
- *   "1": "one", "a": 2, "0": "zero"})` therefore renders key order `b, 1, a, 0` in Python but `0, 1,
- *   b, a` in this port. Latent in practice: the only real caller (`templateValue`'s
+ * - `jsObjectLiteral`'s plain-object branch reads `Object.entries(obj)`. `js_object_literal({"b":
+ *   1, "1": "one", "a": 2, "0": "zero"})` would render key order `b, 1, a, 0` in the deleted Python
+ *   original but `0, 1, b, a` here. Latent in practice: the only real caller (`templateValue`'s
  *   `role_entries_js` branch) always passes a `Map` built from source-file stems, which are never
- *   integer-like, and the `Map` branch above preserves insertion order on BOTH engines regardless.
+ *   integer-like, and the `Map` branch preserves insertion order on both.
+ * - `dumpJson` (below) is equally subject to this for `artifact.content` and `descriptor.gate` —
+ *   both are `Record<string, unknown>` sourced from `JSON.parse`, serialized via plain
+ *   `JSON.stringify`. Also latent: no committed `src/ecosystems/*.json` artifact or gate object
+ *   uses an integer-like string key today.
  */
 
 import { readdirSync } from 'node:fs';
@@ -38,6 +42,7 @@ import { copyMap, readSource, write } from './emit.mjs';
 import { ECOSYSTEMS_DIR, distFiles } from './descriptor.mjs';
 import type { EcosystemDescriptor, Template, TemplateValue } from './descriptor.mjs';
 import { computeFields } from './genSerialize.mjs';
+import { compareCodePoints } from './layout.mjs';
 import { parseFrontmatter, splitDocument } from './parse.mjs';
 import { renderBody } from './render.mjs';
 
@@ -161,7 +166,7 @@ export function roleEntries(
 ): RoleEntry[] {
   const dir = join(srcContent, ROLE_SUBDIRS[role] as string);
   const out: RoleEntry[] = [];
-  const names = readdirSync(dir).filter((n) => n.endsWith('.md')).sort();
+  const names = readdirSync(dir).filter((n) => n.endsWith('.md')).sort(compareCodePoints);
   for (const name of names) {
     const path = join(dir, name);
     const text = readSource(path);

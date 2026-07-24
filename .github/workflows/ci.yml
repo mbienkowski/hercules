@@ -62,15 +62,11 @@ jobs:
         with:
           python-version: "3.9"
 
-      # Drift (committed dist/ == fresh build), determinism (two builds byte-equal), and the
-      # untracked-dist guard — all in scripts/ci/build_gates.sh, which itself calls back through
-      # `make build`/`make build-check` (still the Python compiler here; this job never hardcodes it).
-      - name: Build gates (drift, determinism, tracked)
-        run: make ci-build
-
-      # scripts-ts/ci/smokeMatrix.mts (below) imports the descriptor module, which validates via Zod
-      # — this job holds no npm-installed dependencies by default (only setup-python), so the
-      # TypeScript toolchain must be installed and compiled here before it can run.
+      # scripts-ts/ci/smokeMatrix.mts (below) imports the descriptor module, which validates via Zod,
+      # and `make build`/`make build-check` themselves run the TypeScript compiler (`node
+      # .ts-out/bin/cli.mjs`, since commit 15) — so the TypeScript toolchain must be installed and
+      # compiled BEFORE the build-gates step, not after. This job holds no npm-installed dependencies
+      # by default (only setup-python).
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -82,6 +78,12 @@ jobs:
 
       - name: Compile the TypeScript toolchain
         run: make compile
+
+      # Drift (committed dist/ == fresh build), determinism (two builds byte-equal), and the
+      # untracked-dist guard — all in scripts/ci/build_gates.sh, which itself calls back through
+      # `make build`/`make build-check` (the TypeScript compiler; this job never hardcodes it).
+      - name: Build gates (drift, determinism, tracked)
+        run: make ci-build
 
       # The smoke matrix, derived from the build's target registry (the single source of truth) and
       # fail-closed on drift/emptiness. A step output here means `smoke` reads it from `needs.build`

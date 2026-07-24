@@ -64,10 +64,21 @@ jobs:
       - name: Compile the TypeScript toolchain
         run: make compile
 
+      # node_modules travels WITH .ts-out, not just the compiled output alone: `tsc` only transforms
+      # syntax, it does not bundle dependencies, so the compiled .mjs files still `import` their real
+      # npm packages (zod in particular, via descriptor.mjs — pulled in by `make build`, which
+      # `release` also runs) at RUNTIME. Shipping .ts-out/ without node_modules/ looked complete but
+      # left every zod-importing entry point broken the moment `release` actually tried to run it —
+      # caught only by a real end-to-end simulation, not by reading the workflow. Still zero fresh
+      # `npm ci`/network fetch in the privileged job: this is the SAME already-installed tree
+      # `prepare` resolved from the committed, reviewed package-lock.json, merely relocated rather
+      # than re-fetched.
       - uses: actions/upload-artifact@v7
         with:
           name: ts-out
-          path: .ts-out
+          path: |
+            .ts-out
+            node_modules
           retention-days: 1
 
   release:
@@ -93,14 +104,12 @@ jobs:
           WANT_SHA: ${{ github.event.workflow_run.head_sha }}
         run: make release-verify
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.9"
-
-      # The compiled toolchain from `prepare` — this job never runs `npm ci` itself (see that job's
-      # comment). Only setVersion.mjs and updateChangelog.mjs are actually invoked below; the rest of
-      # .ts-out/ (e.g. the compiler, unused here until dist/ generation flips to TypeScript) rides
-      # along unused rather than being pruned, since the artifact is small and short-lived.
+      # No setup-python here: since the compiler and every release script are TypeScript now, nothing
+      # in this job's remaining steps invokes python.
+      #
+      # The compiled toolchain AND its node_modules from `prepare` — this job never runs `npm ci`
+      # itself (see that job's comment). setVersion.mjs, updateChangelog.mjs, AND the compiler itself
+      # (via `make build`, below) are all invoked from this downloaded artifact.
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -108,7 +117,7 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           name: ts-out
-          path: .ts-out
+          path: .
 
       # 1-pre. Detect whether this is the first release (no v* tags yet) and
       #        capture the previous tag so git log can scope the commit range.
@@ -170,9 +179,10 @@ jobs:
           name: ${{ steps.bump.outputs.new_tag }}
           body: ${{ steps.bump.outputs.changelog }}
 
-      # 6. Publish the OpenCode plugin to npm (primary channel). The working tree is at the
-      #    bumped commit, so package.json already carries the new version. `files: ["dist/opencode"]`
-      #    scopes the tarball. Skipped automatically if NPM_TOKEN is not configured.
+      # 6. Publish the OpenCode plugin to npm (an opt-in alternative channel — the canonical install
+      #    path is the GitHub repo ref, see RELEASE.md). The working tree is at the bumped commit, so
+      #    package.json already carries the new version. `files: ["dist/opencode"]` scopes the
+      #    tarball. Skipped automatically if NPM_TOKEN is not configured.
       #
       #    Presence is checked in its OWN step (emitting only a boolean output) rather than a
       #    job-level `env: NPM_TOKEN`, so the credential is never in scope for the third-party

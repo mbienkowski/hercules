@@ -38,6 +38,10 @@ describe('one rejection per closed-vocabulary axis, with a message naming the al
     expectMessage(() => minimal({ schema: 2 }), "ecosystem descriptor 'eco': schema: must be 1, got 2");
   });
 
+  it('a non-string name is rejected with the same pyRepr-formatted convention every sibling field uses', () => {
+    expectMessage(() => minimal({ name: 123 }), "ecosystem descriptor 'eco': name: must be a string, got 123");
+  });
+
   it('name must equal the filename stem', () => {
     let message = '<did not throw>';
     try {

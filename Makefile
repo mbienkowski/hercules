@@ -43,9 +43,25 @@ typecheck:
 # Drop the incremental build stamp when the output tree is gone: tsc -b trusts tsbuildinfo, so a
 # manually deleted .ts-out would otherwise leave `make compile` a no-op with nothing emitted.
 # Not `tsc -b --force`, which would forfeit incremental builds on every target that depends on this.
+#
+# `tsc` itself may be absent: release.yml's `release` job deliberately never runs `npm ci` (that is
+# the whole point of its prepare/release split — see that file's own comment), so it has no
+# node_modules at all and instead downloads an already-compiled .ts-out/ as a build artifact. Every
+# target below that depends on `compile` (build, build-check, validate, smoke-matrix,
+# release-version, changelog) must still work unmodified in that job — so this checks for a usable
+# local toolchain first and, when there is none, trusts an already-populated .ts-out/ instead of
+# failing on a missing `tsc` binary. Fails loudly only when NEITHER is available, since that is a
+# real "nothing to build from" error, not a job that intentionally skips `npm ci`.
 compile:
 	@[ -d .ts-out ] || rm -f tsconfig.build.tsbuildinfo tsconfig.tests.tsbuildinfo
-	npm run compile
+	@if [ -x node_modules/.bin/tsc ]; then \
+		npm run compile; \
+	elif [ -d .ts-out ] && [ -n "$$(ls -A .ts-out 2>/dev/null)" ]; then \
+		echo "no local TypeScript toolchain (node_modules/.bin/tsc missing) — using the existing .ts-out/ as-is"; \
+	else \
+		echo "ERROR: .ts-out/ is missing or empty and there is no local TypeScript toolchain to compile it — run 'make install-ts' first" >&2; \
+		exit 1; \
+	fi
 
 test-mutation: mutation-py mutation-ts
 

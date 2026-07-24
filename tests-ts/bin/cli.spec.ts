@@ -162,6 +162,16 @@ describe('main', () => {
     expect(main(['--target', 'does-not-exist', '--check'])).toBe(0);
   });
 
+  it('accepts --target=<name>, matching the Python original\'s argparse contract', () => {
+    // Without this, --target=cursor fell through unmatched and silently defaulted target to
+    // 'all' — a correct-looking but wrong outcome for a typo, not a thrown error.
+    expect(main(['--target=claude-code', '--check'])).toBe(0);
+  });
+
+  it('throws loudly on an unrecognized argument, rather than silently ignoring it', () => {
+    expect(() => main(['--targett', 'claude-code'])).toThrow(/unrecognized argument/);
+  });
+
   it('reports a stale build with instructions to fix it', () => {
     // main()'s optional `distRoot` param (an addition over the Python original's monkeypatched
     // `cli.DIST` module attribute, purely for this test's benefit) points the --check comparison at

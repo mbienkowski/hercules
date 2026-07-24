@@ -87,9 +87,9 @@ late CI failure. The procedure:
    in `tests-python/hooks/test_enforcement_gates.py`. `test_every_registered_target_declares_a_gate` fails
    for any registered ecosystem with no declared write-gate (or an explicit, reasoned waiver) — this
    is a deliberate security forcing-function, so a new target can't ship ungated by accident.
-5. **Add tests** under `tests/build/` pinning the new target's output (see any
-   `test_<name>_build.py`), and a conformance block in `tests/build/test_conformance.py` for any
-   ecosystem-specific invariants.
+5. **Add tests** under `tests-ts/build/` pinning the new target's output (see any
+   `<name>Build.spec.ts`), and a conformance block in `tests-ts/bin/universalConformance.spec.ts`
+   (or `conformance.spec.ts`) for any ecosystem-specific invariants.
 6. **Add a smoke-checklist section** to `RELEASE.md` for the live (non-build-provable) behaviours
    the new target requires a human to confirm before release.
 
@@ -131,8 +131,10 @@ released version. Restart after any change; settings are read at startup.
 - **No comments in code** unless explaining a non-obvious decision.
 - All `.md` filenames must be **lowercase** — macOS is case-insensitive but Linux (CI) is not, so a
   mixed-case name that works locally breaks on CI.
-- Tests live in `tests/`, organised by category (`build/`, `agents/`, `commands/`, `hooks/`, …).
-  `tests/test_collection_integrity.py` guards that no test directory is hidden by `norecursedirs`.
+- Tests live in `tests-ts/`, organised by category (`build/`, `ci/`, `commands/`, `skillsAndAgents/`,
+  `docsAndPlugin/`, `workflowAndProtocols/`, `metrics/`, `bin/`, …) — everything except the shipped
+  `src/hooks/` island, whose own tests live in `tests-python/hooks/`. `tests/test_collection_integrity.py`
+  guards that no Python test directory (`tests-python/`) is hidden by `norecursedirs`.
 - One version, single-sourced — `package.json` is canonical; `pyproject.toml` is the only other
   literal (setuptools needs it) and is cross-checked against it. Both are the whole list in
   `scripts-ts/build/versionTargets.mts`; `scripts-ts/setVersion.mts` writes them, CI's `validate` job
