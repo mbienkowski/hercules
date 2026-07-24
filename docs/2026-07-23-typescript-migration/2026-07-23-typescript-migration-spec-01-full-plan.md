@@ -120,7 +120,7 @@ record, not a point-in-time snapshot.
 | 2 | ✅ `b12c2c5` | `test(metrics): pin cl100k_base token parity between python and node` | **Go/no-go spike — passed, no re-baseline needed.** `js-tiktoken@1.0.21` exact-pinned, imported as `js-tiktoken/lite` + `js-tiktoken/ranks/cl100k_base`. `make parity-tokens` counts every file in `thresholds.json` with both tokenizers | 44/44 corpus entries identical (real files + 15 adversarial strings: ZWJ emoji, CJK, whitespace runs, `<\|endoftext\|>` — both engines throw identically on the control-token case, and that refusal is compared too); self-check (delete a byte → both counts move identically) |
 | 3 | ✅ `039a331` | `feat(build): add the dual-run parity harness and port the six leaf modules` | `scripts/ci/parity.sh` (`make parity`) + `parse/render/modelMap/layout/emit/versionTargets.mts` + `pyCompat.mts` (Python string-primitive fidelity: `pySplitlines`/`pyStrip`/`pyRepr`/`pyReprMapping`, tables generated from and verified against CPython, with a `make pycompat-golden-check` CI gate proving the golden matches the Unicode version the running interpreter ships) | 66 fixtures byte-diffed; 7 deliberately injected defects across the six modules, all caught (first pass caught only 2/7, exposing 3 real fixture gaps since closed — see Lesson below) |
 | 4 | ✅ done | `feat(build): port descriptor validation to typescript as-is` | `descriptor.mts` — same closed vocabulary, same control flow, same validation *order* (guard→roles→routes→artifacts→gate→templates), `pyRepr`/`pyReprValue` for byte-identical `DescriptorError` strings. No Zod. Two documented non-ported Python quirks: bool-is-int (`schema: true` doesn't ambiguously pass) and set-membership-crashes-on-unhashable (TS `Set.has()` never crashes; fixtures redirected to a tuple-backed check to avoid asserting a crash as correct). Five further documented divergences (see the top-of-file comment): `load()`'s `*.json` glob crashing on a directory in Python but not TS (NOTE narrower than an earlier draft claimed — `validateLayout`/`distFiles` already carry an equivalent `is_file()` guard on the Python side too, so that half is faithful parity, not a divergence); `load()` crashing on a bare `NaN`/`Infinity` JSON token where Python doesn't; `Object.entries()` reordering integer-like string keys ahead of others in `vars`/`gate.tools`, affecting which of MULTIPLE simultaneous bad entries is reported first; and an integer-valued JSON float (`5.0`) being indistinguishable from an int once parsed. All four TS-only unit-tested (pinned, not parity-fixture-able) rather than fixed — see lesson 12 for why | 164 fixtures byte-diffed (incl. all 6 real shipped descriptors through `discover()`); 389 tests across 5 files (split from one, none over 474 lines — CoC's 500-line/20-line test caps); ≥95% branch coverage; `descriptor.mts` mutation score 98.49% (911 killed / 14 non-killed, all 14 independently re-verified equivalent by an adversarial review pass — see lessons 11–12), repo-wide `make mutation-ts` 97.15%, both clear of the 90% gate and the 95% warn threshold. A full fresh-eyes review round (4 parallel dimensions + independent adversarial verification of every finding) ran AFTER the mutation-closing round and found 11 further confirmed issues — 3 real correctness divergences, 2 mis-scoped tests, 2 wrongly-classified "equivalent" mutants that were actually real gaps, 2 doc-accuracy gaps in lesson 11, and 2 test-hygiene issues — all fixed; see lesson 12 |
-| 5 | ⬜ | `feat(build): validate descriptors with zod and a custom error map` | Zod v4 `discriminatedUnion` on the five discriminators, two `superRefine` blocks (wrap-mode literal-only, `toml_command` exactly `['description']`), nullable partial record for model tiers, custom error map. Signatures unchanged | Commit-4 fixtures re-run — byte-identical obligation ENDS here, contract becomes the substrings the real ported tests assert; `make mutation-ts` ≥90% on `descriptor.mts`; both `superRefine` rules pinned by named tests |
+| 5 | ✅ done | `feat(build): validate descriptors with zod and a custom error map` | Zod v4 `discriminatedUnion` on the five discriminators, two cross-field `.check()` rules (wrap-mode literal-only, `toml_command` exactly `['description']`), nullable partial record for model tiers, custom error map. Signatures unchanged | Commit-4 fixtures re-run through a redesigned harness (byte-identical obligation ends here — descriptor fixtures now compare accept/reject only, via a shared placeholder string on both sides; every other module unchanged); 410 TS tests across 18 files (177 in the 7 descriptor spec files); 165 parity fixtures, all green (98 of them descriptor-module); `descriptor.mts` mutation score 95.88% (repo-wide 95.81%), both cross-field rules pinned by named tests; a post-mutation fresh-eyes review round (lesson 19) found and fixed 6 further issues, none reachable by the mechanical gates alone |
 | 6 | ⬜ | `feat(build): port genserialize to typescript` | `genserialize.mts`; `computeFields` dispatches on the Zod-inferred discriminant through an exhaustive switch ending `satisfies never` | Parity leg over the serializer fixtures; defect per mode turns the matching spec red |
 | 7 | ⬜ | `feat(build): port genextras to typescript` | `genextras.mts`; JSON via plain `JSON.stringify(x, null, 2) + "\n"`; `${version}` exactly-one-token guard | All 6 ecosystems' artifacts rendered by both engines, byte-diffed; adversarial numeric-string-key fixture documents V8 ordering (latent risk — zero such keys exist today) |
 | 8 | ⬜ | `feat(build): port serialize and cli, and gate the full dual-build parity` | `serialize.mts` as explicit `buildRegistry()` factory, `cli.mts` with lazy `targets()` — both closing import-time filesystem scans. `make parity` becomes a **blocking CI step** | Spec asserts a bare import performs zero fs syscalls; `diff -r` **plus** `stat` mode comparison across both full trees |
@@ -364,6 +364,130 @@ must account for them; do not re-derive them from scratch.
     mechanical gates are green, not as a substitute for them, and expect real findings even after a
     thorough self-review, because "I already checked this carefully" and "an independent pass will
     find nothing" are not the same claim.
+
+13. **Zod's object-level `error` callback fires for MULTIPLE distinct issue codes at once, and a
+    code-blind callback silently produces the WRONG message for whichever one it wasn't written
+    for.** `z.strictObject(shape, {error})`'s callback fires for both `invalid_type` ("not an object
+    at all") and `unrecognized_keys` ("has a key I don't recognise") — a plain `() => "must be an
+    object"` string swallows the unrecognized-keys case under the wrong text unless the callback
+    checks `issue.code` first (this file's `objectError(label)` helper). `z.record()`/
+    `z.partialRecord()` are worse: their callback ALSO fires for `invalid_key` ("this key doesn't
+    match my key schema") — and unlike `unrecognized_keys`, an `invalid_key` issue's own `.message`
+    stays the generic "Invalid key in record" wrapper text even when the callback returns
+    `undefined` for it (verified empirically); the real message is nested one level down at
+    `issue.issues[0].message` and has to be read out and returned explicitly. Two real bugs shipped
+    from getting this wrong and were caught by review, not by writing the code carefully the first
+    time: `ModelsSchema` reported "must be a non-empty object" for an unknown model TIER name
+    (`models: {high: null, turbo: 'x'}`) instead of naming the allowed tiers, and a template's
+    `values` record reported the same generic text for a malformed PLACEHOLDER instead of the key
+    schema's own "must match `__UPPER_SNAKE__`" message. Both are now dedicated, named tests, not
+    just an assumption the code map covers.
+
+14. **A field that looks like its siblings in the schema can carry a DIFFERENT requiredness in the
+    original — check the required-key list by name, not by "this looks like the same shape".**
+    `DescriptorSchema.routes` was given the identical `.default([])` treatment as `artifacts`/
+    `guard`/`templates` — reasonable by analogy, since all four are array-shaped optional-looking
+    sections — but Python's own required-key list is `schema, name, vars, models, smoke, dispatch,
+    roles, ROUTES`, and only those eight. A descriptor omitting `routes` entirely was SILENTLY
+    ACCEPTED (defaulting to `[]`) instead of rejected with "missing required key 'routes'", a real,
+    verified divergence from Python — caught only because `minimal()`'s test fixture always sets
+    `routes: []` explicitly, so no existing test exercised the fully-omitted case, and the review's
+    mutation-closing pass specifically asked "is this `.default([])` proven necessary by a test" for
+    every array field, not just assumed correct because four fields were written the same way.
+
+15. **Zod validates the WHOLE shape and collects every issue, not just the first — this changes what
+    "one problem, in order" tests need to assert, not just their expected strings.** Commit 4's
+    hand-written checks failed fast (guard before roles before routes...); a descriptor with several
+    simultaneous problems now reports ALL of them, semicolon-joined, regardless of which one a
+    fail-fast implementation would have hit first. The three tests that used to pin a specific
+    fail-fast ORDER were rewritten to pin the NEW guarantee instead (nothing is hidden behind an
+    earlier problem) — patching their expected strings without reconsidering what property they were
+    actually proving would have left them testing something that no longer exists.
+
+16. **A mutation that would be a TypeScript compile error under `tsc -b` is invisible to Stryker's
+    mutation testing, because Stryker's test execution goes through Vitest's esbuild transform,
+    which strips types without checking them — this is a REAL protection, just not one mutation
+    testing can observe.** Two "BlockStatement → {}" mutants emptied the ENTIRE body of `nonEmptyStr()`
+    and `oneOf()` (helper functions with explicit `: z.ZodString` / `: z.ZodEnum<...>` return type
+    annotations) and were reported "Survived". Manually applying the identical mutation and running
+    `npx tsc -b` directly produces `TS2355: A function whose declared type is neither 'undefined',
+    'void', nor 'any' must return a value` — a real developer introducing this exact regression gets
+    a compile error before ever running a test. Don't write a test to "prove" this class of mutant is
+    caught; the type system already proves it, by a mechanism the mutation tool's own pipeline can't
+    see. (Contrast with lesson 5's Stryker isolated-run unreliability: that was a MEASUREMENT
+    artifact needing re-verification; this is a genuinely different, valid protection mechanism.)
+
+17. **`raw.get(key, default)`-shaped Python fields aren't always typed — some are genuinely
+    untyped passthrough, and assuming otherwise produces a false rejection of real, currently-shipping
+    data.** `smoke.install`/`npm_package`/`npm_version` are ALLOWED keys in Python's `_SMOKE_KEYS`
+    with no type check anywhere in `_parse_smoke` — `install` carries an OBJECT
+    (`{method, url, flags}`) for at least one real, currently-shipping ecosystem (`cursor.json`), not
+    a string. An initial draft of `SmokeSchema` assumed all three were non-empty strings (`nonEmptyStr()`
+    seemed the "obviously correct" type for a field named `install`) and the mistake was caught
+    immediately by `make parity` failing on a REAL fixture, not a hypothetical one — the parity
+    harness running all 6 real shipped descriptors through `discover()` earns its cost here directly.
+    The fix: `z.unknown().optional()` for all three, matching Python's actual (lack of) validation.
+
+18. **Retiring byte-identical PARITY comparison for a module needs an explicit, symmetric mechanism
+    in the harness itself, not just an agreement to stop checking.** Once `descriptor.mts` moved to
+    Zod, its error TEXT diverges from Python's by design (see the module's own top comment) — but the
+    harness's byte-diff would report every one of the 98 descriptor fixtures as a false failure if
+    left unchanged. Both runners now substitute the SAME fixed placeholder string
+    (`_DESCRIPTOR_ERROR_PLACEHOLDER` / `DESCRIPTOR_ERROR_PLACEHOLDER`, kept byte-identical across the
+    two files by a comment cross-referencing the other) for `descriptor` module errors before
+    comparison — so `make parity` still proves both engines reach the SAME accept/reject decision for
+    every fixture (it caught the `routes`-required regression above, plus the `smoke.install` one)
+    without asserting they explain it identically. Each side's own unit tests, not the parity
+    harness, now own message-text correctness for this module going forward.
+
+19. **The code-blind-`error`-callback bug class (lesson 13) recurs a THIRD time in the one place
+    the first two fixes didn't look — the shared helper, not a per-field schema.** A 4-dimension
+    fresh-eyes review of commit 5's full diff (schema fidelity, error-callback code-blindness, test
+    quality, parity-harness/doc accuracy — each finding adversarially re-verified 3x by agents
+    instructed to try to refute it, by rerunning the actual scenario against the live code, not just
+    re-reading it) surfaced 6 further confirmed issues after `make tsc`/`vitest`/`parity`/
+    `mutation-ts` were all already green:
+    - **`discriminantError`, shared by all five `discriminatedUnion`s, never checked `issue.code`** —
+      exactly the bug class `ModelsSchema` and `TemplateSchema.values` already shipped and fixed
+      (lesson 13), but this time in the one HELPER function meant to prevent it being duplicated
+      five times, not in an individual schema. A non-object discriminated-union input (e.g.
+      `routes: ['oops']`) reported `"'kind' must be one of [...], got None"` — discarding the actual
+      offending value — because `issue.input?.[field]` silently evaluates to `undefined` when
+      `issue.input` isn't an object at all. Verified live: Zod's `invalid_type` (not-an-object) and
+      `invalid_union` (bad discriminant on a real object) issue codes ARE distinguishable inside the
+      same callback, exactly the way `objectError` already distinguishes `invalid_type` from
+      `unrecognized_keys` for `strictObject` — an in-repo test comment claiming otherwise was itself
+      wrong. Fixed by branching on `issue.code`, same pattern as `objectError`.
+    - **`gate` carried a stray `.nullable()` no sibling optional field had**, silently making an
+      EXPLICIT `"gate": null` equivalent to omitting the key entirely — Python's `_parse_gate` runs
+      whenever `'gate' in raw` regardless of value and rejects `None`. Same lesson-14 shape (check
+      requiredness/nullability against Python field-by-field, not by analogy to siblings) recurring
+      on a THIRD axis: not required-vs-optional this time, but nullable-vs-not.
+    - **Six `.toThrow(<string>)` assertions across two files contradicted their own inline "exact
+      message, not a substring" comments** — `.toThrow(string)` is a Vitest/Jest SUBSTRING check, not
+      equality; a live mutation experiment (appending a suffix to every message in `formatError`)
+      sailed through all six undetected while the identical mutant failed 45 tests elsewhere in the
+      same suite that used the established `expectMessage`/`toBe` helper instead. Two of the six were
+      brand-new tests added in this very commit, so the weak pattern was actively re-introduced, not
+      merely inherited. Fixed by converting all six to `expectMessage`.
+    - **A test named "smoke requires both cli and test" only ever tested `test`** — no sibling test
+      omitted `cli` while supplying `test`, so `cli`'s requiredness was asserted by the schema but
+      unproven by any test; confirmed by live regression injection (`cli` made optional) passing the
+      full suite undetected before the missing sibling test was added.
+    - **`key_prefix`'s stricter Zod typing (`z.string()` vs Python's unenforced `str` annotation) was
+      undocumented** and contradicted the file's own top-comment claim that NaN/Infinity was "the
+      ONE divergence where TS is less forgiving than Python" — a self-inconsistency only a full
+      re-read of the documented-divergences list against the actual schema catches. Fixed by adding
+      it as a second, explicit bullet rather than changing the (safer) stricter behavior.
+    - **A freshly-written lesson (18, written earlier in this same commit's documentation pass) had
+      the wrong fixture count** — "93 descriptor fixtures" against an actual 98 — caught by an agent
+      that independently recounted rather than trusting the number as already-verified because it
+      was recently written. Being newly-authored is not evidence of being correct.
+    None of these were reachable by the mechanical gate quartet (`tsc`, `vitest`, `make parity`,
+    `make mutation-ts`) that had ALL already passed before this review ran — mutation testing proves
+    existing tests distinguish real code from a mutant, not that the real code or the tests
+    themselves are asking the right question. The meta-lesson from commit 4's lesson 12 holds again,
+    one commit later, in a codebase this session itself already knew to watch for it in.
 
 ---
 

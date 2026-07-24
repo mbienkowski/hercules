@@ -26,6 +26,14 @@ Only the MESSAGE is compared on the error path, not the exception class: the Pyt
 mimic the other's exception taxonomy would be mimicry rather than parity. Message text IS
 contractual — the code-of-conduct requires every failure to name its remedy — so that is what the
 harness pins. Exception TYPE is pinned by each side's own unit tests.
+
+ONE exception to the message-text rule, starting with the ``descriptor`` module (commit 5 of the
+migration): once ``descriptor.ts`` moved to Zod, byte-identical Python error TEXT stopped being a
+goal (see that module's own top-of-file comment) — Zod's own path-aware, multi-issue messages are
+the point of having chosen it, not a regression to paper over. For that module only, an error's
+message is replaced with a fixed placeholder before comparison, so the harness still proves both
+engines reach the SAME accept/reject decision for every fixture without asserting they explain it
+identically. Each side's own unit tests pin their own message text going forward.
 """
 
 from __future__ import annotations
@@ -51,6 +59,11 @@ _MODULES = {
     "version_targets": version_targets,
     "descriptor": descriptor,
 }
+
+# See the module docstring: post-Zod, descriptor's error TEXT is no longer part of the parity
+# contract, only the accept/reject decision. Both runners substitute this exact string so the
+# byte-diff still passes when (and only when) both sides agree an input is invalid.
+_DESCRIPTOR_ERROR_PLACEHOLDER = "<descriptor: message text not compared since commit 5 (Zod)>"
 
 
 # Fixtures carry ordered [key, value] PAIR LISTS wherever a mapping is involved, because a JSON
@@ -167,7 +180,10 @@ def main() -> int:
         try:
             result = fn(*args, **kwargs)
         except BaseException as exc:  # noqa: BLE001 - the message IS the contract under test
-            payload = {"ok": False, "error": str(exc)}
+            # descriptor: message text is no longer compared post-Zod (see the module docstring) —
+            # only that BOTH engines reject the fixture at all.
+            error = _DESCRIPTOR_ERROR_PLACEHOLDER if fixture["module"] == "descriptor" else str(exc)
+            payload = {"ok": False, "error": error}
         else:
             payload = {"ok": True, "result": _canonical(result)}
             capture = fixture.get("capture")

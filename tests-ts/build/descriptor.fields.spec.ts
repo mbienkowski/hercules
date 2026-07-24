@@ -5,9 +5,10 @@ import { expectMessage, minimal, withAgentRole } from '../support/descriptorFixt
 
 // Split out of descriptor.spec.ts (CODE_OF_CONDUCT.md's 500-line test-file cap) — see that file's
 // header comment for the full split rationale. This file owns: every remaining checkStr/
-// checkRelPath call site not already covered by descriptor.malformed.spec.ts, checkKeys' per-shape
-// "what" label, boolean-field defaults, and the two cross-field rules (empty-fields-required,
-// wrap-mode-all-literal).
+// checkRelPath call site not already covered by descriptor.malformed.spec.ts/descriptor.axes.spec.ts,
+// boolean-field defaults, and the two cross-field rules (empty-fields-required, wrap-mode-all-
+// literal). The "checkKeys per-shape what label" cases moved to descriptor.axes.spec.ts once this
+// file's OWN growth (a 14-variant it.each table) pushed it over the 500-line cap in turn.
 
 describe('every remaining checkStr/checkRelPath call site, one failure each', () => {
   it("checkStr rejects an explicit empty string, not only an absent value", () => {
@@ -17,14 +18,14 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
     // value that must still be rejected.
     expectMessage(
       () => withAgentRole({ mode: 'fields', fields: [{ key: '', from: 'stem' }] }),
-      "ecosystem descriptor 'eco': field 'key' must be a non-empty string, got ''",
+      "ecosystem descriptor 'eco': roles.agent.fields[0].key: must be a non-empty string, got ''",
     );
   });
 
   it("a guard entry must be a string", () => {
     expectMessage(
       () => minimal({ guard: [5] }),
-      "ecosystem descriptor 'eco': 'guard' entry must be a non-empty string, got 5",
+      "ecosystem descriptor 'eco': guard[0]: must be a non-empty string, got 5",
     );
   });
 
@@ -33,76 +34,93 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
     // are covered separately, but templates have their own checkRelPath call site.
     expectMessage(
       () => minimal({ templates: [{ src: 'eco.template.x.js', values: {} }] }),
-      "ecosystem descriptor 'eco': template 'dest' must be a non-empty string, got None",
+      "ecosystem descriptor 'eco': templates[0].dest: must be a non-empty string, got None",
     );
   });
 
   it("field 'field' is required for a frontmatter generator", () => {
     expectMessage(
       () => withAgentRole({ mode: 'fields', fields: [{ key: 'd', from: 'frontmatter' }] }),
-      "ecosystem descriptor 'eco': field 'field' must be a non-empty string, got None",
+      "ecosystem descriptor 'eco': roles.agent.fields[0].field: must be a non-empty string, got None",
     );
   });
 
   it("field 'value' is required for a literal generator", () => {
     expectMessage(
       () => withAgentRole({ mode: 'fields', fields: [{ key: 'k', from: 'literal' }] }),
-      "ecosystem descriptor 'eco': field 'value' must be a non-empty string, got None",
+      "ecosystem descriptor 'eco': roles.agent.fields[0].value: must be a non-empty string, got None",
     );
   });
 
   it("field 'primary' is required for a primary_mode generator", () => {
     expectMessage(
       () => withAgentRole({ mode: 'fields', fields: [{ key: 'k', from: 'primary_mode' }] }),
-      "ecosystem descriptor 'eco': field 'primary' must be a non-empty string, got None",
+      "ecosystem descriptor 'eco': roles.agent.fields[0].primary: must be a non-empty string, got None",
     );
   });
 
   it("field 'value' is required for a flag_if_name_in generator", () => {
     expectMessage(() => withAgentRole({
         mode: 'fields', fields: [{ key: 'k', from: 'flag_if_name_in', names: ['x'] }],
-      }), "ecosystem descriptor 'eco': field 'value' must be a non-empty string, got None");
+      }), "ecosystem descriptor 'eco': roles.agent.fields[0].value: must be a non-empty string, got None");
   });
 
   it("a flag_if_name_in 'names' entry must be a string", () => {
     expectMessage(() => withAgentRole({
         mode: 'fields',
         fields: [{ key: 'k', from: 'flag_if_name_in', names: [5], value: 'v' }],
-      }), "ecosystem descriptor 'eco': field 'names' entry must be a non-empty string, got 5");
+      }), "ecosystem descriptor 'eco': roles.agent.fields[0].names[0]: must be a non-empty string, got 5");
+  });
+
+  it("a flag_if_name_in 'names' must be a list, not merely have string entries", () => {
+    // `z.array(nonEmptyStr()).min(1)` has TWO error sources: the array's own type check (names
+    // isn't an array at all) and .min(1) (names is an empty array). Every existing 'names' test
+    // supplies an actual array (with a bad entry, or none), so the array-type check itself was
+    // never exercised.
+    expectMessage(() => withAgentRole({
+        mode: 'fields',
+        fields: [{ key: 'k', from: 'flag_if_name_in', names: 'not-an-array', value: 'v' }],
+      }), "ecosystem descriptor 'eco': roles.agent.fields[0].names: must be a non-empty list");
   });
 
   it("a 'required' entry must be a string", () => {
-    expectMessage(() => withAgentRole({ mode: 'preserve', required: [5] }), "ecosystem descriptor 'eco': 'required' entry must be a non-empty string, got 5");
+    expectMessage(
+      () => withAgentRole({ mode: 'preserve', required: [5] }),
+      "ecosystem descriptor 'eco': roles.agent.required[0]: must be a non-empty string, got 5",
+    );
   });
 
   it("an exact route requires 'src'", () => {
-    expectMessage(() => minimal({ routes: [{ kind: 'exact', dest: 'x.md' }] }), "ecosystem descriptor 'eco': route 'src' must be a non-empty string, got None");
+    expectMessage(
+      () => minimal({ routes: [{ kind: 'exact', dest: 'x.md' }] }),
+      "ecosystem descriptor 'eco': routes[0].src: must be a non-empty string, got None",
+    );
   });
 
   it("an omit route requires 'src'", () => {
-    expectMessage(() => minimal({ routes: [{ kind: 'omit' }] }), "ecosystem descriptor 'eco': route 'src' must be a non-empty string, got None");
+    expectMessage(() => minimal({ routes: [{ kind: 'omit' }] }), "ecosystem descriptor 'eco': routes[0].src: must be a non-empty string, got None");
   });
 
   it("a suffix_swap route requires 'prefix'", () => {
     expectMessage(() => minimal({
         routes: [{ kind: 'suffix_swap', from_suffix: '.md', to_suffix: '.toml' }],
-      }), "ecosystem descriptor 'eco': route 'prefix' must be a non-empty string, got None");
+      }), "ecosystem descriptor 'eco': routes[0].prefix: must be a non-empty string, got None");
   });
 
   it("a suffix_swap route requires 'from_suffix'", () => {
     expectMessage(() => minimal({
         routes: [{ kind: 'suffix_swap', prefix: 'x/', to_suffix: '.toml' }],
-      }), "ecosystem descriptor 'eco': route 'from_suffix' must be a non-empty string, got None");
+      }), "ecosystem descriptor 'eco': routes[0].from_suffix: must be a non-empty string, got None");
   });
 
   it("an artifact requires 'dest'", () => {
-    expectMessage(() => minimal({ artifacts: [{ content: {} }] }), "ecosystem descriptor 'eco': artifact 'dest' must be a non-empty string, got None");
+    expectMessage(() => minimal({ artifacts: [{ content: {} }] }), "ecosystem descriptor 'eco': artifacts[0].dest: must be a non-empty string, got None");
   });
 
   it("a pre_tool gate tools value must be a string", () => {
     expectMessage(() => minimal({
         gate: { protocol: 'pre_tool', tools: { edit: 5 }, path_keys: ['p'], deny: { d: 1 }, reason_key: 'r' },
-      }), "ecosystem descriptor 'eco': gate tools['edit'] must be a non-empty string, got 5");
+      }), "ecosystem descriptor 'eco': gate.tools.edit: must be a non-empty string, got 5");
   });
 
   it('pins the CURRENT key-reporting order for gate.tools with multiple bad entries (documented TS/Python divergence)', () => {
@@ -114,25 +132,25 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
         gate: {
           protocol: 'pre_tool', tools: { zeta: 1, '42': 2 }, path_keys: ['p'], deny: {}, reason_key: 'r',
         },
-      }), "ecosystem descriptor 'eco': gate tools['42'] must be a non-empty string, got 2");
+      }), "ecosystem descriptor 'eco': gate.tools.42: must be a non-empty string, got 2; gate.tools.zeta: must be a non-empty string, got 1");
   });
 
   it("a pre_tool gate requires 'reason_key'", () => {
     expectMessage(() => minimal({
         gate: { protocol: 'pre_tool', tools: { edit: 'Edit' }, path_keys: ['p'], deny: { d: 1 } },
-      }), "ecosystem descriptor 'eco': gate 'reason_key' must be a non-empty string, got None");
+      }), "ecosystem descriptor 'eco': gate.reason_key: must be a non-empty string, got None");
   });
 
   it("an event_guards gate requires 'user_key'", () => {
     expectMessage(() => minimal({
         gate: { protocol: 'event_guards', allow: { a: 1 }, deny: { d: 1 }, agent_key: 'a' },
-      }), "ecosystem descriptor 'eco': gate 'user_key' must be a non-empty string, got None");
+      }), "ecosystem descriptor 'eco': gate.user_key: must be a non-empty string, got None");
   });
 
   it("an event_guards gate requires 'agent_key'", () => {
     expectMessage(() => minimal({
         gate: { protocol: 'event_guards', allow: { a: 1 }, deny: { d: 1 }, user_key: 'u' },
-      }), "ecosystem descriptor 'eco': gate 'agent_key' must be a non-empty string, got None");
+      }), "ecosystem descriptor 'eco': gate.agent_key: must be a non-empty string, got None");
   });
 
   it("an event_guards gate's 'allow' must be an object", () => {
@@ -142,7 +160,7 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
     // descriptor-malformed-gate-eventguards-allow-not-object.in.json.
     expectMessage(() => minimal({
         gate: { protocol: 'event_guards', allow: 'nope', deny: { d: 1 }, user_key: 'u', agent_key: 'a' },
-      }), "ecosystem descriptor 'eco': gate 'allow' must be an object (the host's decision shape)");
+      }), "ecosystem descriptor 'eco': gate.allow: must be an object (the host's decision shape)");
   });
 
   it("an event_guards gate's 'deny' must be an object", () => {
@@ -150,13 +168,13 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
     // deny-not-object.in.json.
     expectMessage(() => minimal({
         gate: { protocol: 'event_guards', allow: { a: 1 }, deny: ['nope'], user_key: 'u', agent_key: 'a' },
-      }), "ecosystem descriptor 'eco': gate 'deny' must be an object (the host's decision shape)");
+      }), "ecosystem descriptor 'eco': gate.deny: must be an object (the host's decision shape)");
   });
 
   it("js_string requires 'value'", () => {
     expectMessage(() => minimal({
         templates: [{ src: 'eco.template.x.js', dest: 'x.js', values: { __X__: { from: 'js_string' } } }],
-      }), "ecosystem descriptor 'eco': '__X__' 'value' must be a non-empty string, got None");
+      }), "ecosystem descriptor 'eco': templates[0].values.__X__.value: must be a non-empty string, got None");
   });
 
   it("a js_string_list entry must be a string", () => {
@@ -165,7 +183,7 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
           src: 'eco.template.x.js', dest: 'x.js',
           values: { __X__: { from: 'js_string_list', values: [5] } },
         }],
-      }), "ecosystem descriptor 'eco': 'values' entry must be a non-empty string, got 5");
+      }), "ecosystem descriptor 'eco': templates[0].values.__X__.values[0]: must be a non-empty string, got 5");
   });
 
   it("a js_root_joins entry must be a string", () => {
@@ -174,7 +192,7 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
           src: 'eco.template.x.js', dest: 'x.js',
           values: { __X__: { from: 'js_root_joins', paths: [5] } },
         }],
-      }), "ecosystem descriptor 'eco': 'paths' entry must be a non-empty string, got 5");
+      }), "ecosystem descriptor 'eco': templates[0].values.__X__.paths[0]: must be a non-empty string, got 5");
   });
 
   it("a role_entries_js 'drop' entry must be a string", () => {
@@ -183,7 +201,7 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
           src: 'eco.template.x.js', dest: 'x.js',
           values: { __X__: { from: 'role_entries_js', role: 'agent', drop: [5], body_key: 'b' } },
         }],
-      }), "ecosystem descriptor 'eco': 'drop' entry must be a non-empty string, got 5");
+      }), "ecosystem descriptor 'eco': templates[0].values.__X__.drop[0]: must be a non-empty string, got 5");
   });
 
   it("role_entries_js requires 'body_key'", () => {
@@ -192,20 +210,20 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
           src: 'eco.template.x.js', dest: 'x.js',
           values: { __X__: { from: 'role_entries_js', role: 'agent' } },
         }],
-      }), "ecosystem descriptor 'eco': '__X__' 'body_key' must be a non-empty string, got None");
+      }), "ecosystem descriptor 'eco': templates[0].values.__X__.body_key: must be a non-empty string, got None");
   });
 
   it("a template 'src' must be a string before it is checked for the sibling shape", () => {
     expectMessage(
       () => minimal({ templates: [{ src: 5, dest: 'x.js', values: {} }] }),
-      "ecosystem descriptor 'eco': template 'src' must be a non-empty string, got 5",
+      "ecosystem descriptor 'eco': templates[0].src: must be a non-empty string, got 5",
     );
   });
 
   it("a smoke expect version_cmd entry must be a string", () => {
     expectMessage(
       () => minimal({ smoke: { cli: 'eco', test: 't', expect: { version_cmd: [5] } } }),
-      "ecosystem descriptor 'eco': 'version_cmd' entry must be a non-empty string, got 5",
+      "ecosystem descriptor 'eco': smoke.expect.version_cmd[0]: must be a non-empty string, got 5",
     );
   });
 
@@ -216,7 +234,7 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
     // descriptor-smoke-expect-versioncmd-not-a-list.in.json.
     expectMessage(
       () => minimal({ smoke: { cli: 'eco', test: 't', expect: { version_cmd: 'not-a-list' } } }),
-      "ecosystem descriptor 'eco': smoke expect 'version_cmd' must be a non-empty command list",
+      "ecosystem descriptor 'eco': smoke.expect.version_cmd: 'version_cmd' must be a non-empty command list",
     );
   });
 
@@ -225,90 +243,7 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
     // descriptor-smoke-expect-versioncmd-empty.in.json.
     expectMessage(
       () => minimal({ smoke: { cli: 'eco', test: 't', expect: { version_cmd: [] } } }),
-      "ecosystem descriptor 'eco': smoke expect 'version_cmd' must be a non-empty command list",
-    );
-  });
-});
-
-describe('checkKeys is exercised with an unknown key for every distinct "what" label', () => {
-  it('names the mode in a field-shape error: field (from=X)', () => {
-    expectMessage(
-      () => withAgentRole({ mode: 'fields', fields: [{ key: 'k', from: 'stem', extra: 1 }] }),
-      "ecosystem descriptor 'eco': field (from=stem) has unknown key(s) ['extra'] — allowed: ['from', 'key']",
-    );
-  });
-
-  it('names the kind in a route-shape error: route (kind=X)', () => {
-    expectMessage(
-      () => minimal({ routes: [{ kind: 'omit', src: 'a.md', extra: 1 }] }),
-      "ecosystem descriptor 'eco': route (kind=omit) has unknown key(s) ['extra'] — allowed: ['kind', 'src']",
-    );
-  });
-
-  it('names the protocol in a gate-shape error: gate (protocol=X)', () => {
-    expectMessage(
-      () => minimal({
-        gate: {
-          protocol: 'event_guards', allow: {}, deny: {}, user_key: 'u', agent_key: 'a', extra: 1,
-        },
-      }),
-      "ecosystem descriptor 'eco': gate (protocol=event_guards) has unknown key(s) ['extra'] — " +
-        "allowed: ['agent_key', 'allow', 'deny', 'protocol', 'user_key']",
-    );
-  });
-
-  it('names the placeholder and kind in a template-value-shape error', () => {
-    expectMessage(
-      () => minimal({
-        templates: [{
-          src: 'eco.template.x.js', dest: 'x.js',
-          values: { __X__: { from: 'js_string', value: 'v', extra: 1 } },
-        }],
-      }),
-      "ecosystem descriptor 'eco': template value '__X__' (from=js_string) has unknown key(s) " +
-        "['extra'] — allowed: ['from', 'value']",
-    );
-  });
-
-  it('names an unknown key on the artifact shape itself', () => {
-    expectMessage(
-      () => minimal({ artifacts: [{ dest: 'p.json', content: {}, extra: 1 }] }),
-      "ecosystem descriptor 'eco': artifact has unknown key(s) ['extra'] — allowed: " +
-        "['content', 'dest', 'versioned']",
-    );
-  });
-
-  it('names an unknown key on the template shape itself', () => {
-    expectMessage(
-      () => minimal({ templates: [{ src: 'eco.template.x', dest: 'x', values: {}, extra: 1 }] }),
-      "ecosystem descriptor 'eco': template has unknown key(s) ['extra'] — allowed: " +
-        "['dest', 'src', 'values']",
-    );
-  });
-
-  it('names an unknown key on the smoke shape itself', () => {
-    expectMessage(
-      () => minimal({ smoke: { cli: 'eco', test: 't', extra: 1 } }),
-      "ecosystem descriptor 'eco': 'smoke' has unknown key(s) ['extra'] — allowed: " +
-        "['cli', 'expect', 'install', 'npm_package', 'npm_version', 'test']",
-    );
-  });
-
-  it('names an unknown key on the smoke.expect shape', () => {
-    expectMessage(
-      () => minimal({ smoke: { cli: 'eco', test: 't', expect: { version_cmd: ['x'], extra: 1 } } }),
-      "ecosystem descriptor 'eco': smoke 'expect' has unknown key(s) ['extra'] — allowed: " +
-        "['version_cmd']",
-    );
-  });
-
-  it('sorts multiple unknown keys alphabetically rather than by input order', () => {
-    // A filter().sort() chain: dropping the sort would report ['zzz', 'another', 'surprises'] in
-    // whatever order Object.keys happened to iterate, not the documented sorted allowed-set style.
-    expectMessage(
-      () => minimal({ zzz: 1, another: 2, surprises: 3 }),
-      "ecosystem descriptor 'eco': descriptor has unknown key(s) ['another', 'surprises', 'zzz'] — " +
-        "allowed: ['artifacts', 'dispatch', 'gate', 'guard', 'models', 'name', 'roles', 'routes', 'schema', 'smoke', 'templates', 'vars']",
+      "ecosystem descriptor 'eco': smoke.expect.version_cmd: 'version_cmd' must be a non-empty command list",
     );
   });
 });
@@ -328,6 +263,23 @@ describe('boolean fields fall back to their documented default when absent', () 
     expect(artifacts[0]?.versioned).toBe(false);
   });
 
+  it('a preserve role defaults resolveModelTier to false and required to [] when both are absent', () => {
+    // Every OTHER test using minimal()'s default 'preserve' roles relies on these defaults working
+    // without ever asserting the RESULTING values — only the "wrong type is rejected" case was
+    // pinned, never the "omitted key produces the documented default" case.
+    const { resolveModelTier, required } = parseDescriptor('eco', withAgentRole({ mode: 'preserve' }))
+      .roles['agent'] as RoleSpec;
+    expect(resolveModelTier).toBe(false);
+    expect(required).toEqual([]);
+  });
+
+  it("a fields-mode role defaults body to 'keep' when absent", () => {
+    const { body } = parseDescriptor('eco', withAgentRole({
+      mode: 'fields', fields: [{ key: 'k', from: 'stem' }],
+    })).roles['agent'] as RoleSpec;
+    expect(body).toBe('keep');
+  });
+
   it("guard defaults to an empty list when the key is entirely absent", () => {
     // `minimal()` never sets 'guard' by default, so every other test in this suite already
     // exercises the omitted-key path — but none of them assert on the RESULTING value, only on
@@ -343,7 +295,7 @@ describe('the empty-fields-required check applies to wrap and toml_command, not 
     (raw['roles'] as Record<string, unknown>)['persona'] = { mode: 'wrap', fields: [] };
     expectMessage(
       () => raw,
-      "ecosystem descriptor 'eco': role 'persona' (mode=wrap) requires a non-empty 'fields' list",
+      "ecosystem descriptor 'eco': roles.persona.fields: requires a non-empty 'fields' list",
     );
   });
 
@@ -352,7 +304,7 @@ describe('the empty-fields-required check applies to wrap and toml_command, not 
     (raw['roles'] as Record<string, unknown>)['command'] = { mode: 'toml_command', fields: [] };
     expectMessage(
       () => raw,
-      "ecosystem descriptor 'eco': role 'command' (mode=toml_command) requires a non-empty 'fields' list",
+      "ecosystem descriptor 'eco': roles.command.fields: requires a non-empty 'fields' list",
     );
   });
 
@@ -375,7 +327,7 @@ describe('wrap mode checks that ALL fields are literal, not merely that one is',
     };
     expectMessage(
       () => raw,
-      "ecosystem descriptor 'eco': role 'persona': wrap-mode fields must all be literals (generated frontmatter)",
+      "ecosystem descriptor 'eco': roles.persona: wrap-mode fields must all be literals (generated frontmatter)",
     );
   });
 

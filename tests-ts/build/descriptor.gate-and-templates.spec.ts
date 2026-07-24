@@ -1,22 +1,34 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseDescriptor } from '../../scripts-ts/build/descriptor.mjs';
-import { minimal } from '../support/descriptorFixtures';
+import { expectMessage, minimal } from '../support/descriptorFixtures';
 
 // Split out of descriptor.spec.ts (CODE_OF_CONDUCT.md's 500-line test-file cap) — see that file's
 // header comment for the full split rationale. This file owns the two smallest cohesive shape
 // groups: malformed template values (checked directly, not via a rejection-message table) and both
 // gate protocols' full positive-path parse.
+//
+// Every rejection below goes through the shared `expectMessage` helper (try/catch + `toBe`), not
+// bare `expect(fn).toThrow(string)` — `.toThrow(string)` is a SUBSTRING/containment check in
+// Vitest, not exact equality, so it does not back the "exact message, not a substring" claim these
+// tests make about themselves. Caught by review: an earlier draft of this file used `.toThrow(
+// string)` throughout, and a live mutation experiment (appending a suffix to every message in
+// `formatError`) sailed through every one of those assertions undetected while the SAME mutant
+// failed 45 tests elsewhere in this suite that already used `expectMessage`.
 
 describe('rejecting malformed template values directly', () => {
   it('a template value that is not an object is rejected', () => {
-    // Exact message (not a substring): "must be an object" alone is shared by several other,
-    // unrelated fail() sites in this file (role/artifact/gate/'a template'/'a field spec' all use
-    // it too) — a substring check here can't tell a mutant that drops or corrupts the placeholder
-    // name apart from one that leaves it intact.
+    // Unlike `objectError`'s strictObject case, a discriminatedUnion DOES have a separate "not an
+    // object at all" issue code (`invalid_type`) distinct from "the discriminant didn't match"
+    // (`invalid_union`) — see discriminantError's own doc comment. This reports through the SAME
+    // discriminantError('from', [...]) path either way, but now names the actual rejected value
+    // ('not-an-object') rather than misreporting it as None the way a code-blind version once did.
     const tpl = [{ src: 'eco.template.x.js', dest: 'x.js', values: { __X__: 'not-an-object' } }];
-    expect(() => parseDescriptor('eco', minimal({ templates: tpl })))
-      .toThrow("ecosystem descriptor 'eco': template value '__X__' must be an object, got 'not-an-object'");
+    expectMessage(
+      () => minimal({ templates: tpl }),
+      "ecosystem descriptor 'eco': templates[0].values.__X__: 'from' must be one of " +
+        "['js_root_joins', 'js_string', 'js_string_list', 'role_entries_js'], got 'not-an-object'",
+    );
   });
 
   it('js_string_list requires a non-empty values array', () => {
@@ -24,8 +36,23 @@ describe('rejecting malformed template values directly', () => {
       src: 'eco.template.x.js', dest: 'x.js',
       values: { __X__: { from: 'js_string_list', values: [] } },
     }];
-    expect(() => parseDescriptor('eco', minimal({ templates: tpl })))
-      .toThrow("ecosystem descriptor 'eco': template value '__X__' 'values' must be a non-empty list");
+    expectMessage(
+      () => minimal({ templates: tpl }),
+      "ecosystem descriptor 'eco': templates[0].values.__X__.values: 'values' must be a non-empty list",
+    );
+  });
+
+  it("js_string_list's values must be a list at all, not merely have entries", () => {
+    // Same "two error sources on one z.array().min(1)" gap as flag_if_name_in's 'names' — the empty-
+    // array test above only exercises .min(1); this exercises the array's own type check.
+    const tpl = [{
+      src: 'eco.template.x.js', dest: 'x.js',
+      values: { __X__: { from: 'js_string_list', values: 'not-an-array' } },
+    }];
+    expectMessage(
+      () => minimal({ templates: tpl }),
+      "ecosystem descriptor 'eco': templates[0].values.__X__.values: 'values' must be a non-empty list",
+    );
   });
 
   it('js_root_joins requires a non-empty paths array', () => {
@@ -33,8 +60,21 @@ describe('rejecting malformed template values directly', () => {
       src: 'eco.template.x.js', dest: 'x.js',
       values: { __X__: { from: 'js_root_joins', paths: [] } },
     }];
-    expect(() => parseDescriptor('eco', minimal({ templates: tpl })))
-      .toThrow("ecosystem descriptor 'eco': template value '__X__' 'paths' must be a non-empty list");
+    expectMessage(
+      () => minimal({ templates: tpl }),
+      "ecosystem descriptor 'eco': templates[0].values.__X__.paths: 'paths' must be a non-empty list",
+    );
+  });
+
+  it("js_root_joins's paths must be a list at all, not merely have entries", () => {
+    const tpl = [{
+      src: 'eco.template.x.js', dest: 'x.js',
+      values: { __X__: { from: 'js_root_joins', paths: 'not-an-array' } },
+    }];
+    expectMessage(
+      () => minimal({ templates: tpl }),
+      "ecosystem descriptor 'eco': templates[0].values.__X__.paths: 'paths' must be a non-empty list",
+    );
   });
 
   it("role_entries_js defaults 'drop' to an empty list when the key is entirely absent", () => {
@@ -56,8 +96,10 @@ describe('rejecting malformed template values directly', () => {
       src: 'eco.template.x.js', dest: 'x.js',
       values: { __X__: { from: 'role_entries_js', role: 'agent', drop: 'not-a-list', body_key: 'b' } },
     }];
-    expect(() => parseDescriptor('eco', minimal({ templates: tpl })))
-      .toThrow("ecosystem descriptor 'eco': template value '__X__' 'drop' must be a list");
+    expectMessage(
+      () => minimal({ templates: tpl }),
+      "ecosystem descriptor 'eco': templates[0].values.__X__.drop: 'drop' must be a list",
+    );
   });
 });
 

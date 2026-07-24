@@ -16,226 +16,294 @@
  * operands only. An unknown key or enum value throws {@link DescriptorError} naming the offending
  * key and the allowed set — control flow stays typed, descriptors stay data.
  *
- * ── As-is port (commit 4 of the migration) ──────────────────────────────────
- * This is a structural 1:1 port of scripts/build/descriptor.py: the same closed vocabulary
- * constants, the same hand-written validation control flow, no Zod. Error messages are
- * byte-identical to the Python original via {@link pyRepr}/{@link pyReprValue}, including the
- * EXACT ORDER in which sections are validated when a descriptor has more than one problem at once
- * — guard is checked before roles/routes/artifacts; gate is checked after artifacts; templates are
- * checked last. That ordering is a real, load-bearing part of the contract (which error a
- * multiply-broken descriptor reports), not an accident of how the Python was written, so it is
- * preserved rather than reorganised. Zod replaces this in the very next commit; the parity harness
- * pins these messages so that swap is provably lossless on the failure paths that matter.
+ * ── Zod validation (commit 5 of the migration) ───────────────────────────────
+ * `parseDescriptor` is now backed by a Zod v4 schema: five `z.discriminatedUnion()`s (field `from`,
+ * role `mode`, route `kind`, gate `protocol`, template-value `from`) each built from `z.strictObject`
+ * variants — `strictObject`'s own unknown-key rejection replaces the hand-rolled `checkKeys` +
+ * per-mode allowed-key tables commit 4 carried. Two `.superRefine()` blocks enforce the cross-field
+ * rules a discriminated union can't express alone: wrap-mode fields must all be literals, and
+ * `toml_command` emits exactly one field named `description`. `models` is a `z.partialRecord` over
+ * the three tiers, nullable per tier, refined non-empty.
  *
- * Accepted, documented divergences:
+ * Every issue gets a CUSTOM message via each schema node's own `error` callback — this is the actual
+ * point of choosing Zod (see the migration spec's few-shot catalogue): byte-identical Python error
+ * TEXT was a commit-4-only goal, not a permanent contract. What replaced it: every thrown
+ * `DescriptorError` now carries the Zod-derived, dot/bracket-notation PATH of every failing field
+ * ahead of its message (`roles.agent.fields[2].value: ...`), and — because Zod validates the WHOLE
+ * shape rather than failing fast on the first problem the way commit 4's hand-written checks did —
+ * a descriptor with several simultaneous problems now reports ALL of them in one error, semicolon
+ * -separated, not just the first one encountered. `pyReprValue` still formats the "got X" part of
+ * most leaf messages, for continuity with the rest of this codebase's formatting conventions; it is
+ * a style choice here, not a parity requirement.
+ *
+ * `descriptor.mts` is the ONLY module in this codebase importing `zod` — every other module consumes
+ * the plain `EcosystemDescriptor`/`RoleSpec`/etc. interfaces below, inferred from this file's schemas
+ * but exported as ordinary TypeScript types. That boundary is what makes a future `z.toJSONSchema()`
+ * follow-up (validating `src/ecosystems/*.json` live in an editor) a near-free addition later.
+ *
+ * Filesystem functions (`load`/`discover`/`distFiles`/`names`/`validateLayout`) are UNCHANGED from
+ * commit 4 — Zod validates the parsed JSON shape, not the directory layout, so nothing here needed
+ * to move.
+ *
+ * Accepted, documented divergences (all pre-dating this commit; see commit 4's own history for how
+ * each was found — most are now MOOT rather than merely accepted, because Zod's own structural
+ * checks made the original hand-written special case unnecessary):
  *
  * - Python treats `bool` as an `int` subclass, so `True == 1` makes `schema: true` ambiguously
  *   pass the `!= 1` check there. This port does not replicate that — `schema` must be exactly the
- *   JSON number 1. No legitimate descriptor depends on the distinction, so it is a deliberate
- *   non-goal rather than a port gap; no parity fixture exercises `schema: true` for this reason.
+ *   JSON number 1.
  *
  * - Every `x not in <enum>` check backed by a Python SET (`dispatch`, role `mode`, route `kind`,
  *   gate `protocol`, field `from`, template-value `from`) CRASHES with an unhandled
- *   `TypeError: unhashable type` if the offending value is a list or a dict, because Python must
- *   hash a value before it can test set membership. The checks backed by a TUPLE (model tier,
- *   `role_entries_js`'s `role`) do not share this quirk — tuple membership uses equality, not
- *   hashing. This port's `Set.has()` never crashes regardless of input type, which is strictly
- *   more robust, not a regression, and Zod (the very next commit) will not replicate the crash
- *   either. Parity fixtures for a list/dict-shaped enum value exercise the TUPLE-backed checks,
- *   which is the same repr-formatting code path without the crash.
+ *   `TypeError: unhashable type` if the offending value is a list or a dict. Zod's own enum/literal
+ *   matching never crashes regardless of input type, which is strictly more robust, not a regression.
  *
- * - `load`/`discover` guard the `*.json` glob with `statSync(path).isFile()` before reading it.
- *   Python's own `path.read_text()` / `Path.glob("*.json")` carry no such guard here: a DIRECTORY
- *   literally named `<name>.json` makes Python crash with an unhandled `IsADirectoryError`, while
- *   this port silently skips it — refusing to replicate a crash is strictly more robust, not a
- *   regression. NOTE this divergence is narrower than it might look: `validateLayout`'s own
- *   sibling-file walk and `distFiles` BOTH already carry an equivalent `is_file()` guard on the
- *   Python side too (`descriptor.py` lines 450 and 470), so a directory shaped like
- *   `<name>.dist.<dest>` is silently skipped by BOTH engines — that is faithful parity, not a
- *   divergence, despite an earlier draft of this comment claiming otherwise.
+ * - `load`/`discover` guard the `*.json` glob with `statSync(path).isFile()` before reading it, where
+ *   Python's own `path.read_text()` / `Path.glob("*.json")` would crash on a directory literally
+ *   named `<name>.json` with an unhandled `IsADirectoryError`. `validateLayout`'s own sibling-file
+ *   walk and `distFiles` both already carry an equivalent `is_file()` guard on the Python side too
+ *   (`descriptor.py` lines 450 and 470), so only the `discover()` glob path itself diverges.
  *
  * - `load()`'s `JSON.parse` rejects the bare `NaN`/`Infinity`/`-Infinity` tokens that Python's
- *   `json.loads` accepts by default (a Python-specific, spec-violating extension — those tokens are
- *   not valid JSON per RFC 8259). A descriptor file containing one of them crashes this port with
- *   an uncaught `SyntaxError` before `parseDescriptor` ever runs, where Python would parse it into
- *   `float('nan')`/`float('inf')` and then reject it through the normal, non-crashing type-check
- *   path. This is the one divergence in this file where TS is LESS forgiving than Python, not
- *   more — accepted because no legitimate descriptor ever contains a non-standard JSON token, and
- *   because rejecting non-standard JSON outright is arguably more correct than silently accepting
- *   it. Not parity-fixture-able (the Python and TS outcomes are structurally different: a crash before
- *   validation runs at all vs. a normal `DescriptorError` afterwards), so `load()`'s own unit tests
- *   pin the TS-side behaviour directly instead.
+ *   `json.loads` accepts by default (a Python-specific, spec-violating extension). A descriptor file
+ *   containing one crashes this port with an uncaught `SyntaxError` before `parseDescriptor` ever
+ *   runs; Python parses it into `float('nan')`/`float('inf')` and rejects it through the normal,
+ *   non-crashing path instead. Accepted because no legitimate descriptor ever contains a
+ *   non-standard JSON token. (See below for the SECOND, narrower TS-stricter divergence — `key_prefix`
+ *   — this file no longer claims to have only one.)
  *
- * - `Object.entries()`/`Object.keys()` on a plain JS object reorder integer-like string keys (e.g.
- *   `"42"`) ahead of every other key, in ascending numeric order, regardless of the source JSON's
- *   actual key order — this is the JS object model's `[[OwnPropertyKeys]]` behaviour, not a bug in
- *   any one call site. Python's `dict` has no such special case; `dict.items()` always preserves
- *   the JSON source's literal key order. Two sites read multi-key raw JSON objects and iterate them
- *   to validate each entry — `vars` (`for (const [key, value] of Object.entries(varsRaw))`) and a
- *   `pre_tool` gate's `tools` (`for (const [hostTool, canonical] of Object.entries(tools))`) — so a
- *   descriptor with MULTIPLE invalid entries in either section, where at least one key looks like a
- *   non-negative integer, can report a DIFFERENT offending key than Python does for the exact same
- *   input. A single invalid entry is unaffected (the message names whichever key is wrong either
- *   way); only the *which-one-first* choice under multiple simultaneous failures can diverge, and
- *   only for the specific edge case of an integer-shaped key colliding with a non-integer-shaped
- *   one in the same object. Accepted rather than fixed: recovering true source order regardless of
- *   key shape needs a Map-producing JSON parse (or a hand-rolled tokenizer) rather than `JSON.parse`
- *   into a plain object, which is a materially bigger change than this as-is port's mandate — and
- *   Zod (the very next commit) does not change this either, since it validates the same parsed
- *   plain-object shape. `descriptor.spec.ts` pins the CURRENT (Python-diverging) TS ordering
- *   directly so this doesn't silently drift further un-noticed.
+ * - `role_entries_js`'s `key_prefix` is typed `z.string().nullable().default('')`, but Python's
+ *   `TemplateValue` is a dataclass with an unenforced `str` annotation — `key_prefix=raw.get(
+ *   "key_prefix", "")` accepts any JSON type at runtime with no `isinstance` check at all (a number,
+ *   list, or object silently lands on the field as-is). Zod's `z.string()` rejects anything that
+ *   isn't a string, null, or absent. Reverse-direction from every other divergence above (TS
+ *   stricter, not looser) and low-impact — caught by review, no real descriptor has ever authored a
+ *   non-string `key_prefix` — but recorded here rather than left to contradict the NaN/Infinity
+ *   bullet's now-inaccurate "the one divergence" framing.
  *
- * - The hand-rolled type-name detector in `parseDescriptor`'s not-an-object branch cannot tell an
- *   integer-VALUED float apart from a true int: `JSON.parse('5.0')` and `JSON.parse('5')` both
- *   produce the identical JS number `5`, since JS has one numeric type — the literal's original
- *   float-ness is gone by the time this code ever sees it. Python's `json.loads` preserves it
- *   (`type(json.loads('5.0')).__name__ == 'float'`), so a descriptor file whose ENTIRE top-level
- *   content is an integer-valued float literal (e.g. bare `5.0`) is reported as `got int` here vs.
- *   `got float` in Python. Accepted as an extremely narrow edge case (a real descriptor is always a
- *   JSON object; this only bites a file that is a bare top-level number) rather than fixed, since a
- *   fix would need the same source-text-aware parsing as the key-reordering divergence above.
+ * - `Object.entries()`/`Object.keys()` on a plain JS object reorder integer-like string keys ahead of
+ *   every other key, regardless of the source JSON's actual key order; Python's `dict.items()` always
+ *   preserves it. `vars` and a `pre_tool` gate's `tools` both iterate their raw object this way (via
+ *   Zod's own record/object traversal now, same underlying JS semantics as commit 4's hand-written
+ *   loops) — a descriptor with MULTIPLE invalid entries in either section, where at least one key
+ *   looks like a non-negative integer, can report a DIFFERENT offending key first than Python does.
+ *   Moot in one sense post-Zod: since Zod reports ALL bad entries, not just the first, this only
+ *   changes ORDER within the joined message, never which entries are reported at all.
+ *
+ * - An integer-VALUED float is indistinguishable from a true int once `JSON.parse` sees it — JS has
+ *   one numeric type, so `JSON.parse('5.0')` and `JSON.parse('5')` are identical by the time any
+ *   validation code runs. UNCHANGED post-Zod: the top-level "not an object" error's custom message
+ *   callback still runs commit 4's own `Number.isInteger` check directly against the real
+ *   `issue.input` value (Zod's OWN default `received: "number"` field doesn't distinguish them, but
+ *   that only matters if the message relied on Zod's default text, which this one doesn't). Only the
+ *   genuinely unavoidable integer-valued-float case remains a divergence — a plain `5.5` still
+ *   correctly reports `got float`.
  */
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { z } from 'zod';
 
 import { pyRepr, pyReprValue } from './pyCompat.mjs';
 
-const TOP_KEYS = new Set([
-  'schema', 'name', 'vars', 'models', 'smoke', 'dispatch', 'roles',
-  'routes', 'artifacts', 'guard', 'gate', 'templates',
-]);
 // Sibling filename markers: "<eco>.dist.<dest>" ships byte-identically at plugin-root <dest>;
 // "<eco>.template.<dest>" is a text template the descriptor's `templates` section renders.
 const DIST_MARKER = '.dist.';
 const TEMPLATE_MARKER = '.template.';
-// Computed-value kinds a template placeholder may use (closed; operands only).
-const TEMPLATE_VALUE_KINDS: Readonly<Record<string, ReadonlySet<string>>> = {
-  js_string: new Set(['from', 'value']),
-  js_string_list: new Set(['from', 'values']),
-  js_root_joins: new Set(['from', 'paths']),
-  role_entries_js: new Set(['from', 'role', 'drop', 'body_key', 'key_prefix']),
-};
 const PLACEHOLDER = /^__[A-Z_]+__$/;
-// The write-gate protocols the shared adapter implements — named by CAPABILITY, not by ecosystem.
-const GATE_PROTOCOLS = new Set(['pre_tool', 'event_guards']);
-const GATE_KEYS: Readonly<Record<string, ReadonlySet<string>>> = {
-  pre_tool: new Set(['protocol', 'tools', 'path_keys', 'nested_keys', 'allow', 'deny', 'reason_key']),
-  event_guards: new Set(['protocol', 'allow', 'deny', 'user_key', 'agent_key']),
-};
 const ROLE_NAMES = ['agent', 'command', 'persona', 'default'] as const;
-const MODES = new Set(['preserve', 'fields', 'wrap', 'plain', 'toml_command']);
-const BODY_POLICIES = new Set(['keep', 'lstrip_newlines', 'strip_newlines']);
-const FIELD_FROMS = new Set(['frontmatter', 'stem', 'literal', 'primary_mode', 'flag_if_name_in']);
-const ROUTE_KINDS = new Set(['exact', 'suffix_swap', 'omit']);
-const DISPATCHES = new Set(['path', 'frontmatter']);
-const MODEL_TIERS = new Set(['high', 'medium', 'low']);
-const SMOKE_KEYS = new Set(['cli', 'test', 'npm_package', 'npm_version', 'install', 'expect']);
-// Per-mode allowed role-spec keys — the schema's shape lives here, not in prose.
-const ROLE_KEYS: Readonly<Record<string, ReadonlySet<string>>> = {
-  preserve: new Set(['mode', 'resolve_model_tier', 'required']),
-  fields: new Set(['mode', 'fields', 'body']),
-  wrap: new Set(['mode', 'fields']),
-  plain: new Set(['mode']),
-  toml_command: new Set(['mode', 'fields', 'body']),
-};
-// Per-generator allowed field-spec keys.
-const FIELD_KEYS: Readonly<Record<string, ReadonlySet<string>>> = {
-  frontmatter: new Set(['key', 'from', 'field', 'render']),
-  stem: new Set(['key', 'from']),
-  literal: new Set(['key', 'from', 'value']),
-  primary_mode: new Set(['key', 'from', 'primary']),
-  flag_if_name_in: new Set(['key', 'from', 'names', 'value']),
-};
-const ROUTE_KEYS: Readonly<Record<string, ReadonlySet<string>>> = {
-  exact: new Set(['kind', 'src', 'dest']),
-  suffix_swap: new Set(['kind', 'prefix', 'from_suffix', 'to_suffix']),
-  omit: new Set(['kind', 'src']),
-};
 
 export class DescriptorError extends Error {
   override readonly name = 'DescriptorError';
 }
 
+// ── Shared leaf schemas and message formatting ─────────────────────────────
+
+/** A Zod issue path (`['roles','agent','fields',2,'value']`) as `roles.agent.fields[2].value`. */
+function formatPath(path: readonly PropertyKey[]): string {
+  return path
+    .map((segment, i) => (typeof segment === 'number' ? `[${segment}]` : i === 0 ? String(segment) : `.${String(segment)}`))
+    .join('');
+}
+
+/** Every Zod issue's own `error` callback supplies the "what's wrong" half; this supplies "where". */
+function formatIssue(issue: z.core.$ZodIssue): string {
+  const where = formatPath(issue.path);
+  return where ? `${where}: ${issue.message}` : issue.message;
+}
+
 /**
- * Python's `dict.get(key, default)`: returns `default` only when `key` is ABSENT, never when it is
- * present with value `null`. The obvious `raw[key] ?? default` is NOT equivalent — `??` treats an
- * explicit `null` as nullish too, silently coercing it to the default instead of letting it reach
- * the isinstance/type check Python runs on it. That divergence is real, not theoretical: it was
- * caught by review, verified against a live `python3` run and the project's own parity harness for
- * `role.body`, `field.render`, `role.resolve_model_tier`, `role.required`, `artifact.versioned`,
- * `templateValue.drop`, `templateValue.key_prefix`, and `template.values` — an explicit `null` on
- * any of the first seven makes Python raise DescriptorError while `??` let it through silently.
+ * `DescriptorError`'s message for a whole failed parse: every issue Zod collected, not just the
+ * first — Zod validates the WHOLE shape rather than failing fast the way commit 4's hand-written
+ * checks did, so a descriptor with several simultaneous problems now reports all of them at once.
  */
-function pyGet<T>(raw: Record<string, unknown>, key: string, fallback: T): unknown {
-  return key in raw ? raw[key] : fallback;
+function formatError(descriptorName: string, error: z.core.$ZodError): string {
+  const parts = error.issues.map(formatIssue);
+  return `ecosystem descriptor ${pyRepr(descriptorName)}: ${parts.join('; ')}`;
 }
 
-function fail(descriptorName: string, message: string): never {
-  throw new DescriptorError(`ecosystem descriptor ${pyRepr(descriptorName)}: ${message}`);
-}
-
-/** Python's `isinstance(value, dict)`: a plain object, never an array or null. */
-function isDict(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function checkKeys(
-  descriptorName: string,
-  what: string,
-  obj: Record<string, unknown>,
-  allowed: ReadonlySet<string>,
-): void {
-  const unknown = Object.keys(obj).filter((k) => !allowed.has(k)).sort();
-  if (unknown.length > 0) {
-    fail(
-      descriptorName,
-      `${what} has unknown key(s) ${pyReprValue(unknown)} — allowed: ${pyReprValue([...allowed].sort())}`,
-    );
-  }
-}
-
-function checkStr(descriptorName: string, what: string, value: unknown): string {
-  if (typeof value !== 'string' || value === '') {
-    fail(descriptorName, `${what} must be a non-empty string, got ${pyReprValue(value)}`);
-  }
-  return value;
+/** A required, non-empty string leaf — the single most common check in this schema. */
+function nonEmptyStr(): z.ZodString {
+  return z.string({ error: (issue) => `must be a non-empty string, got ${pyReprValue(issue.input)}` })
+    .min(1, { error: (issue) => `must be a non-empty string, got ${pyReprValue(issue.input)}` });
 }
 
 /** A dest/src path inside the tree: relative, no parent escapes. */
-function checkRelPath(descriptorName: string, what: string, value: unknown): string {
-  const path = checkStr(descriptorName, what, value);
-  if (path.startsWith('/') || path.split('/').includes('..')) {
-    fail(descriptorName, `${what} must be a relative path without '..', got ${pyRepr(path)}`);
-  }
-  return path;
+function relPath() {
+  return nonEmptyStr().check((ctx) => {
+    const path = ctx.value;
+    if (path.startsWith('/') || path.split('/').includes('..')) {
+      ctx.issues.push({
+        code: 'custom',
+        input: path,
+        message: `must be a relative path without '..', got ${pyRepr(path)}`,
+      });
+    }
+  });
 }
 
-// ── Shapes ─────────────────────────────────────────────────────────────────
+function oneOf<T extends readonly [string, ...string[]]>(values: T): z.ZodEnum<{ [K in T[number]]: K }> {
+  const sorted = [...values].sort();
+  const shape = Object.fromEntries(values.map((v) => [v, v])) as { [K in T[number]]: K };
+  return z.enum(shape, { error: (issue) => `must be one of ${pyReprValue(sorted)}, got ${pyReprValue(issue.input)}` });
+}
+
+/**
+ * `z.strictObject()`'s own object-level `error` param fires for BOTH "the input isn't an object at
+ * all" (`invalid_type`) and "the input has a key `strictObject` doesn't recognise" (`unrecognized_
+ * keys`) — a single string param can't distinguish them, so every `strictObject` in this file that
+ * needs a custom "must be an object" message ALSO needs this to keep its unknown-key message
+ * sensible rather than falling back to Zod's generic one.
+ */
+function objectError(label: string): (issue: { code: string; input?: unknown; keys?: string[] }) => string | undefined {
+  return (issue) => {
+    if (issue.code === 'invalid_type') return `${label} must be an object, got ${pyReprValue(issue.input)}`;
+    if (issue.code === 'unrecognized_keys') {
+      return `${label} has unknown key(s) ${pyReprValue([...(issue.keys ?? [])].sort())}`;
+    }
+    // Structurally unreachable, not merely untested: `z.strictObject()`'s OWN object-level check
+    // (as opposed to a nested field's) can only ever produce 'invalid_type' or 'unrecognized_keys'
+    // at this object's own path — every other issue code Zod defines belongs to a FIELD schema
+    // (too_small, invalid_value, ...) or a record/union wrapper this function is never attached to,
+    // and those report through their OWN error settings at their OWN nested path, never through
+    // this callback. Kept as a fallback anyway so this function's return type stays honest (Zod's
+    // `error` callback signature always permits `undefined`) rather than asserting a code union
+    // this function doesn't actually need to enumerate.
+    return undefined;
+  };
+}
+
+/**
+ * `z.discriminatedUnion(field, variants)`'s own top-level `error` param fires for TWO distinct
+ * issue codes, exactly the same ambiguity `objectError` above resolves for `strictObject`: `
+ * invalid_union` when the input IS an object but its discriminant value matches no variant (read
+ * the real discriminant off `issue.input[field]`), and `invalid_type` when the input isn't an
+ * object at all (a string/array/number/null) — there `issue.input[field]` is always `undefined`,
+ * so reporting it would print "got None" regardless of the actual offending value. A code-blind
+ * version of this shipped briefly and was caught by review before commit: `routes: ['oops']`
+ * rendered "'kind' must be one of [...], got None" instead of naming the string `'oops'` that was
+ * actually rejected. Shared by all five discriminated unions in this file so each call site stays
+ * a single, unindented line instead of repeating this cast-and-format boilerplate five times over.
+ */
+function discriminantError(field: string, values: readonly string[]) {
+  const sorted = [...values].sort();
+  return (issue: { code: string; input?: unknown }) => {
+    const got = issue.code === 'invalid_type'
+      ? issue.input
+      : (issue.input as Record<string, unknown> | undefined)?.[field];
+    return `'${field}' must be one of ${pyReprValue(sorted)}, got ${pyReprValue(got)}`;
+  };
+}
+
+// ── Shapes ──────────────────────────────────────────────────────────────────
 
 /** One emitted frontmatter field: its output `key` and the named generator producing it. */
 export interface FieldSpec {
   readonly key: string;
-  readonly source: string; // a FIELD_FROMS member ("from" in JSON)
-  readonly field: string | null; // frontmatter: the source frontmatter key
-  readonly render: boolean; // frontmatter: token-render the value
-  readonly value: string | null; // literal / flag_if_name_in: the emitted value
-  readonly primary: string | null; // primary_mode: the primary agent name
-  readonly names: readonly string[]; // flag_if_name_in: names that receive the flag
+  readonly source: string;
+  readonly field: string | null;
+  readonly render: boolean;
+  readonly value: string | null;
+  readonly primary: string | null;
+  readonly names: readonly string[];
 }
+
+const emptyField = { field: null, render: false, value: null, primary: null, names: [] } as const;
+
+const FieldSchema = z.discriminatedUnion('from', [
+  z.strictObject({
+    key: nonEmptyStr(), from: z.literal('frontmatter'),
+    field: nonEmptyStr(), render: z.boolean({ error: () => 'must be a boolean' }).default(false),
+  }, { error: objectError('field (from=frontmatter)') })
+    .transform((f): FieldSpec => ({ key: f.key, source: f.from, ...emptyField, field: f.field, render: f.render })),
+  z.strictObject({ key: nonEmptyStr(), from: z.literal('stem') }, { error: objectError('field (from=stem)') })
+    .transform((f): FieldSpec => ({ key: f.key, source: f.from, ...emptyField })),
+  z.strictObject(
+    { key: nonEmptyStr(), from: z.literal('literal'), value: nonEmptyStr() },
+    { error: objectError('field (from=literal)') },
+  ).transform((f): FieldSpec => ({ key: f.key, source: f.from, ...emptyField, value: f.value })),
+  z.strictObject(
+    { key: nonEmptyStr(), from: z.literal('primary_mode'), primary: nonEmptyStr() },
+    { error: objectError('field (from=primary_mode)') },
+  ).transform((f): FieldSpec => ({ key: f.key, source: f.from, ...emptyField, primary: f.primary })),
+  z.strictObject({
+    key: nonEmptyStr(), from: z.literal('flag_if_name_in'),
+    names: z.array(nonEmptyStr(), { error: () => 'must be a non-empty list' }).min(1, { error: () => 'must be a non-empty list' }),
+    value: nonEmptyStr(),
+  }, { error: objectError('field (from=flag_if_name_in)') })
+    .transform((f): FieldSpec => ({ key: f.key, source: f.from, ...emptyField, value: f.value, names: f.names })),
+], { error: discriminantError('from', ['flag_if_name_in', 'frontmatter', 'literal', 'primary_mode', 'stem']) });
 
 /** How one role (agent/command/persona/default) serializes for this ecosystem. */
 export interface RoleSpec {
-  readonly mode: string; // a MODES member
+  readonly mode: string;
   readonly fields: readonly FieldSpec[];
-  readonly body: string; // a BODY_POLICIES member
+  readonly body: string;
   readonly resolveModelTier: boolean;
   readonly required: readonly string[];
 }
 
+const BODY = oneOf(['keep', 'lstrip_newlines', 'strip_newlines']);
+const nonEmptyFields = z.array(FieldSchema).min(1, { error: () => "requires a non-empty 'fields' list" });
+
+const RoleSchema = z.discriminatedUnion('mode', [
+  z.strictObject({
+    mode: z.literal('preserve'),
+    resolve_model_tier: z.boolean({ error: () => 'must be a boolean' }).default(false),
+    required: z.array(nonEmptyStr(), { error: () => 'must be a list' }).default([]),
+  }, { error: objectError('role (mode=preserve)') }),
+  z.strictObject({
+    mode: z.literal('fields'), fields: nonEmptyFields, body: BODY.default('keep'),
+  }, { error: objectError('role (mode=fields)') }),
+  z.strictObject({ mode: z.literal('wrap'), fields: nonEmptyFields }, { error: objectError('role (mode=wrap)') }),
+  z.strictObject({ mode: z.literal('plain') }, { error: objectError('role (mode=plain)') }),
+  z.strictObject({
+    mode: z.literal('toml_command'), fields: nonEmptyFields, body: BODY.default('keep'),
+  }, { error: objectError('role (mode=toml_command)') }),
+], { error: discriminantError('mode', ['fields', 'plain', 'preserve', 'toml_command', 'wrap']) })
+  .transform((r): RoleSpec => ({
+    mode: r.mode,
+    fields: 'fields' in r ? r.fields : [],
+    body: 'body' in r ? r.body : 'keep',
+    resolveModelTier: 'resolve_model_tier' in r ? r.resolve_model_tier : false,
+    required: 'required' in r ? r.required : [],
+  }))
+  .check((ctx) => {
+    const role = ctx.value;
+    if (role.mode === 'wrap' && role.fields.some((f) => f.source !== 'literal')) {
+      ctx.issues.push({ code: 'custom', input: role, message: "wrap-mode fields must all be literals (generated frontmatter)" });
+    }
+    if (role.mode === 'toml_command') {
+      const keys = role.fields.map((f) => f.key);
+      if (keys.length !== 1 || keys[0] !== 'description') {
+        ctx.issues.push({ code: 'custom', input: role, message: "toml_command emits exactly one field, 'description'" });
+      }
+    }
+  });
+
 /** One src→dest relocation rule (ordered, first match wins, identity fallback). */
 export interface Route {
-  readonly kind: string; // a ROUTE_KINDS member
+  readonly kind: string;
   readonly src: string | null;
   readonly dest: string | null;
   readonly prefix: string | null;
@@ -243,12 +311,35 @@ export interface Route {
   readonly toSuffix: string | null;
 }
 
+const emptyRoute = { src: null, dest: null, prefix: null, fromSuffix: null, toSuffix: null } as const;
+
+const RouteSchema = z.discriminatedUnion('kind', [
+  z.strictObject(
+    { kind: z.literal('exact'), src: relPath(), dest: relPath() },
+    { error: objectError('route (kind=exact)') },
+  ).transform((r): Route => ({ kind: r.kind, ...emptyRoute, src: r.src, dest: r.dest })),
+  z.strictObject({
+    kind: z.literal('suffix_swap'), prefix: relPath(), from_suffix: relPath(), to_suffix: relPath(),
+  }, { error: objectError('route (kind=suffix_swap)') }).transform((r): Route => ({
+    kind: r.kind, ...emptyRoute, prefix: r.prefix, fromSuffix: r.from_suffix, toSuffix: r.to_suffix,
+  })),
+  z.strictObject({ kind: z.literal('omit'), src: relPath() }, { error: objectError('route (kind=omit)') })
+    .transform((r): Route => ({ kind: r.kind, ...emptyRoute, src: r.src })),
+], { error: discriminantError('kind', ['exact', 'omit', 'suffix_swap']) });
+
 /** One inline-JSON file the build emits: `content` dumped canonically to `dest`. */
 export interface Artifact {
   readonly dest: string;
   readonly content: Readonly<Record<string, unknown>>;
   readonly versioned: boolean;
 }
+
+const ArtifactSchema = z.strictObject({
+  dest: relPath(),
+  content: z.record(z.string(), z.unknown(), { error: () => "'content' must be a JSON object" }),
+  versioned: z.boolean({ error: () => "'versioned' must be a boolean" }).default(false),
+}, { error: objectError('an artifact') })
+  .transform((a): Artifact => ({ dest: a.dest, content: a.content, versioned: a.versioned }));
 
 /** One computed template value: a closed `kind` plus its data operands. */
 export interface TemplateValue {
@@ -262,12 +353,99 @@ export interface TemplateValue {
   readonly keyPrefix: string | null;
 }
 
+// Python's TemplateValue dataclass defaults `key_prefix` to `""` at the FIELD level: js_string/
+// js_string_list/js_root_joins never pass key_prefix to the constructor at all, so they always get
+// that structural `""` default. Only role_entries_js reads an explicit `key_prefix` from raw input.
+const emptyTplVal = { value: null, values: [], paths: [], role: null, drop: [], bodyKey: null, keyPrefix: '' } as const;
+
+const TemplateValueSchema = z.discriminatedUnion('from', [
+  z.strictObject(
+    { from: z.literal('js_string'), value: nonEmptyStr() },
+    { error: objectError('template value (from=js_string)') },
+  ).transform((v): TemplateValue => ({ kind: v.from, ...emptyTplVal, value: v.value })),
+  z.strictObject({
+    from: z.literal('js_string_list'),
+    values: z.array(nonEmptyStr(), { error: () => "'values' must be a non-empty list" }).min(1, { error: () => "'values' must be a non-empty list" }),
+  }, { error: objectError('template value (from=js_string_list)') })
+    .transform((v): TemplateValue => ({ kind: v.from, ...emptyTplVal, values: v.values })),
+  z.strictObject({
+    from: z.literal('js_root_joins'),
+    paths: z.array(relPath(), { error: () => "'paths' must be a non-empty list" }).min(1, { error: () => "'paths' must be a non-empty list" }),
+  }, { error: objectError('template value (from=js_root_joins)') })
+    .transform((v): TemplateValue => ({ kind: v.from, ...emptyTplVal, paths: v.paths })),
+  z.strictObject({
+    from: z.literal('role_entries_js'),
+    role: oneOf(ROLE_NAMES),
+    drop: z.array(nonEmptyStr(), { error: () => "'drop' must be a list" }).default([]),
+    body_key: nonEmptyStr(),
+    key_prefix: z.string().nullable().default(''),
+  }, { error: objectError('template value (from=role_entries_js)') }).transform((v): TemplateValue => ({
+    kind: v.from, ...emptyTplVal, role: v.role, drop: v.drop, bodyKey: v.body_key, keyPrefix: v.key_prefix,
+  })),
+], { error: discriminantError('from', ['js_root_joins', 'js_string', 'js_string_list', 'role_entries_js']) });
+
 /** One rendered template: a `<eco>.template.<dest>` sibling filled with computed values. */
 export interface Template {
   readonly src: string;
   readonly dest: string;
   readonly values: Readonly<Record<string, TemplateValue>>;
 }
+
+const TemplateSchema = z.strictObject({
+  src: nonEmptyStr().check((ctx) => {
+    if (ctx.value.includes('/') || !ctx.value.includes(TEMPLATE_MARKER)) {
+      ctx.issues.push({
+        code: 'custom', input: ctx.value,
+        message: `'src' must be a flat '<eco>${TEMPLATE_MARKER}<dest>' sibling, got ${pyRepr(ctx.value)}`,
+      });
+    }
+  }),
+  dest: relPath(),
+  values: z.record(
+    z.string().regex(PLACEHOLDER, { error: (issue) => `placeholder ${pyRepr(String(issue.input))} must match __UPPER_SNAKE__` }),
+    TemplateValueSchema,
+    {
+      // Same class of bug as ModelsSchema's — caught by the SAME review pass: a code-blind `error`
+      // here swallowed the key schema's own "must match __UPPER_SNAKE__" message under the generic
+      // "'values' must be an object" text for a MALFORMED PLACEHOLDER (code 'invalid_key'), not just
+      // for "values isn't an object at all" (code 'invalid_type'). Unlike objectError/ModelsSchema's
+      // invalid_key branch, `z.record()`'s own key-schema error does NOT bubble up to this issue's
+      // own `.message` even when this callback returns `undefined` for it (verified empirically) —
+      // it stays the generic "Invalid key in record" wrapper text — so the nested issue's message
+      // has to be read out and returned explicitly here.
+      error: (issue) => {
+        if (issue.code === 'invalid_type') return "'values' must be an object";
+        if (issue.code === 'invalid_key') {
+          const nested = (issue as { issues?: readonly { message: string }[] }).issues ?? [];
+          return nested[0]?.message;
+        }
+        return undefined;
+      },
+    },
+  ).default({}),
+}, { error: objectError('a template') })
+  .transform((t): Template => ({ src: t.src, dest: t.dest, values: t.values }));
+
+/** One write-gate configuration — returned as-is (not transformed), matching Python's dict. */
+const GateSchema = z.discriminatedUnion('protocol', [
+  z.strictObject({
+    protocol: z.literal('pre_tool'),
+    tools: z.record(z.string(), nonEmptyStr(), { error: () => "'tools' must be a non-empty object mapping host tool → canonical tool" })
+      .refine((t) => Object.keys(t).length > 0, { error: () => "'tools' must be a non-empty object mapping host tool → canonical tool" }),
+    path_keys: z.array(z.unknown()).min(1, { error: () => "'path_keys' must be a non-empty list" }),
+    nested_keys: z.array(z.unknown(), { error: () => "'nested_keys' must be a list" }).optional(),
+    allow: z.record(z.string(), z.unknown(), { error: () => "'allow' must be an object when present" }).optional(),
+    deny: z.record(z.string(), z.unknown(), { error: () => "'deny' must be an object (the host's decision shape)" }),
+    reason_key: nonEmptyStr(),
+  }, { error: objectError('gate (protocol=pre_tool)') }),
+  z.strictObject({
+    protocol: z.literal('event_guards'),
+    allow: z.record(z.string(), z.unknown(), { error: () => "must be an object (the host's decision shape)" }),
+    deny: z.record(z.string(), z.unknown(), { error: () => "must be an object (the host's decision shape)" }),
+    user_key: nonEmptyStr(),
+    agent_key: nonEmptyStr(),
+  }, { error: objectError('gate (protocol=event_guards)') }),
+], { error: discriminantError('protocol', ['event_guards', 'pre_tool']) });
 
 /** The validated, immutable form of one `src/ecosystems/<name>.json`. */
 export interface EcosystemDescriptor {
@@ -284,347 +462,138 @@ export interface EcosystemDescriptor {
   readonly templates: readonly Template[];
 }
 
-// ── Per-shape parsers ──────────────────────────────────────────────────────
+const MODEL_TIERS = ['high', 'low', 'medium'] as const;
 
-function parseField(descriptorName: string, raw: unknown): FieldSpec {
-  if (!isDict(raw)) fail(descriptorName, `a field spec must be an object, got ${pyReprValue(raw)}`);
-  const source = raw['from'];
-  if (typeof source !== 'string' || !FIELD_FROMS.has(source)) {
-    fail(descriptorName, `field 'from' must be one of ${pyReprValue([...FIELD_FROMS].sort())}, got ${pyReprValue(source)}`);
-  }
-  checkKeys(descriptorName, `field (from=${source})`, raw, FIELD_KEYS[source] as ReadonlySet<string>);
-  const key = checkStr(descriptorName, "field 'key'", raw['key']);
+const ModelsSchema = z.partialRecord(
+  oneOf(['high', 'medium', 'low']),
+  z.string({ error: (issue) => `must be a string or null, got ${pyReprValue(issue.input)}` }).nullable(),
+  {
+    // A blind, code-blind `error` here would swallow EVERY issue this schema can produce under the
+    // SAME "must be a non-empty object" text, including a wrong TIER NAME (code 'invalid_key') —
+    // caught by review: `models: {high: null, turbo: 'x'}` was reporting "models.turbo: 'models'
+    // must be a non-empty object" instead of naming the allowed tiers. Only 'invalid_type' (the
+    // "not an object at all" case) gets this message; 'invalid_key' gets its own, using the same
+    // pyReprValue-formatted style as every other enum-membership message in this file rather than
+    // the key schema's own generic-enum wording (which `undefined` here would otherwise expose).
+    error: (issue) => {
+      if (issue.code === 'invalid_type') return "'models' must be a non-empty object";
+      if (issue.code === 'invalid_key') {
+        const path = issue.path ?? [];
+        const badKey = path[path.length - 1];
+        return `must be one of ${pyReprValue(MODEL_TIERS)}, got ${pyReprValue(badKey)}`;
+      }
+      // Structurally unreachable: `z.partialRecord()`'s own record-level check can only ever
+      // produce 'invalid_type' or 'invalid_key' at this record's own path — same reasoning as
+      // objectError's identical fallback above.
+      return undefined;
+    },
+  },
+).refine((m) => Object.keys(m).length > 0, { error: () => "'models' must be a non-empty object" });
 
-  if (source === 'frontmatter') {
-    const render = pyGet(raw, 'render', false);
-    if (typeof render !== 'boolean') fail(descriptorName, "field 'render' must be a boolean");
-    return {
-      key, source, render,
-      field: checkStr(descriptorName, "field 'field'", raw['field']),
-      value: null, primary: null, names: [],
-    };
-  }
-  if (source === 'literal') {
-    return {
-      key, source, field: null, render: false, primary: null, names: [],
-      value: checkStr(descriptorName, "field 'value'", raw['value']),
-    };
-  }
-  if (source === 'primary_mode') {
-    return {
-      key, source, field: null, render: false, value: null, names: [],
-      primary: checkStr(descriptorName, "field 'primary'", raw['primary']),
-    };
-  }
-  if (source === 'flag_if_name_in') {
-    const names = raw['names'];
-    if (!Array.isArray(names) || names.length === 0) {
-      fail(descriptorName, "field 'names' must be a non-empty list");
-    }
-    return {
-      key, source, field: null, render: false, primary: null,
-      value: checkStr(descriptorName, "field 'value'", raw['value']),
-      names: names.map((n) => checkStr(descriptorName, "field 'names' entry", n)),
-    };
-  }
-  // stem
-  return { key, source, field: null, render: false, value: null, primary: null, names: [] };
-}
+const SmokeSchema = z.strictObject({
+  cli: nonEmptyStr(),
+  test: nonEmptyStr(),
+  // npm_package/npm_version/install are ALLOWED keys with no type validation of their own in the
+  // Python original (`_SMOKE_KEYS` only names them; nothing checks their shape) — `install` in
+  // particular carries an OBJECT for some ecosystems (`{method, url, flags}`), not a string, so
+  // z.unknown() here is deliberate, not an oversight. Only `cli`/`test`/`expect` are actually typed.
+  npm_package: z.unknown().optional(),
+  npm_version: z.unknown().optional(),
+  install: z.unknown().optional(),
+  expect: z.strictObject({
+    version_cmd: z.array(nonEmptyStr(), { error: () => "'version_cmd' must be a non-empty command list" })
+      .min(1, { error: () => "'version_cmd' must be a non-empty command list" }),
+  }, { error: objectError("smoke 'expect'") }).optional(),
+}, { error: objectError("'smoke'") });
 
-function parseRole(descriptorName: string, role: string, raw: unknown): RoleSpec {
-  if (!isDict(raw)) fail(descriptorName, `role ${pyRepr(role)} must be an object, got ${pyReprValue(raw)}`);
-  const mode = raw['mode'];
-  if (typeof mode !== 'string' || !MODES.has(mode)) {
-    fail(descriptorName, `role ${pyRepr(role)} 'mode' must be one of ${pyReprValue([...MODES].sort())}, got ${pyReprValue(mode)}`);
+const GUARD_ENTRY = nonEmptyStr().check((ctx) => {
+  if (ctx.value.includes('/')) {
+    ctx.issues.push({ code: 'custom', input: ctx.value, message: `entries are module filenames (no '/'), got ${pyRepr(ctx.value)}` });
   }
-  checkKeys(descriptorName, `role ${pyRepr(role)} (mode=${mode})`, raw, ROLE_KEYS[mode] as ReadonlySet<string>);
+});
 
-  const body = pyGet(raw, 'body', 'keep');
-  if (typeof body !== 'string' || !BODY_POLICIES.has(body)) {
-    fail(descriptorName, `role ${pyRepr(role)} 'body' must be one of ${pyReprValue([...BODY_POLICIES].sort())}, got ${pyReprValue(body)}`);
-  }
-  const fieldsRaw = raw['fields'] ?? [];
-  if (mode === 'fields' || mode === 'wrap' || mode === 'toml_command') {
-    if (!Array.isArray(fieldsRaw) || fieldsRaw.length === 0) {
-      fail(descriptorName, `role ${pyRepr(role)} (mode=${mode}) requires a non-empty 'fields' list`);
+const DescriptorSchema = z.strictObject({
+  schema: z.literal(1, { error: (issue) => `must be 1, got ${pyReprValue(issue.input)}` }),
+  name: z.string(),
+  vars: z.record(
+    z.string(),
+    z.string({ error: (issue) => `must be a string, got ${pyReprValue(issue.input)}` }),
+    { error: () => "'vars' must be a non-empty object" },
+  ).refine((v) => Object.keys(v).length > 0, { error: () => "'vars' must be a non-empty object" }),
+  models: ModelsSchema,
+  smoke: SmokeSchema,
+  dispatch: oneOf(['frontmatter', 'path']),
+  roles: z.strictObject({
+    agent: RoleSchema, command: RoleSchema, persona: RoleSchema, default: RoleSchema,
+  }, { error: objectError("'roles'") }),
+  // UNLIKE artifacts/guard/templates below, `routes` is a REQUIRED top-level key in the Python
+  // original (`_check_keys`' required-key loop names schema/name/vars/models/smoke/dispatch/roles/
+  // routes, and only those eight) — caught by review: an earlier draft of this schema gave routes
+  // the SAME `.default([])` treatment as the three genuinely-optional array sections, so a
+  // descriptor omitting 'routes' entirely was silently ACCEPTED here while Python correctly rejects
+  // it with "missing required key 'routes'". No `.default()`: an absent key must fail the same way
+  // a wrong-type one does, not fall through to an empty list.
+  routes: z.array(RouteSchema, { error: () => "'routes' must be a list" }),
+  artifacts: z.array(ArtifactSchema, { error: () => "'artifacts' must be a list" }).default([]),
+  guard: z.array(GUARD_ENTRY, { error: () => "'guard' must be a list" }).default([]),
+  // UNLIKE the OUTPUT type (`gate: ... | null`, coalesced below), the INPUT schema must not be
+  // `.nullable()`: Python's `gate=_parse_gate(name, raw["gate"]) if "gate" in raw else None` only
+  // treats an ABSENT key as None — an explicit `"gate": null` still reaches `_parse_gate`, which
+  // rejects it (`isinstance(None, dict)` is False). A stray `.nullable()` here (the one place this
+  // schema had it, unlike the plain `.default([])` on the sibling optional sections above) made an
+  // explicit null silently equivalent to omitting the key — caught by review, no test had covered
+  // `gate: null` to catch it beforehand.
+  gate: GateSchema.optional(),
+  templates: z.array(TemplateSchema, { error: () => "'templates' must be a list" }).default([]),
+}, {
+  error: (issue) => {
+    if (issue.code === 'unrecognized_keys') {
+      const keys = (issue as { keys?: string[] }).keys ?? [];
+      return `descriptor has unknown key(s) ${pyReprValue([...keys].sort())}`;
     }
-  }
-  const fieldsArr: unknown[] = Array.isArray(fieldsRaw) ? fieldsRaw : [];
-  const fields = fieldsArr.map((f) => parseField(descriptorName, f));
-  if (mode === 'wrap' && fields.some((f) => f.source !== 'literal')) {
-    fail(descriptorName, `role ${pyRepr(role)}: wrap-mode fields must all be literals (generated frontmatter)`);
-  }
-  if (mode === 'toml_command') {
-    const keys = fields.map((f) => f.key);
-    if (keys.length !== 1 || keys[0] !== 'description') {
-      fail(descriptorName, `role ${pyRepr(role)}: toml_command emits exactly one field, 'description'`);
-    }
-  }
-  const resolveModelTier = pyGet(raw, 'resolve_model_tier', false);
-  if (typeof resolveModelTier !== 'boolean') {
-    fail(descriptorName, `role ${pyRepr(role)} 'resolve_model_tier' must be a boolean`);
-  }
-  const requiredRaw = pyGet(raw, 'required', []);
-  if (!Array.isArray(requiredRaw)) fail(descriptorName, `role ${pyRepr(role)} 'required' must be a list`);
-  return {
-    mode, fields, body, resolveModelTier,
-    required: requiredRaw.map((r) => checkStr(descriptorName, "'required' entry", r)),
-  };
-}
-
-function parseRoute(descriptorName: string, raw: unknown): Route {
-  if (!isDict(raw)) fail(descriptorName, `a route must be an object, got ${pyReprValue(raw)}`);
-  const kind = raw['kind'];
-  if (typeof kind !== 'string' || !ROUTE_KINDS.has(kind)) {
-    fail(descriptorName, `route 'kind' must be one of ${pyReprValue([...ROUTE_KINDS].sort())}, got ${pyReprValue(kind)}`);
-  }
-  checkKeys(descriptorName, `route (kind=${kind})`, raw, ROUTE_KEYS[kind] as ReadonlySet<string>);
-
-  if (kind === 'exact') {
-    return {
-      kind, prefix: null, fromSuffix: null, toSuffix: null,
-      src: checkRelPath(descriptorName, "route 'src'", raw['src']),
-      dest: checkRelPath(descriptorName, "route 'dest'", raw['dest']),
-    };
-  }
-  if (kind === 'omit') {
-    return {
-      kind, dest: null, prefix: null, fromSuffix: null, toSuffix: null,
-      src: checkRelPath(descriptorName, "route 'src'", raw['src']),
-    };
-  }
-  // suffix_swap builds its destination as `rel[:-len(from_suffix)] + to_suffix`; guard every
-  // operand against a tree escape the SAME way exact-route dest is guarded, so a swapped
-  // extension can never write outside the built plugin tree.
-  return {
-    kind, src: null, dest: null,
-    prefix: checkRelPath(descriptorName, "route 'prefix'", raw['prefix']),
-    fromSuffix: checkRelPath(descriptorName, "route 'from_suffix'", raw['from_suffix']),
-    toSuffix: checkRelPath(descriptorName, "route 'to_suffix'", raw['to_suffix']),
-  };
-}
-
-function parseArtifact(descriptorName: string, raw: unknown): Artifact {
-  if (!isDict(raw)) fail(descriptorName, `an artifact must be an object, got ${pyReprValue(raw)}`);
-  checkKeys(descriptorName, 'artifact', raw, new Set(['dest', 'content', 'versioned']));
-  if (!isDict(raw['content'])) fail(descriptorName, "artifact 'content' must be a JSON object");
-  const versioned = pyGet(raw, 'versioned', false);
-  if (typeof versioned !== 'boolean') fail(descriptorName, "artifact 'versioned' must be a boolean");
-  return {
-    dest: checkRelPath(descriptorName, "artifact 'dest'", raw['dest']),
-    content: raw['content'] as Record<string, unknown>,
-    versioned,
-  };
-}
-
-function parseGate(descriptorName: string, raw: unknown): Record<string, unknown> {
-  if (!isDict(raw)) fail(descriptorName, `'gate' must be an object, got ${pyReprValue(raw)}`);
-  const protocol = raw['protocol'];
-  if (typeof protocol !== 'string' || !GATE_PROTOCOLS.has(protocol)) {
-    fail(descriptorName, `gate 'protocol' must be one of ${pyReprValue([...GATE_PROTOCOLS].sort())}, got ${pyReprValue(protocol)}`);
-  }
-  checkKeys(descriptorName, `gate (protocol=${protocol})`, raw, GATE_KEYS[protocol] as ReadonlySet<string>);
-
-  if (protocol === 'pre_tool') {
-    const tools = raw['tools'];
-    if (!isDict(tools) || Object.keys(tools).length === 0) {
-      fail(descriptorName, "gate 'tools' must be a non-empty object mapping host tool → canonical tool");
-    }
-    for (const [hostTool, canonical] of Object.entries(tools)) {
-      checkStr(descriptorName, `gate tools[${pyRepr(hostTool)}]`, canonical);
-    }
-    const pathKeys = raw['path_keys'];
-    if (!Array.isArray(pathKeys) || pathKeys.length === 0) {
-      fail(descriptorName, "gate 'path_keys' must be a non-empty list");
-    }
-    if (!isDict(raw['deny'])) fail(descriptorName, "gate 'deny' must be an object (the host's decision shape)");
-    if ('allow' in raw && !isDict(raw['allow'])) {
-      fail(descriptorName, "gate 'allow' must be an object when present");
-    }
-    checkStr(descriptorName, "gate 'reason_key'", raw['reason_key']);
-    if ('nested_keys' in raw && !Array.isArray(raw['nested_keys'])) {
-      fail(descriptorName, "gate 'nested_keys' must be a list");
-    }
-  }
-  if (protocol === 'event_guards') {
-    for (const key of ['allow', 'deny']) {
-      if (!isDict(raw[key])) fail(descriptorName, `gate ${pyRepr(key)} must be an object (the host's decision shape)`);
-    }
-    checkStr(descriptorName, "gate 'user_key'", raw['user_key']);
-    checkStr(descriptorName, "gate 'agent_key'", raw['agent_key']);
-  }
-  return { ...raw };
-}
-
-function parseTemplateValue(descriptorName: string, placeholder: string, raw: unknown): TemplateValue {
-  if (!isDict(raw)) {
-    fail(descriptorName, `template value ${pyRepr(placeholder)} must be an object, got ${pyReprValue(raw)}`);
-  }
-  const kind = raw['from'];
-  if (typeof kind !== 'string' || !Object.hasOwn(TEMPLATE_VALUE_KINDS, kind)) {
-    fail(
-      descriptorName,
-      `template value ${pyRepr(placeholder)} 'from' must be one of ` +
-        `${pyReprValue(Object.keys(TEMPLATE_VALUE_KINDS).sort())}, got ${pyReprValue(kind)}`,
-    );
-  }
-  checkKeys(descriptorName, `template value ${pyRepr(placeholder)} (from=${kind})`, raw, TEMPLATE_VALUE_KINDS[kind] as ReadonlySet<string>);
-
-  // Python's TemplateValue dataclass defaults `key_prefix` to `""` at the FIELD level (line 170 of
-  // descriptor.py); js_string/js_string_list/js_root_joins never pass key_prefix to the
-  // constructor at all, so they always get that structural `""` default — never `None`, and never
-  // influenced by a JSON `key_prefix` (which isn't even in those three kinds' allowed key set, so
-  // checkKeys rejects it before construction). Only role_entries_js reads `raw.get("key_prefix", "")`
-  // explicitly below, which is where the pyGet null-vs-absent distinction actually applies.
-  const empty = { value: null, values: [], paths: [], role: null, drop: [], bodyKey: null, keyPrefix: '' };
-  if (kind === 'js_string') {
-    return { kind, ...empty, value: checkStr(descriptorName, `${pyRepr(placeholder)} 'value'`, raw['value']) };
-  }
-  if (kind === 'js_string_list') {
-    const values = raw['values'];
-    if (!Array.isArray(values) || values.length === 0) {
-      fail(descriptorName, `template value ${pyRepr(placeholder)} 'values' must be a non-empty list`);
-    }
-    return { kind, ...empty, values: values.map((v) => checkStr(descriptorName, "'values' entry", v)) };
-  }
-  if (kind === 'js_root_joins') {
-    const paths = raw['paths'];
-    if (!Array.isArray(paths) || paths.length === 0) {
-      fail(descriptorName, `template value ${pyRepr(placeholder)} 'paths' must be a non-empty list`);
-    }
-    return { kind, ...empty, paths: paths.map((p) => checkRelPath(descriptorName, "'paths' entry", p)) };
-  }
-  // role_entries_js
-  const role = raw['role'];
-  if (typeof role !== 'string' || !(ROLE_NAMES as readonly string[]).includes(role)) {
-    fail(descriptorName, `template value ${pyRepr(placeholder)} 'role' must be one of ${pyReprValue([...ROLE_NAMES].sort())}, got ${pyReprValue(role)}`);
-  }
-  const drop = pyGet(raw, 'drop', []);
-  if (!Array.isArray(drop)) fail(descriptorName, `template value ${pyRepr(placeholder)} 'drop' must be a list`);
-  return {
-    kind, ...empty, role,
-    drop: drop.map((d: unknown) => checkStr(descriptorName, "'drop' entry", d)),
-    bodyKey: checkStr(descriptorName, `${pyRepr(placeholder)} 'body_key'`, raw['body_key']),
-    keyPrefix: pyGet(raw, 'key_prefix', '') as string | null,
-  };
-}
-
-function parseTemplate(descriptorName: string, raw: unknown): Template {
-  if (!isDict(raw)) fail(descriptorName, `a template must be an object, got ${pyReprValue(raw)}`);
-  checkKeys(descriptorName, 'template', raw, new Set(['src', 'dest', 'values']));
-  const src = checkStr(descriptorName, "template 'src'", raw['src']);
-  if (src.includes('/') || !src.includes(TEMPLATE_MARKER)) {
-    fail(descriptorName, `template 'src' must be a flat '<eco>${TEMPLATE_MARKER}<dest>' sibling, got ${pyRepr(src)}`);
-  }
-  const valuesRaw = pyGet(raw, 'values', {});
-  if (!isDict(valuesRaw)) fail(descriptorName, "template 'values' must be an object");
-  for (const placeholder of Object.keys(valuesRaw)) {
-    if (!PLACEHOLDER.test(placeholder)) {
-      fail(descriptorName, `template placeholder ${pyRepr(placeholder)} must match __UPPER_SNAKE__`);
-    }
-  }
-  const values: Record<string, TemplateValue> = {};
-  for (const [placeholder, v] of Object.entries(valuesRaw)) {
-    values[placeholder] = parseTemplateValue(descriptorName, placeholder, v);
-  }
-  return { src, dest: checkRelPath(descriptorName, "template 'dest'", raw['dest']), values };
-}
+    // Restores commit 4's int-vs-float distinction (Number.isInteger), which the earlier draft of
+    // this schema dropped under the mistaken assumption that it was "moot" because Zod's OWN
+    // default `received` field doesn't have it — but this callback constructs its own message from
+    // the real `issue.input` value directly, so nothing stops it from checking Number.isInteger
+    // itself, same as commit 4 did. Only the genuinely unavoidable case remains a divergence:
+    // JSON.parse('5.0') and JSON.parse('5') are both the identical JS number 5, so an
+    // integer-VALUED float is still indistinguishable from a true int once JSON.parse has run.
+    const typeName = issue.input === undefined ? 'undefined' : issue.input === null ? 'NoneType'
+      : Array.isArray(issue.input) ? 'list' : typeof issue.input === 'string' ? 'str'
+        : typeof issue.input === 'boolean' ? 'bool'
+          : typeof issue.input === 'number' ? (Number.isInteger(issue.input) ? 'int' : 'float') : typeof issue.input;
+    return `descriptor must be a JSON object, got ${typeName}`;
+  },
+});
 
 /** Validate `raw` (a decoded `<name>.json`) against the closed vocabulary; return the shape. */
 export function parseDescriptor(descriptorName: string, raw: unknown): EcosystemDescriptor {
-  if (!isDict(raw)) {
-    const typeName = raw === null ? 'NoneType' : Array.isArray(raw) ? 'list'
-      : typeof raw === 'string' ? 'str' : typeof raw === 'boolean' ? 'bool'
-      : typeof raw === 'number' ? (Number.isInteger(raw) ? 'int' : 'float') : typeof raw;
-    fail(descriptorName, `descriptor must be a JSON object, got ${typeName}`);
+  const result = DescriptorSchema.safeParse(raw);
+  if (!result.success) throw new DescriptorError(formatError(descriptorName, result.error));
+  if (result.data.name !== descriptorName) {
+    throw new DescriptorError(
+      `ecosystem descriptor ${pyRepr(descriptorName)}: 'name' must equal the filename stem, got ${pyReprValue(result.data.name)}`,
+    );
   }
-  checkKeys(descriptorName, 'descriptor', raw, TOP_KEYS);
-  for (const key of ['schema', 'name', 'vars', 'models', 'smoke', 'dispatch', 'roles', 'routes']) {
-    if (!(key in raw)) fail(descriptorName, `missing required key ${pyRepr(key)}`);
-  }
-  if (raw['schema'] !== 1) fail(descriptorName, `'schema' must be 1, got ${pyReprValue(raw['schema'])}`);
-  if (raw['name'] !== descriptorName) {
-    fail(descriptorName, `'name' must equal the filename stem, got ${pyReprValue(raw['name'])}`);
-  }
-  const varsRaw = raw['vars'];
-  if (!isDict(varsRaw) || Object.keys(varsRaw).length === 0) {
-    fail(descriptorName, "'vars' must be a non-empty object");
-  }
-  for (const [key, value] of Object.entries(varsRaw)) {
-    if (typeof value !== 'string') fail(descriptorName, `vars[${pyRepr(key)}] must be a string, got ${pyReprValue(value)}`);
-  }
-  const models = raw['models'];
-  if (!isDict(models) || Object.keys(models).length === 0) fail(descriptorName, "'models' must be a non-empty object");
-  checkKeys(descriptorName, "'models'", models, MODEL_TIERS);
-  for (const [tier, value] of Object.entries(models)) {
-    if (value !== null && typeof value !== 'string') {
-      fail(descriptorName, `models[${pyRepr(tier)}] must be a string or null, got ${pyReprValue(value)}`);
-    }
-  }
-  const smoke = raw['smoke'];
-  if (!isDict(smoke)) fail(descriptorName, "'smoke' must be an object");
-  checkKeys(descriptorName, "'smoke'", smoke, SMOKE_KEYS);
-  for (const key of ['cli', 'test']) checkStr(descriptorName, `smoke[${pyRepr(key)}]`, smoke[key]);
-  if ('expect' in smoke) {
-    const expect = smoke['expect'];
-    if (!isDict(expect)) fail(descriptorName, "smoke 'expect' must be an object");
-    checkKeys(descriptorName, "smoke 'expect'", expect, new Set(['version_cmd']));
-    const cmd = expect['version_cmd'];
-    if (!Array.isArray(cmd) || cmd.length === 0) fail(descriptorName, "smoke expect 'version_cmd' must be a non-empty command list");
-    for (const part of cmd) checkStr(descriptorName, "'version_cmd' entry", part);
-  }
-  if (typeof raw['dispatch'] !== 'string' || !DISPATCHES.has(raw['dispatch'])) {
-    fail(descriptorName, `'dispatch' must be one of ${pyReprValue([...DISPATCHES].sort())}, got ${pyReprValue(raw['dispatch'])}`);
-  }
-  const rolesRaw = raw['roles'];
-  if (!isDict(rolesRaw)) fail(descriptorName, "'roles' must be an object");
-  const roleKeysSorted = Object.keys(rolesRaw).sort();
-  const roleNamesSorted = [...ROLE_NAMES].sort();
-  const rolesMatch =
-    roleKeysSorted.length === roleNamesSorted.length &&
-    roleKeysSorted.every((k, i) => k === roleNamesSorted[i]);
-  if (!rolesMatch) {
-    fail(descriptorName, `'roles' must define exactly ${pyReprValue(roleNamesSorted)}, got ${pyReprValue(roleKeysSorted)}`);
-  }
-  for (const key of ['routes', 'artifacts', 'guard', 'templates']) {
-    if (key in raw && !Array.isArray(raw[key])) fail(descriptorName, `${pyRepr(key)} must be a list`);
-  }
-  const guardRaw: unknown[] = Array.isArray(raw['guard']) ? raw['guard'] : [];
-  const guard = guardRaw.map((g) => checkStr(descriptorName, "'guard' entry", g));
-  for (const module of guard) {
-    if (module.includes('/')) fail(descriptorName, `'guard' entries are module filenames (no '/'), got ${pyRepr(module)}`);
-  }
-
-  // The remaining sections are validated in the SAME order as the Python original's return-call
-  // argument evaluation: roles, then routes, then artifacts, then gate, then templates last. This
-  // order is a real contract — which error a multiply-broken descriptor reports — not incidental.
-  const roles: Record<string, RoleSpec> = {};
-  for (const [role, spec] of Object.entries(rolesRaw)) roles[role] = parseRole(descriptorName, role, spec);
-
-  const routesRaw: unknown[] = Array.isArray(raw['routes']) ? raw['routes'] : [];
-  const routes = routesRaw.map((r) => parseRoute(descriptorName, r));
-
-  const artifactsRaw: unknown[] = Array.isArray(raw['artifacts']) ? raw['artifacts'] : [];
-  const artifacts = artifactsRaw.map((a) => parseArtifact(descriptorName, a));
-
-  const gate = 'gate' in raw ? parseGate(descriptorName, raw['gate']) : null;
-
-  const templatesRaw: unknown[] = Array.isArray(raw['templates']) ? raw['templates'] : [];
-  const templates = templatesRaw.map((t) => parseTemplate(descriptorName, t));
-
   return {
     name: descriptorName,
-    // Cast is safe: every value was validated to be a string (vars) / string-or-null (models) in
-    // the loops above.
-    vars: { ...varsRaw } as Record<string, string>,
-    models: { ...models } as Record<string, string | null>,
-    smoke: { ...smoke },
-    dispatch: raw['dispatch'],
-    roles, routes, artifacts, guard, gate, templates,
+    vars: result.data.vars,
+    // Cast is safe: partialRecord only OMITS keys that weren't present, it never stores an
+    // explicit `undefined` value for a present one — TS's Partial<Record<...>> typing is just
+    // conservative about a hypothetical `obj.foo` access on an absent key.
+    models: result.data.models as Record<string, string | null>,
+    smoke: result.data.smoke,
+    dispatch: result.data.dispatch,
+    roles: result.data.roles,
+    routes: result.data.routes,
+    artifacts: result.data.artifacts,
+    guard: result.data.guard,
+    gate: (result.data.gate ?? null) as Readonly<Record<string, unknown>> | null,
+    templates: result.data.templates,
   };
 }
 
-// ── Filesystem boundary ────────────────────────────────────────────────────
+// ── Filesystem boundary ─────────────────────────────────────────────────────
 
 const REPO_ROOT = join(import.meta.dirname, '..', '..');
 const ECOSYSTEMS_DIR = join(REPO_ROOT, 'src', 'ecosystems');

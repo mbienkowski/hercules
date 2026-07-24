@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DescriptorError, discover, names, parseDescriptor } from '../../scripts-ts/build/descriptor.mjs';
-import { ECOSYSTEMS, minimal } from '../support/descriptorFixtures';
+import { ECOSYSTEMS, expectMessage, minimal } from '../support/descriptorFixtures';
 import { readRepoJson } from '../support/repo';
 
 // Covers the smoke-level contract only: the error class's own shape, the six real shipped
@@ -9,13 +9,16 @@ import { readRepoJson } from '../support/repo';
 // one deep LOCK of every construction branch via a fixture pair. Every rejection-message assertion
 // lives in a sibling file — split out of what was one 1200+ line file, per CODE_OF_CONDUCT.md's
 // 500-line test-file cap:
-//   - descriptor.malformed.spec.ts          cross-section validation order, closed-vocabulary shapes
-//   - descriptor.fields.spec.ts              checkStr/checkRelPath sites, checkKeys, cross-field rules
+//   - descriptor.malformed.spec.ts          multi-problem reporting, closed-vocabulary shapes
+//   - descriptor.axes.spec.ts                one rejection per axis, checkKeys per-shape "what" label
+//   - descriptor.fields.spec.ts              checkStr/checkRelPath sites, defaults, cross-field rules
 //   - descriptor.gate-and-templates.spec.ts  malformed template values, both gate protocols' full parse
 //   - descriptor.filesystem.spec.ts          discover/load/distFiles against real temp directories
 //   - descriptorSort.spec.ts                 the vi.mock('node:fs')-based sort-order proof (pre-existing)
-// All five import their shared fixtures (minimal/withAgentRole/expectMessage/ECOSYSTEMS) from
-// tests-ts/support/descriptorFixtures.ts rather than redefining them.
+// All six import their shared fixtures (minimal/withAgentRole/expectMessage/ECOSYSTEMS) from
+// tests-ts/support/descriptorFixtures.ts rather than redefining them. Since commit 5, error message
+// TEXT is no longer required to be byte-identical to the Python original (see descriptor.mts's own
+// top-of-file comment) — these files pin Zod's own path-aware messages instead.
 
 describe('DescriptorError', () => {
   it("carries the name 'DescriptorError', not the generic 'Error'", () => {
@@ -63,20 +66,25 @@ describe('the two Python quirks this port deliberately does not replicate', () =
   it('requires schema to be exactly the number 1, not Python’s bool-is-int true', () => {
     // Python's `True != 1` is False (bool is an int subclass there), so `schema: true` would
     // ambiguously pass Python's check. This port does not special-case it: schema must be the
-    // literal number 1. Exact message (not a substring): pins that a rejected boolean still renders
-    // as Python's `True`/`False` via pyReprValue, not JS's lowercase `true`/`false`.
-    expect(() => parseDescriptor('eco', minimal({ schema: true })))
-      .toThrow("ecosystem descriptor 'eco': 'schema' must be 1, got True");
+    // literal number 1. Exact message (not a substring, via expectMessage's try/catch + toBe —
+    // `.toThrow(string)` is a substring/containment check in Vitest and would not catch a mutant
+    // that merely appends content after this text): pins that a rejected boolean still renders as
+    // Python's `True`/`False` via pyReprValue, not JS's lowercase `true`/`false`.
+    expectMessage(() => minimal({ schema: true }), "ecosystem descriptor 'eco': schema: must be 1, got True");
   });
 
   it('rejects a list-shaped enum value cleanly instead of crashing on it', () => {
     // The Python original's `x not in <set>` check raises an unhandled TypeError for an unhashable
-    // value (list/dict) rather than a DescriptorError. Set.has() never has that failure mode. The
-    // instanceof check and the exact-message check are deliberately separate assertions: the first
-    // pins the ERROR CLASS this port throws instead of crashing, the second pins the full message.
+    // value (list/dict) rather than a DescriptorError. Zod's own enum/literal matching never has
+    // that failure mode regardless of input type. The instanceof check and the exact-message check
+    // are deliberately separate assertions: the first pins the ERROR CLASS this port throws instead
+    // of crashing, the second (via expectMessage, not `.toThrow(string)` — see the sibling test's
+    // comment) pins the full message.
     expect(() => parseDescriptor('eco', minimal({ dispatch: ['a', 'b'] }))).toThrow(DescriptorError);
-    expect(() => parseDescriptor('eco', minimal({ dispatch: ['a', 'b'] })))
-      .toThrow("ecosystem descriptor 'eco': 'dispatch' must be one of ['frontmatter', 'path'], got ['a', 'b']");
+    expectMessage(
+      () => minimal({ dispatch: ['a', 'b'] }),
+      "ecosystem descriptor 'eco': dispatch: must be one of ['frontmatter', 'path'], got ['a', 'b']",
+    );
   });
 });
 

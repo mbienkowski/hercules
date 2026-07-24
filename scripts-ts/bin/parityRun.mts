@@ -7,6 +7,13 @@
  * place that translation lives, so a fixture is engine-neutral and neither side can quietly run a
  * different function than the other.
  *
+ * ONE exception to the message-text rule, starting with `descriptor` (commit 5 of the migration):
+ * once descriptor.mts moved to Zod, byte-identical Python error TEXT stopped being a goal — see
+ * both that module's own top-of-file comment and parity_run.py's module docstring for why. For that
+ * module only, an error's message is replaced with the SAME fixed placeholder both runners use, so
+ * the harness still proves both engines reach the same accept/reject decision without asserting
+ * they explain it identically.
+ *
  * Usage: node .ts-out/bin/parityRun.mjs < fixture.json
  */
 
@@ -32,6 +39,10 @@ import * as modelMap from '../build/modelMap.mjs';
 import * as parse from '../build/parse.mjs';
 import * as render from '../build/render.mjs';
 import * as versionTargets from '../build/versionTargets.mjs';
+
+// Must match parity_run.py's _DESCRIPTOR_ERROR_PLACEHOLDER byte-for-byte — the byte-diff harness
+// only proves accept/reject agreement for descriptor if both sides substitute the SAME string.
+const DESCRIPTOR_ERROR_PLACEHOLDER = '<descriptor: message text not compared since commit 5 (Zod)>';
 
 type FileSpec = string | { text: string; mode?: string };
 
@@ -201,7 +212,11 @@ try {
     }
   } catch (error) {
     // Only the MESSAGE is compared, never the exception class — see the Python runner for why.
-    payload = { ok: false, error: (error as Error).message };
+    // descriptor: message text is no longer compared post-Zod — see the file header comment.
+    payload = {
+      ok: false,
+      error: fixture.module === 'descriptor' ? DESCRIPTOR_ERROR_PLACEHOLDER : (error as Error).message,
+    };
   }
 } finally {
   rmSync(root, { recursive: true, force: true });
