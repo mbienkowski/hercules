@@ -69,3 +69,68 @@ if [[ "${failed}" -gt 0 ]]; then
 fi
 
 echo "parity: ${total}/${total} fixtures produce byte-identical results (python vs node)"
+
+# ── Leg 2 (commit 8+): full-tree parity ──────────────────────────────────────
+#
+# Both compilers render EVERY target from scratch into isolated temp trees, called directly
+# (build_target/buildTarget) rather than through either CLI's argparse/argv layer, so this compares
+# the two RENDERERS, not two option parsers. `diff -r` catches content drift; a separate `stat`-mode
+# walk catches a permission drift `diff -r` cannot see (Python's shutil.copyfile leaves the
+# destination at the umask, Node's fs.copyFileSync propagates the source's bits — every file in the
+# committed dist/ tree is 100644, so this divergence is invisible to content-only comparison and
+# would surface later as a spurious permission change).
+targets="$(python -c 'from scripts.build import descriptor; print("\n".join(descriptor.names()))')"
+
+tree_failed=0
+for target in ${targets}; do
+  py_tree="${work}/tree-py-${target}"
+  ts_tree="${work}/tree-ts-${target}"
+
+  if ! python -c "
+from pathlib import Path
+from scripts.build.cli import build_target
+build_target('${target}', Path('${py_tree}'))
+" 2> "${work}/tree-py-${target}.err"; then
+    echo "FAIL full-tree ${target}: the python renderer crashed" >&2
+    sed 's/^/    /' "${work}/tree-py-${target}.err" >&2
+    tree_failed=$((tree_failed + 1))
+    continue
+  fi
+  if ! node --input-type=module -e "
+import { buildTarget } from './${runner_ts%/*}/cli.mjs';
+buildTarget('${target}', '${ts_tree}');
+" 2> "${work}/tree-ts-${target}.err"; then
+    echo "FAIL full-tree ${target}: the node renderer crashed" >&2
+    sed 's/^/    /' "${work}/tree-ts-${target}.err" >&2
+    tree_failed=$((tree_failed + 1))
+    continue
+  fi
+
+  if ! diff -rq "${py_tree}" "${ts_tree}" > "${work}/tree-${target}.diff"; then
+    tree_failed=$((tree_failed + 1))
+    echo "FAIL full-tree ${target}: content diverged" >&2
+    sed 's/^/    /' "${work}/tree-${target}.diff" >&2
+    continue
+  fi
+
+  mode_mismatch=0
+  while IFS= read -r -d '' rel; do
+    py_mode="$(stat -f '%Lp' "${py_tree}/${rel}" 2>/dev/null || stat -c '%a' "${py_tree}/${rel}")"
+    ts_mode="$(stat -f '%Lp' "${ts_tree}/${rel}" 2>/dev/null || stat -c '%a' "${ts_tree}/${rel}")"
+    if [[ "${py_mode}" != "${ts_mode}" ]]; then
+      echo "FAIL full-tree ${target}: ${rel} mode diverged (python ${py_mode} vs node ${ts_mode})" >&2
+      mode_mismatch=1
+    fi
+  done < <(cd "${py_tree}" && find . -type f -print0)
+  if [[ "${mode_mismatch}" -ne 0 ]]; then
+    tree_failed=$((tree_failed + 1))
+  fi
+done
+
+if [[ "${tree_failed}" -gt 0 ]]; then
+  echo "parity: full-tree leg DIVERGED for ${tree_failed} target(s)." >&2
+  exit 1
+fi
+
+echo "parity: full-tree leg — ${targets} all byte-identical (content + mode, python vs node)" | tr '\n' ' '
+echo
