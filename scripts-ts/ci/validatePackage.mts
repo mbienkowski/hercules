@@ -51,9 +51,3 @@ export function main(): void {
       `version ${[...versions][0]}\n`,
   );
 }
-
-// Only run when invoked directly (`node validatePackage.mjs`), not when imported by a test —
-// matching Python's `if __name__ == "__main__":` guard.
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main();
-}

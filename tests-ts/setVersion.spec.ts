@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { VERSION_TARGETS, readVersions } from '../scripts-ts/build/versionTargets.mjs';
-import { setVersion } from '../scripts-ts/setVersion.mjs';
+import { main, setVersion } from '../scripts-ts/setVersion.mjs';
 
 // Ported from test_version_process.py's test_bumping_the_version_updates_every_canonical_file, the
 // one test that exercises scripts/set_version.py's own set_version() wrapper directly (as opposed to
@@ -40,5 +40,44 @@ describe('setVersion', () => {
     setVersion('9.9.9', root);
     const expected = Object.fromEntries(VERSION_TARGETS.map(([rel]) => [rel, '9.9.9']));
     expect(readVersions(root)).toEqual(expected);
+  });
+});
+
+// main(argv) is the CLI argument handling split out of bin/setVersion.mts (an entry-point guard
+// cannot be covered directly — see that file's own comment), matching cli.mts's own main(argv)
+// convention: argv is already sliced (no node/script-path entries). The optional `root` param
+// (purely for test benefit) avoids process.chdir(), which Stryker's worker-thread runner rejects.
+describe('main', () => {
+  const originalWrite = process.stderr.write.bind(process.stderr);
+
+  afterEach(() => {
+    process.stderr.write = originalWrite;
+  });
+
+  it('writes the version and returns 0 when exactly one argument is given', () => {
+    const root = seed();
+    expect(main(['9.9.9'], root)).toBe(0);
+    const expected = Object.fromEntries(VERSION_TARGETS.map(([rel]) => [rel, '9.9.9']));
+    expect(readVersions(root)).toEqual(expected);
+  });
+
+  it('reports a usage error and returns 1 when no argument is given', () => {
+    let stderr = '';
+    process.stderr.write = ((chunk: string) => {
+      stderr += chunk;
+      return true;
+    }) as typeof process.stderr.write;
+    expect(main([])).toBe(1);
+    expect(stderr).toContain('usage: setVersion.mjs X.Y.Z');
+  });
+
+  it('reports a usage error and returns 1 when more than one argument is given', () => {
+    let stderr = '';
+    process.stderr.write = ((chunk: string) => {
+      stderr += chunk;
+      return true;
+    }) as typeof process.stderr.write;
+    expect(main(['9.9.9', 'extra'])).toBe(1);
+    expect(stderr).toContain('usage: setVersion.mjs X.Y.Z');
   });
 });

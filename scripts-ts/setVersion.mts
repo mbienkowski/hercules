@@ -13,14 +13,22 @@ export function setVersion(version: string, root = '.'): void {
   writeVersion(version, root);
 }
 
-// Only run when invoked directly (`node setVersion.mjs X.Y.Z`), not when imported by a test —
-// matching Python's `if __name__ == "__main__":` guard.
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const [version] = process.argv.slice(2);
-  if (process.argv.length !== 3 || version === undefined) {
+/**
+ * CLI argument handling, split out from the process entry point (`bin/setVersion.mts`) so it is
+ * fully unit-testable — matching `cli.mts`'s own `main(argv)` convention. `argv` is already sliced
+ * (no `node`/script-path entries), same contract as `cli.mts`'s `main`.
+ *
+ * `root` (an addition over the real CLI's implicit `process.cwd()`-relative default, purely for
+ * test benefit — same rationale as `cli.mts`'s `distRoot` param) lets a test point the write at a
+ * scratch directory without `process.chdir()`, which Stryker's worker-thread test runner does not
+ * support (`process.chdir() is not supported in workers`).
+ */
+export function main(argv: readonly string[], root = '.'): number {
+  const [version] = argv;
+  if (argv.length !== 1 || version === undefined) {
     process.stderr.write('usage: setVersion.mjs X.Y.Z\n');
-    process.exitCode = 1;
-  } else {
-    setVersion(version);
+    return 1;
   }
+  setVersion(version, root);
+  return 0;
 }

@@ -100,10 +100,10 @@ pycompat-golden-check:
 	bash scripts/ci/pycompat_golden_check.sh
 
 validate: compile
-	node .ts-out/ci/validatePackage.mjs
+	node .ts-out/bin/validatePackage.mjs
 
 smoke-matrix: compile
-	node .ts-out/ci/smokeMatrix.mjs
+	node .ts-out/bin/smokeMatrix.mjs
 
 smoke-install:
 	bash scripts/ci/install_cli.sh
@@ -122,10 +122,10 @@ release-meta:
 	bash scripts/ci/release_meta.sh
 
 release-version: compile
-	node .ts-out/setVersion.mjs "$${NEW_VERSION}"
+	node .ts-out/bin/setVersion.mjs "$${NEW_VERSION}"
 
 changelog: compile
-	node .ts-out/updateChangelog.mjs
+	node .ts-out/bin/updateChangelog.mjs
 
 release-commit:
 	bash scripts/ci/release_commit.sh

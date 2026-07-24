@@ -60,16 +60,27 @@ export function updateChangelog(
   }
 }
 
-// Only run when invoked directly (`node updateChangelog.mjs`), not when imported by a test —
-// matching Python's `if __name__ == "__main__":` guard.
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const newTag = process.env['NEW_TAG'];
+/**
+ * Environment handling, split out from the process entry point (`bin/updateChangelog.mts`) so it
+ * is fully unit-testable — matching `setVersion.mts`'s own `main(argv)` split (see that file's
+ * comment for why an entry-point guard cannot be covered directly).
+ *
+ * `updateChangelogFn` (an addition over the real CLI's implicit call to the module's own
+ * `updateChangelog`, purely for test benefit — same rationale as `setVersion.mts`'s `root` param)
+ * lets a test verify the env-var parsing in isolation, without touching real git/filesystem state:
+ * `updateChangelog`'s own real behavior is already covered directly by `updateChangelog.spec.ts`.
+ */
+export function main(
+  env: NodeJS.ProcessEnv,
+  updateChangelogFn: typeof updateChangelog = updateChangelog,
+): void {
+  const newTag = env['NEW_TAG'];
   if (newTag === undefined) {
     throw new Error("updateChangelog: environment variable 'NEW_TAG' is required");
   }
-  updateChangelog(
+  updateChangelogFn(
     newTag,
-    process.env['PREV_TAG'] ?? '',
-    (process.env['IS_FIRST'] ?? 'false').toLowerCase() === 'true',
+    env['PREV_TAG'] ?? '',
+    (env['IS_FIRST'] ?? 'false').toLowerCase() === 'true',
   );
 }

@@ -2,9 +2,9 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { formatEntry, updateChangelog } from '../scripts-ts/updateChangelog.mjs';
+import { formatEntry, main, updateChangelog } from '../scripts-ts/updateChangelog.mjs';
 
 // Ported from tests/release/test_update_changelog.py.
 
@@ -60,5 +60,44 @@ describe('updateChangelog', () => {
     expect(entry).toContain('* fix: bar');
     expect(entry).toContain('* just a plain message');
     expect(entry).toContain('v1.0.0');
+  });
+});
+
+// main(env) is the environment-variable handling split out of bin/updateChangelog.mts (an
+// entry-point guard cannot be covered directly — see that file's own comment). The injectable
+// `updateChangelogFn` param (purely for test benefit) verifies main()'s env parsing in isolation,
+// without touching real git/filesystem state — updateChangelog()'s own real behavior is already
+// covered directly by the describe block above. Avoids process.chdir(), which Stryker's
+// worker-thread test runner rejects ("process.chdir() is not supported in workers").
+describe('main', () => {
+  it('throws when NEW_TAG is not set, rather than writing a changelog with an empty header', () => {
+    expect(() => main({})).toThrow("environment variable 'NEW_TAG' is required");
+  });
+
+  it('forwards NEW_TAG, PREV_TAG, and IS_FIRST=true to updateChangelog', () => {
+    const fn = vi.fn();
+    main({ NEW_TAG: 'v1.0.0', PREV_TAG: 'v0.9.0', IS_FIRST: 'true' }, fn);
+    expect(fn).toHaveBeenCalledWith('v1.0.0', 'v0.9.0', true);
+  });
+
+  it('PREV_TAG defaults to the empty string when unset', () => {
+    const fn = vi.fn();
+    main({ NEW_TAG: 'v1.0.0' }, fn);
+    expect(fn).toHaveBeenCalledWith('v1.0.0', '', false);
+  });
+
+  it('IS_FIRST defaults to false when unset', () => {
+    const fn = vi.fn();
+    main({ NEW_TAG: 'v1.0.0', PREV_TAG: 'v0.9.0' }, fn);
+    expect(fn).toHaveBeenCalledWith('v1.0.0', 'v0.9.0', false);
+  });
+
+  it('IS_FIRST is case-insensitive and only "true" means true', () => {
+    const fn = vi.fn();
+    main({ NEW_TAG: 'v1.0.0', IS_FIRST: 'TRUE' }, fn);
+    expect(fn).toHaveBeenCalledWith('v1.0.0', '', true);
+    fn.mockClear();
+    main({ NEW_TAG: 'v1.0.0', IS_FIRST: 'yes' }, fn);
+    expect(fn).toHaveBeenCalledWith('v1.0.0', '', false);
   });
 });

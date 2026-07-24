@@ -105,9 +105,3 @@ export function main(): void {
     appendFileSync(out, line + '\n', 'utf-8');
   }
 }
-
-// Only run when invoked directly (`node smokeMatrix.mjs`), not when imported by a test — matching
-// Python's `if __name__ == "__main__":` guard.
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main();
-}
