@@ -143,7 +143,12 @@ def _unquote(cmd: str) -> str:
     span that directly follows ``-m``/``--message`` (a commit message, not a path). Closes the
     'quote the path to evade the gate' bypass while keeping a message that merely names a test."""
     out: list = []
-    last = 0
+    # `last` is used ONLY as a slice-start bound below (`cmd[last:...]`, twice, never in any other
+    # context) — and Python's slice protocol treats `None` identically to `0` for a start bound
+    # (`s[None:5] == s[0:5]`, unconditionally, for every string). Mutating this literal to `None`
+    # therefore cannot change this function's output for ANY input: a provable equivalent mutant,
+    # not a missing test. See tests-python/hooks/test_hercules_gate_internals.py for the full case.
+    last = 0  # pragma: no mutate (equivalent: only ever used as a slice-start bound; see comment above)
     for m in _QUOTED.finditer(cmd):
         preceding = cmd[last:m.start()]
         out.append(preceding)
