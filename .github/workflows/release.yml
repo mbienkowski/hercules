@@ -22,13 +22,58 @@ on:
     types: [completed]
     branches: [main]
 
+# Least-privilege by default, same posture as ci.yml: only the `release` job below raises to
+# contents:write (job-level `permissions:` overrides this default), and only for as long as it needs
+# it. `prepare` never sees a credential beyond the implicit read-only GITHUB_TOKEN.
 permissions:
-  contents: write
+  contents: read
 
 concurrency: release
 
 jobs:
+  # ── Compile the TypeScript toolchain, UNPRIVILEGED (no contents:write, no NPM_TOKEN) ──────────
+  # scripts-ts/setVersion.mts and scripts-ts/updateChangelog.mts need the compiled toolchain to run,
+  # which means `npm ci` — and `npm ci` must never run in a job holding a push-capable or publish
+  # credential (a malicious devDependency's install-time code would run with the git credential
+  # helper already configured, able to push to main or plant a wrapper the later `npm publish`
+  # executes). This job does the install + compile with only a read-only checkout, then hands the
+  # compiled output to `release` as a build artifact — `release` itself never runs `npm ci`.
+  prepare:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      !startsWith(github.event.workflow_run.head_commit.message, 'chore(release):')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Pinned to the exact commit CI validated — a workflow_run checkout otherwise resolves to
+          # main's CURRENT tip, which the `release` job below separately re-verifies (release-verify)
+          # since it checks out independently; pinning here just avoids compiling the wrong tree.
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
+
+      - name: Install the TypeScript toolchain
+        run: make install-ts
+
+      - name: Compile the TypeScript toolchain
+        run: make compile
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ts-out
+          path: .ts-out
+          retention-days: 1
+
   release:
+    needs: [prepare]
+    permissions:
+      contents: write
     # Run only when CI passed; also skip the workflow's own release bump commit.
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
@@ -51,6 +96,19 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.9"
+
+      # The compiled toolchain from `prepare` — this job never runs `npm ci` itself (see that job's
+      # comment). Only setVersion.mjs and updateChangelog.mjs are actually invoked below; the rest of
+      # .ts-out/ (e.g. the compiler, unused here until dist/ generation flips to TypeScript) rides
+      # along unused rather than being pruned, since the artifact is small and short-lived.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: ts-out
+          path: .ts-out
 
       # 1-pre. Detect whether this is the first release (no v* tags yet) and
       #        capture the previous tag so git log can scope the commit range.

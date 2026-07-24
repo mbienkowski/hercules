@@ -71,7 +71,7 @@ test-smoke: build-check
 # ── CI entry points ──────────────────────────────────────────────────────────
 # The GitHub Actions workflows call ONLY `make <target>` — every step's logic lives here and under
 # scripts/ci/, so it is testable and runnable locally. This is enforced by
-# tests/build/test_workflows_use_make.py; add a target + a script, never an inline YAML block.
+# tests-ts/releasePipeline.spec.ts; add a target + a script, never an inline YAML block.
 
 ci-build:
 	bash scripts/ci/build_gates.sh
@@ -93,11 +93,11 @@ parity: compile
 pycompat-golden-check:
 	bash scripts/ci/pycompat_golden_check.sh
 
-validate:
-	python -m scripts.ci.validate_package
+validate: compile
+	node .ts-out/ci/validatePackage.mjs
 
-smoke-matrix:
-	python -m scripts.ci.smoke_matrix
+smoke-matrix: compile
+	node .ts-out/ci/smokeMatrix.mjs
 
 smoke-install:
 	bash scripts/ci/install_cli.sh
@@ -115,11 +115,11 @@ release-verify:
 release-meta:
 	bash scripts/ci/release_meta.sh
 
-release-version:
-	python -m scripts.set_version "$${NEW_VERSION}"
+release-version: compile
+	node .ts-out/setVersion.mjs "$${NEW_VERSION}"
 
-changelog:
-	python scripts/update_changelog.py
+changelog: compile
+	node .ts-out/updateChangelog.mjs
 
 release-commit:
 	bash scripts/ci/release_commit.sh

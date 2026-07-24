@@ -244,7 +244,7 @@ Enforced by `tests/` — a change that breaks one fails CI:
 - **CI is Makefile-driven — no inline code in workflows.** Every GitHub Actions `run:` step is a single
   `make <target>`; the logic lives in the `Makefile` and `scripts/ci/`, so it is one source of truth,
   testable, and runnable locally. A new CI step adds a `make` target + a `scripts/ci/` helper, never an
-  inline YAML heredoc or multi-line shell. Enforced by `tests/build/test_workflows_use_make.py`.
+  inline YAML heredoc or multi-line shell. Enforced by `tests-ts/releasePipeline.spec.ts`.
 
 ---
 

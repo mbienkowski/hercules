@@ -1,7 +1,8 @@
 """The single canonical list of version-bearing files.
 
-Consumed by **both** ``scripts/set_version.py`` (writer) and CI's ``validate`` job (reader) + the
-release tag check, so writer and reader can never drift (CoC "pin both ends / one canonical list").
+Consumed by **both** the version writer (``scripts-ts/setVersion.mts``, invoked as `make
+release-version`) and CI's ``validate`` job (reader) + the release tag check, so writer and reader
+can never drift (CoC "pin both ends / one canonical list").
 Adding a manifest = one entry here, no new code. ``marketplace.json`` stays version-less until it
 needs one — then it is one more entry.
 """

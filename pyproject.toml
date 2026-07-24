@@ -47,8 +47,9 @@ norecursedirs = ["*.egg", ".*", "_darcs", "CVS", "dist", "node_modules", "venv",
 # mutated — their shutil/tempfile/string mutants are largely equivalent and would only add noise.
 # NOTE: emit.py stays out of the gate as FS-boundary noise, but its one real conditional —
 # copy_versioned's fail-loud ${version}-injection guard (n != 1 → SystemExit) — is directly
-# unit-tested at n=0/n=1/n=2 in tests/build/test_version_process.py, so a `!= 1` operator slip
-# fails CI regardless of the gate. `tests/metrics/` (which used to carry real gate-checking logic,
+# unit-tested at n=0/n=1/n=2 in tests-ts/build/emit.spec.ts (its TypeScript port, copyVersioned),
+# so a `!= 1` operator slip fails CI regardless of the gate. `tests/metrics/` (which used to carry
+# real gate-checking logic,
 # not just tests, hence its own past presence here) was ported to scripts-ts/metrics/ and deleted;
 # TypeScript's own Stryker mutation gate covers it now. src/hooks/ and its Python island are the
 # only mutated surface here from commit 16 onward — commits 12-15 still carry the pre-TypeScript

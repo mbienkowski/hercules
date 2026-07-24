@@ -8,8 +8,8 @@ CI regenerates and drift-checks `dist/` on every push, so `main` always carries 
 On every merge to `main`, `release.yml` runs after CI succeeds:
 
 1. Computes the next version from Conventional Commits (`feat`/`fix`/`perf` bump the CHANGELOG).
-2. `scripts/set_version.py` stamps that version into the two files that MUST carry a literal
-   (`scripts/build/version_targets.py::VERSION_TARGETS`): `pyproject.toml` (the canonical source, read
+2. `scripts-ts/setVersion.mts` stamps that version into the two files that MUST carry a literal
+   (`scripts-ts/build/versionTargets.mts::VERSION_TARGETS`): `pyproject.toml` (the canonical source, read
    by setuptools) and `package.json` (read by npm/OpenCode). The plugin manifests
    (`dist/{claude-code,cursor}/…/plugin.json`) are **not** stamped — their source carries a
    `${version}` token that the build injects from `pyproject.toml` (step below), so there is one
@@ -172,7 +172,7 @@ proves structure + the in-process guard; these load-time behaviours are verified
 ### Cross-ecosystem
 
 - [ ] `pyproject.toml` and `package.json` — the two literal version sources
-      (`scripts/build/version_targets.py::VERSION_TARGETS`) — both show the release version (matches the
+      (`scripts-ts/build/versionTargets.mts::VERSION_TARGETS`) — both show the release version (matches the
       git tag). The plugin manifests (versioned artifacts in `src/ecosystems/*.json`) carry a `${version}` token (not a literal); the
       build injects the canonical `pyproject.toml` version into every `dist/…/plugin.json`.
 

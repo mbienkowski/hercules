@@ -158,6 +158,30 @@ describe('main', () => {
     expect(() => main(['--target', 'does-not-exist', '--check'])).not.toThrow();
     expect(main(['--target', 'does-not-exist', '--check'])).toBe(0);
   });
+
+  it('reports a stale build with instructions to fix it', () => {
+    // main()'s optional `distRoot` param (an addition over the Python original's monkeypatched
+    // `cli.DIST` module attribute, purely for this test's benefit) points the --check comparison at
+    // a scratch "committed" tree instead of the real repo's dist/, so the stderr hint can be
+    // exercised directly rather than merely trusted.
+    const distRoot = tmpDir('hercules-cli-main-stale-dist-');
+    buildTarget('claude-code', join(distRoot, 'claude-code'));
+    writeFileSync(join(distRoot, 'claude-code', 'settings.json'), 'STALE', 'utf-8');
+
+    let stderr = '';
+    const original = process.stderr.write.bind(process.stderr);
+    process.stderr.write = ((chunk: string) => {
+      stderr += chunk;
+      return true;
+    }) as typeof process.stderr.write;
+    try {
+      const rc = main(['--target', 'claude-code', '--check'], distRoot);
+      expect(rc).not.toBe(0);
+    } finally {
+      process.stderr.write = original;
+    }
+    expect(stderr).toContain('make build');
+  });
 });
 
 describe('every ecosystem the descriptors declare has a working serializer', () => {

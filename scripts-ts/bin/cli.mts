@@ -167,7 +167,11 @@ function parseArgs(argv: readonly string[]): { target: string; check: boolean } 
   return { target, check };
 }
 
-export function main(argv: readonly string[]): number {
+// `distRoot` (an addition over the Python original's hardcoded DIST constant, purely for test
+// benefit — same rationale as checkTarget's own `distRoot` param above) lets a test point the
+// --check comparison at a scratch "committed" tree instead of the real repo's dist/, so the
+// stale-output stderr message can be exercised directly rather than merely trusted.
+export function main(argv: readonly string[], distRoot: string = DIST): number {
   const { target, check } = parseArgs(argv);
   let rc = 0;
   const known = new Set(names());
@@ -176,12 +180,12 @@ export function main(argv: readonly string[]): number {
     if (check) {
       const tmp = mkdtempSync(join(tmpdir(), 'hercules-check-'));
       try {
-        rc |= checkTarget(t, tmp);
+        rc |= checkTarget(t, tmp, distRoot);
       } finally {
         rmSync(tmp, { recursive: true, force: true });
       }
     } else {
-      buildTarget(t, join(DIST, t));
+      buildTarget(t, join(distRoot, t));
     }
   }
   if (check && rc !== 0) {
