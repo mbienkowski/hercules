@@ -57,4 +57,18 @@ describe('OpenCode standalone mirror files match the inlined plugin.js entries',
       expect(standalone.body).toBe(body);
     }
   });
+
+  it('every inline command entry has a real description and clean prompt text', () => {
+    // Ported from test_opencode_commands.py's test_opencode_commands_have_real_descriptions_...:
+    // the one path that used to skip the target-aware serializer — commands embedded raw YAML
+    // frontmatter with an empty description in plugin.js, and lost the agent binding.
+    const commands = roleEntries(opencode, SRC_CONTENT, tokens, 'command');
+    expect(commands.length).toBeGreaterThan(0);
+    for (const { stem, fields, body } of commands) {
+      expect(fields.get('description'), `${stem}: empty command description reaches the UI`).toBeTruthy();
+      expect(fields.get('agent'), `${stem}: command not bound to the hercules agent`).toBe('hercules');
+      expect(body.trimStart().startsWith('---'), `${stem}: template still embeds YAML frontmatter`).toBe(false);
+      expect(body, `${stem}: Claude key leaked into template`).not.toContain('disable-model-invocation');
+    }
+  });
 });

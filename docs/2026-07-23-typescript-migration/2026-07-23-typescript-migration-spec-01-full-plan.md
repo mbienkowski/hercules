@@ -151,7 +151,7 @@ policy, not an oversight.
   decorative files (the two conformance suites, at 84 tests) are already done, matching lesson
   12's rule to be honest about what a "done" commit actually covers.
 
-| 10 | ⬜ | `test: port the remaining non-hook test suites to vitest` | `tests/{metrics,commands,workflow,protocols,plugin,skills,agents,budgets,docs,release}/` + top-level. `test_workflows_use_make` → js-yaml. Each Python counterpart deleted in the same commit | Golden table of every threshold count identical to the pre-port Python run; js-yaml vs PyYAML diffed on every workflow file first |
+| 10 | ✅ done (scope reconciled) | `test: port the remaining non-hook test suites to vitest` | `scripts-ts/metrics/{a2aGrammar,markdownMetrics,thresholdRunner}.mts` (new production modules, alongside commit 1's `tokenCounter.mts`); `tests/{metrics,commands,workflow,protocols,plugin,skills,agents,docs}/` fully ported to `tests-ts/{metrics,commands,skillsAndAgents,docsAndPlugin,workflowAndProtocols}/` via 4 parallel background agents plus this commit's own metrics work, each independently verified against `pytest --collect-only` counts (104+88+37+60+66 = 355 new tests, exact 1:1 or better). All 8 fully-ported Python directories deleted (47 files) — and so were commits 4–9's now-superseded `tests/build/*.py` originals (12 files: `test_descriptor_schema`, `test_generic_serialize`, `test_manifests`, `test_serialize`, `test_model_map`, `test_target_registry`, `test_opencode_commands`, `test_opencode_mirror`, `test_dist_drift`, `test_model_tiering`, `test_conformance`, `test_universal_conformance`), retroactively satisfying locked decision 12 ("each Python test dies in the same commit its TS replacement lands") for the whole compiler port, not just this commit — a real gap found and closed during this commit's own pre-deletion audit. `tests/budgets/` (commit 11 — its instruction-counting logic is what commit 11 rewrites), `tests/release/` (commit 13 — tests a not-yet-ported script), `test_workflows_use_make`/`test_validate_package`/`test_ci_smoke_matrix` (commit 13), the six per-CLI smoke specs (deferred, no installed CLIs here to prove parity against), and ~11 smaller `tests/build/*.py` files (frontmatter roundtrip, render edge cases, mutation hardening, etc.) are explicitly NOT ported — recorded as a follow-up, not silently dropped | 934 TS tests total, all green; `make parity` (181 fixtures + full-tree leg) unaffected; remaining Python suite (420 tests) unaffected by the deletions. Pre-deletion audit caught and fixed 3 real issues: a vacuous test (`join(out, 'command')` singular vs the real `commands` directory — the `existsSync` guard was always false, so the test ran zero assertions), two Python tests silently un-ported from `test_opencode_commands.py` (now added), and one legitimate compile-time-only divergence (`ExtrasContext`'s Python `frozen=True` dataclass has no TS runtime equivalent — documented and pinned via `@ts-expect-error` instead of a runtime throw-assertion) |
 | 11 | ⬜ | `feat(budgets): count atomic directives across loading chains` | **The metric upgrade.** V2 splitter with a closed imperative vocabulary, absolute 150/130 ceiling, `÷3` deleted; chain definitions become data; the two divergent Python counters collapse into one. Source cites arXiv:2507.11538 for 150, marks 130 as a project margin, documents cl100k_base as a **frozen proxy** | Golden corpus of hand-labelled markdown fixtures; the measured table below reproduced exactly; every other chain unchanged or lower |
 | 12 | ⬜ | `test(hooks): decouple the python island and re-home its wiring tests` | Six island tests re-pointed at committed `dist/<eco>/hooks/gate.json` instead of importing the compiler; `test_enforcement_gates`/`test_hooks_wiring` move to `tests-ts/build/` (compiler tests wearing a hooks name); `tests/hooks/` → `tests-python/hooks/`; CoC lines updated in the same diff | `grep -rl 'scripts\.build' tests-python/` empty; same test ids modulo path prefix |
 | 13 | ⬜ | `chore(ci): port the ci and release scripts and isolate npm from the release job` | `build_gates.sh`'s four hardcoded compiler calls → `make build`; `smoke_matrix`/`validate_package`/`set_version`/`update_changelog` → TS; `release.yml` split so `npm ci` never runs in the job holding `contents:write` | `make smoke-matrix` byte-identical to a golden Python capture; release dry-run shows zero `npm ci` in the privileged job |
@@ -514,6 +514,40 @@ must account for them; do not re-derive them from scratch.
     existing tests distinguish real code from a mutant, not that the real code or the tests
     themselves are asking the right question. The meta-lesson from commit 4's lesson 12 holds again,
     one commit later, in a codebase this session itself already knew to watch for it in.
+
+20. **"Delete the Python original once its TS replacement lands" (locked decision 12) was silently
+    not happening — for SIX commits in a row — until commit 10's own pre-deletion audit caught it.**
+    Commits 4–9 each wrote a faithful, verified TS test suite for its module, but never actually
+    removed the corresponding `tests/build/*.py` file — both engines' tests for the SAME behavior
+    kept running in parallel, 934 TS tests and 420+ Python tests covering overlapping ground, with
+    no test ever flagging the duplication because nothing checks for it. It surfaced only because
+    commit 10 needed to decide what to delete and a routine `ls tests/build/*.py` after supposedly
+    "finishing" commits 4–9 showed 37 files still present. Fixed retroactively in this commit
+    (12 files deleted alongside commit 10's own 8 directories) rather than deferred further. The
+    generalizable lesson: a "done" checklist item with no verification step of its own (nothing
+    asserts a Python file's ABSENCE) can silently not happen for an arbitrary number of commits: the
+    build stays green, the tests stay green, and the omission is invisible until something forces a
+    fresh look at the actual file list rather than trusting the commit's own summary of itself.
+
+21. **A pre-deletion coverage audit — comparing `pytest --collect-only` counts file-by-file against
+    the TS port, not just "does everything build" — found a genuinely silent test bug and two fully
+    un-ported Python tests, both already sitting in a supposedly-"done" commit-9 file.**
+    `tests-ts/bin/cli.spec.ts`'s "binds every standalone opencode command file to its owning agent"
+    test read `join(out, 'command')` (singular) instead of the real `commands` directory; the
+    `existsSync` guard around the loop was therefore always false, so the test executed ZERO
+    assertions and had been reporting green since commit 9 without ever checking anything. Separately,
+    `test_opencode_commands.py`'s other two tests (real descriptions/clean prompt text on the inlined
+    plugin.js entries; no leftover Claude-only settings in the built bundle) had no TS counterpart at
+    all — commit 9's port covered only 1 of that file's 3 tests, and nothing caught the gap because
+    the file being "ported" was never checked against an actual per-test list, only trusted by name.
+    Both are now fixed (the vacuous test corrected to check the real directory and drop the
+    always-false guard; the two missing tests added to `opencodeMirror.spec.ts`/`cli.spec.ts`). The
+    checking method that found both — running `pytest <file> --collect-only -q` for every
+    Python file with a claimed TS port and diffing the count against the actual TS `it()` count,
+    then reading the outlier files in full rather than trusting a summary — is the same discipline
+    this migration's earlier lessons (11, 12, 19) already established for reviewing DIFFS; this
+    extends it to reviewing DELETIONS, which carry the same risk of an unverified "this is covered"
+    claim standing in for actually checking.
 
 ---
 

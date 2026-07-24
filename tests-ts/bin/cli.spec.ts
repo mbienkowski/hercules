@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { discover, names } from '../../scripts-ts/build/descriptor.mjs';
+import type { ExtrasContext } from '../../scripts-ts/build/genExtras.mjs';
 import { buildTarget, checkTarget, main, targets } from '../../scripts-ts/bin/cli.mjs';
 import { buildRegistry } from '../../scripts-ts/build/serialize.mjs';
 import { ECOSYSTEMS } from '../support/descriptorFixtures';
@@ -73,15 +74,29 @@ describe('buildTarget', () => {
   });
 
   it('binds every standalone opencode command file to its owning agent', () => {
+    // Caught by review: an earlier draft checked `join(out, 'command')` (singular) — the real
+    // directory is `commands` (plural) — so the `existsSync` guard was always false and this test
+    // silently ran zero assertions. Confirmed vacuous via a live check before this fix, and via
+    // dropping the guard entirely below: a missing/empty commands/ dir now fails the length
+    // assertion instead of being silently skipped.
     const out = tmpDir('hercules-cli-build-opencode-');
     buildTarget('opencode', out);
-    const commandsDir = join(out, 'command');
-    if (existsSync(commandsDir)) {
-      for (const name of readdirSync(commandsDir)) {
-        const text = readFileSync(join(commandsDir, name), 'utf-8');
-        expect(text).toContain('agent: hercules');
-      }
+    const commandsDir = join(out, 'commands');
+    const files = readdirSync(commandsDir).filter((name) => name.endsWith('.md'));
+    expect(files.length, 'expected standalone command files').toBeGreaterThan(0);
+    for (const name of files) {
+      const text = readFileSync(join(commandsDir, name), 'utf-8');
+      expect(text, `${name}: Claude-only key kept`).not.toContain('disable-model-invocation');
+      expect(text, `${name}: missing OpenCode agent binding`).toContain('\nagent: hercules\n');
     }
+  });
+
+  it('the generated opencode plugin bundle has no leftover Claude-only command settings', () => {
+    const out = tmpDir('hercules-cli-build-opencode-');
+    buildTarget('opencode', out);
+    const js = readFileSync(join(out, 'plugin.js'), 'utf-8');
+    expect(js, 'Claude-only command key leaked into plugin.js').not.toContain('disable-model-invocation');
+    expect(js, 'command template still opens with a YAML fence').not.toContain('template: "---');
   });
 });
 
@@ -168,5 +183,22 @@ describe('the generic build seam (ported from test_target_registry.py)', () => {
     expect(src).not.toMatch(/target ===/);
     expect(src).not.toContain("'opencode'");
     expect(src).not.toContain("'cursor'");
+  });
+
+  it('ExtrasContext is immutable at compile time only, unlike Python\'s runtime-frozen dataclass', () => {
+    // Python's ExtrasContext is a frozen(=True) dataclass — mutating it raises FrozenInstanceError
+    // at RUNTIME. TS's `readonly` (see genExtras.mts's ExtrasContext interface) is erased entirely
+    // at runtime; only `tsc` rejects the assignment below, which is why this is a type-level pin
+    // (checked by `npx tsc -p tsconfig.tests.json --noEmit`) rather than a throw-assertion. Every
+    // interface in this migration (EcosystemDescriptor, RoleSpec, ...) uses the identical `readonly`
+    // pattern with the same compile-time-only guarantee, so this is a deliberate, accepted
+    // divergence, not a one-off gap.
+    const ctx: ExtrasContext = {
+      outRoot: '/tmp', sharedHooksSrc: '/tmp', srcContent: '/tmp', tokens: new Map(), version: '0.0.0',
+    };
+    // @ts-expect-error — readonly rejects this assignment at compile time; it still executes at
+    // runtime (readonly has no runtime effect), so the assertion below checks the NEW value.
+    ctx.outRoot = '/other';
+    expect(ctx.outRoot).toBe('/other');
   });
 });
