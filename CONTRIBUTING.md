@@ -10,10 +10,10 @@ live in [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md); the release process is in [`
 ## Quick start
 
 ```bash
-make install        # editable install with the dev toolchain
+make install        # editable pip install + npm ci — both runtimes' dev toolchains
 make build          # regenerate dist/ for every target
-make test           # drift-check dist/ + run the suite with coverage
-make test-mutation  # mutation testing (slower; gates on a 90% kill rate)
+make test           # drift-check dist/ + run the suite with coverage (both runtimes)
+make test-mutation  # mutation testing (slower; gates on a 90% kill rate, both runtimes)
 ```
 
 > **Run `make test-mutation` locally before opening a PR.** Mutation is **not** run on PRs (to keep PR
@@ -41,7 +41,7 @@ git config core.hooksPath .githooks
   `<name>.template.<dest>` (rendered from named computed values) for generated text like OpenCode's
   `plugin.js`; the directory layout is schema-validated — a stray file fails the build. Capability
   disclosures are compiled from the shared `src/content/capabilities.md` — no per-ecosystem
-  directories, no per-ecosystem Python.
+  directories, no per-ecosystem code.
 - `src/hooks/` — the shared enforcement code, authored once and byte-copied to every ecosystem:
   the canonical frozen-test guard + the ONE generic write-gate adapter (`hercules_gate.py`).
 - `scripts-ts/build/` — the generic compiler: `parse` → `render` → `genSerialize` (descriptor-driven)

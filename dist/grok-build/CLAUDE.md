@@ -56,9 +56,9 @@ description; they are not shell subcommands.
 
 ## Testing
 
-One runner: `python -m pytest tests/`. All checks live in Python — code tests plus
-deterministic doc/policy checks in `tests/` (instruction counts, token budgets,
-protocol grammar, plugin-content lint). To add a metric/threshold check, add a row to
+Two runtimes: Python for `src/hooks/` only; TypeScript for everything else, including
+deterministic doc/policy checks (instruction counts, token budgets, protocol grammar,
+plugin-content lint). To add a metric/threshold check, add a row to
 `tests/testdata/thresholds.json`; see `CODE_OF_CONDUCT.md` § Testing.
 
 ## Operational reference

@@ -109,6 +109,12 @@ Exception: `hercules.md`, the orchestrator persona.
 
 ### Hooks
 
+> **LOCKED.** `src/hooks/` stays Python, stdlib-only, forever — this is not a migration-in-progress
+> state. Every other executable surface in this repo (the compiler, CI/release scripts, their tests)
+> is TypeScript; hooks are the one deliberate, permanent exception. Porting them would force a Node
+> runtime dependency onto every consumer across all six ecosystems, for code whose entire job is
+> running unmodified, byte-identical, on whatever the host ships. Do not "finish the migration" here.
+
 Hooks are the plugin's **hard** enforcement — deterministic code the host runs, which a model cannot
 rationalise past. All hook code is authored ONCE in `src/hooks/` and byte-copied to every ecosystem;
 what differs per host is **descriptor data** (the `guard`/`gate` sections of
@@ -164,7 +170,7 @@ project has no `code-of-conduct.md`.
 
 ### Adding an ecosystem (target)
 
-One neutral `src/content/` compiles to every ecosystem through ONE generic engine: `cli.build_target`
+One neutral `src/content/` compiles to every ecosystem through ONE generic engine: `buildTarget`
 loops the content once and dispatches through registries populated from the ecosystem descriptors —
 it holds **zero** per-ecosystem branches, classes, or modules. **A target is one data file**:
 
@@ -173,10 +179,10 @@ it holds **zero** per-ecosystem branches, classes, or modules. **A target is one
   (schema-required — a target cannot exist untestable); per-role output shapes (`roles` — named
   serialization modes and field generators); destination `routes` (named kinds); inline JSON
   `artifacts` (native manifests — a `version` field carries the `${version}` token, injected from
-  `pyproject.toml` at build, **never** a hand-maintained literal); shared-`guard` modules and
+  `package.json` at build, **never** a hand-maintained literal); shared-`guard` modules and
   write-`gate` parameters; rendered `templates`. The vocabulary is **closed**: a descriptor selects
-  named, mutation-covered Python behaviors and supplies operands only — an unknown key or enum value
-  fails the build loudly at load, naming the allowed set.
+  named, mutation-covered behaviors and supplies operands only — an unknown key or enum value fails
+  the build loudly at load, naming the allowed set.
 - **No executable content in descriptors.** No expressions, interpolation, conditionals, or code
   references beyond the named vocabulary. A target needing behavior the vocabulary lacks gets a
   **new named behavior in `scripts-ts/build/` or `src/hooks/`** — mutation-gated, exact-output
@@ -184,7 +190,7 @@ it holds **zero** per-ecosystem branches, classes, or modules. **A target is one
   `<eco>.template.<dest>` sibling rendered from closed, named computed-value kinds (`js_string`,
   `role_entries_js`, …; the computations are mutation-covered functions in `genExtras.mts`), never
   inline JSON logic, never auto-discovered code under `src/`. Growing descriptor expressiveness
-  instead of adding a named Python behavior is the failure mode to reject in review.
+  instead of adding a named behavior is the failure mode to reject in review.
 - **Capability disclosures are compiled content.** `CAPABILITIES.md` is authored ONCE in
   `src/content/capabilities.md` — shared claims live in shared lines, host-specific nuance in
   `${target:…}` branches — and compiled per ecosystem like every other content file, so a shared
@@ -198,11 +204,11 @@ it holds **zero** per-ecosystem branches, classes, or modules. **A target is one
   No per-ecosystem directories.
 - **Enforcement + release:** a `GATE_EXPECTATIONS` entry (or explicit waiver) in
   `tests-python/hooks/test_enforcement_gates.py` — hand-authored on purpose, the forcing function that a new
-  target cannot ship ungated; output-pinning tests under `tests/build/`; a `RELEASE.md` smoke section.
+  target cannot ship ungated; output-pinning tests under `tests-ts/build/`; a `RELEASE.md` smoke section.
 
 The rule is the same for a trivial ecosystem and a complex one — the complex one just fills in more
 of the optional sections. The old "no JSON config DSL" rule stands in spirit: the descriptor is a
-config **file**, not a DSL — control flow stays typed, mutation-covered Python; `src/` stays data the
+config **file**, not a DSL — control flow stays typed, mutation-covered code; `src/` stays data the
 compiler only reads (and `src/hooks/` code it only copies). The committed-dist drift gate (`--check`)
 is what proves a descriptor reproduces the intended bytes.
 
@@ -223,7 +229,7 @@ Users judge the product at its stops, not its happy path:
 
 ### Invariants
 
-Enforced by `tests/` — a change that breaks one fails CI:
+Enforced by the test suite (`tests-ts/` and `tests-python/`) — a change that breaks one fails CI:
 
 - **Every shipped artifact has an owning test.** A new manifest, agent, command, or skill ships only with
   a test that fails when it is missing or malformed.
@@ -265,17 +271,28 @@ and the generated `CHANGELOG.md`.
 
 ## Testing
 
-One language, one runner: **Python**. Everything is a pytest test under `python -m pytest tests/` — the
-code tests plus the plugin-content lint and the A2A/metric budgets.
+Two runtimes, two runners, one bar. **Python** is the island: `src/hooks/` — the enforcement code
+shipped to users, stdlib-only, no runtime dependency to impose on a consumer (see § Hooks) — and
+nothing else. **TypeScript** is everything else executable: the compiler (`scripts-ts/build/`),
+the CI/release scripts (`scripts-ts/`), and their tests, plus the plugin-content lint and the
+A2A/metric budgets (`scripts-ts/metrics/`).
 
 ```bash
-pip install -e ".[dev]"   # once
-make test                 # CI gate: >= 90% branch coverage
-make test-mutation        # CI gate: >= 90% mutation kill rate
+make install         # once: pip install -e ".[dev]" + npm ci
+make test             # CI gate: >= 90% branch coverage, BOTH runtimes independently
+make test-mutation    # CI gate: >= 90% mutation kill rate, BOTH runtimes independently
 ```
 
+`test`/`test-mutation` are each a thin wrapper over `test-py` + `test-ts` / `mutation-py` +
+`mutation-ts` — the split is real, not cosmetic: CI runs each pair as **separate, parallel jobs**
+(`mutation-py` and `mutation-ts` in particular used to be one ~40min sequential job; splitting them
+by runtime, each provisioning only the toolchain it needs, is what makes them run concurrently). The
+`-py`/`-ts` suffix is the same string in the make target, the CI job id, and the CI display name —
+a red check can be reproduced by copying its name straight into a terminal.
+
 Hercules holds itself to the bar it enforces on its users: **>= 90% branch coverage** and a **>= 90%
-mutation kill rate**, both gated in CI on every PR.
+mutation kill rate**, gated in CI on every PR, for **each** runtime independently — a strong
+TypeScript suite does not excuse a weak Python one, or vice versa.
 
 - **A surviving mutant is a verdict** — a missing test (write it) or a better behaviour than the code
   (adopt it). Never a `# pragma: no mutate` to silence it; that pragma is allowed only on static strings
@@ -302,8 +319,12 @@ mutation kill rate**, both gated in CI on every PR.
 
 ### Tokens
 
-Token counts use `tiktoken` (cl100k_base); the encoding is fetched once and cached. Set
-`TIKTOKEN_CACHE_DIR` to a persistent directory to run the suite offline (CI caches it there).
+Token counts use `js-tiktoken` (cl100k_base), imported as `js-tiktoken/lite` +
+`js-tiktoken/ranks/cl100k_base` so the encoding's ranks are bundled at install time — no runtime
+fetch, no cache directory, and the suite runs offline by construction. Exact-pinned in
+`package.json` (never a caret range): a tokenizer dependency bump is exactly the kind of change that
+can silently move the counts `tests/testdata/thresholds.json` gates on, so a bump is a reviewable,
+Dependabot-proposed PR, never an invisible transitive update.
 
 ### Golden files
 
