@@ -234,7 +234,7 @@ jobs:
           path: smoke-results-${{ matrix.target }}.txt
 
   # ── Mutation testing — MAIN ONLY, the release gate (after the quick gates) ────
-  # Runs mutmut against the pure build layer (scripts/build/*) + hooks + tests/metrics/ and gates on a
+  # Runs mutmut against the pure build layer (scripts/build/*) + src/hooks/ and gates on a
   # 90% kill rate. Deliberately runs ONLY on a push to `main` (post-merge), never on PRs: it's the
   # slow (~40 min) final quality gate, and release.yml chains off this CI run's success — so a merge
   # to main whose mutation gate fails produces a red CI conclusion and NO release. Keeping it off PRs

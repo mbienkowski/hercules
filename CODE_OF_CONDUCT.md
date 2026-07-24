@@ -68,7 +68,7 @@ Keep them in lock-step:
   same change** (persona.md follows only when the state schema or overview changes). A `hook`-class
   registry row must match a live matcher in the **reference** gate — the `hooks/hooks.json` artifact
   in `src/ecosystems/claude-code.json` (CI-verified); each other ecosystem's equivalent gate is
-  pinned by its own wiring test under `tests/hooks/` (see § Hooks).
+  pinned by its own wiring test under `tests-python/hooks/` (see § Hooks).
 - If the change is visible at the four-phase level, also update the simplified diagram, the README
   (end-user overview), and `CONTRIBUTING.md` (if the contributor workflow is affected).
 
@@ -153,7 +153,7 @@ Shared rules for every hook, on every ecosystem:
   state, not holes.
 - **Single source of truth.** The frozen-guard state reader (`hercules_state.py`) is authored once and
   shipped byte-identical to every ecosystem (a build-time copy, pinned by a byte-identity test).
-- Every hook ships with executable tests under `tests/hooks/` (scanned for hygiene across all ecosystems)
+- Every hook ships with executable tests under `tests-python/hooks/` (scanned for hygiene across all ecosystems)
   plus a wiring test that each target's `hooks.json`/`plugin.js` resolves its command to a real script.
 
 ### Adding a skill
@@ -197,7 +197,7 @@ it holds **zero** per-ecosystem branches, classes, or modules. **A target is one
   and dest are validated on discovery, pinned deterministic by tests, no separate mapping to drift.
   No per-ecosystem directories.
 - **Enforcement + release:** a `GATE_EXPECTATIONS` entry (or explicit waiver) in
-  `tests/hooks/test_enforcement_gates.py` — hand-authored on purpose, the forcing function that a new
+  `tests-python/hooks/test_enforcement_gates.py` — hand-authored on purpose, the forcing function that a new
   target cannot ship ungated; output-pinning tests under `tests/build/`; a `RELEASE.md` smoke section.
 
 The rule is the same for a trivial ecosystem and a complex one — the complex one just fills in more

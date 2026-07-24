@@ -143,18 +143,17 @@ def test_the_after_edit_backstop_is_bounded_honest_and_headless_only():
         assert forbidden not in src, f"the after-edit backstop must not use `{forbidden}`"
 
 
-def test_test_coverage_exemptions_cannot_be_used_to_hide_untested_logic(repo_root):
-    """A line of hook or metrics code can be marked as exempt from the automated check that
-    verifies tests actually catch bugs. That exemption is only legitimate on lines that are just
-    fixed text, a type declaration, or a documented equivalent-behavior case - never on a line
-    that makes a real decision. This guards against someone quietly turning off test coverage on
-    code that genuinely needs it, letting a bug slip through unnoticed."""
-    import itertools
-    scoped = itertools.chain(
-        (repo_root / "src" / "hooks").glob("*.py"),
-        (repo_root / "tests" / "metrics").glob("*.py"),
-    )
-    for path in scoped:
+def test_test_coverage_exemptions_cannot_be_used_to_hide_untested_logic():
+    """A line of hook code can be marked as exempt from the automated check that verifies tests
+    actually catch bugs. That exemption is only legitimate on lines that are just fixed text, a
+    type declaration, or a documented equivalent-behavior case - never on a line that makes a real
+    decision. This guards against someone quietly turning off test coverage on code that genuinely
+    needs it, letting a bug slip through unnoticed.
+
+    Scoped to `src/hooks/` only: the metrics/budgets checks this exemption once also covered moved
+    to `scripts-ts/metrics/` (TypeScript, gated by Stryker mutation testing instead) as part of the
+    TypeScript migration — this island's own mutation gate is the only one left in Python."""
+    for path in _SHARED_HOOKS.glob("*.py"):
         if path.name.startswith("test_"):
             continue
         for i, line in enumerate(path.read_text().splitlines(), 1):

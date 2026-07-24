@@ -6,7 +6,7 @@ import json
 import os
 import sys
 
-from tests.hooks.conftest import _HOOKS_DIR, FROZEN_TEST, _payload, _setup, build_project, main
+from hooks.conftest import _HOOKS_DIR, FROZEN_TEST, _payload, _setup, build_project, main
 
 
 def test_editing_is_allowed_when_no_hercules_state_exists(tmp_path):

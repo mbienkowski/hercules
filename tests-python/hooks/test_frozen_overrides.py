@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import pytest
 
-from tests.hooks.conftest import _grant, _payload, _setup, main
+from hooks.conftest import _grant, _payload, _setup, main
 
 
 def test_override_allows_edit_to_named_frozen_file_in_matching_round(tmp_path):

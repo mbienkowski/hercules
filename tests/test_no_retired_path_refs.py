@@ -23,9 +23,14 @@ _RETIRED = re.compile(r"(plugin/[a-z][a-z0-9-]*/|\.opencode/)")
 
 
 def _test_files() -> list[Path]:
+    # tests-python/ is a SEPARATE sibling tree (the hooks island — see CODE_OF_CONDUCT.md §
+    # Testing), scanned here too so a retired-path reference can't creep in there unnoticed just
+    # because it sits outside tests/ itself.
+    roots = [TESTS_ROOT, TESTS_ROOT.parent / "tests-python"]
+    found = (p for root in roots if root.is_dir() for p in root.rglob("test_*.py"))
     # Skip this guard itself — it necessarily names the retired paths in its docstring/regex/error
     # message to document and match what it forbids.
-    return sorted(p for p in TESTS_ROOT.rglob("test_*.py") if p.name != "test_no_retired_path_refs.py")
+    return sorted(p for p in found if p.name != "test_no_retired_path_refs.py")
 
 
 def test_old_project_folder_names_dont_linger_in_test_documentation():

@@ -16,6 +16,10 @@ the gate for its files this round.
 These drive the real adapter in-process against a throwaway ``~/.hercules`` state tree, asserting the
 emitted Cursor decision JSON. Deny commands are HARDCODED literals (never read from the gate's own tuple)
 so a mutated primitive is actually caught; the exact deny/revert message text is pinned for the same reason.
+
+Reads the COMMITTED ``dist/cursor/`` tree and its gate config directly rather than building a fresh
+copy or importing ``the compiler's descriptor module`` — see ``test_hooks_wiring.py``'s module docstring
+for why (this island stays Python; the compiler is deleted outright in a later commit).
 """
 from __future__ import annotations
 
@@ -28,15 +32,12 @@ from pathlib import Path
 
 import pytest
 
-from scripts.build.cli import build_target
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SHARED_HOOKS = REPO_ROOT / "src" / "hooks"
 _HAVE_GIT = shutil.which("git") is not None
+_DIST_CURSOR = REPO_ROOT / "dist" / "cursor"
 
-from scripts.build.descriptor import discover  # noqa: E402
-
-GATE_CONFIG = discover()["cursor"].gate
+GATE_CONFIG = json.loads((_DIST_CURSOR / "hooks" / "gate.json").read_text(encoding="utf-8"))
 
 
 def _load_gate():
@@ -369,12 +370,11 @@ def test_shell_fails_open_on_malformed_event(tmp_path, capsys):
 
 
 # ── the shipped gate carries the canonical guard files ───────────────────────────────────────
-def test_cursor_ships_the_gate_and_the_canonical_guard_files(tmp_path):
+def test_cursor_ships_the_gate_and_the_canonical_guard_files():
     """dist/cursor/hooks/ must ship the adapter + hooks.json + the canonical guard files
     (hercules_state.py reader AND frozen_tests.py, from which the adapter reuses the override policy),
     with hercules_state.py + frozen_tests.py byte-identical to the copies Claude Code uses."""
-    out = tmp_path / "cursor"
-    build_target("cursor", out)
+    out = _DIST_CURSOR
     for name in ("hercules_gate.py", "hooks.json", "hercules_state.py", "frozen_tests.py"):
         assert (out / "hooks" / name).is_file(), f"dist/cursor/hooks/{name} must ship"
     for name in ("hercules_state.py", "frozen_tests.py"):
@@ -382,18 +382,17 @@ def test_cursor_ships_the_gate_and_the_canonical_guard_files(tmp_path):
             f"{name} must not diverge across dists"
 
 
-def test_cursor_ships_the_manifest_referenced_marketplace_assets(tmp_path):
+def test_cursor_ships_the_manifest_referenced_marketplace_assets():
     """The plugin ships the marketplace-submission assets: a README, and the logo the manifest points at —
     so the manifest's ``logo`` path can never dangle (a Cursor submission validator would reject that)."""
-    out = tmp_path / "cursor"
-    build_target("cursor", out)
+    out = _DIST_CURSOR
     assert (out / "README.md").is_file(), "a README must ship with the plugin"
     manifest = json.loads((out / ".cursor-plugin" / "plugin.json").read_text(encoding="utf-8"))
     assert manifest.get("logo") == "./logo.svg", "manifest must declare the logo"
     assert (out / manifest["logo"].lstrip("./")).is_file(), "the manifest-referenced logo must ship"
 
 
-def test_hook_commands_invoke_the_gate_by_exact_plugin_root_path(tmp_path):
+def test_hook_commands_invoke_the_gate_by_exact_plugin_root_path():
     """Lock the EXACT hook command form. The gate is referenced via ``${CURSOR_PLUGIN_ROOT}`` because
     a plugin-bundled hook runs with cwd = the *project* root (not the hook's own dir), so a bare/relative
     path would not resolve — the variable is how a plugin hook locates its own bundled script.
@@ -404,8 +403,7 @@ def test_hook_commands_invoke_the_gate_by_exact_plugin_root_path(tmp_path):
     docs, so the load-bearing runtime check that the gate actually FIRES stays the manual RELEASE.md item
     (4b) on a real Cursor install. This test pins the current command form against silent regression;
     exact-match (not substring) so no extra shell content can be appended around the token undetected."""
-    out = tmp_path / "cursor"
-    build_target("cursor", out)
+    out = _DIST_CURSOR
     hooks = json.loads((out / "hooks" / "hooks.json").read_text(encoding="utf-8"))
     expected = {
         "beforeShellExecution": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py shell",

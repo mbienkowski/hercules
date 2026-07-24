@@ -7,7 +7,7 @@ import os
 import sys
 import pytest
 
-from tests.hooks.conftest import _HOOKS_DIR, FROZEN_TEST, SPEC, _grant, _payload, _setup, build_project, main, run_hook
+from hooks.conftest import _HOOKS_DIR, FROZEN_TEST, SPEC, _grant, _payload, _setup, build_project, main, run_hook
 
 
 def _allow_case_non_mutating_tool(tmp_path, project):

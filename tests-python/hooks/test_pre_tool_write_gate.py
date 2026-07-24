@@ -9,6 +9,12 @@ ecosystem missing its expectations entry FAILS (fail-closed completeness, GATE_E
 Behavioral cases preserved verbatim from the per-ecosystem suites this replaces: deny on every write
 tool (file bytes untouched), canonical reason + escape hatch, both payload casings, JSON-string and
 nested-edit arguments, reads/non-frozen/no-build/override allows, and full fail-open discipline.
+
+Reads each ecosystem's gate config from the COMMITTED ``dist/<eco>/hooks/gate.json`` rather than
+importing the compiler's descriptor module — see ``test_hooks_wiring.py``'s module docstring for
+why (this island stays Python; the compiler is deleted outright in a later commit).
+``universalConformance.spec.ts``'s "the shipped gate config is the descriptor gate verbatim" test
+is what makes this substitution exact, not approximate.
 """
 from __future__ import annotations
 
@@ -19,10 +25,15 @@ from pathlib import Path
 
 import pytest
 
-from scripts.build.descriptor import discover
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SHARED_HOOKS = REPO_ROOT / "src" / "hooks"
+_DIST = REPO_ROOT / "dist"
+
+
+def _gate_config(eco: str) -> dict | None:
+    path = _DIST / eco / "hooks" / "gate.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+
 
 # HAND-AUTHORED expectations (flat literals only). `allow` is the EXACT decision object an allow
 # must print — or None for hosts whose silence means allow. `deny` is the exact deny object minus
@@ -63,15 +74,17 @@ gate = _load_gate()
 
 
 def test_every_pre_tool_gated_ecosystem_declares_its_expectations():
-    """Fail-closed completeness: every descriptor wiring the pre_tool protocol must have a
-    hand-authored expectations entry here, and no entry may outlive its descriptor."""
-    gated = sorted(name for name, d in discover().items()
-                   if d.gate is not None and d.gate.get("protocol") == "pre_tool")
+    """Fail-closed completeness: every shipped ecosystem wiring the pre_tool protocol must have a
+    hand-authored expectations entry here, and no entry may outlive its shipped config."""
+    gated = sorted(
+        p.parent.parent.name for p in _DIST.glob("*/hooks/gate.json")
+        if json.loads(p.read_text(encoding="utf-8")).get("protocol") == "pre_tool"
+    )
     assert gated == ECOS, "PRE_TOOL_EXPECTATIONS must cover exactly the pre_tool-gated ecosystems"
 
 
 def _config(eco: str) -> dict:
-    return discover()[eco].gate
+    return _gate_config(eco)
 
 
 def _write_state(home: Path, proj: Path, session: dict):

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 
-from tests.hooks.conftest import _add_project, _payload, _setup, main
+from hooks.conftest import _add_project, _payload, _setup, main
 
 
 def canonical_in(roots, project):

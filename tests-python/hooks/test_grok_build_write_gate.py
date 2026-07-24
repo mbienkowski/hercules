@@ -4,29 +4,30 @@ Grok Build reads Claude-format hooks, so its ``PreToolUse`` wiring invokes the b
 guard. This runs the guard exactly as Grok deploys it — the plugin's own shipped ``frozen_tests.py``
 fed a real ``PreToolUse`` payload — and never skips (no live CLI needed), so the deny path always
 carries coverage; the live smoke leg is an additional check, never the sole proof.
+
+Reads the COMMITTED ``dist/grok-build/`` guard directly rather than building a fresh copy — see
+``test_hooks_wiring.py``'s module docstring for why (this island stays Python; the compiler that
+built ``dist/`` is migrating to TypeScript and is deleted outright in a later commit).
 """
 from __future__ import annotations
 
 import os
 import subprocess
 import sys
+from pathlib import Path
 
-from scripts.build.cli import build_target
-from tests.hooks.conftest import FROZEN_TEST, _payload, _setup
+from hooks.conftest import FROZEN_TEST, _payload, _setup
 
 # Deny artifacts as hardcoded literals (never imported from the guard) so a mutated primitive is killed.
 _DENY_EXIT = 2
 _DENY_MARKER = "Hercules:"
 
-
-def _shipped_guard(tmp_path):
-    out = tmp_path / "grok"
-    build_target("grok-build", out)
-    return out / "hooks" / "frozen_tests.py"
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_SHIPPED_GUARD = _REPO_ROOT / "dist" / "grok-build" / "hooks" / "frozen_tests.py"
 
 
 def test_grok_shipped_gate_denies_a_frozen_edit_and_leaves_the_file_unchanged(tmp_path):
-    guard = _shipped_guard(tmp_path)
+    guard = _SHIPPED_GUARD
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     frozen = project / FROZEN_TEST
@@ -39,7 +40,7 @@ def test_grok_shipped_gate_denies_a_frozen_edit_and_leaves_the_file_unchanged(tm
 
 
 def test_grok_shipped_gate_allows_a_non_frozen_edit(tmp_path):
-    guard = _shipped_guard(tmp_path)
+    guard = _SHIPPED_GUARD
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     r = subprocess.run([sys.executable, str(guard)], input=_payload(project, "src/login.py"),

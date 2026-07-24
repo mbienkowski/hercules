@@ -84,7 +84,7 @@ late CI failure. The procedure:
    ships byte-identically at `dist/<name>/<dest>`; a mis-prefixed or stray file fails discovery.
 3. **Rebuild and commit**: `make build` regenerates `dist/<name>/`; commit it alongside the source.
 4. **Declare the write-gate** (CI-hard-failing): add an entry for the target to `GATE_EXPECTATIONS`
-   in `tests/hooks/test_enforcement_gates.py`. `test_every_registered_target_declares_a_gate` fails
+   in `tests-python/hooks/test_enforcement_gates.py`. `test_every_registered_target_declares_a_gate` fails
    for any registered ecosystem with no declared write-gate (or an explicit, reasoned waiver) — this
    is a deliberate security forcing-function, so a new target can't ship ungated by accident.
 5. **Add tests** under `tests/build/` pinning the new target's output (see any

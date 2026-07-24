@@ -16,11 +16,12 @@ from pathlib import Path
 
 import pytest
 
-from scripts.build.cli import build_target
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 # The plugin.js source of truth is sibling DATA now — the template the descriptor renders.
 _TEMPLATE = REPO_ROOT / "src" / "ecosystems" / "opencode.template.plugin.js"
+# The committed dist/ tree, read directly rather than built fresh — see test_hooks_wiring.py's
+# module docstring for why (this island stays Python; the compiler is deleted in a later commit).
+_DIST_OPENCODE = REPO_ROOT / "dist" / "opencode"
 
 
 def test_generated_plugin_js_ships_no_network_channel():
@@ -50,14 +51,12 @@ def test_generated_plugin_wires_the_write_gate_to_the_canonical_python_guard():
     assert "fail open" in js
 
 
-def test_the_shipped_guard_is_the_same_file_claude_uses(tmp_path):
+def test_the_shipped_guard_is_the_same_file_claude_uses():
     """OpenCode ships COPIES of the Claude guard files, byte-for-byte, so the write-gate logic can
     never diverge across ecosystems."""
-    out = tmp_path / "opencode"
-    build_target("opencode", out)
     src = REPO_ROOT / "src" / "hooks"
     for name in ("frozen_tests.py", "hercules_state.py"):
-        assert (out / "hooks" / name).read_bytes() == (src / name).read_bytes()
+        assert (_DIST_OPENCODE / "hooks" / name).read_bytes() == (src / name).read_bytes()
 
 
 # ── End-to-end: the real Node plugin blocks a frozen edit via the real python3 guard ──
@@ -66,10 +65,9 @@ _HAVE_TOOLS = shutil.which("node") is not None and shutil.which("python3") is no
 
 @pytest.fixture
 def opencode_with_active_build(tmp_path):
-    """Build the plugin and stand up an isolated ~/.hercules with one active build session that
+    """The committed plugin, plus an isolated ~/.hercules with one active build session that
     freezes ``tests/test_frozen.py`` under a project rooted at a throwaway dir."""
-    out = tmp_path / "opencode"
-    build_target("opencode", out)
+    out = _DIST_OPENCODE
     home = tmp_path / "home"
     proj = tmp_path / "proj"
     (proj / "tests").mkdir(parents=True)

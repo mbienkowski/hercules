@@ -27,9 +27,10 @@ build-check:
 test: test-py test-ts
 
 # The Python suite. During the migration this still covers the compiler; it narrows to the
-# src/hooks/ island as each area is ported.
+# src/hooks/ island as each area is ported. tests-python/ is the hooks island's own tree (see
+# CODE_OF_CONDUCT.md § Testing) — separate from tests/ so it survives commit 16's compiler deletion.
 test-py: build-check
-	python -m pytest tests/ -v --cov=scripts/build --cov=tests.metrics --cov=src/hooks --cov-branch --cov-report=term-missing --cov-fail-under=90
+	python -m pytest tests/ tests-python/ -v --cov=scripts/build --cov=src/hooks --cov-branch --cov-report=term-missing --cov-fail-under=90
 
 test-ts:
 	npm run typecheck

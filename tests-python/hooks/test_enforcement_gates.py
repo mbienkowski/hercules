@@ -5,13 +5,17 @@ the Claude ``frozen_tests`` tests) prove each gate *works*. They do NOT fail if 
 *without* its gate: a dropped ``hooks/`` copy, a refactor that stops emitting the wiring, or a brand-new
 4th ecosystem added with no enforcement would all pass silently.
 
-This module closes that hole. It iterates **every registered target** (``cli.TARGETS``, derived from the
-serializer registry) and asserts each ships its required gate wiring. The load-bearing check is
-``test_every_registered_target_declares_a_gate``: a target with no declared expectation FAILS, so a new
-ecosystem cannot ship without either wiring a gate or recording an explicit, reasoned waiver.
+This module closes that hole. It iterates **every registered target** (every ecosystem directory
+actually committed under ``dist/``) and asserts each ships its required gate wiring. The
+load-bearing check is ``test_every_registered_target_declares_a_gate``: a target with no declared
+expectation FAILS, so a new ecosystem cannot ship without either wiring a gate or recording an
+explicit, reasoned waiver.
 
-Builds into a temp dir rather than reading committed ``dist/``; the drift gate (``--check``) already
-guarantees committed ``dist/`` is byte-identical to a fresh build, so this equivalently guards what ships.
+Reads the COMMITTED ``dist/`` tree directly rather than building a fresh copy via the compiler:
+this island is Python that ships to end users forever, while the compiler is migrating to
+TypeScript and is deleted outright in a later commit. The drift gate (``make ci-build``) already
+guarantees committed ``dist/`` is byte-identical to a fresh build, so reading the committed tree
+equivalently guards what ships.
 """
 from __future__ import annotations
 
@@ -20,10 +24,11 @@ from pathlib import Path
 
 import pytest
 
-from scripts.build import cli
-from scripts.build.cli import build_target
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
+_DIST = REPO_ROOT / "dist"
+# The registered target list is the sorted set of ecosystem dirs actually committed under dist/ —
+# the same set descriptor.names()/cli.TARGETS derived it from when the compiler still built here.
+TARGETS = sorted(p.name for p in _DIST.iterdir() if p.is_dir())
 
 # The frozen-guard state reader every gate reuses — one source of truth across ecosystems.
 _STATE = "hooks/hercules_state.py"
@@ -96,14 +101,9 @@ GATE_EXPECTATIONS: dict[str, dict] = {
 
 
 @pytest.fixture(scope="module")
-def built(tmp_path_factory):
-    """Build every registered target once; return ``{target: dist_root}``."""
-    roots = {}
-    for target in cli.TARGETS:
-        out = tmp_path_factory.mktemp(target)
-        build_target(target, out)
-        roots[target] = out
-    return roots
+def built():
+    """The committed dist/ root for every registered target — return ``{target: dist_root}``."""
+    return {target: _DIST / target for target in TARGETS}
 
 
 # ── The load-bearing invariant: no ecosystem ships without a declared gate ───────────────────
@@ -111,7 +111,7 @@ def test_every_registered_target_declares_a_gate():
     """A target registered in the build but missing from GATE_EXPECTATIONS FAILS here — you cannot add
     a distribution (now or a future 4th ecosystem) without wiring its write-gate or recording a waiver.
     This is the 'fail if we won't have the gates required' guarantee."""
-    registered = set(cli.TARGETS)
+    registered = set(TARGETS)
     declared = set(GATE_EXPECTATIONS)
     missing = registered - declared
     assert not missing, (

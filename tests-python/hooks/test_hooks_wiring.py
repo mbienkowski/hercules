@@ -5,6 +5,12 @@ needed); it is authored as an inline artifact in ``src/ecosystems/claude-code.js
 pin that it is valid, registers the frozen-tests guard on the mutating tools, and that every
 referenced command path resolves to a real script in the BUILT plugin — a hooks.json that points at
 a missing script is a dead guard.
+
+Reads the COMMITTED ``dist/claude-code/`` tree directly rather than importing the compiler to build
+a fresh copy: this island is Python that ships to end users forever, while the compiler that
+produces ``dist/`` is migrating to TypeScript and is deleted outright in a later commit. Any drift
+between source and committed output is the separate `make ci-build` gate's job, not this file's —
+these tests only need the SHIPPED artifact, never a fresh build of it.
 """
 
 from __future__ import annotations
@@ -15,21 +21,17 @@ from pathlib import Path
 
 import pytest
 
-from scripts.build.cli import build_target
-from scripts.build.descriptor import discover
+_PLUGIN_ROOT = Path(__file__).resolve().parents[2] / "dist" / "claude-code"
 
 
 @pytest.fixture(scope="module")
 def hooks():
-    artifact = next(a for a in discover()["claude-code"].artifacts if a.dest == "hooks/hooks.json")
-    return artifact.content
+    return json.loads((_PLUGIN_ROOT / "hooks" / "hooks.json").read_text())
 
 
 @pytest.fixture(scope="module")
-def built_plugin(tmp_path_factory) -> Path:
-    out = tmp_path_factory.mktemp("claude-code")
-    build_target("claude-code", out)
-    return out
+def built_plugin() -> Path:
+    return _PLUGIN_ROOT
 
 
 def test_hooks_manifest_declares_a_check_that_runs_before_tools_execute(hooks):
