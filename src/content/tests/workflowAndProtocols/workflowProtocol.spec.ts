@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { readFile } from '../commands/support';
-import { filesUnder } from '../../../tests/support/buildTree';
-import { repoRoot } from '../../../tests/support/repo';
+import { filesUnder } from '../../../commons/support/buildTree';
+import { repoRoot } from '../../../commons/support/repo';
 import {
   assertTokensInOrder, declaredAnchors, ENFORCEMENT_CLASSES, hookWiring, PROTOCOL,
   protocolSection, REQUIRED_ANCHORS, registryRows, SPAWNING_COMMANDS,

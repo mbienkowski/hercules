@@ -9,7 +9,7 @@ export default defineConfig({
     // dist/ is committed build output and node_modules/ is vendored; neither holds our specs.
     exclude: ['node_modules/**', 'dist/**', '.ts-out/**'],
     // Scopes spec DISCOVERY to this directory. It does not change the process working directory —
-    // specs resolve repo paths from cwd via src/tests/support/repo.ts, which documents why every
+    // specs resolve repo paths from cwd via src/commons/support/repo.ts, which documents why every
     // supported entry point already runs from the repo root.
     root: import.meta.dirname,
     coverage: {

@@ -20,8 +20,8 @@ vi.mock('node:fs', async (importOriginal) => {
 
 const { discover } = await import('../descriptor.mjs');
 const { roleEntries } = await import('../genExtras.mjs');
-const { ECOSYSTEMS } = await import('../../tests/support/descriptorFixtures');
-const { repoRoot } = await import('../../tests/support/repo');
+const { ECOSYSTEMS } = await import('../../commons/support/descriptorFixtures');
+const { repoRoot } = await import('../../commons/support/repo');
 
 describe('roleEntries applies its own sort, not an incidentally-sorted directory listing', () => {
   it('returns entries in stem order even when the filesystem reports them reversed', () => {

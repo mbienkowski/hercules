@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { buildTarget } from '../bin/cli.mjs';
-import { filesUnder, srcStems } from '../../tests/support/buildTree';
-import { repoRoot } from '../../tests/support/repo';
+import { filesUnder, srcStems } from '../../commons/support/buildTree';
+import { repoRoot } from '../../commons/support/repo';
 
 // Ported from tests/build/test_cursor_build.py's non-YAML-typed assertions (the frontmatter-TYPE
 // checks — e.g. alwaysApply being a real boolean, not the string "false" — need a real YAML parser,

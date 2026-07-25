@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { discover } from '../descriptor.mjs';
 import { buildRegistry, SerializeError } from '../serialize.mjs';
-import { ECOSYSTEMS } from '../../tests/support/descriptorFixtures';
+import { ECOSYSTEMS } from '../../commons/support/descriptorFixtures';
 
 // Ported from tests/build/test_serialize.py. Unlike Python's serialize.py (whose _REGISTRY is a
 // module-scope singleton, bootstrapped by a plain `import`), buildRegistry() is an explicit

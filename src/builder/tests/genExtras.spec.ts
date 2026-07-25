@@ -8,8 +8,8 @@ import { discover } from '../descriptor.mjs';
 import type { EcosystemDescriptor } from '../descriptor.mjs';
 import type { ExtrasContext } from '../genExtras.mjs';
 import { emitExtras, GenExtrasError, jsObjectLiteral, jsString, roleEntries } from '../genExtras.mjs';
-import { ECOSYSTEMS } from '../../tests/support/descriptorFixtures';
-import { repoRoot } from '../../tests/support/repo';
+import { ECOSYSTEMS } from '../../commons/support/descriptorFixtures';
+import { repoRoot } from '../../commons/support/repo';
 
 // Ported from tests/build/test_manifests.py plus new coverage for emitExtras' own branches
 // (artifacts/siblings/guard/gate) that the thin Python file leaves to test_target_registry.py /
@@ -138,7 +138,7 @@ describe('the opencode.json artifact', () => {
 
 describe('the plugin.js template is sibling data, not TypeScript', () => {
   it('lives as a data file under ecosystems/ and carries the JS write-gate wiring', () => {
-    const template = join(repoRoot, 'src', 'ecosystems', 'opencode.template.plugin.js');
+    const template = join(repoRoot, 'src', 'targets', 'opencode.template.plugin.js');
     expect(existsSync(template)).toBe(true);
     const text = readFileSync(template, 'utf-8');
     expect(text).toContain('__AGENT_ENTRIES__');

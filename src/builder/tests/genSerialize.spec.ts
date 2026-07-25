@@ -7,8 +7,8 @@ import { discover, parseDescriptor } from '../descriptor.mjs';
 import {
   computeFields, dest, DescriptorSerializer, SerializeError, tomlBasic, tomlCommand, tomlMultiline,
 } from '../genSerialize.mjs';
-import { ECOSYSTEMS } from '../../tests/support/descriptorFixtures';
-import { repoRoot } from '../../tests/support/repo';
+import { ECOSYSTEMS } from '../../commons/support/descriptorFixtures';
+import { repoRoot } from '../../commons/support/repo';
 
 // Exact-output pins for every mode, field generator, dispatcher, and route kind, ported 1:1 from
 // tests/build/test_generic_serialize.py — carrying the same mutation-killing power onto the TS

@@ -4,8 +4,8 @@ import { basename } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { isFile } from '../../tests/support/buildTree';
-import { readRepoFile, readRepoJson, repoRoot } from '../../tests/support/repo';
+import { isFile } from '../../commons/support/buildTree';
+import { readRepoFile, readRepoJson, repoRoot } from '../../commons/support/repo';
 
 // Ported from tests/build/test_cutover.py — spec-04 cutover guards: no raw `plugin/` path literals
 // pointing at the retired flat tree, tracked markdown never sends readers there either, the shared
@@ -36,7 +36,7 @@ describe('no source file hardcodes a path into the retired plugin/ folder', () =
     // and hooks/tests/ are the two former tests/ trees; release/ and builder/pycompat-oracle/ are
     // the former scripts/ tree.
     const files = [
-      ...globSync('src/tests/repo/**/*.py', { cwd: repoRoot }),
+      ...globSync('src/commons/repo/**/*.py', { cwd: repoRoot }),
       ...globSync('src/hooks/tests/**/*.py', { cwd: repoRoot }),
       ...globSync('src/release/**/*.py', { cwd: repoRoot }),
       ...globSync('src/builder/pycompat-oracle/**/*.py', { cwd: repoRoot }),
@@ -103,6 +103,5 @@ it('mutation testing targets the current hooks location, not the retired one', (
   // the real hooks code is covered.
   const pyproject = readRepoFile('pyproject.toml');
   expect(pyproject).toContain('paths_to_mutate = "src/hooks/"');
-  expect(pyproject).not.toContain('src/targets/');
   expect(pyproject).not.toContain('plugin/hooks/');
 });

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { buildTarget } from '../bin/cli.mjs';
-import { which } from '../../tests/support/which';
+import { which } from '../../commons/support/which';
 
 // Ported from tests/build/test_cursor_smoke.py — a live Cursor CLI smoke check: does the real
 // `cursor-agent` binary run, and is the built plugin tree structurally loadable?

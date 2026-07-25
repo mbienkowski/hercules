@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest';
 
 import { discover } from '../descriptor.mjs';
 import { buildRegistry } from '../serialize.mjs';
-import { ECOSYSTEMS } from '../../tests/support/descriptorFixtures';
-import { repoRoot } from '../../tests/support/repo';
+import { ECOSYSTEMS } from '../../commons/support/descriptorFixtures';
+import { repoRoot } from '../../commons/support/repo';
 
 // Ported from tests/build/test_target_switches.py — a guard that every `${target:NAME}` switch
 // names a real target (or default/end). render.mts's switch resolution silently renders an empty

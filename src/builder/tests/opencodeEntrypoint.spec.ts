@@ -6,8 +6,8 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { buildTarget } from '../bin/cli.mjs';
-import { srcStems } from '../../tests/support/buildTree';
-import { repoRoot } from '../../tests/support/repo';
+import { srcStems } from '../../commons/support/buildTree';
+import { repoRoot } from '../../commons/support/repo';
 
 // Ported from tests/build/test_opencode_entrypoint.py (Spec 03 — the OpenCode plugin.js
 // entry-point smoke, adapted from PR #11's node probe). Counts are derived from the roster/config,

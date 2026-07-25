@@ -608,13 +608,13 @@ export function parseDescriptor(descriptorName: string, raw: unknown): Ecosystem
 // as source (Vitest, under src/builder/) and as compiled output (`.ts-out/builder/descriptor.mjs`),
 // which sit at different depths, so a fixed relative-hop count cannot be correct in both. Every real
 // entry point (the Makefile's targets, the npm scripts, Stryker's sandboxed runner — see
-// src/tests/support/repo.ts's own repoRoot for the fuller reasoning) already runs from the repo
+// src/commons/support/repo.ts's own repoRoot for the fuller reasoning) already runs from the repo
 // root, so `process.cwd()` resolves correctly in both execution modes without tracking directory depth.
 const REPO_ROOT = process.cwd();
 // Exported (unlike REPO_ROOT) because genExtras.mts needs the SAME default `distFiles`/`discover`
 // use, for reading a template's own `.src` sibling file directly — matching Python's
-// `from scripts.build.descriptor import ECOSYSTEMS_DIR` import in the retired Python `genextras.py`.
-export const ECOSYSTEMS_DIR = join(REPO_ROOT, 'src', 'ecosystems');
+// `from scripts.build.descriptor import TARGETS_DIR` import in the retired Python `genextras.py`.
+export const TARGETS_DIR = join(REPO_ROOT, 'src', 'targets');
 
 /** Load and validate one descriptor file (the filename stem is the ecosystem name). */
 export function load(path: string): EcosystemDescriptor {
@@ -657,7 +657,7 @@ function validateLayout(root: string, names: ReadonlySet<string>): void {
  * the filename schema (`<name>.dist.<dest>` → plugin-root `<dest>`) — the deterministic
  * input→output contract the build and its tests both read.
  */
-export function distFiles(name: string, root: string = ECOSYSTEMS_DIR): Record<string, string> {
+export function distFiles(name: string, root: string = TARGETS_DIR): Record<string, string> {
   const prefix = name + DIST_MARKER;
   const out: Record<string, string> = {};
   for (const entryName of readdirSync(root).sort()) {
@@ -676,7 +676,7 @@ const CACHE = new Map<string, Readonly<Record<string, EcosystemDescriptor>>>();
  * descriptors are immutable within a run). Validates the whole directory layout, so a malformed
  * sibling file fails the FIRST build step, not a late copy.
  */
-export function discover(root: string = ECOSYSTEMS_DIR): Readonly<Record<string, EcosystemDescriptor>> {
+export function discover(root: string = TARGETS_DIR): Readonly<Record<string, EcosystemDescriptor>> {
   const cached = CACHE.get(root);
   if (cached !== undefined) return cached;
   const found: Record<string, EcosystemDescriptor> = {};
@@ -696,6 +696,6 @@ export function discover(root: string = ECOSYSTEMS_DIR): Readonly<Record<string,
  * The one authoritative ecosystem list (sorted) — the descriptor files ARE the registry, so the
  * CLI target set and the CI smoke matrix derive from here; there is no separate registry to drift.
  */
-export function names(root: string = ECOSYSTEMS_DIR): string[] {
+export function names(root: string = TARGETS_DIR): string[] {
   return Object.keys(discover(root)).sort();
 }

@@ -2,7 +2,7 @@ import { globSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { readRepoFile, readRepoJson, repoRoot } from '../../../tests/support/repo';
+import { readRepoFile, readRepoJson, repoRoot } from '../../../commons/support/repo';
 
 // Ported from tests/agents/test_agents.py — roster completeness, frontmatter identity fields, the
 // A2A reply-shape requirement, stack-literal and Hercules-internal-literal bans (parametrized over

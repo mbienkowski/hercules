@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { discover, distFiles, load, names } from '../descriptor.mjs';
-import { ECOSYSTEMS, minimal } from '../../tests/support/descriptorFixtures';
+import { ECOSYSTEMS, minimal } from '../../commons/support/descriptorFixtures';
 
 // Split out of descriptor.spec.ts (CODE_OF_CONDUCT.md's 500-line test-file cap) — see that file's
 // header comment for the full split rationale. This file owns the filesystem boundary: discover,

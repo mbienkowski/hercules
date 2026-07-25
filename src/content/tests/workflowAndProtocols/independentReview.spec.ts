@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { discover } from '../../../builder/descriptor.mjs';
-import { ECOSYSTEMS } from '../../../tests/support/descriptorFixtures';
-import { readRepoFile, repoRoot } from '../../../tests/support/repo';
+import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
+import { readRepoFile, repoRoot } from '../../../commons/support/repo';
 
 // Ported from tests/workflow/test_independent_review.py — the two true self-judgment gates
 // (Design coverage, Build traceability) are performed by a freshly-spawned `cynical-reviewer`

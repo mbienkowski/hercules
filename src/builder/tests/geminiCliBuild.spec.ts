@@ -7,9 +7,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { buildTarget } from '../bin/cli.mjs';
 import { discover } from '../descriptor.mjs';
 import { readCanonicalVersion } from '../versionTargets.mjs';
-import { srcStems } from '../../tests/support/buildTree';
-import { ECOSYSTEMS } from '../../tests/support/descriptorFixtures';
-import { repoRoot } from '../../tests/support/repo';
+import { srcStems } from '../../commons/support/buildTree';
+import { ECOSYSTEMS } from '../../commons/support/descriptorFixtures';
+import { repoRoot } from '../../commons/support/repo';
 
 // Ported from tests/build/test_gemini_cli_build.py — the Gemini CLI target: an extension
 // (gemini-extension.json + subagents, TOML commands, a GEMINI.md context). Determinism,

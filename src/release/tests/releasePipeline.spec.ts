@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { load as parseYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
-import { readRepoFile, repoRoot } from '../../tests/support/repo';
+import { readRepoFile, repoRoot } from '../../commons/support/repo';
 
 // Ported from tests/build/test_workflows_use_make.py (the make-only invariant) and the CI-job-graph
 // + release-pipeline assertions in tests/build/test_version_process.py and

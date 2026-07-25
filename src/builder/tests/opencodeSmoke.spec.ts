@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { buildTarget } from '../bin/cli.mjs';
-import { which } from '../../tests/support/which';
+import { which } from '../../commons/support/which';
 
 // Ported from tests/build/test_opencode_smoke.py (Spec 06) — a live OpenCode CLI smoke check:
 // does the built plugin actually load in the real tool, not just in a Node `require()` probe?

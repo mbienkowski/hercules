@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseDescriptor } from '../descriptor.mjs';
-import { expectMessage, minimal, withAgentRole } from '../../tests/support/descriptorFixtures';
+import { expectMessage, minimal, withAgentRole } from '../../commons/support/descriptorFixtures';
 
 // Split out of descriptor.malformed.spec.ts (CODE_OF_CONDUCT.md's 500-line test-file cap) once
 // commit 5's Zod rewrite pushed that file over the cap — see descriptor.spec.ts's header comment

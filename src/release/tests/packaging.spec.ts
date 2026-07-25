@@ -1,7 +1,7 @@
 import { globSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { readRepoFile, readRepoJson, readRepoJsonc, repoRoot } from '../../tests/support/repo';
+import { readRepoFile, readRepoJson, readRepoJsonc, repoRoot } from '../../commons/support/repo';
 
 interface PackageManifest {
   type?: string;

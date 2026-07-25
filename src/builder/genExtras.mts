@@ -39,7 +39,7 @@ import { readdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
 import { copyMap, readSource, write } from './emit.mjs';
-import { ECOSYSTEMS_DIR, distFiles } from './descriptor.mjs';
+import { TARGETS_DIR, distFiles } from './descriptor.mjs';
 import type { EcosystemDescriptor, Template, TemplateValue } from './descriptor.mjs';
 import { computeFields } from './genSerialize.mjs';
 import { compareCodePoints } from './layout.mjs';
@@ -226,7 +226,7 @@ function templateValue(spec: TemplateValue, descriptor: EcosystemDescriptor, ctx
  * unknown placeholder passes through unchanged.
  */
 function renderTemplate(descriptor: EcosystemDescriptor, template: Template, ctx: ExtrasContext): string {
-  const text = readSource(join(ECOSYSTEMS_DIR, template.src));
+  const text = readSource(join(TARGETS_DIR, template.src));
   const values = new Map<string, string>();
   for (const [placeholder, spec] of Object.entries(template.values)) {
     values.set(placeholder, templateValue(spec, descriptor, ctx));
@@ -254,7 +254,7 @@ export function emitExtras(ctx: ExtrasContext, descriptor: EcosystemDescriptor):
   if (Object.keys(siblings).length > 0) {
     const mapping = new Map<string, string>();
     for (const [destName, path] of Object.entries(siblings)) mapping.set(basename(path), destName);
-    written.push(...copyMap(ECOSYSTEMS_DIR, ctx.outRoot, mapping));
+    written.push(...copyMap(TARGETS_DIR, ctx.outRoot, mapping));
   }
   // Same equivalence class as the siblings guard above: `descriptor.guard.map(...)` on an empty
   // array is itself an empty array, so `mapping` is an empty Map and copyMap's loop is a no-op

@@ -8,8 +8,8 @@ import { discover, names } from '../descriptor.mjs';
 import type { ExtrasContext } from '../genExtras.mjs';
 import { buildTarget, checkTarget, main, targets } from '../bin/cli.mjs';
 import { buildRegistry } from '../serialize.mjs';
-import { ECOSYSTEMS } from '../../tests/support/descriptorFixtures';
-import { repoRoot } from '../../tests/support/repo';
+import { ECOSYSTEMS } from '../../commons/support/descriptorFixtures';
+import { repoRoot } from '../../commons/support/repo';
 
 // Ported from the CLI-dependent slice of tests/build/test_target_registry.py,
 // test_opencode_commands.py, test_opencode_mirror.py, and test_manifests.py's plugin-template

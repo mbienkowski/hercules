@@ -4,7 +4,7 @@ import { basename, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { loadThresholds, resolveTargets } from '../thresholdRunner.mjs';
-import { repoRoot } from '../../tests/support/repo';
+import { repoRoot } from '../../commons/support/repo';
 import { tmpWorkspace } from './support';
 
 // Ported from tests/metrics/test_threshold_targets.py — resolveTargets: glob, comma-separated,

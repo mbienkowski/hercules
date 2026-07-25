@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { discover } from '../descriptor.mjs';
-import { ECOSYSTEMS } from '../../tests/support/descriptorFixtures';
-import { repoRoot } from '../../tests/support/repo';
+import { ECOSYSTEMS } from '../../commons/support/descriptorFixtures';
+import { repoRoot } from '../../commons/support/repo';
 
 // Ported from tests/build/test_roster_sync.py — Spec 02: the Claude-only settings.json roster
 // stays in sync with content/agents/. settings.json is authored as an inline artifact in the

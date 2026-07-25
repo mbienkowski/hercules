@@ -5,8 +5,8 @@ import { readSource } from '../emit.mjs';
 import { roleEntries } from '../genExtras.mjs';
 import { splitDocument, parseFrontmatter } from '../parse.mjs';
 import { buildRegistry } from '../serialize.mjs';
-import { ECOSYSTEMS } from '../../tests/support/descriptorFixtures';
-import { repoRoot } from '../../tests/support/repo';
+import { ECOSYSTEMS } from '../../commons/support/descriptorFixtures';
+import { repoRoot } from '../../commons/support/repo';
 import { join } from 'node:path';
 
 // Ported from tests/build/test_opencode_mirror.py: OpenCode loads agents/commands at runtime from

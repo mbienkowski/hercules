@@ -1,7 +1,7 @@
 """The ONE write-gate adapter (G1) — generic, parameterized by the ecosystem's ``hooks/gate.json``.
 
 Every ecosystem's gate is this same file; what differs per host is DATA, emitted at build time from
-the ecosystem descriptor (``src/ecosystems/<name>.json`` → ``gate``) into a ``gate.json`` beside it.
+the ecosystem descriptor (``src/targets/<name>.json`` → ``gate``) into a ``gate.json`` beside it.
 The verdict logic is never re-implemented per host: everything delegates to the CANONICAL guard
 shipped alongside (``frozen_tests`` + ``hercules_state``, byte-identical on every ecosystem), so the
 frozen set, the block message, and the user-granted ``frozen_override`` escape hatch are identical

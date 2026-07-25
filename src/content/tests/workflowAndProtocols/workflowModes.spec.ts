@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { expect, it } from 'vitest';
 
 import { BUILD, DESIGN, DISCOVER, readFile, readPersona, SHIP, WORKFLOW } from '../commands/support';
-import { readRepoFile, repoRoot } from '../../../tests/support/repo';
+import { readRepoFile, repoRoot } from '../../../commons/support/repo';
 
 /**
  * Ported from tests/workflow/test_workflow_modes.py — the workflow's phase/mode orchestration is

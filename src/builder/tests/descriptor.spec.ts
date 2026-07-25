@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { DescriptorError, discover, names, parseDescriptor } from '../descriptor.mjs';
-import { ECOSYSTEMS, expectMessage, minimal } from '../../tests/support/descriptorFixtures';
-import { readRepoJson } from '../../tests/support/repo';
+import { ECOSYSTEMS, expectMessage, minimal } from '../../commons/support/descriptorFixtures';
+import { readRepoJson } from '../../commons/support/repo';
 
 // Covers the smoke-level contract only: the error class's own shape, the six real shipped
 // ecosystems loading cleanly, the two Python-quirk divergences this port deliberately keeps, and
@@ -16,7 +16,7 @@ import { readRepoJson } from '../../tests/support/repo';
 //   - descriptor.filesystem.spec.ts          discover/load/distFiles against real temp directories
 //   - descriptorSort.spec.ts                 the vi.mock('node:fs')-based sort-order proof (pre-existing)
 // All six import their shared fixtures (minimal/withAgentRole/expectMessage/ECOSYSTEMS) from
-// tests/support/descriptorFixtures.ts rather than redefining them. Since commit 5, error message
+// src/commons/support/descriptorFixtures.ts rather than redefining them. Since commit 5, error message
 // TEXT is no longer required to be byte-identical to the Python original (see descriptor.mts's own
 // top-of-file comment) — these files pin Zod's own path-aware messages instead.
 

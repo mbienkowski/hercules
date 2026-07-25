@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { pyRepr, pyReprMapping, pyReprValue, pySplitlines, pyStrip } from '../pyCompat.mjs';
-import { readRepoJson } from '../../tests/support/repo';
+import { readRepoJson } from '../../commons/support/repo';
 
 // These functions exist to reproduce Python semantics the JavaScript near-equivalents get wrong.
 // Every case below is one where `split('\n')`, `trim()` or `JSON.stringify` would give a different

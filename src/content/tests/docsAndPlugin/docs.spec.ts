@@ -2,7 +2,7 @@ import { globSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { readRepoFile, readRepoJson, repoRoot } from '../../../tests/support/repo';
+import { readRepoFile, readRepoJson, repoRoot } from '../../../commons/support/repo';
 import { ALL_COMMANDS, section } from './support';
 import type { PluginManifest } from './support';
 

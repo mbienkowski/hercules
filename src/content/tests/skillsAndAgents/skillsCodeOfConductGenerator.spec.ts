@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { readRepoFile } from '../../../tests/support/repo';
+import { readRepoFile } from '../../../commons/support/repo';
 
 // Ported from tests/skills/test_skills.py — split out of skills.spec.ts (CODE_OF_CONDUCT.md's
 // 500-line test-file cap). Owns: the prose pins specific to code-of-conduct-generator/SKILL.md and

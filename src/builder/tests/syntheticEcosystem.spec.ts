@@ -11,7 +11,7 @@ import { emitExtras } from '../genExtras.mjs';
 import { dest } from '../genSerialize.mjs';
 import { discoverSources } from '../layout.mjs';
 import { buildRegistry } from '../serialize.mjs';
-import { repoRoot } from '../../tests/support/repo';
+import { repoRoot } from '../../commons/support/repo';
 
 // The CoC keystone under test, and the plan's own verification step 7 for this migration: "a
 // target is one ecosystems/<name>.json file, never new TypeScript." A synthetic 7th ecosystem,

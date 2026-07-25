@@ -1,6 +1,6 @@
 # Releasing Hercules
 
-Hercules is authored once (in `src/content/`, `src/ecosystems/`, and `src/hooks/`) and compiled to per-ecosystem
+Hercules is authored once (in `src/content/`, `src/targets/`, and `src/hooks/`) and compiled to per-ecosystem
 trees under `dist/` (`make build`). CI regenerates and drift-checks `dist/` on every push, so `main`
 always carries an in-sync build.
 
@@ -14,7 +14,7 @@ On every merge to `main`, `release.yml` runs after CI succeeds:
    by npm/OpenCode) and `pyproject.toml` (read by setuptools). The plugin manifests
    (`dist/{claude-code,cursor}/…/plugin.json`) are **not** stamped — their source carries a
    `${version}` token that the build injects from `package.json` (step below), so there is one
-   version of record and nothing to hand-bump under `src/ecosystems/`.
+   version of record and nothing to hand-bump under `src/targets/`.
 3. `make build` regenerates `dist/`, injecting the canonical version into each plugin manifest.
 4. Commits the bump + rebuilt `dist/` (`chore(release): X.Y.Z [skip ci]`), tags `vX.Y.Z`, pushes.
 5. Publishes the GitHub Release.
@@ -174,7 +174,7 @@ proves structure + the in-process guard; these load-time behaviours are verified
 
 - [ ] `pyproject.toml` and `package.json` — the two literal version sources
       (`src/builder/versionTargets.mts::VERSION_TARGETS`) — both show the release version (matches the
-      git tag). The plugin manifests (versioned artifacts in `src/ecosystems/*.json`) carry a `${version}` token (not a literal); the
+      git tag). The plugin manifests (versioned artifacts in `src/targets/*.json`) carry a `${version}` token (not a literal); the
       build injects the canonical `package.json` version into every `dist/…/plugin.json`.
 
 Each shipped ecosystem carries its own smoke section above; add one per target

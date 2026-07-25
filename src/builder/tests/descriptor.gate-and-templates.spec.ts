@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseDescriptor } from '../descriptor.mjs';
-import { expectMessage, minimal } from '../../tests/support/descriptorFixtures';
+import { expectMessage, minimal } from '../../commons/support/descriptorFixtures';
 
 // Split out of descriptor.spec.ts (CODE_OF_CONDUCT.md's 500-line test-file cap) — see that file's
 // header comment for the full split rationale. This file owns the two smallest cohesive shape

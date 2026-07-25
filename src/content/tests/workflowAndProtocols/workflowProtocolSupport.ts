@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 
 import { discover } from '../../../builder/descriptor.mjs';
-import { ECOSYSTEMS } from '../../../tests/support/descriptorFixtures';
+import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
 
 /**
  * Shared helpers for workflowProtocol.spec.ts.

@@ -7,9 +7,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { discover } from '../descriptor.mjs';
 import { readCanonicalVersion } from '../versionTargets.mjs';
 import { buildTarget, targets } from '../bin/cli.mjs';
-import { filesUnder, frontmatterKeys, isFile, srcStems, topLevelEntries } from '../../tests/support/buildTree';
-import { ECOSYSTEMS } from '../../tests/support/descriptorFixtures';
-import { repoRoot } from '../../tests/support/repo';
+import { filesUnder, frontmatterKeys, isFile, srcStems, topLevelEntries } from '../../commons/support/buildTree';
+import { ECOSYSTEMS } from '../../commons/support/descriptorFixtures';
+import { repoRoot } from '../../commons/support/repo';
 
 // Ported from tests/build/test_universal_conformance.py — the universal conformance suite. Every
 // test parametrizes over the registered targets and asserts against CONFORMANCE_EXPECTATIONS, a

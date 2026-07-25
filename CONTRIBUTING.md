@@ -1,6 +1,6 @@
 # Contributing to Hercules
 
-Hercules is authored once (in `src/content/`, `src/ecosystems/`, and `src/hooks/`) and compiled to per-ecosystem
+Hercules is authored once (in `src/content/`, `src/targets/`, and `src/hooks/`) and compiled to per-ecosystem
 trees under `dist/` (`claude-code`, `opencode`, `cursor`) by the build pipeline in `src/builder/`. CI
 regenerates and drift-checks `dist/` on every push, so `main` always carries an in-sync build.
 
@@ -21,7 +21,7 @@ make test-mutation  # mutation testing (slower; gates on a 90% kill rate, both r
 > produces a red CI conclusion and **blocks the release**. So a mutation regression you don't catch
 > locally won't surface on your PR — it will stop the next release *after* merge. Catch it here first.
 
-After editing anything under `src/content/`, `src/ecosystems/`, or `src/hooks/`, rebuild and commit `dist/`
+After editing anything under `src/content/`, `src/targets/`, or `src/hooks/`, rebuild and commit `dist/`
 alongside the source change. An optional pre-commit hook regenerates `dist/` automatically:
 
 ```bash
@@ -38,7 +38,7 @@ Every top-level directory is a domain, not a language or category — nothing is
   ecosystem. Capability disclosures are compiled from the shared `src/content/capabilities.md` — no
   per-ecosystem directories, no per-ecosystem code. `src/content/tests/` covers the built plugin content
   itself (commands, agents, skills, protocols, docs, the plugin manifest).
-- `src/ecosystems/<name>.json` — ONE descriptor per ecosystem (the filename is the registry key):
+- `src/targets/<name>.json` — ONE descriptor per ecosystem (the filename is the registry key):
   token `vars`, `models` tiers, the `smoke` matrix entry, per-role output shapes (`roles`),
   destination `routes`, inline JSON `artifacts` (manifests, settings, hook wiring), shared-`guard`
   modules, write-`gate` params, and rendered `templates`. Siblings follow a filename schema:
@@ -62,8 +62,9 @@ Every top-level directory is a domain, not a language or category — nothing is
 - `src/metrics/` — instruction/token budgets, A2A grammar checks, loading-chain gates. `src/metrics/tests/`
   covers it.
 - `dist/` — generated output, committed and tracked (never git-ignored).
-- `tests/` — repo-wide meta-guards that don't belong to any single domain (`tests/repo/`), plus
-  TypeScript test helpers shared across every domain's own `tests/` (`tests/support/`).
+- `src/commons/` — cross-cutting test infrastructure that belongs to no single domain: repo-wide
+  meta-guards (`src/commons/repo/`) plus the TypeScript test helpers shared across every domain's own
+  `tests/` (`src/commons/support/`).
 
 ## Adding a new target
 
@@ -73,7 +74,7 @@ per-ecosystem branches, classes, or modules. The CI-hard-failing steps that are 
 write-gate declaration (step 4) — are called out so you don't pass local `make test` and then hit a
 late CI failure. The procedure:
 
-1. **Add `src/ecosystems/<name>.json`** — copy the closest existing descriptor and adjust. Every
+1. **Add `src/targets/<name>.json`** — copy the closest existing descriptor and adjust. Every
    section is validated against a closed vocabulary (`src/builder/descriptor.mts`): an unknown key
    or enum value fails the build loudly, naming the allowed set. The sections:
    - `vars` — token substitutions for `${token}` placeholders in source content.
@@ -97,7 +98,7 @@ late CI failure. The procedure:
 2. **Disclose capability gaps** — add a `${target:<name>}` branch to the shared
    `src/content/capabilities.md` (compiled per ecosystem; shared claims stay on shared lines) and
    route it with `{"kind": "exact", "src": "capabilities.md", "dest": "CAPABILITIES.md"}`. For
-   binary/marketplace assets use the sibling filename schema: `src/ecosystems/<name>.dist.<dest>`
+   binary/marketplace assets use the sibling filename schema: `src/targets/<name>.dist.<dest>`
    ships byte-identically at `dist/<name>/<dest>`; a mis-prefixed or stray file fails discovery.
 3. **Rebuild and commit**: `make build` regenerates `dist/<name>/`; commit it alongside the source.
 4. **Declare the write-gate** (CI-hard-failing): add an entry for the target to `GATE_EXPECTATIONS`
@@ -151,12 +152,12 @@ released version. Restart after any change; settings are read at startup.
 - Tests live alongside the domain they cover — `src/builder/tests/`, `src/release/tests/`, `src/metrics/tests/`,
   `src/content/tests/` (organised into `commands/`, `skillsAndAgents/`, `docsAndPlugin/`,
   `workflowAndProtocols/` subdirectories) — everything except the shipped `src/hooks/` island, whose own
-  tests live in `src/hooks/tests/`. `tests/repo/test_collection_integrity.py` guards that no Python test
+  tests live in `src/hooks/tests/`. `src/commons/repo/test_collection_integrity.py` guards that no Python test
   directory is hidden by `norecursedirs`.
 - One version, single-sourced — `package.json` is canonical; `pyproject.toml` is the only other
   literal (setuptools needs it) and is cross-checked against it. Both are the whole list in
   `src/builder/versionTargets.mts`; `src/release/setVersion.mts` writes them, CI's `validate` job
-  checks them. The plugin manifests (versioned `artifacts` in each `src/ecosystems/<eco>.json`) carry a
+  checks them. The plugin manifests (versioned `artifacts` in each `src/targets/<eco>.json`) carry a
   `${version}` **token** — the build injects the canonical version into `dist/…/plugin.json`, so
   there's nothing to hand-bump in the source.
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,

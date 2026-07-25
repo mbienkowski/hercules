@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { countAtomicInstructions, extractSection } from '../instructionCounter.mjs';
-import { readRepoFile } from '../../tests/support/repo';
+import { readRepoFile } from '../../commons/support/repo';
 
 // Hand-labelled golden corpus for the V2 atomic instruction counter — see instructionCounter.mts's
 // own top comment for why this design (plain separator + length-only splitting, no vocabulary

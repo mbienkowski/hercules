@@ -5,8 +5,8 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { repoRoot } from '../../tests/support/repo';
-import { which } from '../../tests/support/which';
+import { repoRoot } from '../../commons/support/repo';
+import { which } from '../../commons/support/which';
 
 // Ported from tests/build/test_claude_code_smoke.py (Spec 06) — a live Claude Code CLI smoke
 // check: does the built plugin actually install and register with the real tool, not just look

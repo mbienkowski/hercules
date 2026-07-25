@@ -18,7 +18,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 # The plugin.js source of truth is sibling DATA now — the template the descriptor renders.
-_TEMPLATE = REPO_ROOT / "src" / "ecosystems" / "opencode.template.plugin.js"
+_TEMPLATE = REPO_ROOT / "src" / "targets" / "opencode.template.plugin.js"
 # The committed dist/ tree, read directly rather than built fresh — see test_hooks_wiring.py's
 # module docstring for why (this island stays Python; the compiler is deleted in a later commit).
 _DIST_OPENCODE = REPO_ROOT / "dist" / "opencode"

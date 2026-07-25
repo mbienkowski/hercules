@@ -5,7 +5,7 @@ import {
 } from '../../../metrics/a2aGrammar.mjs';
 import { countStatusTableRows } from '../../../metrics/markdownMetrics.mjs';
 import { readFile } from '../commands/support';
-import { readRepoFile } from '../../../tests/support/repo';
+import { readRepoFile } from '../../../commons/support/repo';
 
 // Ported from tests/protocols/test_protocol_files.py — verifies the A2A and debate protocol files
 // follow the methodology.

@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 
 import { discover } from '../descriptor.mjs';
-import { which } from '../../tests/support/which';
+import { which } from '../../commons/support/which';
 
 // Ported from tests/build/test_universal_smoke.py — the universal smoke driver: live CLI checks
 // steered by each descriptor's `smoke.expect`.

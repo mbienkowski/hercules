@@ -2,7 +2,7 @@ import { globSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { readRepoFile, readRepoJson, repoRoot } from '../../../tests/support/repo';
+import { readRepoFile, readRepoJson, repoRoot } from '../../../commons/support/repo';
 
 // Ported from tests/skills/test_skills.py — skill-directory<->canonical-list sync, per-skill
 // frontmatter/description/precondition checks (parametrized over every dist/claude-code/skills/

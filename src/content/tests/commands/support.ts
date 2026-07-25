@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 
-import { filesUnder } from '../../../tests/support/buildTree';
-import { readRepoFile, repoRoot } from '../../../tests/support/repo';
+import { filesUnder } from '../../../commons/support/buildTree';
+import { readRepoFile, repoRoot } from '../../../commons/support/repo';
 
 /**
  * Shared support for the command-contract spec files under content/tests/commands/.

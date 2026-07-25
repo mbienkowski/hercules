@@ -27,9 +27,9 @@ build-check: compile
 test: test-py test-ts
 
 # The Python suite: src/hooks/ (the island, see CODE_OF_CONDUCT.md § Testing) plus whatever remains
-# under src/tests/repo/ (meta-guards, not build output — the compiler itself is TypeScript now).
+# under src/commons/repo/ (meta-guards, not build output — the compiler itself is TypeScript now).
 test-py: build-check
-	python -m pytest src/tests/repo/ src/hooks/tests/ -v --cov=src/hooks --cov-branch --cov-report=term-missing --cov-fail-under=90
+	python -m pytest src/commons/repo/ src/hooks/tests/ -v --cov=src/hooks --cov-branch --cov-report=term-missing --cov-fail-under=90
 
 test-ts:
 	npm run typecheck

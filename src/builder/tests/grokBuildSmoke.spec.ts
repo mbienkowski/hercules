@@ -4,9 +4,9 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { srcStems } from '../../tests/support/buildTree';
-import { repoRoot } from '../../tests/support/repo';
-import { which } from '../../tests/support/which';
+import { srcStems } from '../../commons/support/buildTree';
+import { repoRoot } from '../../commons/support/repo';
+import { which } from '../../commons/support/which';
 
 // Ported from tests/build/test_grok_build_smoke.py — Grok Build smoke: the built plugin is
 // structurally installable (checked against the committed dist/grok-build); live `grok` CLI

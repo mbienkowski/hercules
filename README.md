@@ -518,7 +518,7 @@ it can do is exactly what Claude Code can do in your session:
 - **Network** — none. All model calls go through your existing Claude Code session and API key.
   Hercules makes no direct API calls and opens no separate network channel — hooks included.
 
-You can audit exactly what runs on your machine in `dist/<your-ecosystem>/` (e.g. `dist/claude-code/`) — the installed plugin tree, generated from the authored source in `src/content/`, `src/ecosystems/`, and `src/hooks/` (all committed to this repository).
+You can audit exactly what runs on your machine in `dist/<your-ecosystem>/` (e.g. `dist/claude-code/`) — the installed plugin tree, generated from the authored source in `src/content/`, `src/targets/`, and `src/hooks/` (all committed to this repository).
 
 ---
 

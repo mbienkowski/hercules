@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CHAIN_TEMPLATES, HARD_GATE, resolveChains, WAIVERS, WARN_AT,
 } from '../loadingChains.mjs';
-import { repoRoot } from '../../tests/support/repo';
+import { repoRoot } from '../../commons/support/repo';
 
 // Replaces tests/budgets/test_instruction_budget.py. That file counted "instruction blocks"
 // (bullets/numbers/bold-labels — one block bundles 2-4 real directives) and divided the 150

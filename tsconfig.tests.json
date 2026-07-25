@@ -1,5 +1,5 @@
 {
-  // Type-check config for every domain's tests/ tree, the shared src/tests/support/ helpers, and the
+  // Type-check config for every domain's tests/ tree, the shared src/commons/support/ helpers, and the
   // Vitest config itself. ESM, never emitted — Vitest compiles tests from source, so this project's
   // module format never reaches Node's loader and cannot affect the shipped CommonJS plugin.
   //
@@ -19,7 +19,7 @@
     "src/release/tests/**/*.ts",
     "src/metrics/tests/**/*.ts",
     "src/content/tests/**/*.ts",
-    "src/tests/support/**/*.ts",
+    "src/commons/support/**/*.ts",
     "*.config.mts"
   ]
 }

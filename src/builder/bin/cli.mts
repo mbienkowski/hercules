@@ -24,7 +24,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:f
 import { tmpdir } from 'node:os';
 import { join, relative, sep } from 'node:path';
 
-import { discover, ECOSYSTEMS_DIR, names } from '../descriptor.mjs';
+import { discover, TARGETS_DIR, names } from '../descriptor.mjs';
 import { readSource, write } from '../emit.mjs';
 import { emitExtras } from '../genExtras.mjs';
 import type { ExtrasContext } from '../genExtras.mjs';
@@ -46,23 +46,23 @@ const DIST = join(REPO_ROOT, 'dist');
 const SHARED_HOOKS_SRC = join(REPO_ROOT, 'src', 'hooks');
 
 /** The one authoritative ecosystem list, derived from the descriptor files themselves. */
-export function targets(root: string = ECOSYSTEMS_DIR): string[] {
+export function targets(root: string = TARGETS_DIR): string[] {
   return names(root);
 }
 
-function targetsFor(name: string, root: string = ECOSYSTEMS_DIR): string[] {
+function targetsFor(name: string, root: string = TARGETS_DIR): string[] {
   return name === 'all' ? targets(root) : [name];
 }
 
 /** Every ecosystem's model-tier row, from the descriptors (the one per-ecosystem source). */
-function loadModels(root: string = ECOSYSTEMS_DIR): ModelsMap {
+function loadModels(root: string = TARGETS_DIR): ModelsMap {
   const out: Record<string, TierMap> = {};
   for (const [name, d] of Object.entries(discover(root))) out[name] = d.models;
   return out;
 }
 
 /** The target's token `vars` from its descriptor; empty for an unknown target (test stubs). */
-function loadTokens(target: string, root: string = ECOSYSTEMS_DIR): ReadonlyMap<string, string> {
+function loadTokens(target: string, root: string = TARGETS_DIR): ReadonlyMap<string, string> {
   const found = discover(root)[target];
   return found === undefined ? new Map() : new Map(Object.entries(found.vars));
 }

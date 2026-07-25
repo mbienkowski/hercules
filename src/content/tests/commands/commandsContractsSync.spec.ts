@@ -2,8 +2,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { filesUnder, isFile } from '../../../tests/support/buildTree';
-import { repoRoot } from '../../../tests/support/repo';
+import { filesUnder, isFile } from '../../../commons/support/buildTree';
+import { repoRoot } from '../../../commons/support/repo';
 import {
   ALL_COMMANDS,
   BUILD,

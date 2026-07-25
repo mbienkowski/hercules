@@ -6,9 +6,9 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { buildTarget } from '../bin/cli.mjs';
-import { srcStems } from '../../tests/support/buildTree';
-import { repoRoot } from '../../tests/support/repo';
-import { which } from '../../tests/support/which';
+import { srcStems } from '../../commons/support/buildTree';
+import { repoRoot } from '../../commons/support/repo';
+import { which } from '../../commons/support/which';
 
 // Ported from tests/build/test_copilot_cli_smoke.py — a live Copilot CLI smoke check: does the
 // real `copilot` binary run, and is the built plugin tree structurally loadable?

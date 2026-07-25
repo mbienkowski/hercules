@@ -1,6 +1,6 @@
 /**
  * Shared helpers for the docs/plugin specs, ported from tests/conftest.py's `ALL_COMMANDS` and
- * `section()`. Kept local to this directory rather than added to tests/support/ — nothing
+ * `section()`. Kept local to this directory rather than added to src/commons/support/ — nothing
  * outside docsAndPlugin/ needs them.
  */
 

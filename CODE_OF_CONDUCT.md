@@ -14,7 +14,7 @@ auto-loaded `hercules-reference` skill, authored in [`src/content/`](src/content
 Every top-level directory is a **domain**, not a language or a category — nothing is named `ts`,
 `py`, `scripts`, or similar. A domain that has tests owns them directly, in its own `tests/`.
 
-Hercules is authored once (in `src/content/`, `src/ecosystems/`, and `src/hooks/`) and compiled to per-ecosystem
+Hercules is authored once (in `src/content/`, `src/targets/`, and `src/hooks/`) and compiled to per-ecosystem
 plugins under **`dist/`** (`make build`). **Edit the source domains, never `dist/`** — `dist/` is
 generated, and CI's drift gate fails when it is hand-edited or left stale.
 
@@ -22,7 +22,7 @@ generated, and CI's drift gate fails when it is hand-edited or left stale.
   `skills/{name}/SKILL.md`, `protocols/`, and `persona.md` — the project instructions, rendered to
   each host's convention: Claude Code's `CLAUDE.md`, OpenCode's `instructions.md`). `src/content/tests/`
   covers the built plugin content itself.
-- **[`src/ecosystems/`](src/ecosystems/)`/<ecosystem>.json`** — ONE descriptor per ecosystem, the whole target
+- **[`src/targets/`](src/targets/)`/<ecosystem>.json`** — ONE descriptor per ecosystem, the whole target
   as **data** (see **Adding an ecosystem**): token `vars`, `models`, `smoke`, role shapes, routes,
   inline JSON artifacts, guard/gate wiring, named generators. Shipped prose/SVG siblings follow the
   definitive filename schema **`<ecosystem>.dist.<dest>`** (ships byte-identically at plugin-root
@@ -34,7 +34,7 @@ generated, and CI's drift gate fails when it is hand-edited or left stale.
   every ecosystem): the canonical frozen-test guard and the one generic write-gate adapter. This
   domain holds no code the compiler executes — the compiler only copies these for the host to run.
   `src/hooks/tests/` is its own island (see § Testing).
-- **[`src/builder/`](src/builder/)** — the generic compiler that turns `src/content/` + `src/ecosystems/` into
+- **[`src/builder/`](src/builder/)** — the generic compiler that turns `src/content/` + `src/targets/` into
   `dist/`. `src/builder/tests/` covers it.
 - **[`src/release/`](src/release/)** — ships the builder's output: versioning, changelog, npm packaging, CI
   smoke/validate checks, the mutation-kill-rate gate, and the bash glue the GitHub workflows call
@@ -42,9 +42,9 @@ generated, and CI's drift gate fails when it is hand-edited or left stale.
 - **[`src/metrics/`](src/metrics/)** — instruction/token budgets, A2A grammar checks, loading-chain gates.
   `src/metrics/tests/` covers it.
 - **`dist/<ecosystem>/`** — the built plugins (generated; the shipped output), one tree per target.
-- **[`tests/`](tests/)** — repo-wide meta-guards that don't belong to any single domain
-  (`tests/repo/`), plus TypeScript test helpers shared across every domain's own `tests/`
-  (`tests/support/`).
+- **[`src/commons/`](src/commons/)** — cross-cutting test infrastructure that belongs to no single
+  domain: repo-wide meta-guards (`src/commons/repo/`) plus the TypeScript test helpers shared across
+  every domain's own `tests/` (`src/commons/support/`).
 
 Paths below name the **source** you edit; the compiler places the built copy under `dist/`.
 
@@ -84,7 +84,7 @@ Keep them in lock-step:
   list / guardrail registry first, with the command and the detailed diagram never lagging it **in the
   same change** (persona.md follows only when the state schema or overview changes). A `hook`-class
   registry row must match a live matcher in the **reference** gate — the `hooks/hooks.json` artifact
-  in `src/ecosystems/claude-code.json` (CI-verified); each other ecosystem's equivalent gate is
+  in `src/targets/claude-code.json` (CI-verified); each other ecosystem's equivalent gate is
   pinned by its own wiring test under `src/hooks/tests/` (see § Hooks).
 - If the change is visible at the four-phase level, also update the simplified diagram, the README
   (end-user overview), and `CONTRIBUTING.md` (if the contributor workflow is affected).
@@ -119,7 +119,7 @@ Exception: `hercules.md`, the orchestrator persona.
 - Replies follow the A2A `§ Agent-Injected Core` (`src/content/protocols/a2a-communication-protocol.md`).
 - Update the roster in **two places** — the agent list in `src/content/persona.md` and the
   `advisors[]` array in the claude-code descriptor's `settings.json` artifact
-  (`src/ecosystems/claude-code.json`) — `src/builder/tests/rosterSync.spec.ts` reads the compiled
+  (`src/targets/claude-code.json`) — `src/builder/tests/rosterSync.spec.ts` reads the compiled
   `settings.json` roster directly and fails on drift, so there is no third place to keep in sync.
 - **Instruction load is a budget.** Say whose context new content lands in — a delegate's total stays
   under ~150 directives (own file + packet + A2A core + the project CoC). Always-loaded content spends
@@ -136,7 +136,7 @@ Exception: `hercules.md`, the orchestrator persona.
 Hooks are the plugin's **hard** enforcement — deterministic code the host runs, which a model cannot
 rationalise past. All hook code is authored ONCE in `src/hooks/` and byte-copied to every ecosystem;
 what differs per host is **descriptor data** (the `guard`/`gate` sections of
-`src/ecosystems/<eco>.json`, emitted as `hooks/gate.json` beside the shared adapter). The surfaces:
+`src/targets/<eco>.json`, emitted as `hooks/gate.json` beside the shared adapter). The surfaces:
 
 - **Claude Code** — a `PreToolUse` hook (the canonical guard itself, wired by the descriptor's
   `hooks.json` artifact) denies a write before it lands. The reference gate.
@@ -192,7 +192,7 @@ One neutral `src/content/` compiles to every ecosystem through ONE generic engin
 loops the content once and dispatches through registries populated from the ecosystem descriptors —
 it holds **zero** per-ecosystem branches, classes, or modules. **A target is one data file**:
 
-- **Descriptor — `src/ecosystems/<eco>.json`:** the whole target, schema-validated
+- **Descriptor — `src/targets/<eco>.json`:** the whole target, schema-validated
   (`src/builder/descriptor.mts`): token `vars`; `models` tiers; the `smoke` matrix entry
   (schema-required — a target cannot exist untestable); per-role output shapes (`roles` — named
   serialization modes and field generators); destination `routes` (named kinds); inline JSON
@@ -215,7 +215,7 @@ it holds **zero** per-ecosystem branches, classes, or modules. **A target is one
   claim can never drift between ecosystems. An ecosystem routes it in with an `exact` route (or out
   with `omit` — claude-code, the reference, ships none); conformance and gate-wiring sync tests pin
   the rendered prose against the descriptor data it describes.
-- **Siblings — `src/ecosystems/<eco>.dist.<dest>` and `<eco>.template.<dest>`:** binary/marketplace
+- **Siblings — `src/targets/<eco>.dist.<dest>` and `<eco>.template.<dest>`:** binary/marketplace
   files byte-copied to plugin-root `<dest>` (cursor's logo/readme), and text templates rendered to
   `<dest>` (OpenCode's `plugin.js`). The filename IS the routing — the `.dist.`/`.template.` marker
   and dest are validated on discovery, pinned deterministic by tests, no separate mapping to drift.
@@ -227,7 +227,7 @@ it holds **zero** per-ecosystem branches, classes, or modules. **A target is one
 The rule is the same for a trivial ecosystem and a complex one — the complex one just fills in more
 of the optional sections. The old "no JSON config DSL" rule stands in spirit: the descriptor is a
 config **file**, not a DSL — control flow stays typed, mutation-covered code; `src/content/` and
-`src/ecosystems/` stay data the compiler only reads (and `src/hooks/` code it only copies). The
+`src/targets/` stay data the compiler only reads (and `src/hooks/` code it only copies). The
 committed-dist drift gate (`--check`) is what proves a descriptor reproduces the intended bytes.
 
 ### Failure moments
@@ -256,7 +256,7 @@ one fails CI:
   (`readCanonicalVersion`); `pyproject.toml` is the only other literal (setuptools reads it as-is) and
   is cross-checked against package.json every CI `validate` run. The two are the whole canonical list
   (`src/builder/versionTargets.mts::VERSION_TARGETS`). Every ecosystem's versioned manifest (a
-  `"versioned": true` artifact in `src/ecosystems/<ecosystem>.json`) carries a `${version}` **token**,
+  `"versioned": true` artifact in `src/targets/<ecosystem>.json`) carries a `${version}` **token**,
   not a literal — a human never sees a version to hand-bump under `src/content/`; the build injects the canonical
   version into each `dist/…/plugin.json` (fail-loud if the token is absent or duplicated). Tests assert
   every shipped manifest equals the canonical version and that no `${…}` token survives. Literal version sources are build *inputs* (`pyproject.toml`, `package.json`), never `dist/`

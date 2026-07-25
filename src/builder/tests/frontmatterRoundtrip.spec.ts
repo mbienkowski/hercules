@@ -3,7 +3,7 @@ import { globSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { parseFrontmatter, renderFrontmatter, splitDocument } from '../parse.mjs';
-import { readRepoFile, repoRoot } from '../../tests/support/repo';
+import { readRepoFile, repoRoot } from '../../commons/support/repo';
 
 // Ported from tests/build/test_frontmatter_roundtrip.py — the KEYSTONE GATE for dist/claude-code
 // byte-identity. That byte-identity (proven elsewhere by cli.spec.ts's checkTarget()===0 assertions

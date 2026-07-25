@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { minimal } from '../../tests/support/descriptorFixtures';
+import { minimal } from '../../commons/support/descriptorFixtures';
 
 // A SEPARATE spec file, deliberately — see builder/tests/layoutSort.spec.ts for the full
 // rationale. In short: APFS's readdirSync already returns entries in name order regardless of

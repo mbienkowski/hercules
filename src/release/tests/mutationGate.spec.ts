@@ -12,7 +12,7 @@ import {
   statusesFromReport,
   tally,
 } from '../checkMutationGate.mjs';
-import { readRepoJson, repoRoot } from '../../tests/support/repo';
+import { readRepoJson, repoRoot } from '../../commons/support/repo';
 
 /** Collect the gate's output instead of writing it to the real streams. */
 function capture(): { out: string[]; err: string[]; io: GateIo } {

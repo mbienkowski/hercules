@@ -6,7 +6,7 @@ import { repoRoot } from './repo';
 
 /** Shared across every descriptor.*.spec.ts file — see builder/tests/descriptor.spec.ts's header
  * comment for why the suite is split across files in the first place. */
-export const ECOSYSTEMS = join(repoRoot, 'src', 'ecosystems');
+export const ECOSYSTEMS = join(repoRoot, 'src', 'targets');
 
 /**
  * The same minimal valid skeleton test_descriptor_schema.py builds every case from — deep-cloned

@@ -6,8 +6,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { names } from '../descriptor.mjs';
 import { buildTarget } from '../bin/cli.mjs';
-import { filesUnder, isFile } from '../../tests/support/buildTree';
-import { ECOSYSTEMS } from '../../tests/support/descriptorFixtures';
+import { filesUnder, isFile } from '../../commons/support/buildTree';
+import { ECOSYSTEMS } from '../../commons/support/descriptorFixtures';
 
 // Ported from tests/build/test_conformance.py: ecosystem-conformance hardening — doc-grounded
 // runtime fixes from two ecosystem-specialist audits, each pinned here so it can't regress.

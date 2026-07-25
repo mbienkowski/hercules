@@ -19,7 +19,7 @@ import {
   parseDescriptor,
 } from '../../builder/descriptor.mjs';
 import { SmokeMatrixError, buildMatrix, main } from '../smokeMatrix.mjs';
-import { minimal } from '../../tests/support/descriptorFixtures';
+import { minimal } from '../../commons/support/descriptorFixtures';
 
 // Ported from tests/build/test_ci_smoke_matrix.py's unit-level (build_matrix()) assertions. The
 // CI-job-graph assertions (smoke/mutation `needs`/`if` wiring) live in release/tests/releasePipeline.spec.ts

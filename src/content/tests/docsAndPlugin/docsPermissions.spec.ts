@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { readRepoFile } from '../../../tests/support/repo';
+import { readRepoFile } from '../../../commons/support/repo';
 
 // Ported from tests/docs/test_docs.py — the README "Plugin permissions" prose-pin cluster, split
 // out of docs.spec.ts to keep both files under the CoC's 500-line-per-file cap.

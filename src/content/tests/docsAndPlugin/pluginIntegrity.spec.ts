@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { expect, it } from 'vitest';
 
 import { loadThresholds, runThresholdChecks } from '../../../metrics/thresholdRunner.mjs';
-import { isFile } from '../../../tests/support/buildTree';
-import { readRepoFile, readRepoJson, repoRoot } from '../../../tests/support/repo';
+import { isFile } from '../../../commons/support/buildTree';
+import { readRepoFile, readRepoJson, repoRoot } from '../../../commons/support/repo';
 import type { PluginManifest } from './support';
 
 // Ported from tests/plugin/test_plugin_integrity.py — plugin file hygiene and shared settings

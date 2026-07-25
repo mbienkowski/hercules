@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { discover } from '../descriptor.mjs';
 import { buildTarget } from '../bin/cli.mjs';
 import { buildRegistry } from '../serialize.mjs';
-import { ECOSYSTEMS } from '../../tests/support/descriptorFixtures';
+import { ECOSYSTEMS } from '../../commons/support/descriptorFixtures';
 
 // Ported from tests/build/test_model_tiering.py.
 
