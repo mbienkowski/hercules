@@ -407,12 +407,20 @@ const NON_PRINTABLE: ReadonlyArray<readonly [number, number]> = [
   [0x3100, 0x3100],
 ];
 
+/**
+ * Is `cp` printable per Python's `str.isprintable()`?
+ *
+ * Relies on NON_PRINTABLE being sorted ascending with non-overlapping `[lo, hi]` ranges: scan once
+ * and the FIRST range whose `lo` is already past `cp` proves `cp` sits in a gap between ranges
+ * (printable). A range that contains `cp` makes it non-printable. Reaching the end means `cp` is
+ * above every range — printable too.
+ */
 function isPyPrintable(cp: number): boolean {
   for (const [lo, hi] of NON_PRINTABLE) {
-    if (cp < lo) return true;
-    if (cp <= hi) return false;
+    if (cp < lo) return true; // before this range and all later ones => in a gap => printable
+    if (cp <= hi) return false; // inside [lo, hi] => non-printable
   }
-  return true;
+  return true; // above every non-printable range => printable
 }
 
 /**

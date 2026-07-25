@@ -190,14 +190,15 @@ function parseArgs(argv: readonly string[]): { target: string; check: boolean } 
 // stale-output stderr message can be exercised directly rather than merely trusted.
 export function main(argv: readonly string[], distRoot: string = DIST): number {
   const { target, check } = parseArgs(argv);
-  let rc = 0;
+  let anyStale = false;
   const known = new Set(names());
   for (const t of targetsFor(target)) {
     if (!known.has(t)) continue;
     if (check) {
       const tmp = mkdtempSync(join(tmpdir(), 'hercules-check-'));
       try {
-        rc |= checkTarget(t, tmp, distRoot);
+        // checkTarget returns 0 (in sync) or 1 (stale); one stale target makes the whole run stale.
+        if (checkTarget(t, tmp, distRoot) !== 0) anyStale = true;
       } finally {
         rmSync(tmp, { recursive: true, force: true });
       }
@@ -205,10 +206,10 @@ export function main(argv: readonly string[], distRoot: string = DIST): number {
       buildTarget(t, join(distRoot, t));
     }
   }
-  if (check && rc !== 0) {
+  if (check && anyStale) {
     process.stderr.write('dist/ is stale — regenerate it with `make build` and commit the result.\n');
   }
-  return rc;
+  return anyStale ? 1 : 0;
 }
 
 // Only run when invoked directly (`node cli.mjs ...`), not when imported by a test — matching

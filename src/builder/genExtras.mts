@@ -113,22 +113,31 @@ export function jsString(value: string): string {
   return JSON.stringify(value);
 }
 
+/**
+ * Render `[key, value]` entries as a multi-line JS object literal: keys bare when identifier-safe,
+ * values rendered recursively at a deeper indent. Empty entries collapse to `{}`.
+ *
+ * Shared by both object-like inputs — a `Map` (insertion order) and a plain object (`Object.entries`,
+ * which walks integer-like string keys first, the divergence documented at this file's top). The
+ * caller decides which entry list to pass; the formatting is identical.
+ */
+function renderObjectBody(entries: ReadonlyArray<readonly [string, JsLiteralValue]>, indent: number): string {
+  if (entries.length === 0) return '{}';
+  const spaces = ' '.repeat(indent);
+  const items = entries.map(
+    ([k, v]) => `${spaces}  ${BARE_KEY.test(k) ? k : jsString(k)}: ${jsObjectLiteral(v, indent + 2)},`,
+  );
+  return `{\n${items.join('\n')}\n${spaces}}`;
+}
+
 /** Render a JSON-serialisable value as a JS object literal (keys bare when identifier-safe). */
 export function jsObjectLiteral(obj: JsLiteralValue, indent = 8): string {
-  const spaces = ' '.repeat(indent);
-  if (obj instanceof Map) {
-    if (obj.size === 0) return '{}';
-    const items = [...obj].map(
-      ([k, v]) => `${spaces}  ${BARE_KEY.test(k) ? k : jsString(k)}: ${jsObjectLiteral(v, indent + 2)},`,
-    );
-    return `{\n${items.join('\n')}\n${spaces}}`;
-  }
+  if (obj instanceof Map) return renderObjectBody([...obj], indent);
   if (Array.isArray(obj)) {
     // An empty array's `.map(...).join(', ')` always produces `''`, making `` `[${''}]` `` === '[]'
     // regardless of whether this early return fires — verified directly. A TRUE equivalent mutant
-    // per CODE_OF_CONDUCT.md's Testing section's pragma exception, the same class as the Map branch
-    // above (`obj.size === 0`), which is unmutated only because Stryker cannot express an equivalent
-    // early return over `[...obj]` the same way.
+    // per CODE_OF_CONDUCT.md's Testing section's pragma exception (Stryker cannot express an
+    // equivalent early return, so the exemption is applied here rather than left as a survivor).
     // Stryker disable next-line ConditionalExpression: obj.map(...).join(', ') on an empty array is already '', making the early return observably identical — see comment above
     if (obj.length === 0) return '[]';
     return `[${obj.map((v) => jsObjectLiteral(v as JsLiteralValue, indent + 2)).join(', ')}]`;
@@ -143,16 +152,7 @@ export function jsObjectLiteral(obj: JsLiteralValue, indent = 8): string {
   if (typeof obj === 'boolean') return obj ? 'true' : 'false';
   if (typeof obj === 'string') return jsString(obj);
   if (obj === null) return 'null';
-  if (typeof obj === 'object') {
-    // A plain object: same shape as the Map branch above, but reading Object.entries() — the
-    // integer-like-key reordering divergence this implies is documented at this file's top.
-    const entries = Object.entries(obj as Record<string, JsLiteralValue>);
-    if (entries.length === 0) return '{}';
-    const items = entries.map(
-      ([k, v]) => `${spaces}  ${BARE_KEY.test(k) ? k : jsString(k)}: ${jsObjectLiteral(v, indent + 2)},`,
-    );
-    return `{\n${items.join('\n')}\n${spaces}}`;
-  }
+  if (typeof obj === 'object') return renderObjectBody(Object.entries(obj as Record<string, JsLiteralValue>), indent);
   return String(obj);
 }
 

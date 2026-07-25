@@ -33,13 +33,17 @@ export const VERSION_TARGETS: ReadonlyArray<readonly [string, VersionFormat]> = 
  * Python pattern would therefore fail at MODULE LOAD, inside the exact code path CI's `validate`
  * job and the release pipeline run.
  */
+// The `write` patterns capture the text AROUND the value as `prefix` (e.g. `version = "`) and
+// `suffix` (the closing `"`), so the replacer can swap only the value and keep the surrounding
+// punctuation byte-for-byte. Named groups are also positional groups 1 & 2, so the replacer reads
+// them by position below. The `read` patterns need only the value itself, in a single group.
 const PATTERNS: Record<VersionFormat, { write: RegExp; read: RegExp }> = {
   toml: {
-    write: /^(version\s*=\s*")[^"]+(")/m,
+    write: /^(?<prefix>version\s*=\s*")[^"]+(?<suffix>")/m,
     read: /^version\s*=\s*"([^"]+)"/gm,
   },
   json: {
-    write: /("version"\s*:\s*")[^"]+(")/,
+    write: /(?<prefix>"version"\s*:\s*")[^"]+(?<suffix>")/,
     read: /"version"\s*:\s*"([^"]+)"/g,
   },
 };
