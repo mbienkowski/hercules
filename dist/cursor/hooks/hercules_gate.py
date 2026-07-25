@@ -1,7 +1,7 @@
 """The ONE write-gate adapter (G1) — generic, parameterized by the ecosystem's ``hooks/gate.json``.
 
 Every ecosystem's gate is this same file; what differs per host is DATA, emitted at build time from
-the ecosystem descriptor (``src/ecosystems/<name>.json`` → ``gate``) into a ``gate.json`` beside it.
+the ecosystem descriptor (``ecosystems/<name>.json`` → ``gate``) into a ``gate.json`` beside it.
 The verdict logic is never re-implemented per host: everything delegates to the CANONICAL guard
 shipped alongside (``frozen_tests`` + ``hercules_state``, byte-identical on every ecosystem), so the
 frozen set, the block message, and the user-granted ``frozen_override`` escape hatch are identical
@@ -147,7 +147,7 @@ def _unquote(cmd: str) -> str:
     # context) — and Python's slice protocol treats `None` identically to `0` for a start bound
     # (`s[None:5] == s[0:5]`, unconditionally, for every string). Mutating this literal to `None`
     # therefore cannot change this function's output for ANY input: a provable equivalent mutant,
-    # not a missing test. See tests-python/hooks/test_hercules_gate_internals.py for the full case.
+    # not a missing test. See hooks/tests/test_hercules_gate_internals.py for the full case.
     last = 0  # pragma: no mutate (equivalent: only ever used as a slice-start bound; see comment above)
     for m in _QUOTED.finditer(cmd):
         preceding = cmd[last:m.start()]

@@ -1,5 +1,6 @@
 {
-  // Emit config: compiles ONLY scripts-ts/ (the production toolchain) into .ts-out/.
+  // Emit config: compiles the production toolchain (builder/, release/, metrics/ — every domain's
+  // own .mts logic, never its tests/ or bin/ shims' non-.mts siblings) into .ts-out/.
   // See tsconfig.base.json for why package.json must never gain a "type" field.
   //
   // Sources are .mts and emit .mjs, which Node always loads as ESM regardless of package.json.
@@ -10,7 +11,9 @@
   //
   // .ts-out/ is gitignored and is deliberately NOT named build/: /build/ is already an ignore rule
   // and pytest's norecursedirs is documented around that name, so reusing it would collide with
-  // two live rules.
+  // two live rules. Its internal shape now mirrors the three domains: .ts-out/builder/,
+  // .ts-out/release/, .ts-out/metrics/ — `rootDir: "."` lets tsc emit each domain under its own
+  // matching subtree rather than flattening them into one directory.
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
@@ -18,8 +21,8 @@
     "module": "node16",
     "moduleResolution": "node16",
     "outDir": ".ts-out",
-    "rootDir": "scripts-ts",
+    "rootDir": ".",
     "sourceMap": true
   },
-  "include": ["scripts-ts/**/*.mts"]
+  "include": ["builder/**/*.mts", "release/**/*.mts", "metrics/**/*.mts"]
 }

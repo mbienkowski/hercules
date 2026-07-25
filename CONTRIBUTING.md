@@ -1,8 +1,8 @@
 # Contributing to Hercules
 
-Hercules is authored once in `src/` and compiled to per-ecosystem trees under `dist/`
-(`claude-code`, `opencode`, `cursor`) by the build pipeline in `scripts-ts/build/`. CI regenerates and
-drift-checks `dist/` on every push, so `main` always carries an in-sync build.
+Hercules is authored once (in `content/`, `ecosystems/`, and `hooks/`) and compiled to per-ecosystem
+trees under `dist/` (`claude-code`, `opencode`, `cursor`) by the build pipeline in `builder/`. CI
+regenerates and drift-checks `dist/` on every push, so `main` always carries an in-sync build.
 
 The deep rules for *extending the methodology itself* (commands, agents, skills, hooks, invariants)
 live in [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md); the release process is in [`RELEASE.md`](RELEASE.md).
@@ -21,8 +21,8 @@ make test-mutation  # mutation testing (slower; gates on a 90% kill rate, both r
 > produces a red CI conclusion and **blocks the release**. So a mutation regression you don't catch
 > locally won't surface on your PR — it will stop the next release *after* merge. Catch it here first.
 
-After editing anything under `src/`, rebuild and commit `dist/` alongside the source change.
-An optional pre-commit hook regenerates `dist/` automatically:
+After editing anything under `content/`, `ecosystems/`, or `hooks/`, rebuild and commit `dist/`
+alongside the source change. An optional pre-commit hook regenerates `dist/` automatically:
 
 ```bash
 git config core.hooksPath .githooks
@@ -30,23 +30,40 @@ git config core.hooksPath .githooks
 
 ## Where things live
 
-- `src/content/` — neutral source: agents, commands, skills, protocols, and `persona.md`.
+Every top-level directory is a domain, not a language or category — nothing is named `ts`, `py`, or
+`scripts`. Each domain that has code owns its own `tests/` alongside it.
+
+- `content/` — the product: neutral source agents, commands, skills, protocols, and `persona.md`.
   Content uses `${token}` placeholders and `${target:…}` switches so one file compiles for every
-  ecosystem.
-- `src/ecosystems/<name>.json` — ONE descriptor per ecosystem (the filename is the registry key):
+  ecosystem. Capability disclosures are compiled from the shared `content/capabilities.md` — no
+  per-ecosystem directories, no per-ecosystem code. `content/tests/` covers the built plugin content
+  itself (commands, agents, skills, protocols, docs, the plugin manifest).
+- `ecosystems/<name>.json` — ONE descriptor per ecosystem (the filename is the registry key):
   token `vars`, `models` tiers, the `smoke` matrix entry, per-role output shapes (`roles`),
   destination `routes`, inline JSON `artifacts` (manifests, settings, hook wiring), shared-`guard`
   modules, write-`gate` params, and rendered `templates`. Siblings follow a filename schema:
   `<name>.dist.<dest>` (byte-copied to plugin-root `<dest>`) for binary/marketplace assets, and
   `<name>.template.<dest>` (rendered from named computed values) for generated text like OpenCode's
-  `plugin.js`; the directory layout is schema-validated — a stray file fails the build. Capability
-  disclosures are compiled from the shared `src/content/capabilities.md` — no per-ecosystem
-  directories, no per-ecosystem code.
-- `src/hooks/` — the shared enforcement code, authored once and byte-copied to every ecosystem:
-  the canonical frozen-test guard + the ONE generic write-gate adapter (`hercules_gate.py`).
-- `scripts-ts/build/` — the generic compiler: `parse` → `render` → `genSerialize` (descriptor-driven)
-  → `genExtras` → the `bin/cli` entry point (FS write). `descriptor.mts` validates the closed vocabulary.
+  `plugin.js`; the directory layout is schema-validated — a stray file fails the build. Kept as its
+  own top-level directory rather than nested under `content/`: the builder's content walk is
+  recursive, so an ecosystem descriptor sitting inside `content/` would be swept up as if it were
+  content to render.
+- `hooks/` — the shared enforcement code, authored once and byte-copied to every ecosystem:
+  the canonical frozen-test guard + the ONE generic write-gate adapter (`hercules_gate.py`). This is
+  the one domain that stays Python permanently — it ships to and runs on the end user's machine, so
+  it can't carry a Node runtime dependency. `hooks/tests/` is its own island (see § Testing below).
+- `builder/` — the generic compiler: `parse` → `render` → `genSerialize` (descriptor-driven)
+  → `genExtras` → the `bin/cli` entry point (FS write). `descriptor.mts` validates the closed
+  vocabulary. `builder/tests/` covers the compiler itself.
+- `release/` — ships the builder's output: versioning, changelog, npm packaging, CI smoke/validate
+  checks, and the mutation-kill-rate gate (both its TypeScript and Python halves — see
+  `release/mutation-gate.json`). `release/ci/` holds the bash glue the GitHub workflows call through
+  `make`. `release/tests/` covers all of it.
+- `metrics/` — instruction/token budgets, A2A grammar checks, loading-chain gates. `metrics/tests/`
+  covers it.
 - `dist/` — generated output, committed and tracked (never git-ignored).
+- `tests/` — repo-wide meta-guards that don't belong to any single domain (`tests/repo/`), plus
+  TypeScript test helpers shared across every domain's own `tests/` (`tests/support/`).
 
 ## Adding a new target
 
@@ -56,8 +73,8 @@ per-ecosystem branches, classes, or modules. The CI-hard-failing steps that are 
 write-gate declaration (step 4) — are called out so you don't pass local `make test` and then hit a
 late CI failure. The procedure:
 
-1. **Add `src/ecosystems/<name>.json`** — copy the closest existing descriptor and adjust. Every
-   section is validated against a closed vocabulary (`scripts-ts/build/descriptor.mts`): an unknown key
+1. **Add `ecosystems/<name>.json`** — copy the closest existing descriptor and adjust. Every
+   section is validated against a closed vocabulary (`builder/descriptor.mts`): an unknown key
    or enum value fails the build loudly, naming the allowed set. The sections:
    - `vars` — token substitutions for `${token}` placeholders in source content.
    - `models` — `model_tier` (high/medium/low) → model id, or `null` to omit per-agent models.
@@ -69,26 +86,26 @@ late CI failure. The procedure:
      Gemini's `.toml` commands or Copilot's `.agent.md`.
    - `artifacts` — host manifests/settings/hook wiring as inline JSON, emitted canonically;
      `"versioned": true` injects the canonical version into a `${version}` token (fail-loud).
-   - `guard` + `gate` — which `src/hooks/` modules ship, and the write-gate parameters the ONE
+   - `guard` + `gate` — which `hooks/` modules ship, and the write-gate parameters the ONE
      generic adapter reads (`pre_tool` tool maps + decision shapes, or `event_guards`).
    - `templates` — for genuinely generated text (e.g. OpenCode's `plugin.js`): a
      `<name>.template.<dest>` sibling whose `__PLACEHOLDER__`s are filled from closed, named
      computed-value kinds (`js_string`, `js_string_list`, `js_root_joins`, `role_entries_js` — the
      computations are mutation-covered functions in `genExtras.mts`). A need the vocabulary can't
-     express = a new NAMED value kind in `scripts-ts/build/` with tests, then referenced by name —
+     express = a new NAMED value kind in `builder/` with tests, then referenced by name —
      never logic in the JSON.
 2. **Disclose capability gaps** — add a `${target:<name>}` branch to the shared
-   `src/content/capabilities.md` (compiled per ecosystem; shared claims stay on shared lines) and
+   `content/capabilities.md` (compiled per ecosystem; shared claims stay on shared lines) and
    route it with `{"kind": "exact", "src": "capabilities.md", "dest": "CAPABILITIES.md"}`. For
-   binary/marketplace assets use the sibling filename schema: `src/ecosystems/<name>.dist.<dest>`
+   binary/marketplace assets use the sibling filename schema: `ecosystems/<name>.dist.<dest>`
    ships byte-identically at `dist/<name>/<dest>`; a mis-prefixed or stray file fails discovery.
 3. **Rebuild and commit**: `make build` regenerates `dist/<name>/`; commit it alongside the source.
 4. **Declare the write-gate** (CI-hard-failing): add an entry for the target to `GATE_EXPECTATIONS`
-   in `tests-python/hooks/test_enforcement_gates.py`. `test_every_registered_target_declares_a_gate` fails
+   in `hooks/tests/test_enforcement_gates.py`. `test_every_registered_target_declares_a_gate` fails
    for any registered ecosystem with no declared write-gate (or an explicit, reasoned waiver) — this
    is a deliberate security forcing-function, so a new target can't ship ungated by accident.
-5. **Add tests** under `tests-ts/build/` pinning the new target's output (see any
-   `<name>Build.spec.ts`), and a conformance block in `tests-ts/bin/universalConformance.spec.ts`
+5. **Add tests** under `builder/tests/` pinning the new target's output (see any
+   `<name>Build.spec.ts`), and a conformance block in `builder/tests/universalConformance.spec.ts`
    (or `conformance.spec.ts`) for any ecosystem-specific invariants.
 6. **Add a smoke-checklist section** to `RELEASE.md` for the live (non-build-provable) behaviours
    the new target requires a human to confirm before release.
@@ -131,15 +148,16 @@ released version. Restart after any change; settings are read at startup.
 - **No comments in code** unless explaining a non-obvious decision.
 - All `.md` filenames must be **lowercase** — macOS is case-insensitive but Linux (CI) is not, so a
   mixed-case name that works locally breaks on CI.
-- Tests live in `tests-ts/`, organised by category (`build/`, `ci/`, `commands/`, `skillsAndAgents/`,
-  `docsAndPlugin/`, `workflowAndProtocols/`, `metrics/`, `bin/`, …) — everything except the shipped
-  `src/hooks/` island, whose own tests live in `tests-python/hooks/`. `tests/test_collection_integrity.py`
-  guards that no Python test directory (`tests-python/`) is hidden by `norecursedirs`.
+- Tests live alongside the domain they cover — `builder/tests/`, `release/tests/`, `metrics/tests/`,
+  `content/tests/` (organised into `commands/`, `skillsAndAgents/`, `docsAndPlugin/`,
+  `workflowAndProtocols/` subdirectories) — everything except the shipped `hooks/` island, whose own
+  tests live in `hooks/tests/`. `tests/repo/test_collection_integrity.py` guards that no Python test
+  directory is hidden by `norecursedirs`.
 - One version, single-sourced — `package.json` is canonical; `pyproject.toml` is the only other
   literal (setuptools needs it) and is cross-checked against it. Both are the whole list in
-  `scripts-ts/build/versionTargets.mts`; `scripts-ts/setVersion.mts` writes them, CI's `validate` job
-  checks them. The plugin manifests (versioned `artifacts` in each `src/ecosystems/<eco>.json`) carry a
+  `builder/versionTargets.mts`; `release/setVersion.mts` writes them, CI's `validate` job
+  checks them. The plugin manifests (versioned `artifacts` in each `ecosystems/<eco>.json`) carry a
   `${version}` **token** — the build injects the canonical version into `dist/…/plugin.json`, so
-  there's nothing to hand-bump in `src/`.
+  there's nothing to hand-bump in the source.
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
   `refactor:`, `test:`, `docs:`, `ci:`) — the release pipeline derives the version bump from them.

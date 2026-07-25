@@ -1,0 +1,12 @@
+{
+  "_comment": [
+    "Mutation kill-rate thresholds, read by BOTH gate scripts: release/check_mutation_gate.py",
+    "(mutmut, over hooks/) and release/checkMutationGate.mts (Stryker, over builder/ + release/ +",
+    "metrics/). Single-sourced on purpose — two runtimes each hardcoding 90/95 is exactly how the",
+    "two gates drift apart, and a project that gates itself at >= 90% must not have two answers to",
+    "what 90 means. release/tests/mutationGate.spec.ts and release/tests/test_mutation_gate.py both",
+    "read this file, so a change here moves both gates or fails both suites."
+  ],
+  "gate": 90,
+  "warn": 95
+}

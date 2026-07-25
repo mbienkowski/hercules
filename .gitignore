@@ -20,6 +20,7 @@ __pycache__/
 .coverage
 .pytest_cache/
 .mutmut-cache
+/mutmut-results.txt
 
 # Runtime state (lives in the cloned copy at ~/.hercules on user machines)
 .last-pull
@@ -40,3 +41,5 @@ docs/tmp/
 .idea/*
 # Claude Code IDE settings (machine-local)
 .claude/
+# OpenCode CLI scratch state (machine-local, unrelated to the project)
+.opencode/

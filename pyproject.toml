@@ -24,23 +24,29 @@ dev = [
 py-modules = []
 
 [tool.pytest.ini_options]
-pythonpath = [".", "tests-python"]
-# tests-python/ is a SEPARATE tree from tests/ (see CODE_OF_CONDUCT.md § Testing) — the Python
+pythonpath = ["."]
+# hooks/tests/ is a SEPARATE tree from tests/repo/ (see CODE_OF_CONDUCT.md § Testing) — the Python
 # hooks island — so both must be listed explicitly.
-testpaths = ["tests", "tests-python"]
+testpaths = ["tests/repo", "hooks/tests"]
 
 [tool.mutmut]
-# src/hooks/ — the shared enforcement hooks (the ONE gate adapter every ecosystem ships) — is the
-# only mutated surface now that the Python compiler is gone; TypeScript's own Stryker mutation gate
-# (`make mutation-ts`) covers everything that used to live in scripts/build/.
-paths_to_mutate = "src/hooks/"
-paths_to_exclude = "test_*.py,__init__.py,conftest.py"
+# hooks/ — the shared enforcement hooks (the ONE gate adapter every ecosystem ships) — is the only
+# mutated surface now that the Python compiler is gone; TypeScript's own Stryker mutation gate
+# (`make mutation-ts`) covers everything that used to live in the retired Python compiler.
+paths_to_mutate = "hooks/"
+# hooks/tests/ now nests INSIDE the mutated tree (the domain restructure moved it there from the
+# separate tests-python/hooks/), so it must be excluded explicitly or mutmut would mutate the tests
+# themselves alongside the hook source they're supposed to be judging.
+paths_to_exclude = "test_*.py,__init__.py,conftest.py,hooks/tests/*"
 backup = false
-# tests-python/hooks/ is the hooks island's own tree (see CODE_OF_CONDUCT.md § Testing); the main
-# tests/ tree carries nothing that exercises src/hooks/ mutation behavior, so narrowing the runner
-# to tests-python/ alone is both correct and considerably faster than the pre-split full-suite run.
-runner = "python -m pytest tests-python/ -x -q --tb=no --no-header"
-tests_dir = "tests-python/"
+# hooks/tests/ is the hooks island's own tree (see CODE_OF_CONDUCT.md § Testing); tests/repo/
+# carries nothing that exercises hooks/ mutation behavior, so narrowing the runner to hooks/tests/
+# alone is both correct and considerably faster than the pre-split full-suite run.
+runner = "python -m pytest hooks/tests/ -x -q --tb=no --no-header"
+tests_dir = "hooks/tests/"
 
 [tool.coverage.run]
-omit = ["tests/**/test_*.py", "tests/**/__init__.py", "tests/**/conftest.py"]
+omit = [
+    "tests/**/test_*.py", "tests/**/__init__.py", "tests/**/conftest.py",
+    "hooks/tests/**/test_*.py", "hooks/tests/**/__init__.py", "hooks/tests/**/conftest.py",
+]
