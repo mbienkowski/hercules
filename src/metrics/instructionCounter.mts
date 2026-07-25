@@ -67,11 +67,19 @@ function findUnits(text: string): string[] {
  * `\S+` only ever matches non-whitespace runs, so there is nothing left for a boundary-whitespace
  * artifact to slip through as a false "word".
  */
+/** The number of whitespace-separated words in `s` (`\S+` runs, so boundary whitespace never counts). */
+function wordCount(s: string): number {
+  return s.match(/\S+/g)?.length ?? 0;
+}
+
+const MIN_WORDS_PER_DIRECTIVE = 2; // a shorter fragment (a bare "and", a one-word aside) is dropped as noise
+
 function countAtomicDirectives(unit: string): number {
-  const fragments = unit
+  const directives = unit
     .split(SEPARATOR_RE)
-    .filter((f) => (f.match(/\S+/g)?.length ?? 0) >= 2);
-  return Math.max(fragments.length, 1); // the unit itself is still one directive, even if too short to split
+    .filter((fragment) => wordCount(fragment) >= MIN_WORDS_PER_DIRECTIVE);
+  // Even a unit too short to split into any qualifying fragment still counts as one directive itself.
+  return Math.max(directives.length, 1);
 }
 
 /** Atomic instruction count across every unit in `text` — the ONE counter this project uses. */

@@ -11,14 +11,14 @@ const ENTRY_RE_GLOBAL = new RegExp(ENTRY_RE.source, 'g');
 /** Extract the content of the first fenced ``` block — the injected A2A Core. */
 export function extractA2aCore(md: string): { text: string; found: boolean } {
   const lines = md.split('\n');
-  let start = -1;
+  let contentStart = -1; // stays -1 until the OPENING ``` fence is seen
   for (let i = 0; i < lines.length; i += 1) {
-    if ((lines[i] as string).trimStart().startsWith('```')) {
-      if (start === -1) {
-        start = i + 1;
-      } else {
-        return { text: lines.slice(start, i).join('\n'), found: true };
-      }
+    const isFence = (lines[i] as string).trimStart().startsWith('```');
+    if (!isFence) continue;
+    if (contentStart === -1) {
+      contentStart = i + 1; // opening fence — the block's content begins on the next line
+    } else {
+      return { text: lines.slice(contentStart, i).join('\n'), found: true }; // closing fence — done
     }
   }
   return { text: '', found: false };
@@ -50,7 +50,9 @@ export function findCoreEntryLines(text: string): string[] {
  * inside the CONTENT field is permitted — only `' | '` with spaces counts.
  */
 export function matchesA2aEntryFormat(line: string): boolean {
-  return line.split(' | ').length - 1 === 2;
+  const FIELD_SEPARATOR = ' | ';
+  const separatorCount = line.split(FIELD_SEPARATOR).length - 1;
+  return separatorCount === 2; // two separators => three fields: [ROLE] STATUS | CONTENT | ACTION
 }
 
 /** Return the STATUS value from each A2A entry line found in text. */

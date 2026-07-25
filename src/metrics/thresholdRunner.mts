@@ -12,6 +12,13 @@ type MetricFn = (text: string) => number;
 const VALID_SEVERITIES = new Set(['gate', 'warn']);
 const VALID_OPS = new Set(['==', '<=', '>=', '<', '>']);
 
+// A pattern is treated as a glob (expanded via globSync) rather than a literal path when it contains
+// any glob metacharacter: `*`, `?`, or `[`. (The `[` inside the class is a literal class member.)
+const GLOB_CHARS = /[*?[]/;
+function isGlob(pattern: string): boolean {
+  return GLOB_CHARS.test(pattern);
+}
+
 /** Exported for direct unit testing (mirrors the Python original's own test importing `_core_token_count`). */
 export function coreTokenCount(text: string): number {
   const { text: core, found } = extractA2aCore(text);
@@ -110,7 +117,7 @@ export function resolveTargets(repoRoot: string, target: string): string[] {
   for (const rawPat of target.split(',')) {
     const pat = rawPat.trim();
     if (pat === '') continue;
-    if (/[*?[]/.test(pat)) {
+    if (isGlob(pat)) {
       for (const rel of [...globSync(pat, { cwd: repoRoot })].sort()) {
         const full = join(repoRoot, rel);
         if (!seen.has(full)) {
@@ -127,6 +134,39 @@ export function resolveTargets(repoRoot: string, target: string): string[] {
     }
   }
   return out;
+}
+
+/** The outcome of evaluating one check: did it pass, the number to report, and the human message. */
+interface Evaluation {
+  passed: boolean;
+  reported: number;
+  msg: string;
+}
+
+/** Apply the limit to each matched file individually (e.g. "every agent <= 800"); report the worst. */
+function evaluatePerFile(check: ThresholdCheck, targets: readonly string[], repoRoot: string, fn: MetricFn): Evaluation {
+  const offenders: string[] = [];
+  let worst = 0;
+  for (const path of targets) {
+    const value = fn(readFileSync(path, 'utf-8'));
+    worst = Math.max(worst, value);
+    const [ok, err] = compareValue(value, check.op, check.limit);
+    if (err) throw new Error(`check '${check.name}': ${err}`);
+    if (!ok) offenders.push(`${relative(repoRoot, path)}=${value}`);
+  }
+  const msg = `${check.name}: per-file ${check.metric}(${check.target}) want ${check.op} ${check.limit}` +
+    (offenders.length > 0 ? ` — offenders: ${offenders.join(', ')}` : '');
+  return { passed: offenders.length === 0, reported: worst, msg };
+}
+
+/** Sum the metric across all matched files (a combined budget); report the total. */
+function evaluateSummed(check: ThresholdCheck, targets: readonly string[], fn: MetricFn): Evaluation {
+  let total = 0;
+  for (const path of targets) total += fn(readFileSync(path, 'utf-8'));
+  const [ok, err] = compareValue(total, check.op, check.limit);
+  if (err) throw new Error(`check '${check.name}': ${err}`);
+  const msg = `${check.name}: ${check.metric}(${check.target})=${total}, want ${check.op} ${check.limit}`;
+  return { passed: ok, reported: total, msg };
 }
 
 /**
@@ -148,35 +188,9 @@ export function runThresholdChecks(repoRoot: string, checks: readonly ThresholdC
     }
 
     const fn = METRIC_REGISTRY[check.metric] as MetricFn;
-    let passed: boolean;
-    let reported: number;
-    let msg: string;
-
-    if (check.perFile) {
-      // Apply the limit to each matched file individually (e.g. "every agent <= 800").
-      const offenders: string[] = [];
-      let worst = 0;
-      for (const path of targets) {
-        const value = fn(readFileSync(path, 'utf-8'));
-        worst = Math.max(worst, value);
-        const [ok, err] = compareValue(value, check.op, check.limit);
-        if (err) throw new Error(`check '${check.name}': ${err}`);
-        if (!ok) offenders.push(`${relative(repoRoot, path)}=${value}`);
-      }
-      passed = offenders.length === 0;
-      reported = worst;
-      msg = `${check.name}: per-file ${check.metric}(${check.target}) want ${check.op} ${check.limit}` +
-        (offenders.length > 0 ? ` — offenders: ${offenders.join(', ')}` : '');
-    } else {
-      // Sum the metric across all matched files (a combined budget).
-      let total = 0;
-      for (const path of targets) total += fn(readFileSync(path, 'utf-8'));
-      const [ok, err] = compareValue(total, check.op, check.limit);
-      if (err) throw new Error(`check '${check.name}': ${err}`);
-      passed = ok;
-      reported = total;
-      msg = `${check.name}: ${check.metric}(${check.target})=${total}, want ${check.op} ${check.limit}`;
-    }
+    const { passed, reported, msg } = check.perFile
+      ? evaluatePerFile(check, targets, repoRoot, fn)
+      : evaluateSummed(check, targets, fn);
 
     const nearWarn = check.warnAt !== null && passed && reported >= check.warnAt;
     results.push({

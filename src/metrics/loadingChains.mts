@@ -65,17 +65,28 @@ function measurePart(distRoot: string, part: ChainPart): number {
   throw new Error(`chain part '${part.label}' names neither 'file' nor 'sumGlob'`);
 }
 
+/**
+ * The concrete chains one template expands to: just itself for a fixed template, or one per glob
+ * match for a `variable` template (each carrying that match as an extra part). Because the glob arm
+ * runs only after the early return, `variable` is provably defined there — no `?.` or cast needed.
+ */
+function expandTemplate(
+  template: ChainTemplate,
+  distRoot: string,
+): Array<{ name: string; extra: ChainPart | undefined }> {
+  const { variable } = template;
+  if (variable === undefined) return [{ name: template.name, extra: undefined }];
+  return globSync(variable.glob, { cwd: distRoot }).sort().map((rel) => ({
+    name: `${template.name}: ${rel}`,
+    extra: { label: variable.label, file: rel },
+  }));
+}
+
 /** Expand every template into its concrete chains (one per glob match, for a `variable` template). */
 export function resolveChains(distRoot: string, templates: readonly ChainTemplate[]): ResolvedChain[] {
   const out: ResolvedChain[] = [];
   for (const template of templates) {
-    const instances = template.variable === undefined
-      ? [{ name: template.name, extra: undefined as ChainPart | undefined }]
-      : globSync(template.variable.glob, { cwd: distRoot }).sort().map((rel) => ({
-        name: `${template.name}: ${rel}`,
-        extra: { label: template.variable?.label as string, file: rel },
-      }));
-    for (const { name, extra } of instances) {
+    for (const { name, extra } of expandTemplate(template, distRoot)) {
       const parts = extra === undefined ? template.fixed : [...template.fixed, extra];
       const breakdown = new Map<string, number>();
       let value = 0;
