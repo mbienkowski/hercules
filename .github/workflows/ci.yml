@@ -40,10 +40,10 @@ defaults:
 # `build` output (derived from the target registry), so there is no separate discovery job to sync.
 jobs:
   # ── Build gate — regenerate dist/ and prove it matches what's committed ──────
-  # Runs FIRST: a content/ edit pushed without a rebuild fails here (drift), before any
+  # Runs FIRST: a src/content/ edit pushed without a rebuild fails here (drift), before any
   # test burns minutes. Also proves the build is deterministic (two runs byte-equal)
   # and that dist/ is tracked, not silently git-ignored. Emits the smoke matrix (one leg per
-  # registered ecosystem, from its content/ecosystems/<eco>.json smoke config) so `smoke` needs no discovery job.
+  # registered ecosystem, from its src/ecosystems/<eco>.json smoke config) so `smoke` needs no discovery job.
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -62,7 +62,7 @@ jobs:
         with:
           python-version: "3.9"
 
-      # release/smokeMatrix.mts (below) imports the descriptor module, which validates via Zod,
+      # src/release/smokeMatrix.mts (below) imports the descriptor module, which validates via Zod,
       # and `make build`/`make build-check` themselves run the TypeScript compiler (`node
       # .ts-out/builder/bin/cli.mjs`, since commit 15) — so the TypeScript toolchain must be installed and
       # compiled BEFORE the build-gates step, not after. This job holds no npm-installed dependencies
@@ -80,7 +80,7 @@ jobs:
         run: make compile
 
       # Drift (committed dist/ == fresh build), determinism (two builds byte-equal), and the
-      # untracked-dist guard — all in release/ci/build_gates.sh, which itself calls back through
+      # untracked-dist guard — all in src/release/ci/build_gates.sh, which itself calls back through
       # `make build`/`make build-check` (the TypeScript compiler; this job never hardcodes it).
       - name: Build gates (drift, determinism, tracked)
         run: make ci-build
@@ -109,7 +109,7 @@ jobs:
 
       # `make install` and `make test` each run a Python half and a TypeScript half, so this job
       # provisions both runtimes. The split is visible in the target names: test-py covers
-      # hooks/ and its meta-guards, test-ts covers builder/, release/ and metrics/.
+      # src/hooks/ and its meta-guards, test-ts covers src/{builder,release,metrics}/.
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -143,7 +143,7 @@ jobs:
         with:
           python-version: "3.9"
 
-      # release/validatePackage.mts (below) needs the compiled TypeScript toolchain present —
+      # src/release/validatePackage.mts (below) needs the compiled TypeScript toolchain present —
       # this job holds no npm-installed dependencies by default (only setup-python).
       - uses: actions/setup-node@v7
         with:
@@ -245,7 +245,7 @@ jobs:
           path: smoke-results-${{ matrix.target }}.txt
 
   # ── Mutation testing — MAIN ONLY, the release gate (after the quick gates) ────
-  # Two parallel jobs, one per runtime — the whole reason the Python island (hooks/, mutmut) is
+  # Two parallel jobs, one per runtime — the whole reason the Python island (src/hooks/, mutmut) is
   # worth keeping separate from the TypeScript toolchain (everything else, Stryker) is that they can
   # now run concurrently instead of one ~40min job running both sequentially. Each `if:`/`needs:` is
   # identical between the two so neither gates the other; both gate release.yml (which chains off
@@ -269,7 +269,7 @@ jobs:
       && needs.validate.result == 'success'
       && needs.smoke.result == 'success'
     runs-on: ubuntu-latest
-    # mutmut now mutates only hooks/ (a few hundred lines) instead of also the former
+    # mutmut now mutates only src/hooks/ (a few hundred lines) instead of also the former
     # Python compiler — expected well under the old combined ~40min figure, but unmeasured
     # at this scope; kept generous rather than tight until a real run establishes the actual ceiling.
     timeout-minutes: 30
@@ -277,7 +277,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Python only — mutmut has no use for Node, and hooks/ is stdlib-only.
+      # Python only — mutmut has no use for Node, and src/hooks/ is stdlib-only.
       - uses: actions/setup-python@v6
         with:
           python-version: "3.9"
@@ -312,7 +312,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Node only — Stryker mutates builder/, release/ and metrics/, and has no use for Python.
+      # Node only — Stryker mutates src/{builder,release,metrics}/, and has no use for Python.
       - uses: actions/setup-node@v7
         with:
           node-version: "22"

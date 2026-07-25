@@ -1,6 +1,6 @@
 # Releasing Hercules
 
-Hercules is authored once (in `content/`, `ecosystems/`, and `hooks/`) and compiled to per-ecosystem
+Hercules is authored once (in `src/content/`, `src/ecosystems/`, and `src/hooks/`) and compiled to per-ecosystem
 trees under `dist/` (`make build`). CI regenerates and drift-checks `dist/` on every push, so `main`
 always carries an in-sync build.
 
@@ -9,12 +9,12 @@ always carries an in-sync build.
 On every merge to `main`, `release.yml` runs after CI succeeds:
 
 1. Computes the next version from Conventional Commits (`feat`/`fix`/`perf` bump the CHANGELOG).
-2. `release/setVersion.mts` stamps that version into the two files that MUST carry a literal
-   (`builder/versionTargets.mts::VERSION_TARGETS`): `package.json` (the canonical source, read
+2. `src/release/setVersion.mts` stamps that version into the two files that MUST carry a literal
+   (`src/builder/versionTargets.mts::VERSION_TARGETS`): `package.json` (the canonical source, read
    by npm/OpenCode) and `pyproject.toml` (read by setuptools). The plugin manifests
    (`dist/{claude-code,cursor}/…/plugin.json`) are **not** stamped — their source carries a
    `${version}` token that the build injects from `package.json` (step below), so there is one
-   version of record and nothing to hand-bump under `ecosystems/`.
+   version of record and nothing to hand-bump under `src/ecosystems/`.
 3. `make build` regenerates `dist/`, injecting the canonical version into each plugin manifest.
 4. Commits the bump + rebuilt `dist/` (`chore(release): X.Y.Z [skip ci]`), tags `vX.Y.Z`, pushes.
 5. Publishes the GitHub Release.
@@ -42,7 +42,7 @@ needs a live, paid session and stays a manual, release-gating check.
 
 | # | Claude Code item | Status |
 |---|---|---|
-| 1 | Install from the marketplace | ✅ automated (`builder/tests/claudeCodeSmoke.spec.ts`'s "the plugin installs from a local checkout and shows up enabled") |
+| 1 | Install from the marketplace | ✅ automated (`src/builder/tests/claudeCodeSmoke.spec.ts`'s "the plugin installs from a local checkout and shows up enabled") |
 | 2 | `hercules` is the default agent, answers in character | manual |
 | 3 | `/hercules:workflow` drives Discover → Design → Build → Ship | manual |
 | 4 | Write-gate hook blocks/allows | manual |
@@ -53,7 +53,7 @@ needs a live, paid session and stays a manual, release-gating check.
 
 | # | OpenCode item | Status |
 |---|---|---|
-| 1 | `config` hook fires (agents/commands register) | ✅ automated — [issue #15](https://github.com/mbienkowski/hercules/issues/15) is fixed (the entry exports `{ id, server }`); `builder/tests/opencodeEntrypoint.spec.ts`'s "starts up and registers every agent and command from the roster, defaulting to hercules" loads the built `plugin.js` in a real Node process and asserts every agent/command registers |
+| 1 | `config` hook fires (agents/commands register) | ✅ automated — [issue #15](https://github.com/mbienkowski/hercules/issues/15) is fixed (the entry exports `{ id, server }`); `src/builder/tests/opencodeEntrypoint.spec.ts`'s "starts up and registers every agent and command from the roster, defaulting to hercules" loads the built `plugin.js` in a real Node process and asserts every agent/command registers |
 | 2 | `plugin.js` loads with no missing-asset throw | ✅ automated — the same file's "refuses to start if a bundled asset is missing, with a clear error" drives the real loader |
 | 3 | `default_agent` is `hercules`; a subagent spawns | manual |
 | 4 | `/hercules:discover` resolves and runs | manual |
@@ -145,7 +145,7 @@ opt-in — it needs a `CURSOR_API_KEY` secret and skips without it) — confirm 
 
 | # | Cursor item | Status |
 |---|---|---|
-| 1 | Real `cursor-agent` binary runs + built plugin is structurally valid | ✅ automated (`builder/tests/cursorSmoke.spec.ts`'s "the real cursor-agent binary runs and the plugin is well formed", runs on every PR + main) |
+| 1 | Real `cursor-agent` binary runs + built plugin is structurally valid | ✅ automated (`src/builder/tests/cursorSmoke.spec.ts`'s "the real cursor-agent binary runs and the plugin is well formed", runs on every PR + main) |
 | 2 | Headless `cursor-agent -p` completes a run | ⚙️ keyed (`CURSOR_API_KEY`; skips on forks) |
 | 3 | Persona rule always-applies; commands appear | manual |
 | 4 | Specialist spawns as an isolated subagent | manual |
@@ -173,8 +173,8 @@ proves structure + the in-process guard; these load-time behaviours are verified
 ### Cross-ecosystem
 
 - [ ] `pyproject.toml` and `package.json` — the two literal version sources
-      (`builder/versionTargets.mts::VERSION_TARGETS`) — both show the release version (matches the
-      git tag). The plugin manifests (versioned artifacts in `ecosystems/*.json`) carry a `${version}` token (not a literal); the
+      (`src/builder/versionTargets.mts::VERSION_TARGETS`) — both show the release version (matches the
+      git tag). The plugin manifests (versioned artifacts in `src/ecosystems/*.json`) carry a `${version}` token (not a literal); the
       build injects the canonical `package.json` version into every `dist/…/plugin.json`.
 
 Each shipped ecosystem carries its own smoke section above; add one per target

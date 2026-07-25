@@ -1,5 +1,5 @@
 {
-  // Type-check config for every domain's tests/ tree, the shared tests/support/ helpers, and the
+  // Type-check config for every domain's tests/ tree, the shared src/tests/support/ helpers, and the
   // Vitest config itself. ESM, never emitted — Vitest compiles tests from source, so this project's
   // module format never reaches Node's loader and cannot affect the shipped CommonJS plugin.
   //
@@ -12,14 +12,14 @@
     "moduleResolution": "bundler",
     "noEmit": true
   },
-  // Specs import the modules under test from builder/, release/, metrics/, a separate project.
+  // Specs import the modules under test from src/builder/, src/release/, src/metrics/, a separate project.
   "references": [{ "path": "./tsconfig.build.json" }],
   "include": [
-    "builder/tests/**/*.ts",
-    "release/tests/**/*.ts",
-    "metrics/tests/**/*.ts",
-    "content/tests/**/*.ts",
-    "tests/support/**/*.ts",
+    "src/builder/tests/**/*.ts",
+    "src/release/tests/**/*.ts",
+    "src/metrics/tests/**/*.ts",
+    "src/content/tests/**/*.ts",
+    "src/tests/support/**/*.ts",
     "*.config.mts"
   ]
 }

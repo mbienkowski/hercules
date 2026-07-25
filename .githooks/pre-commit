@@ -6,8 +6,8 @@
 # working unchanged across a compiler runtime flip (few-shot rule #2 in the TypeScript migration
 # plan: a script invoked by a Makefile target — or, here, a git hook — calls back through `make`).
 
-if git diff --cached --name-only | grep -qE "^content/|^hooks/[^/]+\.py$|^builder/[^/]+\.mts$|^builder/bin/cli\.mts$"; then
-    echo "content/, hooks/ or the builder/ compiler changed — regenerating dist/ ..."
+if git diff --cached --name-only | grep -qE "^src/content/|^src/ecosystems/|^src/hooks/[^/]+\.py$|^src/builder/[^/]+\.mts$|^src/builder/bin/cli\.mts$"; then
+    echo "src/content/, src/ecosystems/, src/hooks/ or the src/builder/ compiler changed — regenerating dist/ ..."
     make build || exit 1
     git add dist
 fi

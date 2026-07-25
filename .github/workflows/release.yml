@@ -32,7 +32,7 @@ concurrency: release
 
 jobs:
   # ── Compile the TypeScript toolchain, UNPRIVILEGED (no contents:write, no NPM_TOKEN) ──────────
-  # release/setVersion.mts and release/updateChangelog.mts need the compiled toolchain to run,
+  # src/release/setVersion.mts and src/release/updateChangelog.mts need the compiled toolchain to run,
   # which means `npm ci` — and `npm ci` must never run in a job holding a push-capable or publish
   # credential (a malicious devDependency's install-time code would run with the git credential
   # helper already configured, able to push to main or plant a wrapper the later `npm publish`
@@ -142,7 +142,7 @@ jobs:
 
       # 2. Write the new version into the two literal sources — package.json (canonical) and
       #    pyproject.toml (VERSION_TARGETS). The plugin manifests are NOT touched here: their src carries
-      #    a ${version} token, injected at build (step 2b), so there is nothing to bump under content/ecosystems/.
+      #    a ${version} token, injected at build (step 2b), so there is nothing to bump under src/ecosystems/.
       - name: Bump version files
         env:
           NEW_VERSION: ${{ steps.bump.outputs.new_version }}

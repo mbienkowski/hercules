@@ -5,24 +5,24 @@ import { defineConfig } from 'vitest/config';
 // not line: a line-coverage gate passes on code whose conditionals were never both-way exercised.
 export default defineConfig({
   test: {
-    include: ['{builder,release,metrics,content}/tests/**/*.spec.ts'],
+    include: ['src/{builder,release,metrics,content}/tests/**/*.spec.ts'],
     // dist/ is committed build output and node_modules/ is vendored; neither holds our specs.
     exclude: ['node_modules/**', 'dist/**', '.ts-out/**'],
     // Scopes spec DISCOVERY to this directory. It does not change the process working directory —
-    // specs resolve repo paths from cwd via tests/support/repo.ts, which documents why every
+    // specs resolve repo paths from cwd via src/tests/support/repo.ts, which documents why every
     // supported entry point already runs from the repo root.
     root: import.meta.dirname,
     coverage: {
       provider: 'v8',
-      include: ['builder/**/*.mts', 'release/**/*.mts', 'metrics/**/*.mts'],
+      include: ['src/builder/**/*.mts', 'src/release/**/*.mts', 'src/metrics/**/*.mts'],
       // Every domain's bin/ holds logic-free process entry points — a few lines that resolve a path
       // and call process.exit. They are exercised by `make mutation-ts` and `make build`, not by
       // unit specs, and counting them would push the gate toward testing process.exit wiring
       // instead of logic. stryker.conf.json excludes the same directories for the same reason; keep
       // the two exclusions in step.
       exclude: [
-        'builder/**/*.d.mts', 'release/**/*.d.mts', 'metrics/**/*.d.mts',
-        'builder/bin/**', 'release/bin/**',
+        'src/builder/**/*.d.mts', 'src/release/**/*.d.mts', 'src/metrics/**/*.d.mts',
+        'src/builder/bin/**', 'src/release/bin/**',
       ],
       reporter: ['text', 'json-summary'],
       thresholds: {

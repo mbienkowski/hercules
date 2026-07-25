@@ -1,9 +1,9 @@
 {
   // Shared compiler options. Two projects extend this:
   //
-  //   tsconfig.build.json  — builder/, release/, metrics/  -> ESM, .mts sources emitted as .mjs
+  //   tsconfig.build.json  — src/{builder,release,metrics}/  -> ESM, .mts sources emitted as .mjs
   //                           into .ts-out/
-  //   tsconfig.tests.json  — every domain's own tests/ + tests/support/ -> ESM, type-checked only
+  //   tsconfig.tests.json  — every domain's own tests/ + src/tests/support/ -> ESM, type-checked only
   //                           (Vitest executes from source)
   //
   // ── Why package.json has NO "type" field (do not add one) ────────────────────────────────────
@@ -13,12 +13,12 @@
   // reinterpret the shipped plugin as ESM and break it for every OpenCode user.
   //
   // The toolchain sidesteps that entirely by using .mts sources, which emit .mjs — a file Node
-  // always loads as ESM regardless of any "type" field. So builder/release/metrics get modern ESM
+  // always loads as ESM regardless of any "type" field. So src/{builder,release,metrics} get modern ESM
   // and the shipped plugin stays CommonJS, with no shared switch between them. It also avoids a
   // real dependency problem: js-tiktoken publishes ONE `types` condition shared by its CJS and ESM
   // entries, so a CommonJS consumer cannot type-check against it at all.
   //
-  // release/tests/packaging.spec.ts pins the absent "type" field, paired with a positive assertion
+  // src/release/tests/packaging.spec.ts pins the absent "type" field, paired with a positive assertion
   // that the shipped plugin really does use require/__dirname, so this cannot regress silently.
   //
   // `verbatimModuleSyntax` is deliberately NOT set: it forbids the resolution-mode-inferred imports

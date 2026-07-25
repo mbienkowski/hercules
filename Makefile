@@ -4,8 +4,8 @@
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
 
 # ── Which runtime owns what ──────────────────────────────────────────────────
-# Python: hooks/ (shipped to users, run as python3) and its tests. Gated by test-py/mutation-py.
-# TypeScript: everything else executable — the builder/, release/ and metrics/ domains, and their
+# Python: src/hooks/ (shipped to users, run as python3) and its tests. Gated by test-py/mutation-py.
+# TypeScript: everything else executable — the src/{builder,release,metrics}/ domains, and their
 # tests. Gated by test-ts/mutation-ts.
 # The -py/-ts suffix is the SAME string in the make target, the CI job id and the CI display name,
 # so a red check can be reproduced by copying its name into a terminal. Keep it that way.
@@ -26,17 +26,17 @@ build-check: compile
 
 test: test-py test-ts
 
-# The Python suite: hooks/ (the island, see CODE_OF_CONDUCT.md § Testing) plus whatever remains
-# under tests/repo/ (meta-guards, not build output — the compiler itself is TypeScript now).
+# The Python suite: src/hooks/ (the island, see CODE_OF_CONDUCT.md § Testing) plus whatever remains
+# under src/tests/repo/ (meta-guards, not build output — the compiler itself is TypeScript now).
 test-py: build-check
-	python -m pytest tests/repo/ hooks/tests/ -v --cov=hooks --cov-branch --cov-report=term-missing --cov-fail-under=90
+	python -m pytest src/tests/repo/ src/hooks/tests/ -v --cov=src/hooks --cov-branch --cov-report=term-missing --cov-fail-under=90
 
 test-ts:
 	npm run typecheck
 	npx vitest run --coverage
 
 # Type-check both TypeScript projects without running anything. Both are ESM; compile emits
-# builder/, release/ and metrics/'s .mts sources as .mjs into .ts-out/.
+# src/builder/, src/release/ and src/metrics/'s .mts sources as .mjs into .ts-out/.
 typecheck:
 	npm run typecheck
 
@@ -68,10 +68,10 @@ test-mutation: mutation-py mutation-ts
 mutation-py:
 	mutmut run || true
 	mutmut results | tee mutmut-results.txt
-	python release/check_mutation_gate.py
+	python src/release/check_mutation_gate.py
 
 # Stryker writes reports/mutation/mutation.json; the gate script applies the SAME thresholds the
-# Python gate reads (release/mutation-gate.json), so the two runtimes cannot drift to two answers.
+# Python gate reads (src/release/mutation-gate.json), so the two runtimes cannot drift to two answers.
 mutation-ts: compile
 	npx stryker run || true
 	node .ts-out/release/bin/mutationGate.mjs
@@ -81,15 +81,15 @@ mutation-ts: compile
 # Claude Code + OpenCode with `npm install -g @anthropic-ai/claude-code opencode-ai`, and Cursor
 # with `curl https://cursor.com/install -fsSL | bash`, to run the whole set.
 test-smoke: build-check
-	npx vitest run builder/tests/claudeCodeSmoke.spec.ts builder/tests/opencodeSmoke.spec.ts builder/tests/cursorSmoke.spec.ts builder/tests/grokBuildSmoke.spec.ts builder/tests/geminiCliSmoke.spec.ts builder/tests/copilotCliSmoke.spec.ts
+	npx vitest run src/builder/tests/claudeCodeSmoke.spec.ts src/builder/tests/opencodeSmoke.spec.ts src/builder/tests/cursorSmoke.spec.ts src/builder/tests/grokBuildSmoke.spec.ts src/builder/tests/geminiCliSmoke.spec.ts src/builder/tests/copilotCliSmoke.spec.ts
 
 # ── CI entry points ──────────────────────────────────────────────────────────
 # The GitHub Actions workflows call ONLY `make <target>` — every step's logic lives here and under
-# release/ci/, so it is testable and runnable locally. This is enforced by
-# release/tests/releasePipeline.spec.ts; add a target + a script, never an inline YAML block.
+# src/release/ci/, so it is testable and runnable locally. This is enforced by
+# src/release/tests/releasePipeline.spec.ts; add a target + a script, never an inline YAML block.
 
 ci-build:
-	bash release/ci/build_gates.sh
+	bash src/release/ci/build_gates.sh
 
 # The pyCompat character tables encode a specific Unicode version. This proves the committed golden
 # dump matches the interpreter actually running — pyCompat.mts reproduces Python's own character
@@ -97,7 +97,7 @@ ci-build:
 # table honest against the real CPython behavior it must match, independent of the (now retired)
 # dual-run parity harness that originally motivated it.
 pycompat-golden-check:
-	bash builder/pycompat-oracle/pycompat_golden_check.sh
+	bash src/builder/pycompat-oracle/pycompat_golden_check.sh
 
 validate: compile
 	node .ts-out/release/bin/validatePackage.mjs
@@ -106,20 +106,20 @@ smoke-matrix: compile
 	node .ts-out/release/bin/smokeMatrix.mjs
 
 smoke-install:
-	bash release/ci/install_cli.sh
+	bash src/release/ci/install_cli.sh
 
 smoke-run:
-	bash release/ci/run_smoke.sh
+	bash src/release/ci/run_smoke.sh
 
 smoke-annotate:
-	bash release/ci/annotate_smoke.sh
+	bash src/release/ci/annotate_smoke.sh
 
 # ── Release entry points (release.yml) ───────────────────────────────────────
 release-verify:
-	bash release/ci/release_verify_checkout.sh
+	bash src/release/ci/release_verify_checkout.sh
 
 release-meta:
-	bash release/ci/release_meta.sh
+	bash src/release/ci/release_meta.sh
 
 release-version: compile
 	node .ts-out/release/bin/setVersion.mjs "$${NEW_VERSION}"
@@ -128,10 +128,10 @@ changelog: compile
 	node .ts-out/release/bin/updateChangelog.mjs
 
 release-commit:
-	bash release/ci/release_commit.sh
+	bash src/release/ci/release_commit.sh
 
 npm-creds:
-	bash release/ci/npm_creds.sh
+	bash src/release/ci/npm_creds.sh
 
 release-npm:
 	npm publish --access public
