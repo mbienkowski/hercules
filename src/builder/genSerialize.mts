@@ -61,19 +61,22 @@ export function tomlBasic(s: string): string {
 export function tomlMultiline(s: string): string {
   const escaped = s.replaceAll('\\', '\\\\');
   const out: string[] = [];
-  let run = 0;
+  let consecutiveQuotes = 0;
   for (const ch of escaped) {
-    if (ch === '"') {
-      run += 1;
-      if (run === 3) {
-        out.push('\\"');
-        run = 0;
-        continue;
-      }
-    } else {
-      run = 0;
+    if (ch !== '"') {
+      consecutiveQuotes = 0;
+      out.push(ch);
+      continue;
     }
-    out.push(ch);
+    consecutiveQuotes += 1;
+    // Escape every third quote in a run, so `"""` (which would close the delimiter) becomes `""\"`.
+    // A 4th/5th quote restarts the count, so a longer run keeps getting broken up the same way.
+    if (consecutiveQuotes === 3) {
+      out.push('\\"');
+      consecutiveQuotes = 0;
+    } else {
+      out.push(ch);
+    }
   }
   return out.join('');
 }

@@ -17,6 +17,49 @@ export class RenderError extends Error {
   override readonly name = 'RenderError';
 }
 
+/**
+ * Collect one switch's branch bodies, starting at `start` (the line AFTER the opening
+ * `${target:openingName}`). Each `${target:name}` line opens a new branch; `${target:end}` closes
+ * the switch. Returns the per-target line arrays plus the index of the first line past the `end`.
+ * Throws on a malformed inner directive or a switch that never closes.
+ */
+function collectBranches(
+  lines: readonly string[],
+  openingName: string,
+  start: number,
+): { branches: Map<string, string[]>; nextIndex: number } {
+  const branches = new Map<string, string[]>([[openingName, []]]);
+  let current = openingName;
+  let i = start;
+
+  while (i < lines.length) {
+    const directive = DIRECTIVE.exec(lines[i] as string);
+    if (directive === null) {
+      (branches.get(current) as string[]).push(lines[i] as string); // a body line of the current branch
+      i += 1;
+      continue;
+    }
+    const name = directive[1] as string;
+    if (name === 'end') return { branches, nextIndex: i + 1 }; // closing fence — switch complete
+    if (!TARGET_NAME.test(name)) {
+      throw new RenderError(`malformed switch directive: ${pyRepr(lines[i] as string)}`);
+    }
+    current = name; // a new branch opens; subsequent body lines belong to it
+    branches.set(name, []);
+    i += 1;
+  }
+  throw new RenderError('unclosed `${target:…}` switch');
+}
+
+/** Pick the branch for `target`: exact key, then its short alias (claude-code -> claude), then default. */
+function chooseBranch(branches: Map<string, string[]>, target: string): string[] {
+  for (const key of [target, target.split('-')[0] as string, 'default']) {
+    const branch = branches.get(key);
+    if (branch !== undefined) return branch;
+  }
+  return [];
+}
+
 function resolveSwitches(text: string, target: string): string {
   // Plain '\n' split, matching the Python original: this operates on an already-parsed body and
   // must not re-interpret exotic line boundaries the way frontmatter parsing does.
@@ -27,55 +70,18 @@ function resolveSwitches(text: string, target: string): string {
   while (i < lines.length) {
     const opening = DIRECTIVE.exec(lines[i] as string);
     if (opening === null) {
-      out.push(lines[i] as string);
+      out.push(lines[i] as string); // an ordinary line — copy it through unchanged
       i += 1;
       continue;
     }
-
     const name = opening[1] as string;
     if (name === 'end') throw new RenderError('`${target:end}` without an opening branch');
     if (!TARGET_NAME.test(name)) {
       throw new RenderError(`malformed switch directive: ${pyRepr(lines[i] as string)}`);
     }
-
-    const branches = new Map<string, string[]>([[name, []]]);
-    let current = name;
-    i += 1;
-    let closed = false;
-
-    while (i < lines.length) {
-      const inner = DIRECTIVE.exec(lines[i] as string);
-      if (inner !== null) {
-        const innerName = inner[1] as string;
-        if (innerName === 'end') {
-          closed = true;
-          i += 1;
-          break;
-        }
-        if (!TARGET_NAME.test(innerName)) {
-          throw new RenderError(`malformed switch directive: ${pyRepr(lines[i] as string)}`);
-        }
-        current = innerName;
-        branches.set(innerName, []);
-        i += 1;
-        continue;
-      }
-      (branches.get(current) as string[]).push(lines[i] as string);
-      i += 1;
-    }
-
-    if (!closed) throw new RenderError('unclosed `${target:…}` switch');
-
-    // Match the full target key, then its short alias (claude-code -> claude), then default.
-    let chosen: string[] = [];
-    for (const key of [target, target.split('-')[0] as string, 'default']) {
-      const branch = branches.get(key);
-      if (branch !== undefined) {
-        chosen = branch;
-        break;
-      }
-    }
-    out.push(chosen.join('\n'));
+    const { branches, nextIndex } = collectBranches(lines, name, i + 1);
+    out.push(chooseBranch(branches, target).join('\n'));
+    i = nextIndex;
   }
 
   return out.join('\n');

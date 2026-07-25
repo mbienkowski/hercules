@@ -38,9 +38,11 @@ export function resolve(models: ModelsMap, target: string, tier: string): string
   }
 
   const tierMap = models[target] as TierMap;
+  // TIER_FALLBACK is ordered high→low, so everything BEFORE the requested tier is a higher tier.
+  // Reversing puts the nearest-higher first, so we try the requested tier, then step up one at a time.
   const index = TIER_FALLBACK.indexOf(tier);
-  // Requested tier first, then every HIGHER tier, nearest first.
-  const order = [tier, ...TIER_FALLBACK.slice(0, index).reverse()];
+  const higherTiersNearestFirst = TIER_FALLBACK.slice(0, index).reverse();
+  const order = [tier, ...higherTiersNearestFirst];
 
   for (const candidate of order) {
     // Presence, not truthiness: a configured `null` means "omit the field" and must stop the

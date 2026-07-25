@@ -73,9 +73,12 @@ export interface SplitDocument {
  */
 export function splitDocument(text: string): SplitDocument {
   if (!text.startsWith(`${FENCE}\n`)) return { block: null, body: text };
+  // `close` is the index of the '\n' immediately BEFORE the closing fence (search skips the opening
+  // fence). So the fence itself starts one char later, and ends after its own width.
   const close = text.indexOf(`\n${FENCE}`, FENCE.length + 1);
   if (close === -1) return { block: null, body: text };
-  let end = close + 1 + FENCE.length; // just past the closing "---"
-  if (end < text.length && text[end] === '\n') end += 1;
-  return { block: text.slice(0, end), body: text.slice(end) };
+  const closingFenceStart = close + 1;
+  let blockEnd = closingFenceStart + FENCE.length; // just past the closing "---"
+  if (blockEnd < text.length && text[blockEnd] === '\n') blockEnd += 1; // include the trailing newline
+  return { block: text.slice(0, blockEnd), body: text.slice(blockEnd) };
 }

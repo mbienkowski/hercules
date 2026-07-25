@@ -122,7 +122,11 @@ export class DescriptorError extends Error {
 /** A Zod issue path (`['roles','agent','fields',2,'value']`) as `roles.agent.fields[2].value`. */
 function formatPath(path: readonly PropertyKey[]): string {
   return path
-    .map((segment, i) => (typeof segment === 'number' ? `[${segment}]` : i === 0 ? String(segment) : `.${String(segment)}`))
+    .map((segment, i) => {
+      if (typeof segment === 'number') return `[${segment}]`; // array index -> bracket
+      if (i === 0) return String(segment); // first key -> bare, no leading dot
+      return `.${String(segment)}`; // later key -> dot-prefixed
+    })
     .join('');
 }
 
@@ -140,6 +144,24 @@ function formatIssue(issue: z.core.$ZodIssue): string {
 function formatError(descriptorName: string, error: z.core.$ZodError): string {
   const parts = error.issues.map(formatIssue);
   return `ecosystem descriptor ${pyRepr(descriptorName)}: ${parts.join('; ')}`;
+}
+
+/**
+ * The Python type name for a decoded-JSON value, for byte-exact "got <type>" error strings.
+ *
+ * The check ORDER is load-bearing: `typeof null` and `typeof []` are both `'object'`, so null and
+ * arrays MUST be matched before any typeof-based branch. The number branch splits int vs float via
+ * `Number.isInteger` — the one unavoidable divergence is that `JSON.parse('5.0')` and
+ * `JSON.parse('5')` are the identical JS number `5`, so an integer-valued float reads as `int`.
+ */
+function pyTypeName(input: unknown): string {
+  if (input === undefined) return 'undefined';
+  if (input === null) return 'NoneType';
+  if (Array.isArray(input)) return 'list';
+  if (typeof input === 'string') return 'str';
+  if (typeof input === 'boolean') return 'bool';
+  if (typeof input === 'number') return Number.isInteger(input) ? 'int' : 'float';
+  return typeof input; // object/function/symbol/bigint — the raw JS typeof
 }
 
 /** A required, non-empty string leaf — the single most common check in this schema. */
@@ -164,8 +186,11 @@ function relPath() {
 
 function oneOf<T extends readonly [string, ...string[]]>(values: T): z.ZodEnum<{ [K in T[number]]: K }> {
   const sorted = [...values].sort();
-  const shape = Object.fromEntries(values.map((v) => [v, v])) as { [K in T[number]]: K };
-  return z.enum(shape, { error: (issue) => `must be one of ${pyReprValue(sorted)}, got ${pyReprValue(issue.input)}` });
+  // z.enum wants an object whose keys ARE its values (`{ exact: 'exact', omit: 'omit' }`), so turn
+  // the string array into that identity map. The `{ [K in T[number]]: K }` type just says "an object
+  // whose keys equal their own values", which is what lets Zod infer the enum's literal union.
+  const enumShape = Object.fromEntries(values.map((v) => [v, v])) as { [K in T[number]]: K };
+  return z.enum(enumShape, { error: (issue) => `must be one of ${pyReprValue(sorted)}, got ${pyReprValue(issue.input)}` });
 }
 
 /**
@@ -560,18 +585,9 @@ const DescriptorSchema = z.strictObject({
       const keys = (issue as { keys?: string[] }).keys ?? [];
       return `descriptor has unknown key(s) ${pyReprValue([...keys].sort())}`;
     }
-    // Restores commit 4's int-vs-float distinction (Number.isInteger), which the earlier draft of
-    // this schema dropped under the mistaken assumption that it was "moot" because Zod's OWN
-    // default `received` field doesn't have it — but this callback constructs its own message from
-    // the real `issue.input` value directly, so nothing stops it from checking Number.isInteger
-    // itself, same as commit 4 did. Only the genuinely unavoidable case remains a divergence:
-    // JSON.parse('5.0') and JSON.parse('5') are both the identical JS number 5, so an
-    // integer-VALUED float is still indistinguishable from a true int once JSON.parse has run.
-    const typeName = issue.input === undefined ? 'undefined' : issue.input === null ? 'NoneType'
-      : Array.isArray(issue.input) ? 'list' : typeof issue.input === 'string' ? 'str'
-        : typeof issue.input === 'boolean' ? 'bool'
-          : typeof issue.input === 'number' ? (Number.isInteger(issue.input) ? 'int' : 'float') : typeof issue.input;
-    return `descriptor must be a JSON object, got ${typeName}`;
+    // Constructs its own message from the real `issue.input` value so it can restore commit 4's
+    // int-vs-float distinction (see pyTypeName), which Zod's own default `received` field lacks.
+    return `descriptor must be a JSON object, got ${pyTypeName(issue.input)}`;
   },
 });
 
