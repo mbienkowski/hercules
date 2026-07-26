@@ -34,7 +34,7 @@ Run the full `/discover` flow (Steps 0–7). When all five discovery groups (Goa
 >
 > Say **"move to Design"** or **"not yet"** to keep going here.
 
-On "move to Design": announce "📐 Entering the **Design** phase." and continue.
+On "move to Design": if the session tier is `trivial` or `low`, briefly note: > "This looks straightforward — `/hercules:workflow-lite` runs the same phases faster and cheaper. Want to switch, or stick with this full flow?" If user says "switch to lite", announce switching and call `/workflow-lite` from that point; if "stick with full", continue normally. Otherwise announce "📐 Entering the **Design** phase." and continue.
 
 ---
 
