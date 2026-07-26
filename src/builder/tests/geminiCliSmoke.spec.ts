@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -107,10 +107,35 @@ it('ships the full component inventory', () => {
 });
 
 describe.skipIf(which('gemini') === null)('live gemini binary', () => {
-  it('the real gemini binary runs', () => {
+  // gemini spawns a background update/telemetry child that INHERITS and holds open any stdout pipe
+  // it is handed — which makes a piped `spawnSync` block far past its own `timeout` (synchronously,
+  // so vitest's testTimeout cannot interrupt it, and the whole leg hangs to the job timeout). Every
+  // gemini call therefore routes stdout/stderr to a FILE, never an inherited pipe, and force-kills
+  // with SIGKILL, so the timeout actually fires. A call that still can't complete cleanly (timeout /
+  // spawn error) SKIPs — best-effort, exactly as this block already intended; the always-on
+  // structural checks above are the real gate.
+  function runGemini(args: string[], env: NodeJS.ProcessEnv = process.env) {
+    const dir = mkdtempSync(join(tmpdir(), 'hercules-gemini-run-'));
+    dirs.push(dir);
+    const outPath = join(dir, 'out.txt');
+    const fd = openSync(outPath, 'w');
+    try {
+      const res = spawnSync('gemini', args, {
+        timeout: TIMEOUT_MS, killSignal: 'SIGKILL', env, stdio: ['ignore', fd, fd],
+      });
+      return { status: res.status, signal: res.signal, error: res.error, out: readFileSync(outPath, 'utf-8') };
+    } finally {
+      closeSync(fd);
+    }
+  }
+
+  it('the real gemini binary runs', (ctx) => {
     // With the real CLI present, `gemini --version` must exit 0 (a stub-on-PATH would not).
-    const res = spawnSync('gemini', ['--version'], { encoding: 'utf-8', timeout: TIMEOUT_MS });
-    expect(res.status, `gemini --version failed: ${res.stdout}\n${res.stderr}`).toBe(0);
+    const res = runGemini(['--version']);
+    if (res.error || res.signal) {
+      ctx.skip(`gemini --version did not complete cleanly here: ${res.error?.message ?? res.signal}`);
+    }
+    expect(res.status, `gemini --version failed: ${res.out}`).toBe(0);
   }, TIMEOUT_MS + 5_000);
 
   it('the extension installs into the real cli and is listed', (ctx) => {
@@ -126,17 +151,15 @@ describe.skipIf(which('gemini') === null)('live gemini binary', () => {
     const env = { ...process.env, HOME: home };
     const ext = join(repoRoot, 'dist', 'gemini-cli');
 
-    const inst = spawnSync('gemini', ['extensions', 'install', ext], {
-      encoding: 'utf-8', timeout: TIMEOUT_MS, env,
-    });
-    if (inst.error || inst.status !== 0) {
-      ctx.skip(`gemini extensions install unavailable here: ${((inst.stderr || inst.stdout) ?? '').slice(0, 300)}`);
+    const inst = runGemini(['extensions', 'install', ext], env);
+    if (inst.error || inst.signal || inst.status !== 0) {
+      ctx.skip(`gemini extensions install unavailable here: ${(inst.out ?? '').slice(0, 300)}`);
     }
-    const listed = spawnSync('gemini', ['extensions', 'list'], { encoding: 'utf-8', timeout: TIMEOUT_MS, env });
-    if (listed.error) {
-      ctx.skip(`gemini extensions could not run here: ${listed.error.message}`);
+    const listed = runGemini(['extensions', 'list'], env);
+    if (listed.error || listed.signal) {
+      ctx.skip(`gemini extensions could not run here: ${listed.error?.message ?? listed.signal}`);
     }
-    expect(listed.status, `\`gemini extensions list\` failed: ${listed.stdout}\n${listed.stderr}`).toBe(0);
-    expect(listed.stdout.toLowerCase(), `installed extension not listed:\n${listed.stdout}`).toContain('hercules');
+    expect(listed.status, `\`gemini extensions list\` failed: ${listed.out}`).toBe(0);
+    expect(listed.out.toLowerCase(), `installed extension not listed:\n${listed.out}`).toContain('hercules');
   }, TIMEOUT_MS * 2 + 5_000);
 });
