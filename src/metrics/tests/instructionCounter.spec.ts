@@ -122,10 +122,10 @@ describe('extractSection', () => {
   });
 });
 
-// The reference measurement this metric was calibrated against — commit 11's own migration-spec
-// table (docs/2026-07-23-typescript-migration/...). Pinned here so a future edit to the counting
-// algorithm, or to these exact source files, shows up as a failing test rather than a silent drift
-// in what the orchestrator waiver (see instructionBudget.spec.ts) is actually measuring.
+// The reference measurement this metric was calibrated against, when atomic directive counting
+// landed. Pinned here so a future edit to the counting algorithm, or to these exact source files,
+// shows up as a failing test rather than a silent drift in what the orchestrator waiver (see
+// instructionBudget.spec.ts) is actually measuring.
 describe('reference chain measurements against real shipped content', () => {
   const claudeMd = readRepoFile('dist', 'claude-code', 'CLAUDE.md');
   const a2a = readRepoFile('dist', 'claude-code', 'protocols', 'a2a-communication-protocol.md');
