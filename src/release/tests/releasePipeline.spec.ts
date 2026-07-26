@@ -142,6 +142,29 @@ describe('the CI job graph', () => {
   it('there is no separate discover job — the smoke matrix is a build output', () => {
     expect(CI_JOBS).not.toHaveProperty('discover');
   });
+
+  // lint-complexity and audit sit at the mutation TIER (gated behind test/validate/smoke — no point
+  // judging quality until the code is proven correct) but, unlike mutation, run on EVERY commit
+  // rather than main-only. The default `if: success()` (no explicit `if:`) is what gates them on the
+  // needs while leaving them unrestricted by branch/event.
+  it.each(['lint-complexity', 'audit'])(
+    "'%s' waits for test, validate, and smoke, but runs on every commit (not main-only)",
+    (jobName) => {
+      expect(new Set(jobNeeds(CI_JOBS[jobName]))).toEqual(new Set(['test', 'validate', 'smoke']));
+      const jobIf = CI_JOBS[jobName]?.if ?? '';
+      expect(jobIf).not.toContain('refs/heads/main');
+      expect(jobIf).not.toContain('pull_request');
+    },
+  );
+
+  it.each(['lint-complexity', 'audit'])(
+    "'%s' job id, display name, and make target are the same string",
+    (jobName) => {
+      expect(CI_JOBS[jobName]?.['name']).toBe(jobName);
+      const runSteps = (CI_JOBS[jobName]?.steps ?? []).map((s) => s.run).filter(Boolean) as string[];
+      expect(runSteps.some((run) => run.trim() === `make ${jobName}`)).toBe(true);
+    },
+  );
 });
 
 describe('the build-output tracked guard', () => {

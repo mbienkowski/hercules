@@ -160,13 +160,16 @@ jobs:
       - name: Validate manifests and single-source version
         run: make validate
 
-  # ── Complexity gate — cyclomatic + cognitive <= 15, both runtimes (every commit) ─────
-  # A fast quality gate with NO dependency on `build`: it lints SOURCE, not dist/, so it fans out
-  # immediately for the earliest signal. The same ceiling of 15 governs ESLint (the TypeScript
-  # domains) and flake8 (the Python hooks) — see CODE_OF_CONDUCT.md § Complexity. The job id, its
-  # display name and its make target are the SAME string, so a red check reproduces by copy-paste.
+  # ── Complexity gate — cyclomatic + cognitive <= 15, both runtimes ─────────────────────
+  # Positioned at the mutation tier: it runs on EVERY commit (unlike mutation, which is main-only),
+  # but only AFTER test + validate + smoke go green — there is no point judging code quality until
+  # the code is proven correct. The default `if: success()` gates it on those three needs, so a red
+  # test skips it cleanly. The same ceiling of 15 governs ESLint (the TypeScript domains) and flake8
+  # (the Python hooks) — see CODE_OF_CONDUCT.md § Complexity. The job id, its display name and its
+  # make target are the SAME string, so a red check reproduces by copy-paste.
   lint-complexity:
     name: lint-complexity
+    needs: [test, validate, smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -191,12 +194,14 @@ jobs:
       - name: Complexity gate (cyclomatic + cognitive, both runtimes)
         run: make lint-complexity
 
-  # ── Supply-chain audit — fail on any HIGH or CRITICAL dependency CVE (every commit) ─────
-  # npm carries the whole dependency surface (the shipped plugin is zero-runtime-dep; the Python
-  # hooks are stdlib-only, so there is no pip runtime-CVE surface). A fast peer gate, no `build`
-  # dependency. Same-string job id / display name / make target.
+  # ── Supply-chain audit — fail on any HIGH or CRITICAL dependency CVE ───────────────────
+  # Same tier and rationale as lint-complexity: EVERY commit, but only after test + validate + smoke
+  # go green (default `if: success()` on those needs) — a "good to go?" check that runs once the code
+  # is known correct, not before. npm carries the whole dependency surface (the shipped plugin is
+  # zero-runtime-dep; the Python hooks are stdlib-only). Same-string job id / display name / target.
   audit:
     name: audit
+    needs: [test, validate, smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
