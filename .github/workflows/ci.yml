@@ -27,17 +27,22 @@ defaults:
   run:
     shell: bash
 
-# Job graph (cheap -> pricey, so a cheap failure fails fast before an expensive job pays out):
+# Job graph — three groups, each an escalating gate, cheap -> pricey so a cheap failure fails fast:
 #
-#   build ──┬─> test ─────┐
-#           ├─> validate ─┼─> mutation   (~40 min, MAIN pushes only — the release gate; waits for ALL three)
-#           └─> smoke ────┘  (network + real CLIs, EVERY commit, one leg per ecosystem)
+#            ┌─ GROUP 1: correctness ─┐   ┌─ GROUP 2: quality ──┐   ┌─ GROUP 3: mutation ─┐
+#            │  (every commit)        │   │  (every commit)     │   │  (MAIN pushes only) │
+#   build ──>│  test · validate · smoke │─>│  lint-complexity · audit │  mutation-py · mutation-ts
+#            └────────────────────────┘   └─────────────────────┘   └─────────────────────┘
 #
-# build/validate are seconds; test is minutes; smoke pays for Node + a real-CLI install; mutation
-# is the long pole. On every commit: build/test/validate/smoke run (fast feedback, NO mutation). On a
-# push to main: mutation ALSO runs and gates the release (release.yml chains off this CI run's success). It
-# waits for test+validate+smoke to SUCCEED (not merely finish — see its `if:`). The smoke matrix is a
-# `build` output (derived from the target registry), so there is no separate discovery job to sync.
+# The rule is UNIFORM: every group past the first `needs:` the whole correctness group and runs only
+# if it went green — so quality (group 2) and mutation (group 3) never spend minutes on code that
+# does not even pass its tests. Within a group the jobs run in PARALLEL (none needs another). The ONE
+# difference across groups is group 3's `if:` — a single branch check (`push` to `main`) — because
+# mutation is the slow release gate and PR feedback must stay fast; release.yml chains off this whole
+# run's conclusion. Success gating is `needs:` itself everywhere (no hand-rolled `!cancelled()` +
+# `.result` dialect): a plain `if:` with no status-check function keeps GitHub's implicit
+# needs-success requirement. The smoke matrix is a `build` output (from the target registry), so
+# there is no separate discovery job to sync.
 jobs:
   # ── Build gate — regenerate dist/ and prove it matches what's committed ──────
   # Runs FIRST: a src/content/ edit pushed without a rebuild fails here (drift), before any
@@ -160,66 +165,6 @@ jobs:
       - name: Validate manifests and single-source version
         run: make validate
 
-  # ── Complexity gate — cyclomatic + cognitive <= 15, both runtimes ─────────────────────
-  # Positioned at the mutation tier: it runs on EVERY commit (unlike mutation, which is main-only),
-  # but only AFTER test + validate + smoke go green — there is no point judging code quality until
-  # the code is proven correct. The default `if: success()` gates it on those three needs, so a red
-  # test skips it cleanly. The same ceiling of 15 governs ESLint (the TypeScript domains) and flake8
-  # (the Python hooks) — see CODE_OF_CONDUCT.md § Complexity. The job id, its display name and its
-  # make target are the SAME string, so a red check reproduces by copy-paste.
-  lint-complexity:
-    name: lint-complexity
-    needs: [test, validate, smoke]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-
-      # Both runtimes: ESLint (Node) lints the TypeScript domains, flake8 (Python) the hooks.
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.9"
-          cache: "pip"
-          cache-dependency-path: "pyproject.toml"
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: "package-lock.json"
-
-      - name: Install dependencies
-        run: make install
-
-      - name: Complexity gate (cyclomatic + cognitive, both runtimes)
-        run: make lint-complexity
-
-  # ── Supply-chain audit — fail on any HIGH or CRITICAL dependency CVE ───────────────────
-  # Same tier and rationale as lint-complexity: EVERY commit, but only after test + validate + smoke
-  # go green (default `if: success()` on those needs) — a "good to go?" check that runs once the code
-  # is known correct, not before. npm carries the whole dependency surface (the shipped plugin is
-  # zero-runtime-dep; the Python hooks are stdlib-only). Same-string job id / display name / target.
-  audit:
-    name: audit
-    needs: [test, validate, smoke]
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: "package-lock.json"
-
-      # Resolve the exact locked tree first, so the audit reflects what CI (and a consumer) installs.
-      - name: Install the TypeScript toolchain
-        run: make install-ts
-
-      - name: Audit dependencies for high/critical CVEs
-        run: make audit
-
   # ── Ecosystem smoke checks — one PARALLEL leg per ecosystem (matrix from `build`) ─────
   # Does the built plugin actually install/load in the REAL Claude Code / OpenCode binary, not
   # just look correct on disk? This is the ONLY job that loads the plugin in a live CLI, so it
@@ -227,8 +172,8 @@ jobs:
   # chains off CI success) instead of failing open. A transient registry hiccup is absorbed by
   # the pinned install's own retry+timeout; a real load failure surfaces as the pytest step going
   # red. fail-fast:false keeps one ecosystem's result independent of the others'.
-  # A PEER of test/validate (needs only `build`): it fans out right after build for early signal,
-  # rather than waiting on the unit suite. `mutation` (below) is what waits for smoke to go green.
+  # GROUP 1 alongside test/validate (needs only `build`): it fans out right after build for early
+  # signal, rather than waiting on the unit suite. Groups 2 and 3 (below) wait for smoke to go green.
   smoke:
     name: Smoke — ${{ matrix.target }}
     needs: [build]
@@ -304,30 +249,87 @@ jobs:
           name: smoke-results-${{ matrix.target }}
           path: smoke-results-${{ matrix.target }}.txt
 
-  # ── Mutation testing — MAIN ONLY, the release gate (after the quick gates) ────
-  # Two parallel jobs, one per runtime — the whole reason the Python island (src/hooks/, mutmut) is
-  # worth keeping separate from the TypeScript toolchain (everything else, Stryker) is that they can
-  # now run concurrently instead of one ~40min job running both sequentially. Each `if:`/`needs:` is
-  # identical between the two so neither gates the other; both gate release.yml (which chains off
-  # this whole CI run's conclusion). Deliberately MAIN-ONLY (post-merge), never on PRs: this is the
-  # slow final quality gate — keeping it off PRs is what keeps PR feedback fast, and a merge to main
-  # is the right, once-per-change place to pay for it.
+  # ── GROUP 2: static quality gates — every commit, after group 1, in parallel ──
+  # Complexity and supply-chain audit. Both run on EVERY commit but only after group 1 (test +
+  # validate + smoke) is green — no point judging quality until the code is proven correct. `needs:`
+  # is the whole gate: a plain `if:` is not even needed, so GitHub's implicit needs-success applies
+  # and a red group-1 job skips these cleanly. They run in parallel with each other (neither needs
+  # the other). Each job id / display name / make target is the SAME string, so a red check
+  # reproduces by copy-paste.
+
+  # Cyclomatic + cognitive complexity <= 15, both runtimes — the same ceiling of 15 governs ESLint
+  # (the TypeScript domains) and flake8 (the Python hooks). See CODE_OF_CONDUCT.md § Complexity.
+  lint-complexity:
+    name: lint-complexity
+    needs: [test, validate, smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # Both runtimes: ESLint (Node) lints the TypeScript domains, flake8 (Python) the hooks.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Complexity gate (cyclomatic + cognitive, both runtimes)
+        run: make lint-complexity
+
+  # Fail on any HIGH or CRITICAL dependency CVE. npm carries the whole dependency surface (the shipped
+  # plugin is zero-runtime-dep; the Python hooks are stdlib-only, so there is no pip runtime-CVE
+  # surface). See CODE_OF_CONDUCT.md § Dependencies.
+  audit:
+    name: audit
+    needs: [test, validate, smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
+
+      # Resolve the exact locked tree first, so the audit reflects what CI (and a consumer) installs.
+      - name: Install the TypeScript toolchain
+        run: make install-ts
+
+      - name: Audit dependencies for high/critical CVEs
+        run: make audit
+
+  # ── GROUP 3: mutation testing — MAIN ONLY, the release gate ───────────────────
+  # The third and deepest tier. Two parallel jobs, one per runtime — the Python island (src/hooks/,
+  # mutmut) is kept separate from the TypeScript toolchain (everything else, Stryker) precisely so
+  # they run concurrently instead of as one ~40min sequential job. Both gate release.yml (which
+  # chains off this whole CI run's conclusion). Deliberately MAIN-ONLY (post-merge), never on PRs:
+  # the slow final quality gate — keeping it off PRs is what keeps PR feedback fast, and a merge to
+  # main is the right, once-per-change place to pay for it.
+  #
+  # Gating is UNIFORM with groups 1 and 2: `needs:` alone requires test + validate + smoke to have
+  # succeeded. The `if:` carries no status-check function (no `!cancelled()`/`always()`), so GitHub
+  # keeps that implicit needs-success requirement — the `if:` adds ONLY the main-push restriction,
+  # the single thing that sets group 3 apart from the every-commit groups. That one line is the
+  # whole difference; there is no second gating dialect to learn.
   #
   # The job id, its display `name`, and its `make` target are the SAME string for each (mutation-py /
   # mutation-ts) — so a red check can be reproduced by copying its name straight into a terminal.
   mutation-py:
     name: mutation-py
-    # Gate behind ALL three quick gates — a red test, validate, or smoke stops it before it burns
-    # minutes. NOTE: a custom `if:` REPLACES GitHub's implicit `if: success()`, so gating on `needs`
-    # requires spelling out the success checks explicitly here — otherwise this job would launch even
-    # when a need failed. `!cancelled()` lets it still skip cleanly on non-main / PR runs.
     needs: [test, validate, smoke]
-    if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
-      && !cancelled()
-      && needs.test.result == 'success'
-      && needs.validate.result == 'success'
-      && needs.smoke.result == 'success'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # mutmut now mutates only src/hooks/ (a few hundred lines) instead of also the former
     # Python compiler — expected well under the old combined ~40min figure, but unmeasured
@@ -360,12 +362,7 @@ jobs:
   mutation-ts:
     name: mutation-ts
     needs: [test, validate, smoke]
-    if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
-      && !cancelled()
-      && needs.test.result == 'success'
-      && needs.validate.result == 'success'
-      && needs.smoke.result == 'success'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 60
 

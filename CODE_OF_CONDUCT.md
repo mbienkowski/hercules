@@ -377,10 +377,12 @@ move its scores between releases, and a gate whose verdict shifts on a silent bu
 you its steps want names a junior can read. Same doctrine as the budgets: the number is immovable; the
 code moves to fit it.
 
-CI runs `make lint-complexity` as its own `lint-complexity` job on **every commit**, positioned at the
-mutation tier — after `test` + `validate` + `smoke` go green. Quality is only worth judging once the code
-is proven correct, so a red test skips it cleanly; but unlike the main-only mutation gates it runs on every
-commit, so a complexity regression is caught where it is introduced, not at review.
+CI runs `make lint-complexity` as its own `lint-complexity` job on **every commit**, in **group 2** of a
+three-tier graph — group 1 correctness (`test` + `validate` + `smoke`), group 2 static quality
+(`lint-complexity` + `audit`), group 3 mutation (main-only). Each group `needs:` the previous and runs
+only if it is green — quality is worth judging only once the code is proven correct — so a red test skips
+it cleanly. Unlike group 3 it runs on every commit, so a complexity regression is caught where it is
+introduced, not at review.
 
 ### Dependencies
 
@@ -392,6 +394,6 @@ npm carries the **entire** dependency surface: the shipped plugin declares zero 
 the Python hooks are stdlib-only (`dependencies = []` in `pyproject.toml`), so there is no pip
 runtime-CVE surface — the whole exposure is the dev toolchain in `package-lock.json`. `npm audit
 --audit-level=high` exits non-zero on high/critical only; moderate and low stay visible but do not block.
-CI runs it as the `audit` job on every commit, at the same mutation tier as `lint-complexity` (after
+CI runs it as the `audit` job on every commit, in **group 2** alongside `lint-complexity` (after group 1:
 `test` + `validate` + `smoke`). A flagged advisory is fixed by bumping to the patched version (Dependabot
 proposes these as reviewable, exact-pinned PRs) — never by lowering `--audit-level`.

@@ -110,13 +110,16 @@ describe('the CI job graph', () => {
   // TypeScript-only mutation gates no longer share one sequential ~40min job) — both must carry
   // identical gating so neither is the weak link.
   it.each(['mutation-py', 'mutation-ts'])(
-    "'%s' waits for test, validate, and smoke to all succeed",
+    "'%s' waits for test, validate, and smoke via needs (not a hand-rolled if)",
     (jobName) => {
       expect(new Set(jobNeeds(CI_JOBS[jobName]))).toEqual(new Set(['test', 'validate', 'smoke']));
+      // The success gate is `needs` itself: the if carries NO status-check function, so GitHub keeps
+      // the implicit needs-success requirement rather than it being re-spelled with `.result` checks.
+      // This is the SAME single gating dialect the every-commit groups use — the only difference is
+      // the branch restriction below.
       const mutationIf = CI_JOBS[jobName]?.if ?? '';
-      for (const job of ['test', 'validate', 'smoke']) {
-        expect(mutationIf).toContain(`needs.${job}.result == 'success'`);
-      }
+      expect(mutationIf).not.toContain('cancelled()');
+      expect(mutationIf).not.toContain('.result');
     },
   );
 
