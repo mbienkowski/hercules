@@ -27,22 +27,21 @@ defaults:
   run:
     shell: bash
 
-# Job graph — three groups, each an escalating gate, cheap -> pricey so a cheap failure fails fast:
+# Job graph — everything fast runs in PARALLEL after build; mutation alone waits, and only on main:
 #
-#            ┌─ GROUP 1: correctness ─┐   ┌─ GROUP 2: quality ──┐   ┌─ GROUP 3: mutation ─┐
-#            │  (every commit)        │   │  (every commit)     │   │  (MAIN pushes only) │
-#   build ──>│  test · validate · smoke │─>│  lint-complexity · audit │  mutation-py · mutation-ts
-#            └────────────────────────┘   └─────────────────────┘   └─────────────────────┘
+#             ┌ every commit — all PARALLEL ───────────────────────────────────┐   ┌ MAIN only ──┐
+#   build ──> │ test · validate · smoke · complexity-scan · vulnerability-scan │──>│ mutation-py │
+#             └────────────────────────────────────────────────────────────────┘   │ mutation-ts │
+#                                                                                   └─────────────┘
 #
-# The rule is UNIFORM: every group past the first `needs:` the whole correctness group and runs only
-# if it went green — so quality (group 2) and mutation (group 3) never spend minutes on code that
-# does not even pass its tests. Within a group the jobs run in PARALLEL (none needs another). The ONE
-# difference across groups is group 3's `if:` — a single branch check (`push` to `main`) — because
-# mutation is the slow release gate and PR feedback must stay fast; release.yml chains off this whole
-# run's conclusion. Success gating is `needs:` itself everywhere (no hand-rolled `!cancelled()` +
-# `.result` dialect): a plain `if:` with no status-check function keeps GitHub's implicit
-# needs-success requirement. The smoke matrix is a `build` output (from the target registry), so
-# there is no separate discovery job to sync.
+# After `build`, the five fast checks each `needs: [build]` and run concurrently — correctness
+# (test/validate/smoke) and the static quality gates (complexity-scan/vulnerability-scan) share ONE
+# tier; none waits on another. Mutation is the ONLY job at the end: it `needs:` all five, so the slow
+# ~46min run starts only once the whole fast tier is green, and it is MAIN-ONLY — its `if:` is a bare
+# branch check with no status-check function, so GitHub keeps the implicit needs-success requirement
+# (release.yml chains off this whole run's conclusion). Success gating is `needs:` everywhere — no
+# hand-rolled `!cancelled()` + `.result` dialect. The smoke matrix is a `build` output (from the
+# target registry), so there is no separate discovery job to sync.
 jobs:
   # ── Build gate — regenerate dist/ and prove it matches what's committed ──────
   # Runs FIRST: a src/content/ edit pushed without a rebuild fails here (drift), before any
@@ -166,8 +165,8 @@ jobs:
   # chains off CI success) instead of failing open. A transient registry hiccup is absorbed by
   # the pinned install's own retry+timeout; a real load failure surfaces as the pytest step going
   # red. fail-fast:false keeps one ecosystem's result independent of the others'.
-  # GROUP 1 alongside test/validate (needs only `build`): it fans out right after build for early
-  # signal, rather than waiting on the unit suite. Groups 2 and 3 (below) wait for smoke to go green.
+  # A fast check alongside test/validate/complexity-scan/vulnerability-scan (needs only `build`): it
+  # fans out right after build, in parallel with the rest of the tier. Only mutation waits on smoke.
   smoke:
     name: Smoke — ${{ matrix.target }}
     needs: [build]
@@ -243,19 +242,19 @@ jobs:
           name: smoke-results-${{ matrix.target }}
           path: smoke-results-${{ matrix.target }}.txt
 
-  # ── GROUP 2: static quality gates — every commit, after group 1, in parallel ──
-  # Complexity and supply-chain audit. Both run on EVERY commit but only after group 1 (test +
-  # validate + smoke) is green — no point judging quality until the code is proven correct. `needs:`
-  # is the whole gate: a plain `if:` is not even needed, so GitHub's implicit needs-success applies
-  # and a red group-1 job skips these cleanly. They run in parallel with each other (neither needs
-  # the other). Each job id / display name / make target is the SAME string, so a red check
-  # reproduces by copy-paste.
+  # ── Static quality gates — every commit, PARALLEL with test/validate/smoke ────
+  # complexity-scan (lints SOURCE) and vulnerability-scan (audits the LOCKFILE) don't consume the
+  # compiled output, but they `needs: [build]` like test/validate/smoke so they sit in the SAME tier
+  # — running concurrently with the correctness jobs, and skipping fast if the build itself is
+  # broken. They never gate behind test/validate/smoke; only mutation (below) waits, and only on
+  # main. Each job id / display name / make target is the SAME string, so a red check reproduces by
+  # copy-paste.
 
   # Cyclomatic + cognitive complexity <= 15, both runtimes — the same ceiling of 15 governs ESLint
   # (the TypeScript domains) and flake8 (the Python hooks). See CODE_OF_CONDUCT.md § Complexity.
-  lint-complexity:
-    name: lint-complexity
-    needs: [test, validate, smoke]
+  complexity-scan:
+    name: complexity-scan
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -278,14 +277,14 @@ jobs:
         run: make install
 
       - name: Complexity gate (cyclomatic + cognitive, both runtimes)
-        run: make lint-complexity
+        run: make complexity-scan
 
   # Fail on any HIGH or CRITICAL dependency CVE. npm carries the whole dependency surface (the shipped
   # plugin is zero-runtime-dep; the Python hooks are stdlib-only, so there is no pip runtime-CVE
   # surface). See CODE_OF_CONDUCT.md § Dependencies.
-  audit:
-    name: audit
-    needs: [test, validate, smoke]
+  vulnerability-scan:
+    name: vulnerability-scan
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -301,28 +300,25 @@ jobs:
       - name: Install the TypeScript toolchain
         run: make install-ts
 
-      - name: Audit dependencies for high/critical CVEs
-        run: make audit
+      - name: Scan dependencies for high/critical CVEs
+        run: make vulnerability-scan
 
-  # ── GROUP 3: mutation testing — MAIN ONLY, the release gate ───────────────────
-  # The third and deepest tier. Two parallel jobs, one per runtime — the Python island (src/hooks/,
-  # mutmut) is kept separate from the TypeScript toolchain (everything else, Stryker) precisely so
-  # they run concurrently instead of as one ~40min sequential job. Both gate release.yml (which
-  # chains off this whole CI run's conclusion). Deliberately MAIN-ONLY (post-merge), never on PRs:
-  # the slow final quality gate — keeping it off PRs is what keeps PR feedback fast, and a merge to
-  # main is the right, once-per-change place to pay for it.
-  #
-  # Gating is UNIFORM with groups 1 and 2: `needs:` alone requires test + validate + smoke to have
-  # succeeded. The `if:` carries no status-check function (no `!cancelled()`/`always()`), so GitHub
-  # keeps that implicit needs-success requirement — the `if:` adds ONLY the main-push restriction,
-  # the single thing that sets group 3 apart from the every-commit groups. That one line is the
-  # whole difference; there is no second gating dialect to learn.
+  # ── Mutation testing — MAIN ONLY, the sole job at the end ─────────────────────
+  # The one tier that waits: it `needs:` EVERY every-commit check (test, validate, smoke,
+  # complexity-scan, vulnerability-scan), so the slow ~46min mutation run only starts once the whole
+  # fast tier is green — never burning minutes on code that failed a cheaper check. Two parallel
+  # jobs, one per runtime — the Python island (src/hooks/, mutmut) kept separate from the TypeScript
+  # toolchain (everything else, Stryker) so they run concurrently instead of one ~40min sequential
+  # job. Both gate release.yml (which chains off this whole run's conclusion). MAIN-ONLY (post-merge):
+  # the `if:` carries no status-check function (no `!cancelled()`/`always()`), so GitHub keeps the
+  # implicit needs-success requirement and the `if:` adds ONLY the main-push restriction — the one
+  # thing that sets these apart from the every-commit jobs. No second gating dialect to learn.
   #
   # The job id, its display `name`, and its `make` target are the SAME string for each (mutation-py /
   # mutation-ts) — so a red check can be reproduced by copying its name straight into a terminal.
   mutation-py:
     name: mutation-py
-    needs: [test, validate, smoke]
+    needs: [test, validate, smoke, complexity-scan, vulnerability-scan]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # mutmut now mutates only src/hooks/ (a few hundred lines) instead of also the former
@@ -355,7 +351,7 @@ jobs:
 
   mutation-ts:
     name: mutation-ts
-    needs: [test, validate, smoke]
+    needs: [test, validate, smoke, complexity-scan, vulnerability-scan]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 60

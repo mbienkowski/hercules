@@ -110,13 +110,15 @@ describe('the CI job graph', () => {
   // TypeScript-only mutation gates no longer share one sequential ~40min job) — both must carry
   // identical gating so neither is the weak link.
   it.each(['mutation-py', 'mutation-ts'])(
-    "'%s' waits for test, validate, and smoke via needs (not a hand-rolled if)",
+    "'%s' waits for ALL five fast checks via needs (it is the sole job at the end)",
     (jobName) => {
-      expect(new Set(jobNeeds(CI_JOBS[jobName]))).toEqual(new Set(['test', 'validate', 'smoke']));
+      expect(new Set(jobNeeds(CI_JOBS[jobName]))).toEqual(
+        new Set(['test', 'validate', 'smoke', 'complexity-scan', 'vulnerability-scan']),
+      );
       // The success gate is `needs` itself: the if carries NO status-check function, so GitHub keeps
       // the implicit needs-success requirement rather than it being re-spelled with `.result` checks.
-      // This is the SAME single gating dialect the every-commit groups use — the only difference is
-      // the branch restriction below.
+      // This is the SAME single gating dialect every job uses — the only difference is the branch
+      // restriction below.
       const mutationIf = CI_JOBS[jobName]?.if ?? '';
       expect(mutationIf).not.toContain('cancelled()');
       expect(mutationIf).not.toContain('.result');
@@ -146,21 +148,22 @@ describe('the CI job graph', () => {
     expect(CI_JOBS).not.toHaveProperty('discover');
   });
 
-  // lint-complexity and audit sit at the mutation TIER (gated behind test/validate/smoke — no point
-  // judging quality until the code is proven correct) but, unlike mutation, run on EVERY commit
-  // rather than main-only. The default `if: success()` (no explicit `if:`) is what gates them on the
-  // needs while leaving them unrestricted by branch/event.
-  it.each(['lint-complexity', 'audit'])(
-    "'%s' waits for test, validate, and smoke, but runs on every commit (not main-only)",
+  // complexity-scan and vulnerability-scan are static quality gates that run in the SAME tier as
+  // test/validate/smoke — they `needs: [build]` only (they lint source / audit the lockfile, not the
+  // compiled output), so they run in PARALLEL with the correctness jobs on EVERY commit, never gated
+  // behind them. Only mutation waits and is main-only. The default `if: success()` (no explicit `if:`)
+  // gates them on `build` alone while leaving them unrestricted by branch/event.
+  it.each(['complexity-scan', 'vulnerability-scan'])(
+    "'%s' runs in parallel with test/validate/smoke (needs only build), every commit",
     (jobName) => {
-      expect(new Set(jobNeeds(CI_JOBS[jobName]))).toEqual(new Set(['test', 'validate', 'smoke']));
+      expect(new Set(jobNeeds(CI_JOBS[jobName]))).toEqual(new Set(['build']));
       const jobIf = CI_JOBS[jobName]?.if ?? '';
       expect(jobIf).not.toContain('refs/heads/main');
       expect(jobIf).not.toContain('pull_request');
     },
   );
 
-  it.each(['lint-complexity', 'audit'])(
+  it.each(['complexity-scan', 'vulnerability-scan'])(
     "'%s' job id, display name, and make target are the same string",
     (jobName) => {
       expect(CI_JOBS[jobName]?.['name']).toBe(jobName);

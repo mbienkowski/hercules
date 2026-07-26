@@ -1,6 +1,6 @@
-// Complexity gate for the TypeScript domains — the `make lint-complexity` half that mirrors, in
+// Complexity gate for the TypeScript domains — the `make complexity-scan` half that mirrors, in
 // the Node runtime, the same ceilings the Python hooks are held to (src/hooks, via flake8 —
-// see the Makefile's `lint-complexity` target and CODE_OF_CONDUCT.md § Complexity).
+// see the Makefile's `complexity-scan` target and CODE_OF_CONDUCT.md § Complexity).
 //
 // This config lints ONLY complexity: it deliberately enables no style, correctness, or type-aware
 // rules, so it never competes with formatting and never needs TypeScript type information (both

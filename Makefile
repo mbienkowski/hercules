@@ -1,6 +1,6 @@
 .PHONY: test test-mutation test-smoke install install-py install-ts build build-check \
         typecheck compile test-py test-ts mutation-py mutation-ts \
-        lint-complexity lint-complexity-ts lint-complexity-py audit \
+        complexity-scan complexity-scan-ts complexity-scan-py vulnerability-scan \
         ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate \
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
 
@@ -85,18 +85,18 @@ mutation-ts: compile
 # runtimes so neither can hide a hotspot the other would reject. Tests are excluded on both sides: a
 # table-driven, assertion-dense spec is legitimately branchy and is not shipped. See
 # CODE_OF_CONDUCT.md § Complexity.
-lint-complexity: lint-complexity-ts lint-complexity-py
+complexity-scan: complexity-scan-ts complexity-scan-py
 
 # TypeScript domains (compiler / release / metrics). Config + ceiling live in eslint.config.mjs.
-lint-complexity-ts:
+complexity-scan-ts:
 	npx eslint --max-warnings=0 .
 
 # Shipped Python hooks. --select restricts flake8 to ONLY the two complexity checks (C901 = mccabe
 # cyclomatic, CCR001 = cognitive) — no style/lint noise; --extend-exclude drops the hooks' own tests.
-lint-complexity-py:
+complexity-scan-py:
 	flake8 --select=C901,CCR001 --max-complexity=15 --max-cognitive-complexity=15 --extend-exclude=tests src/hooks
 
-# ── Supply-chain audit ────────────────────────────────────────────────────────
+# ── Dependency vulnerability scan ─────────────────────────────────────────────
 # Fail on any HIGH or CRITICAL CVE in a dependency. npm carries the ENTIRE dependency surface: the
 # shipped plugin is zero-runtime-dep and the Python hooks are stdlib-only (dependencies = [] in
 # pyproject), so there is no pip runtime-CVE surface to scan — the whole exposure is the dev
@@ -104,7 +104,7 @@ lint-complexity-py:
 # and low remain visible but non-blocking, matching the "critical + high" bar. Audits the committed
 # package-lock.json directly (no node_modules required); the CI job runs `make install-ts` before it
 # so the resolved tree matches what ships.
-audit:
+vulnerability-scan:
 	npm audit --audit-level=high
 
 # Live CLI smoke checks — do the built plugins actually install/load in the real Claude Code,

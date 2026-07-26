@@ -354,7 +354,7 @@ failing gate means the change broke a contract; fix the contract, not the test.
 ### Complexity
 
 ```bash
-make lint-complexity   # local SonarQube-style scan, BOTH runtimes
+make complexity-scan   # local SonarQube-style scan, BOTH runtimes
 ```
 
 No first-party function may exceed **15** on either **cyclomatic** (independent paths) or **cognitive**
@@ -377,23 +377,23 @@ move its scores between releases, and a gate whose verdict shifts on a silent bu
 you its steps want names a junior can read. Same doctrine as the budgets: the number is immovable; the
 code moves to fit it.
 
-CI runs `make lint-complexity` as its own `lint-complexity` job on **every commit**, in **group 2** of a
-three-tier graph — group 1 correctness (`test` + `validate` + `smoke`), group 2 static quality
-(`lint-complexity` + `audit`), group 3 mutation (main-only). Each group `needs:` the previous and runs
-only if it is green — quality is worth judging only once the code is proven correct — so a red test skips
-it cleanly. Unlike group 3 it runs on every commit, so a complexity regression is caught where it is
-introduced, not at review.
+CI runs `make complexity-scan` as its own `complexity-scan` job on **every commit**, in the same fast
+tier as `test`/`validate`/`smoke` — it `needs: [build]` only (it lints source, not the compiled
+output), so it runs **in parallel** with the correctness jobs, never gated behind them. Mutation is the
+only job that waits (it `needs:` all five fast checks) and the only one that is main-only. So a
+complexity regression is caught on the commit that introduces it, right alongside the tests.
 
 ### Dependencies
 
 ```bash
-make audit             # fail on any HIGH or CRITICAL dependency CVE
+make vulnerability-scan   # fail on any HIGH or CRITICAL dependency CVE
 ```
 
 npm carries the **entire** dependency surface: the shipped plugin declares zero runtime dependencies and
 the Python hooks are stdlib-only (`dependencies = []` in `pyproject.toml`), so there is no pip
 runtime-CVE surface — the whole exposure is the dev toolchain in `package-lock.json`. `npm audit
 --audit-level=high` exits non-zero on high/critical only; moderate and low stay visible but do not block.
-CI runs it as the `audit` job on every commit, in **group 2** alongside `lint-complexity` (after group 1:
-`test` + `validate` + `smoke`). A flagged advisory is fixed by bumping to the patched version (Dependabot
-proposes these as reviewable, exact-pinned PRs) — never by lowering `--audit-level`.
+CI runs it as the `vulnerability-scan` job on every commit, in the same fast tier as `complexity-scan`
+and `test`/`validate`/`smoke` (it `needs: [build]` only, running in parallel with them). A flagged
+advisory is fixed by bumping to the patched version (Dependabot proposes these as reviewable,
+exact-pinned PRs) — never by lowering `--audit-level`.
