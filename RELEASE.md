@@ -11,8 +11,8 @@ On every merge to `main`, `release.yml` runs after CI succeeds:
 1. Computes the next version from Conventional Commits (`feat`/`fix`/`perf` bump the CHANGELOG).
 2. `src/release/setVersion.mts` stamps that version into the two files that MUST carry a literal
    (`src/builder/versionTargets.mts::VERSION_TARGETS`): `package.json` (the canonical source, read
-   by npm/OpenCode) and `pyproject.toml` (read by setuptools). The plugin manifests
-   (`dist/{claude-code,cursor}/…/plugin.json`) are **not** stamped — their source carries a
+   by npm/OpenCode) and `pyproject.toml` (read by setuptools). Every plugin manifest
+   (`dist/*/…/plugin.json`, all six ecosystems) is **not** stamped — their source carries a
    `${version}` token that the build injects from `package.json` (step below), so there is one
    version of record and nothing to hand-bump under `src/targets/`.
 3. `make build` regenerates `dist/`, injecting the canonical version into each plugin manifest.

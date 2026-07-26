@@ -54,6 +54,7 @@ no change to `src/content/`, `src/ecosystems/` formats, or `dist/` output bytes.
 ## Governing artifact
 
 The technical plan — locked architectural decisions, the full commit sequence, the fault-injection
-parity harness design, and the few-shot DO/DON'T catalogue the implementing work follows — lives in
-[`2026-07-23-typescript-migration-spec-01-full-plan.md`](2026-07-23-typescript-migration-spec-01-full-plan.md)
-in this same directory.
+parity harness design, and the few-shot DO/DON'T catalogue the implementing work followed — was
+carried in a companion spec file that was **retired at delivery**, per the project convention that a
+spec is write-once and deleted once its feature ships in code (see `CODE_OF_CONDUCT.md`). The delivered
+work is now the source of truth; the git history of this branch preserves the commit sequence.

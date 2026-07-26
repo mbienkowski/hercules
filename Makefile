@@ -1,6 +1,6 @@
 .PHONY: test test-mutation test-smoke install install-py install-ts build build-check \
         typecheck compile test-py test-ts mutation-py mutation-ts pycompat-golden-check \
-        lint-complexity lint-complexity-ts lint-complexity-py \
+        lint-complexity lint-complexity-ts lint-complexity-py audit \
         ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate \
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
 

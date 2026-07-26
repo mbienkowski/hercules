@@ -34,7 +34,7 @@ py-modules = []
 # `src` is on the path (not just ".") so the hook tests' `from hooks.tests.conftest import …` resolves
 # `hooks` as a top-level package now that it lives at src/hooks/.
 pythonpath = [".", "src"]
-# src/hooks/tests/ is a SEPARATE tree from src/tests/repo/ (see CODE_OF_CONDUCT.md § Testing) — the
+# src/hooks/tests/ is a SEPARATE tree from src/commons/repo/ (see CODE_OF_CONDUCT.md § Testing) — the
 # Python hooks island — so both must be listed explicitly.
 testpaths = ["src/commons/repo", "src/hooks/tests"]
 
@@ -47,7 +47,7 @@ paths_to_mutate = "src/hooks/"
 # mutate the tests themselves alongside the hook source they're supposed to be judging.
 paths_to_exclude = "test_*.py,__init__.py,conftest.py,src/hooks/tests/*"
 backup = false
-# src/hooks/tests/ is the hooks island's own tree (see CODE_OF_CONDUCT.md § Testing); src/tests/repo/
+# src/hooks/tests/ is the hooks island's own tree (see CODE_OF_CONDUCT.md § Testing); src/commons/repo/
 # carries nothing that exercises src/hooks/ mutation behavior, so narrowing the runner to
 # src/hooks/tests/ alone is both correct and considerably faster than the pre-split full-suite run.
 runner = "python -m pytest src/hooks/tests/ -x -q --tb=no --no-header"

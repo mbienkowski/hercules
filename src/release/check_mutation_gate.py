@@ -1,14 +1,14 @@
 """Mutation kill-rate gate. Queries mutmut result-ids and exits 1 if below threshold.
 
-Usage: python scripts/check_mutation_gate.py
+Usage: python src/release/check_mutation_gate.py
 """
 import json
 import subprocess
 import sys
 from pathlib import Path
 
-# Thresholds are single-sourced in scripts/mutation-gate.json, shared with the TypeScript gate
-# (release/checkMutationGate.mts). Two runtimes each hardcoding 90/95 is how the two gates drift.
+# Thresholds are single-sourced in src/release/mutation-gate.json, shared with the TypeScript gate
+# (src/release/checkMutationGate.mts). Two runtimes each hardcoding 90/95 is how the two gates drift.
 _THRESHOLDS = json.loads((Path(__file__).resolve().parent / "mutation-gate.json").read_text())
 GATE = _THRESHOLDS["gate"]
 WARN = _THRESHOLDS["warn"]

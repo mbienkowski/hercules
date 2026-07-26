@@ -1,4 +1,4 @@
-"""Guard: every test directory is actually collected by ``pytest`` (testpaths = tests/repo, hooks/tests).
+"""Guard: every test dir is actually collected by ``pytest`` (testpaths = src/commons/repo, src/hooks/tests).
 
 pytest's default ``norecursedirs`` includes ``build`` and ``dist``, so a directory named, say,
 ``tests/build/`` would be silently skipped during recursion -- its tests only run when the path is

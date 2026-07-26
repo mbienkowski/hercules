@@ -142,7 +142,7 @@ jobs:
 
       # 2. Write the new version into the two literal sources — package.json (canonical) and
       #    pyproject.toml (VERSION_TARGETS). The plugin manifests are NOT touched here: their src carries
-      #    a ${version} token, injected at build (step 2b), so there is nothing to bump under src/ecosystems/.
+      #    a ${version} token, injected at build (step 2b), so there is nothing to bump under src/targets/.
       - name: Bump version files
         env:
           NEW_VERSION: ${{ steps.bump.outputs.new_version }}

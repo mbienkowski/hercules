@@ -1,8 +1,8 @@
 /**
  * Mutation kill-rate gate for the TypeScript side (Stryker), mirroring the Python side
- * (release/check_mutation_gate.py, mutmut over hooks/).
+ * (src/release/check_mutation_gate.py, mutmut over src/hooks/).
  *
- * The two gates are deliberately symmetric: same thresholds (release/mutation-gate.json), same
+ * The two gates are deliberately symmetric: same thresholds (src/release/mutation-gate.json), same
  * failure modes, same wording. A contributor who has debugged one has debugged both — which is the
  * whole point of splitting the mutation run across two runtimes rather than one.
  *
