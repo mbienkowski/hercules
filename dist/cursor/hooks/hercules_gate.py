@@ -53,6 +53,18 @@ def _read_config():
 
 # ── protocol: pre_tool (Gemini BeforeTool / Copilot preToolUse — a true pre-write veto) ─────────
 
+def _nested_paths(args: dict, path_keys, nested_keys) -> list:
+    """Recurse into the batched edit lists under *nested_keys*, flattening every hunk's paths so a
+    frozen file in any later hunk of a multi-edit is still seen."""
+    found: list = []
+    for key in nested_keys:
+        seq = args.get(key)
+        if isinstance(seq, list):
+            for item in seq:
+                found.extend(_extract_paths(item, path_keys, nested_keys))
+    return found
+
+
 def _extract_paths(args, path_keys, nested_keys):
     """Return EVERY target file path a host tool's arguments name, in order (deduped). Accepts a
     dict or an unparsed JSON string, and recurses into nested edit lists (``nested_keys``) so a
@@ -63,17 +75,14 @@ def _extract_paths(args, path_keys, nested_keys):
             args = json.loads(args)
         except Exception:
             return []
+    if not isinstance(args, dict):
+        return []
     found: list = []
-    if isinstance(args, dict):
-        for key in path_keys:
-            value = args.get(key)
-            if isinstance(value, str) and value:
-                found.append(value)
-        for key in nested_keys:
-            seq = args.get(key)
-            if isinstance(seq, list):
-                for item in seq:
-                    found.extend(_extract_paths(item, path_keys, nested_keys))
+    for key in path_keys:                       # direct path arguments on this dict
+        value = args.get(key)
+        if isinstance(value, str) and value:
+            found.append(value)
+    found.extend(_nested_paths(args, path_keys, nested_keys))  # batched multi-edit hunks
     # De-duplicate while preserving first-seen order (dict keeps insertion order since 3.7).
     return list(dict.fromkeys(found))
 
@@ -235,6 +244,21 @@ def _cwd(evt: dict) -> str:
     return roots[0] if roots else (evt.get("cwd") or os.getcwd())
 
 
+def _context_guards_frozen(session, project) -> bool:
+    """True if this build context still enforces its freeze: it is in the build phase AND its project
+    has not opted out via ``frozen_hook: off``. A non-build or opted-out context guards nothing."""
+    return session.get("current_phase") == "build" and (project or {}).get("frozen_hook") != "off"
+
+
+def _guarded_paths(session, roots):
+    """Yield each canonical frozen path this session still guards — one covered by a live,
+    user-granted ``frozen_override`` is dropped (the shared "change this test" escape hatch)."""
+    for entry in session.get("frozen_test_files") or []:
+        for cand in frozen_candidates(entry, roots):
+            if not _override_allows(session, roots, cand):
+                yield cand
+
+
 def frozen_map(cwd: str, home=None) -> dict:
     """Map each canonical frozen-test path guarded for *cwd* right now → its owning session (empty when
     no build is active), so a block can quote that session's spec/round via the canonical ``_reason``.
@@ -245,14 +269,10 @@ def frozen_map(cwd: str, home=None) -> dict:
     """
     frozen: dict = {}
     for session, roots, project in resolve_build_contexts(cwd, home=home):
-        if session.get("current_phase") != "build":
+        if not _context_guards_frozen(session, project):
             continue
-        if (project or {}).get("frozen_hook") == "off":
-            continue
-        for entry in session.get("frozen_test_files") or []:
-            for cand in frozen_candidates(entry, roots):
-                if not _override_allows(session, roots, cand):
-                    frozen.setdefault(cand, session)
+        for cand in _guarded_paths(session, roots):
+            frozen.setdefault(cand, session)
     return frozen
 
 
@@ -327,6 +347,48 @@ def _mcp_hits_frozen(evt: dict, frozen: dict):
     return None
 
 
+def _decide_shell(cfg, evt: dict, frozen: dict) -> None:
+    """Shell guard: deny with the canonical reason when the command writes/deletes a frozen file."""
+    hit = _writes_frozen(evt.get("command", ""), frozen)
+    if hit is not None:
+        reason = _reason(hit, frozen[hit])  # the canonical block message every ecosystem emits
+        _guards_deny(cfg, reason, reason)
+    else:
+        _guards_allow(cfg)
+
+
+def _decide_mcp(cfg, evt: dict, frozen: dict) -> None:
+    """MCP guard: deny with the canonical reason when a write-ish MCP call targets a frozen file."""
+    hit = _mcp_hits_frozen(evt, frozen)
+    if hit is not None:
+        reason = _reason(hit, frozen[hit])
+        _guards_deny(cfg, reason, reason)
+    else:
+        _guards_allow(cfg)
+
+
+def _after_edit_note(cwd: str, fp: str, session) -> str:
+    """The notification text for an after-edit hit on a frozen file. Interactive IDE → a plain
+    advisory that never touches the tree. Headless → restore from git and say so, but claim the
+    revert ONLY when git actually performed it (an untracked/non-git file fails honestly)."""
+    if not _is_headless():
+        return _ide_advisory(fp)  # interactive IDE — never mutate the user's tree
+    if _restore(cwd, fp):
+        return _reason(fp, session) + " (No human was present, so Hercules restored the file from git.)"
+    return (_reason(fp, session)
+            + " (Hercules could NOT auto-restore it — not a git repo, or the test is "
+              "untracked. Revert it manually before continuing.)")
+
+
+def _decide_after_edit(cfg, evt: dict, cwd: str, frozen: dict) -> None:
+    """After-edit guard: afterFileEdit is notification-only (the edit already landed), so a frozen
+    hit is announced — advisory or restore note — never vetoed here."""
+    fp = evt.get("file_path")
+    c = canon(fp) if fp else None
+    if c is not None and c in frozen:
+        _guards_notify(cfg, _after_edit_note(cwd, fp, frozen[c]))
+
+
 def _event_guards_decide(cfg, mode: str, evt: dict, home=None) -> None:
     """Emit the host's decision for *mode* given event *evt*. Never raises for a resolvable state."""
     cwd = _cwd(evt)
@@ -336,42 +398,31 @@ def _event_guards_decide(cfg, mode: str, evt: dict, home=None) -> None:
             _guards_allow(cfg)
         return
     if mode == "shell":
-        cmd = evt.get("command", "")
-        hit = _writes_frozen(cmd, frozen)
-        if hit is not None:
-            reason = _reason(hit, frozen[hit])  # the canonical block message every ecosystem emits
-            _guards_deny(cfg, reason, reason)
-        else:
-            _guards_allow(cfg)
+        _decide_shell(cfg, evt, frozen)
     elif mode == "mcp":
-        hit = _mcp_hits_frozen(evt, frozen)
-        if hit is not None:
-            reason = _reason(hit, frozen[hit])
-            _guards_deny(cfg, reason, reason)
-        else:
-            _guards_allow(cfg)
+        _decide_mcp(cfg, evt, frozen)
     elif mode == "after_edit":
-        fp = evt.get("file_path")
-        c = canon(fp) if fp else None
-        if c is not None and c in frozen:
-            # afterFileEdit is notification-only (the edit already landed). Runtime-aware:
-            if _is_headless():
-                # No human present — restore, but say so ONLY if git actually did it (no false claim).
-                if _restore(cwd, fp):
-                    note = (_reason(fp, frozen[c])
-                            + " (No human was present, so Hercules restored the file from git.)")
-                else:
-                    note = (_reason(fp, frozen[c])
-                            + " (Hercules could NOT auto-restore it — not a git repo, or the test is "
-                              "untracked. Revert it manually before continuing.)")
-                _guards_notify(cfg, note)
-            else:
-                # Interactive IDE — never mutate the user's tree; advise loudly and let them decide.
-                note = _ide_advisory(fp)
-                _guards_notify(cfg, note)
+        _decide_after_edit(cfg, evt, cwd, frozen)
 
 
 # ── entry point ─────────────────────────────────────────────────────────────────────────────────
+
+def _dispatch(cfg, protocol, mode: str, evt, home=None) -> None:
+    """Route a parsed event to its protocol handler (the happy path)."""
+    if protocol == "pre_tool":
+        _emit_pre_tool(cfg, _pre_tool_reason(cfg, evt, home=home))
+    elif protocol == "event_guards":
+        _event_guards_decide(cfg, mode, evt if isinstance(evt, dict) else {}, home=home)
+
+
+def _fail_open(cfg, protocol, mode: str) -> None:
+    """The fail-OPEN response after any error: hosts that expect an explicit allow get one; silent
+    hosts (Gemini) get silence — never a block, so a gate bug can't brick an unrelated edit."""
+    if protocol == "pre_tool":
+        _emit_pre_tool(cfg, None)
+    elif protocol == "event_guards" and mode in ("shell", "mcp"):
+        _guards_allow(cfg)
+
 
 def main(argv=None, stdin_text=None, home=None, config=None) -> int:
     argv = argv if argv is not None else sys.argv
@@ -383,16 +434,9 @@ def main(argv=None, stdin_text=None, home=None, config=None) -> int:
     try:
         raw = stdin_text if stdin_text is not None else sys.stdin.read()
         evt = json.loads(raw) if raw and raw.strip() else {}
-        if protocol == "pre_tool":
-            _emit_pre_tool(cfg, _pre_tool_reason(cfg, evt, home=home))
-        elif protocol == "event_guards":
-            _event_guards_decide(cfg, mode, evt if isinstance(evt, dict) else {}, home=home)
+        _dispatch(cfg, protocol, mode, evt, home=home)
     except Exception:
-        # Fail OPEN per protocol: hosts that expect an explicit allow get one; silent hosts get silence.
-        if protocol == "pre_tool":
-            _emit_pre_tool(cfg, None)
-        elif protocol == "event_guards" and mode in ("shell", "mcp"):
-            _guards_allow(cfg)
+        _fail_open(cfg, protocol, mode)
     return 0
 
 

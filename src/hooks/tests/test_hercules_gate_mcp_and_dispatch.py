@@ -198,6 +198,20 @@ def test_event_guards_decide_after_edit_headless_restore_failure_note_is_pinned_
         "untracked. Revert it manually before continuing.)")
 
 
+def test_event_guards_decide_after_edit_on_a_non_frozen_file_is_silent(
+        active_build_home, capsys):
+    """A build is active (so the frozen map is non-empty), but the edited file is NOT one of the
+    frozen tests — the after-edit guard must stay completely silent, never announcing or restoring a
+    file it does not guard. Pins the AND in ``_decide_after_edit``'s ``c is not None and c in frozen``:
+    an OR there would enter the branch for any real path and key the frozen map with a non-member,
+    crashing on a perfectly ordinary edit."""
+    home, proj = active_build_home
+    fp = str(proj / "src" / "app.py")  # a real path under the project, but not a frozen test
+    gate._event_guards_decide(_CFG, "after_edit",
+                              {"file_path": fp, "workspace_roots": [str(proj)]}, home=str(home))
+    assert capsys.readouterr().out.strip() == "", "an edit to a non-frozen file must emit nothing"
+
+
 # ── main(): return code, mode default, and the except-clause's protocol/mode gate ────────────────
 
 def test_main_returns_zero_when_no_readable_host_config_exists(tmp_path):
