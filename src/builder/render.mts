@@ -30,23 +30,23 @@ function collectBranches(
 ): { branches: Map<string, string[]>; nextIndex: number } {
   const branches = new Map<string, string[]>([[openingName, []]]);
   let current = openingName;
-  let i = start;
+  let lineIndex = start;
 
-  while (i < lines.length) {
-    const directive = DIRECTIVE.exec(lines[i] as string);
+  while (lineIndex < lines.length) {
+    const directive = DIRECTIVE.exec(lines[lineIndex] as string);
     if (directive === null) {
-      (branches.get(current) as string[]).push(lines[i] as string); // a body line of the current branch
-      i += 1;
+      (branches.get(current) as string[]).push(lines[lineIndex] as string); // a body line of the current branch
+      lineIndex += 1;
       continue;
     }
     const name = directive[1] as string;
-    if (name === 'end') return { branches, nextIndex: i + 1 }; // closing fence — switch complete
+    if (name === 'end') return { branches, nextIndex: lineIndex + 1 }; // closing fence — switch complete
     if (!TARGET_NAME.test(name)) {
-      throw new RenderError(`malformed switch directive: ${pyRepr(lines[i] as string)}`);
+      throw new RenderError(`malformed switch directive: ${pyRepr(lines[lineIndex] as string)}`);
     }
     current = name; // a new branch opens; subsequent body lines belong to it
     branches.set(name, []);
-    i += 1;
+    lineIndex += 1;
   }
   throw new RenderError('unclosed `${target:…}` switch');
 }
@@ -65,23 +65,23 @@ function resolveSwitches(text: string, target: string): string {
   // must not re-interpret exotic line boundaries the way frontmatter parsing does.
   const lines = text.split('\n');
   const out: string[] = [];
-  let i = 0;
+  let lineIndex = 0;
 
-  while (i < lines.length) {
-    const opening = DIRECTIVE.exec(lines[i] as string);
+  while (lineIndex < lines.length) {
+    const opening = DIRECTIVE.exec(lines[lineIndex] as string);
     if (opening === null) {
-      out.push(lines[i] as string); // an ordinary line — copy it through unchanged
-      i += 1;
+      out.push(lines[lineIndex] as string); // an ordinary line — copy it through unchanged
+      lineIndex += 1;
       continue;
     }
     const name = opening[1] as string;
     if (name === 'end') throw new RenderError('`${target:end}` without an opening branch');
     if (!TARGET_NAME.test(name)) {
-      throw new RenderError(`malformed switch directive: ${pyRepr(lines[i] as string)}`);
+      throw new RenderError(`malformed switch directive: ${pyRepr(lines[lineIndex] as string)}`);
     }
-    const { branches, nextIndex } = collectBranches(lines, name, i + 1);
+    const { branches, nextIndex } = collectBranches(lines, name, lineIndex + 1);
     out.push(chooseBranch(branches, target).join('\n'));
-    i = nextIndex;
+    lineIndex = nextIndex;
   }
 
   return out.join('\n');

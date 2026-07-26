@@ -110,6 +110,14 @@ export function compareValue(value: number, op: string, limit: number): [boolean
   return [false, `unknown op '${op}'`];
 }
 
+/** The absolute paths one pattern resolves to: a glob's sorted matches, or the single literal path. */
+function resolvePattern(repoRoot: string, pat: string): string[] {
+  if (isGlob(pat)) {
+    return [...globSync(pat, { cwd: repoRoot })].sort().map((rel) => join(repoRoot, rel));
+  }
+  return [join(repoRoot, pat)];
+}
+
 /** Expand a comma-separated list of paths or globs relative to `repoRoot`, into absolute paths. */
 export function resolveTargets(repoRoot: string, target: string): string[] {
   const seen = new Set<string>();
@@ -117,20 +125,10 @@ export function resolveTargets(repoRoot: string, target: string): string[] {
   for (const rawPat of target.split(',')) {
     const pat = rawPat.trim();
     if (pat === '') continue;
-    if (isGlob(pat)) {
-      for (const rel of [...globSync(pat, { cwd: repoRoot })].sort()) {
-        const full = join(repoRoot, rel);
-        if (!seen.has(full)) {
-          seen.add(full);
-          out.push(full);
-        }
-      }
-    } else {
-      const full = join(repoRoot, pat);
-      if (!seen.has(full)) {
-        seen.add(full);
-        out.push(full);
-      }
+    for (const full of resolvePattern(repoRoot, pat)) {
+      if (seen.has(full)) continue; // dedup across patterns, keeping first-seen order
+      seen.add(full);
+      out.push(full);
     }
   }
   return out;

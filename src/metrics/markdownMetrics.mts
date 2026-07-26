@@ -17,19 +17,19 @@
 export function countStatusTableRows(text: string): number {
   const lines = text.split('\n');
   let headerIndex = -1;
-  for (let i = 0; i < lines.length; i += 1) {
-    const stripped = (lines[i] as string).trim();
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const stripped = (lines[lineIndex] as string).trim();
     if (stripped.startsWith('|') && stripped.includes('STATUS') && stripped.includes('Meaning') && stripped.includes('ACTION')) {
-      headerIndex = i;
+      headerIndex = lineIndex;
       break;
     }
   }
   if (headerIndex === -1) return -1;
 
-  let n = 0;
+  let rowCount = 0;
   for (const line of lines.slice(headerIndex + 2)) { // skip header row + separator row
     if (!line.trim().startsWith('|')) break;
-    n += 1;
+    rowCount += 1;
   }
-  return n;
+  return rowCount;
 }

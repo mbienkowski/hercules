@@ -166,13 +166,13 @@ export function checkTarget(target: string, tmpRoot: string, distRoot: string = 
 function parseArgs(argv: readonly string[]): { target: string; check: boolean } {
   let target = 'all';
   let check = false;
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i] as string;
+  for (let argIndex = 0; argIndex < argv.length; argIndex += 1) {
+    const arg = argv[argIndex] as string;
     if (arg === '--target') {
-      const value = argv[i + 1];
+      const value = argv[argIndex + 1];
       if (value === undefined) throw new Error('--target requires a value');
       target = value;
-      i += 1;
+      argIndex += 1; // consume the separate value token
     } else if (arg.startsWith('--target=')) {
       target = arg.slice('--target='.length);
     } else if (arg === '--check') {

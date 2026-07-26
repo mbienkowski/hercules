@@ -33,9 +33,9 @@ export function parseFrontmatter(text: string): Frontmatter {
   // the value and silently drop every key after it.
   const lines = pySplitlines(stripped);
   let close = -1;
-  for (let i = 1; i < lines.length; i += 1) {
-    if (pyStrip(lines[i] as string) === FENCE) {
-      close = i;
+  for (let lineIndex = 1; lineIndex < lines.length; lineIndex += 1) {
+    if (pyStrip(lines[lineIndex] as string) === FENCE) {
+      close = lineIndex;
       break;
     }
   }

@@ -24,10 +24,10 @@ import { join, relative, sep } from 'node:path';
 export function compareCodePoints(a: string, b: string): number {
   const left = [...a];
   const right = [...b];
-  for (let i = 0; i < Math.min(left.length, right.length); i += 1) {
-    const x = (left[i] as string).codePointAt(0) as number;
-    const y = (right[i] as string).codePointAt(0) as number;
-    if (x !== y) return x - y;
+  for (let pos = 0; pos < Math.min(left.length, right.length); pos += 1) {
+    const leftCp = (left[pos] as string).codePointAt(0) as number;
+    const rightCp = (right[pos] as string).codePointAt(0) as number;
+    if (leftCp !== rightCp) return leftCp - rightCp;
   }
   return left.length - right.length;
 }
@@ -44,8 +44,8 @@ export function compareCodePoints(a: string, b: string): number {
 export function comparePathParts(a: string, b: string): number {
   const left = a.split(sep);
   const right = b.split(sep);
-  for (let i = 0; i < Math.min(left.length, right.length); i += 1) {
-    const cmp = compareCodePoints(left[i] as string, right[i] as string);
+  for (let pos = 0; pos < Math.min(left.length, right.length); pos += 1) {
+    const cmp = compareCodePoints(left[pos] as string, right[pos] as string);
     if (cmp !== 0) return cmp;
   }
   return left.length - right.length;

@@ -12,13 +12,13 @@ const ENTRY_RE_GLOBAL = new RegExp(ENTRY_RE.source, 'g');
 export function extractA2aCore(md: string): { text: string; found: boolean } {
   const lines = md.split('\n');
   let contentStart = -1; // stays -1 until the OPENING ``` fence is seen
-  for (let i = 0; i < lines.length; i += 1) {
-    const isFence = (lines[i] as string).trimStart().startsWith('```');
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const isFence = (lines[lineIndex] as string).trimStart().startsWith('```');
     if (!isFence) continue;
     if (contentStart === -1) {
-      contentStart = i + 1; // opening fence — the block's content begins on the next line
+      contentStart = lineIndex + 1; // opening fence — the block's content begins on the next line
     } else {
-      return { text: lines.slice(contentStart, i).join('\n'), found: true }; // closing fence — done
+      return { text: lines.slice(contentStart, lineIndex).join('\n'), found: true }; // closing fence — done
     }
   }
   return { text: '', found: false };

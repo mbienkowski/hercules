@@ -39,13 +39,13 @@ export function pySplitlines(text: string): string[] {
   if (text === '') return [];
   const lines: string[] = [];
   let current = '';
-  for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i] as string;
+  for (let charIndex = 0; charIndex < text.length; charIndex += 1) {
+    const ch = text[charIndex] as string;
     if (!LINE_BOUNDARIES.has(ch)) {
       current += ch;
       continue;
     }
-    if (ch === '\u000d' && text[i + 1] === '\u000a') i += 1;
+    if (ch === '\u000d' && text[charIndex + 1] === '\u000a') charIndex += 1; // CRLF counts as one boundary
     lines.push(current);
     current = '';
   }
