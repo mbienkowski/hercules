@@ -102,6 +102,25 @@ def _sha256(path) -> str | None:
         return None
 
 
+def _entry_drifted(entry, baseline, session, roots) -> bool:
+    """True if one frozen-test entry has drifted from its baseline (fail-closed). Three drift causes:
+    the file was never baselined, every copy vanished, or a present copy's hash differs and no active
+    override covers it. `entry` is already validated as a non-empty string by the caller."""
+    want = baseline.get(entry)
+    if not isinstance(want, str) or not want:
+        return True  # active baseline but this frozen file wasn't baselined → fail-closed
+    candidate_hashes = [(c, _sha256(c)) for c in frozen_candidates(entry, roots)]
+    present = [(c, h) for c, h in candidate_hashes if h is not None]  # copies still on disk
+    if not present:
+        return True  # a frozen test that disappeared is tampering (fail-closed)
+    # EVERY present copy must match the baseline; a mismatch under ANY root is drift unless the
+    # user's override covers that copy (an override spans every root of the entry).
+    mismatched = [(c, h) for c, h in present if h != want]
+    if not mismatched:
+        return False
+    return any(not _override_allows(session, roots, c) for c, _ in mismatched)
+
+
 def frozen_drift(session, roots) -> list:
     """Frozen tests whose on-disk content no longer matches the baseline recorded at freeze time and
     which no active ``frozen_override`` covers — the **phase-acceptance backstop** the orchestrator runs
@@ -133,26 +152,36 @@ def frozen_drift(session, roots) -> list:
             entries = list(baseline)  # fall back to the baselined paths
         drifted = []
         for entry in entries:
-            if not isinstance(entry, str) or not entry:
-                continue
-            want = baseline.get(entry)
-            if not isinstance(want, str) or not want:
-                drifted.append(entry)  # active baseline but this frozen file wasn't baselined → fail-closed
-                continue
-            candidate_hashes = [(c, _sha256(c)) for c in frozen_candidates(entry, roots)]
-            present = [(c, h) for c, h in candidate_hashes if h is not None]  # copies still on disk
-            if not present:
-                drifted.append(entry)  # a frozen test that disappeared is tampering (fail-closed)
-                continue
-            # Fail-closed: EVERY present copy must match the baseline; a mismatch under ANY root is drift
-            # unless the user's override covers that copy (an override spans every root of the entry).
-            mismatched = [(c, h) for c, h in present if h != want]
-            uncovered_mismatch = any(not _override_allows(session, roots, c) for c, _ in mismatched)
-            if mismatched and uncovered_mismatch:
+            if isinstance(entry, str) and entry and _entry_drifted(entry, baseline, session, roots):
                 drifted.append(entry)
         return drifted
     except Exception:
         return []
+
+
+def _canonical_targets(tool_input, cwd):
+    """Each target path a tool names, as `(raw, canonical)`. A relative path resolves against the
+    payload's cwd (never the hook process's)."""
+    targets = []
+    for path in _target_paths(tool_input):
+        p = str(path)
+        if not os.path.isabs(p):
+            p = os.path.join(cwd, p)
+        targets.append((path, canon(p)))
+    return targets
+
+
+def _blocked_target(contexts, targets):
+    """The first `(raw_path, session)` where a target hits a frozen test no override covers, or None
+    when nothing is blocked. Every matching build context is checked (fail-closed for the rest)."""
+    for session, roots, _project in contexts:
+        frozen_set = set()
+        for frozen_entry in session.get("frozen_test_files") or []:
+            frozen_set |= frozen_candidates(frozen_entry, roots)
+        for raw, target in targets:
+            if target in frozen_set and not _override_allows(session, roots, target):
+                return raw, session
+    return None
 
 
 def decide(payload, home=None):
@@ -172,19 +201,11 @@ def decide(payload, home=None):
         ]
         if not contexts:
             return 0, ""  # fail-open: nothing active to protect
-        targets = []
-        for path in _target_paths(payload.get("tool_input")):
-            p = str(path)
-            if not os.path.isabs(p):
-                p = os.path.join(cwd, p)  # the payload's cwd, never the hook process's
-            targets.append((path, canon(p)))
-        for session, roots, project in contexts:
-            frozen_set = set()
-            for frozen_entry in session.get("frozen_test_files") or []:
-                frozen_set |= frozen_candidates(frozen_entry, roots)
-            for raw, target in targets:
-                if target in frozen_set and not _override_allows(session, roots, target):
-                    return 2, _reason(raw, session)
+        targets = _canonical_targets(payload.get("tool_input"), cwd)
+        hit = _blocked_target(contexts, targets)
+        if hit is not None:
+            raw, session = hit
+            return 2, _reason(raw, session)
         return 0, ""
     except Exception:
         return 0, ""

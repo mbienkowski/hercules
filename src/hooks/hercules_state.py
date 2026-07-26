@@ -57,6 +57,15 @@ def _is_within_root(cwd_c, root):
     return cwd_c == root or cwd_c.startswith(root + os.sep)
 
 
+def _build_sessions(sessions, active):
+    """Every build session, active one first (so callers treat it as most-authoritative), then any
+    paused builds in file order. `s is not active` avoids listing the active build twice."""
+    ordered = [active] if isinstance(active, dict) and active.get("current_phase") == "build" else []
+    ordered += [s for s in sessions.values()
+                if s is not active and isinstance(s, dict) and s.get("current_phase") == "build"]
+    return ordered
+
+
 def _project_rows(slug, entry, cwd_c, home):
     """Rows one registry project contributes for `cwd_c`, as `(build_rows, fallback_rows)`.
 
@@ -82,11 +91,7 @@ def _project_rows(slug, entry, cwd_c, home):
     # the caller can rank a nested repo's rows above a broad parent's.
     depth = max(len(r) for r in matched)
     active = sessions.get(state.get("active_session"))
-    # Build sessions, active one first (so callers see it as most-authoritative), then any paused
-    # builds in file order. `s is not active` avoids listing the active build twice.
-    builds = [active] if isinstance(active, dict) and active.get("current_phase") == "build" else []
-    builds += [s for s in sessions.values()
-               if s is not active and isinstance(s, dict) and s.get("current_phase") == "build"]
+    builds = _build_sessions(sessions, active)
     if builds:
         return [(depth, s, roots, entry) for s in builds], []
     if isinstance(active, dict):
