@@ -1,11 +1,14 @@
 ---
 description: Reset Hercules project configuration and registry/state
 model: null
+agent: hercules
 ---
 
 
 
 Reset the Hercules configuration for this project. Deletes or resets registry/state files and allows selecting new settings.
+
+**Plan mode — required.** Open plan mode at start; leave at approval gate.
 
 **Not a workflow phase** — standalone maintenance command, interactive.
 

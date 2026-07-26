@@ -96,7 +96,9 @@
           "design",
           "discover",
           "ship",
-          "workflow"
+          "workflow",
+          "workflow-lite",
+          "re-init"
         ]
       }
     },

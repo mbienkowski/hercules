@@ -1,6 +1,7 @@
 ---
 description: Reset Hercules project configuration and registry/state
 model: null
+agent: hercules
 ---
 
 ${target:claude}
@@ -10,10 +11,12 @@ ${target:end}
 Reset the Hercules configuration for this project. Deletes or resets registry/state files and allows selecting new settings.
 
 ${target:claude}
-**Not a workflow phase** — this is a standalone maintenance command. It does not open plan mode for delivery phases; it runs interactively.
+**Plan mode — required.** This command requires plan mode: open with `${plan_enter}`; at the approval gate, call `${plan_exit}` (`auto`) before applying changes.
 ${target:default}
-**Not a workflow phase** — standalone maintenance command, interactive.
+**Plan mode — required.** Open plan mode at start; leave at approval gate.
 ${target:end}
+
+**Not a workflow phase** — standalone maintenance command, interactive.
 
 ---
 

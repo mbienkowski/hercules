@@ -1,6 +1,7 @@
 ---
 description: Lightweight guided delivery — same 4 phases, faster, token-efficient
 model: null
+agent: hercules
 ---
 
 # /hercules:workflow-lite
