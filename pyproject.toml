@@ -16,6 +16,13 @@ dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
     "mutmut>=2.4,<3",
+    # Complexity gate for the shipped Python hooks (`make lint-complexity`). Pinned EXACTLY, not by
+    # range, for the same reason .npmrc pins the tokenizer exactly: a linter's algorithm can shift
+    # scores between releases, and a gate whose verdict moves on a silent minor bump is not a gate.
+    # flake8-cognitive-complexity provides CCR001 (SonarSource cognitive complexity); mccabe (C901,
+    # cyclomatic) ships inside flake8. Dependabot proposes bumps as reviewable PRs.
+    "flake8==7.3.0",
+    "flake8-cognitive-complexity==0.1.0",
 ]
 
 # No package is shipped — the deliverable is the compiled plugin tree under dist/claude-code/.

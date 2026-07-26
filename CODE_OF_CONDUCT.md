@@ -350,3 +350,29 @@ Dependabot-proposed PR, never an invisible transitive update.
 The injected A2A Core is pinned byte-for-byte in `src/content/tests/core.golden`. After an intentional edit,
 re-bless it from the failing test's expected value. All methodology checks are gates, not warnings — a
 failing gate means the change broke a contract; fix the contract, not the test.
+
+### Complexity
+
+```bash
+make lint-complexity   # local SonarQube-style scan, BOTH runtimes
+```
+
+No first-party function may exceed **15** on either **cyclomatic** (independent paths) or **cognitive**
+(SonarSource's nesting-aware) complexity. Cognitive is the metric that matters most — it charges extra
+for each level of nesting, so it is what catches "a junior can't follow these nested loops"; 15 is
+SonarQube's own default. Cyclomatic is a cheap second opinion in the same run. The **same 15** governs
+both runtimes, so neither can hide a hotspot the other would reject:
+
+- **TypeScript** (`src/builder/`, `src/release/`, `src/metrics/`) — ESLint, config and ceiling in
+  [`eslint.config.mjs`](eslint.config.mjs): the core `complexity` rule plus `sonarjs/cognitive-complexity`.
+- **Python** (`src/hooks/`) — flake8 restricted to its two complexity checks (`C901` mccabe cyclomatic,
+  `CCR001` cognitive); no style rules run.
+
+Tests are excluded on both sides: a table-driven, assertion-dense spec is legitimately branchy and is not
+shipped — the gate guards the product code a maintainer reads under pressure. The complexity linters are
+**exact-pinned** (`package.json`, `pyproject.toml`) for the same reason the tokenizer is: a linter can
+move its scores between releases, and a gate whose verdict shifts on a silent bump is not a gate.
+
+**Fix a breach by extracting named helpers, never by raising the ceiling** — a function over 15 is telling
+you its steps want names a junior can read. Same doctrine as the budgets: the number is immovable; the
+code moves to fit it.

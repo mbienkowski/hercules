@@ -1,5 +1,6 @@
 .PHONY: test test-mutation test-smoke install install-py install-ts build build-check \
         typecheck compile test-py test-ts mutation-py mutation-ts pycompat-golden-check \
+        lint-complexity lint-complexity-ts lint-complexity-py \
         ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate \
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
 
@@ -75,6 +76,25 @@ mutation-py:
 mutation-ts: compile
 	npx stryker run || true
 	node .ts-out/release/bin/mutationGate.mjs
+
+# ── Complexity gate ───────────────────────────────────────────────────────────
+# A local "SonarQube-style" scan: every first-party function must stay under a CEILING of 15 on BOTH
+# cyclomatic (independent paths) AND cognitive (SonarSource's nesting-aware metric) complexity — 15
+# is SonarQube's own default for cognitive complexity. Cognitive is the one that catches "a junior
+# can't follow these nested loops"; cyclomatic is a cheap second opinion. The SAME 15 governs both
+# runtimes so neither can hide a hotspot the other would reject. Tests are excluded on both sides: a
+# table-driven, assertion-dense spec is legitimately branchy and is not shipped. See
+# CODE_OF_CONDUCT.md § Complexity.
+lint-complexity: lint-complexity-ts lint-complexity-py
+
+# TypeScript domains (compiler / release / metrics). Config + ceiling live in eslint.config.mjs.
+lint-complexity-ts:
+	npx eslint --max-warnings=0 .
+
+# Shipped Python hooks. --select restricts flake8 to ONLY the two complexity checks (C901 = mccabe
+# cyclomatic, CCR001 = cognitive) — no style/lint noise; --extend-exclude drops the hooks' own tests.
+lint-complexity-py:
+	flake8 --select=C901,CCR001 --max-complexity=15 --max-cognitive-complexity=15 --extend-exclude=tests src/hooks
 
 # Live CLI smoke checks — do the built plugins actually install/load in the real Claude Code,
 # OpenCode, and Cursor binaries? Skips silently if a given CLI isn't installed locally; install
