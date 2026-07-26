@@ -51,6 +51,12 @@ def resolve_session(cwd, home=None):
     return contexts[0]
 
 
+def _is_within_root(cwd_c, root):
+    """True if canonical cwd `cwd_c` IS `root` or lives inside it — a real path-component match
+    (`root + os.sep`), so `/a/proj` is not treated as being inside `/a/project`."""
+    return cwd_c == root or cwd_c.startswith(root + os.sep)
+
+
 def _project_rows(slug, entry, cwd_c, home):
     """Rows one registry project contributes for `cwd_c`, as `(build_rows, fallback_rows)`.
 
@@ -61,9 +67,10 @@ def _project_rows(slug, entry, cwd_c, home):
     `~/.hercules/state`. May raise (unreadable/invalid state) — the caller treats that as
     "no rows", the fail-open direction.
     """
+    # The project's own directory plus every extra repository it registers, all canonicalised.
     raw_roots = [entry.get("directory")] + list((entry.get("repositories") or {}).values())
     roots = [canon(r) for r in raw_roots if r]
-    matched = [r for r in roots if cwd_c == r or cwd_c.startswith(r + os.sep)]
+    matched = [r for r in roots if _is_within_root(cwd_c, r)]
     if not matched:
         return [], []  # unrelated repo → pure passthrough
     state_file = entry.get("state_file") or f"{slug}.json"
@@ -71,8 +78,12 @@ def _project_rows(slug, entry, cwd_c, home):
         return [], []  # a pointer escaping ~/.hercules/state is never followed
     state = json.loads((_hercules_home(home) / "state" / state_file).read_text())
     sessions = state.get("sessions") or {}
+    # Path length as a specificity proxy: a longer matched root is a deeper, more specific match, so
+    # the caller can rank a nested repo's rows above a broad parent's.
     depth = max(len(r) for r in matched)
     active = sessions.get(state.get("active_session"))
+    # Build sessions, active one first (so callers see it as most-authoritative), then any paused
+    # builds in file order. `s is not active` avoids listing the active build twice.
     builds = [active] if isinstance(active, dict) and active.get("current_phase") == "build" else []
     builds += [s for s in sessions.values()
                if s is not active and isinstance(s, dict) and s.get("current_phase") == "build"]

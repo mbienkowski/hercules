@@ -74,8 +74,8 @@ def _extract_paths(args, path_keys, nested_keys):
             if isinstance(seq, list):
                 for item in seq:
                     found.extend(_extract_paths(item, path_keys, nested_keys))
-    seen: set = set()
-    return [p for p in found if not (p in seen or seen.add(p))]
+    # De-duplicate while preserving first-seen order (dict keeps insertion order since 3.7).
+    return list(dict.fromkeys(found))
 
 
 def _emit_pre_tool(cfg, reason) -> None:
@@ -150,9 +150,11 @@ def _unquote(cmd: str) -> str:
     # not a missing test. See src/hooks/tests/test_hercules_gate_internals.py for the full case.
     last = 0  # pragma: no mutate (equivalent: only ever used as a slice-start bound; see comment above)
     for m in _QUOTED.finditer(cmd):
-        preceding = cmd[last:m.start()]
-        out.append(preceding)
-        out.append(" " if _MSG_FLAG.search(preceding) else m.group(0)[1:-1])
+        gap = cmd[last:m.start()]           # the text between the previous quoted span and this one
+        inner_text = m.group(0)[1:-1]       # this span with its surrounding quote characters removed
+        is_commit_message = _MSG_FLAG.search(gap)  # this span directly follows -m / --message
+        out.append(gap)
+        out.append(" " if is_commit_message else inner_text)
         last = m.end()
     out.append(cmd[last:])
     return "".join(out)
@@ -179,14 +181,15 @@ def _git_write_seg(seg: str) -> bool:
     toks = _LEAD_WRAP.sub("", seg).strip().split()
     if not toks or toks[0] != "git":
         return False
-    i = 1
-    while i < len(toks):
-        t = toks[i]
-        if not t.startswith("-"):
-            return t in _GIT_WRITE_SUBCMDS       # first non-option token = the subcommand
-        if "=" not in t and t in _GIT_OPT_TAKES_VALUE:
-            i += 1                                # ``-C path`` form — skip the separate value token
-        i += 1
+    idx = 1
+    while idx < len(toks):
+        tok = toks[idx]
+        if not tok.startswith("-"):
+            return tok in _GIT_WRITE_SUBCMDS  # first non-option token = the subcommand
+        # A value-taking global option written as ``-C path`` (not ``-C=path``) keeps its value in the
+        # NEXT token, so step over two tokens instead of one.
+        consumes_next = "=" not in tok and tok in _GIT_OPT_TAKES_VALUE
+        idx += 2 if consumes_next else 1
     return False
 
 

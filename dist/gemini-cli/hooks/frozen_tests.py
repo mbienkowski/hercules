@@ -139,15 +139,16 @@ def frozen_drift(session, roots) -> list:
             if not isinstance(want, str) or not want:
                 drifted.append(entry)  # active baseline but this frozen file wasn't baselined → fail-closed
                 continue
-            existing = [(c, _sha256(c)) for c in frozen_candidates(entry, roots)]
-            existing = [(c, h) for c, h in existing if h is not None]
-            if not existing:
+            candidate_hashes = [(c, _sha256(c)) for c in frozen_candidates(entry, roots)]
+            present = [(c, h) for c, h in candidate_hashes if h is not None]  # copies still on disk
+            if not present:
                 drifted.append(entry)  # a frozen test that disappeared is tampering (fail-closed)
                 continue
-            # Fail-closed: EVERY existing copy must match the baseline; a mismatch under ANY root is drift
+            # Fail-closed: EVERY present copy must match the baseline; a mismatch under ANY root is drift
             # unless the user's override covers that copy (an override spans every root of the entry).
-            mismatched = [(c, h) for c, h in existing if h != want]
-            if mismatched and any(not _override_allows(session, roots, c) for c, _ in mismatched):
+            mismatched = [(c, h) for c, h in present if h != want]
+            uncovered_mismatch = any(not _override_allows(session, roots, c) for c, _ in mismatched)
+            if mismatched and uncovered_mismatch:
                 drifted.append(entry)
         return drifted
     except Exception:
