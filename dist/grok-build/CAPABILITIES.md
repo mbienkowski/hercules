@@ -23,4 +23,10 @@ and a `CLAUDE.md` instruction file — so the components load as a native Grok p
   all-`null`). Claude Code assigns a heavier model to the orchestrator and lighter models to routine
   advisors; on Grok Build that tiering is intentionally not applied — your one selected model drives
   everything.
+  For subagent/debate spawning: Claude Code automatically maps agent `model_tier` (low/medium/high) to
+  its descriptor tiers (`low`→haiku, `medium`→sonnet, `high`→opus); all other ecosystems (OpenCode,
+  Cursor, Copilot, Gemini, Grok) intentionally omit tier mapping (`models` all `null`), so subagents
+  inherit the user's globally selected model. Changing models mid-flow is not supported — there is no
+  chat-memory transfer mechanism, and reloading all prior artifacts into a new agent costs more tokens
+  than the simple task saves.
 
