@@ -1,5 +1,5 @@
 .PHONY: test test-mutation test-smoke install install-py install-ts build build-check \
-        typecheck compile test-py test-ts mutation-py mutation-ts pycompat-golden-check \
+        typecheck compile test-py test-ts mutation-py mutation-ts \
         lint-complexity lint-complexity-ts lint-complexity-py audit \
         ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate \
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
@@ -121,14 +121,6 @@ test-smoke: build-check
 
 ci-build:
 	bash src/release/ci/build_gates.sh
-
-# The pyCompat character tables encode a specific Unicode version. This proves the committed golden
-# dump matches the interpreter actually running — pyCompat.mts reproduces Python's own character
-# classification (str.isspace()/splitlines()/isprintable()), and this is what keeps its hand-ported
-# table honest against the real CPython behavior it must match, independent of the (now retired)
-# dual-run parity harness that originally motivated it.
-pycompat-golden-check:
-	bash src/builder/pycompat-oracle/pycompat_golden_check.sh
 
 validate: compile
 	node .ts-out/release/bin/validatePackage.mjs

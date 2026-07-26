@@ -32,14 +32,12 @@ const MD_GUARD_SKIP = new Set(['CHANGELOG.md']);
 
 describe('no source file hardcodes a path into the retired plugin/ folder', () => {
   it('scans every Python test and tooling file (other than conftest.py)', () => {
-    // The former "tests/ and scripts/" scope, now split across the domain restructure: tests/repo/
-    // and hooks/tests/ are the two former tests/ trees; release/ and builder/pycompat-oracle/ are
-    // the former scripts/ tree.
+    // The former "tests/ and scripts/" scope, now split across the domain restructure: commons/repo/
+    // and hooks/tests/ are the two former tests/ trees; release/ is the former scripts/ tree.
     const files = [
       ...globSync('src/commons/repo/**/*.py', { cwd: repoRoot }),
       ...globSync('src/hooks/tests/**/*.py', { cwd: repoRoot }),
       ...globSync('src/release/**/*.py', { cwd: repoRoot }),
-      ...globSync('src/builder/pycompat-oracle/**/*.py', { cwd: repoRoot }),
     ].filter((rel) => basename(rel) !== 'conftest.py');
 
     const offenders: string[] = [];

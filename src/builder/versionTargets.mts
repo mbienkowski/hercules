@@ -9,7 +9,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { pyRepr, pyReprMapping } from './pyCompat.mjs';
+import { show } from './show.mjs';
 
 export type VersionFormat = 'toml' | 'json';
 
@@ -128,12 +128,12 @@ export function checkInSync(root = '.', expected?: string): void {
   const versions = readVersions(root);
   const distinct = new Set(Object.values(versions));
   if (distinct.size !== 1) {
-    throw new VersionError(`version drift across files: ${pyReprMapping(versions)}`);
+    throw new VersionError(`version drift across files: ${show(versions)}`);
   }
   const actual = [...distinct][0] as string;
   if (expected !== undefined && actual !== expected) {
     throw new VersionError(
-      `version ${pyRepr(actual)} != expected ${pyRepr(expected)} (files: ${pyReprMapping(versions)})`,
+      `version ${show(actual)} != expected ${show(expected)} (files: ${show(versions)})`,
     );
   }
 }

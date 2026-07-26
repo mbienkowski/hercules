@@ -74,7 +74,7 @@ describe('preserve mode', () => {
   it('fails loud when a required field is missing', () => {
     const src = '---\ndescription: An agent with no name\nmodel_tier: high\ntools: Read\n---\n\nBody.\n';
     expect(() => ser('claude-code').serializeFile(src, tokens({}), null, 'agents/anon.md')).toThrow(SerializeError);
-    expect(() => ser('claude-code').serializeFile(src, tokens({}), null, 'agents/anon.md')).toThrow(/'name'/);
+    expect(() => ser('claude-code').serializeFile(src, tokens({}), null, 'agents/anon.md')).toThrow(/"name"/);
   });
 });
 

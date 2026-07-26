@@ -159,7 +159,7 @@ describe('checking the canonical files agree', () => {
     // go and diff them by hand.
     const root = workspace('version = "1.0.0"\n', '{"version": "2.0.0"}');
     expect(() => checkInSync(root)).toThrow(
-      "version drift across files: {'pyproject.toml': '1.0.0', 'package.json': '2.0.0'}",
+      "version drift across files: {\"pyproject.toml\":\"1.0.0\",\"package.json\":\"2.0.0\"}",
     );
   });
 
@@ -171,7 +171,7 @@ describe('checking the canonical files agree', () => {
   it('fails when the files agree with each other but not with the release tag', () => {
     // This is the check that stops a tag being cut against the wrong version.
     const root = workspace('version = "1.0.0"\n', '{"version": "1.0.0"}');
-    expect(() => checkInSync(root, '3.0.0')).toThrow("version '1.0.0' != expected '3.0.0'");
+    expect(() => checkInSync(root, '3.0.0')).toThrow("version \"1.0.0\" != expected \"3.0.0\"");
   });
 });
 

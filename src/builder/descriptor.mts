@@ -32,9 +32,9 @@
  * ahead of its message (`roles.agent.fields[2].value: ...`), and — because Zod validates the WHOLE
  * shape rather than failing fast on the first problem the way commit 4's hand-written checks did —
  * a descriptor with several simultaneous problems now reports ALL of them in one error, semicolon
- * -separated, not just the first one encountered. `pyReprValue` still formats the "got X" part of
- * most leaf messages, for continuity with the rest of this codebase's formatting conventions; it is
- * a style choice here, not a parity requirement.
+ * -separated, not just the first one encountered. The `show` helper formats the "got X" part of most
+ * leaf messages as compact JSON (`"x"`, `["a","b"]`, `true`, `null`) — plain TS diagnostics, never
+ * shipped to `dist/`.
  *
  * `descriptor.mts` is the ONLY module in this codebase importing `zod` — every other module consumes
  * the plain `EcosystemDescriptor`/`RoleSpec`/etc. interfaces below, inferred from this file's schemas
@@ -104,7 +104,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 
-import { pyRepr, pyReprValue } from './pyCompat.mjs';
+import { show } from './show.mjs';
 
 // Sibling filename markers: "<eco>.dist.<dest>" ships byte-identically at plugin-root <dest>;
 // "<eco>.template.<dest>" is a text template the descriptor's `templates` section renders.
@@ -143,7 +143,7 @@ function formatIssue(issue: z.core.$ZodIssue): string {
  */
 function formatError(descriptorName: string, error: z.core.$ZodError): string {
   const parts = error.issues.map(formatIssue);
-  return `ecosystem descriptor ${pyRepr(descriptorName)}: ${parts.join('; ')}`;
+  return `ecosystem descriptor ${show(descriptorName)}: ${parts.join('; ')}`;
 }
 
 /**
@@ -166,8 +166,8 @@ function pyTypeName(input: unknown): string {
 
 /** A required, non-empty string leaf — the single most common check in this schema. */
 function nonEmptyStr(): z.ZodString {
-  return z.string({ error: (issue) => `must be a non-empty string, got ${pyReprValue(issue.input)}` })
-    .min(1, { error: (issue) => `must be a non-empty string, got ${pyReprValue(issue.input)}` });
+  return z.string({ error: (issue) => `must be a non-empty string, got ${show(issue.input)}` })
+    .min(1, { error: (issue) => `must be a non-empty string, got ${show(issue.input)}` });
 }
 
 /** A dest/src path inside the tree: relative, no parent escapes. */
@@ -178,7 +178,7 @@ function relPath() {
       ctx.issues.push({
         code: 'custom',
         input: path,
-        message: `must be a relative path without '..', got ${pyRepr(path)}`,
+        message: `must be a relative path without '..', got ${show(path)}`,
       });
     }
   });
@@ -190,7 +190,7 @@ function oneOf<T extends readonly [string, ...string[]]>(values: T): z.ZodEnum<{
   // the string array into that identity map. The `{ [K in T[number]]: K }` type just says "an object
   // whose keys equal their own values", which is what lets Zod infer the enum's literal union.
   const enumShape = Object.fromEntries(values.map((v) => [v, v])) as { [K in T[number]]: K };
-  return z.enum(enumShape, { error: (issue) => `must be one of ${pyReprValue(sorted)}, got ${pyReprValue(issue.input)}` });
+  return z.enum(enumShape, { error: (issue) => `must be one of ${show(sorted)}, got ${show(issue.input)}` });
 }
 
 /**
@@ -202,9 +202,9 @@ function oneOf<T extends readonly [string, ...string[]]>(values: T): z.ZodEnum<{
  */
 function objectError(label: string): (issue: { code: string; input?: unknown; keys?: string[] }) => string | undefined {
   return (issue) => {
-    if (issue.code === 'invalid_type') return `${label} must be an object, got ${pyReprValue(issue.input)}`;
+    if (issue.code === 'invalid_type') return `${label} must be an object, got ${show(issue.input)}`;
     if (issue.code === 'unrecognized_keys') {
-      return `${label} has unknown key(s) ${pyReprValue([...(issue.keys ?? [])].sort())}`;
+      return `${label} has unknown key(s) ${show([...(issue.keys ?? [])].sort())}`;
     }
     // Structurally unreachable, not merely untested: `z.strictObject()`'s OWN object-level check
     // (as opposed to a nested field's) can only ever produce 'invalid_type' or 'unrecognized_keys'
@@ -236,7 +236,7 @@ function discriminantError(field: string, values: readonly string[]) {
     const got = issue.code === 'invalid_type'
       ? issue.input
       : (issue.input as Record<string, unknown> | undefined)?.[field];
-    return `'${field}' must be one of ${pyReprValue(sorted)}, got ${pyReprValue(got)}`;
+    return `'${field}' must be one of ${show(sorted)}, got ${show(got)}`;
   };
 }
 
@@ -430,13 +430,13 @@ const TemplateSchema = z.strictObject({
     if (ctx.value.includes('/') || !ctx.value.includes(TEMPLATE_MARKER)) {
       ctx.issues.push({
         code: 'custom', input: ctx.value,
-        message: `'src' must be a flat '<eco>${TEMPLATE_MARKER}<dest>' sibling, got ${pyRepr(ctx.value)}`,
+        message: `'src' must be a flat '<eco>${TEMPLATE_MARKER}<dest>' sibling, got ${show(ctx.value)}`,
       });
     }
   }),
   dest: relPath(),
   values: z.record(
-    z.string().regex(PLACEHOLDER, { error: (issue) => `placeholder ${pyRepr(String(issue.input))} must match __UPPER_SNAKE__` }),
+    z.string().regex(PLACEHOLDER, { error: (issue) => `placeholder ${show(String(issue.input))} must match __UPPER_SNAKE__` }),
     TemplateValueSchema,
     {
       // Same class of bug as ModelsSchema's — caught by the SAME review pass: a code-blind `error`
@@ -500,21 +500,21 @@ const MODEL_TIERS = ['high', 'low', 'medium'] as const;
 
 const ModelsSchema = z.partialRecord(
   oneOf(['high', 'medium', 'low']),
-  z.string({ error: (issue) => `must be a string or null, got ${pyReprValue(issue.input)}` }).nullable(),
+  z.string({ error: (issue) => `must be a string or null, got ${show(issue.input)}` }).nullable(),
   {
     // A blind, code-blind `error` here would swallow EVERY issue this schema can produce under the
     // SAME "must be a non-empty object" text, including a wrong TIER NAME (code 'invalid_key') —
     // caught by review: `models: {high: null, turbo: 'x'}` was reporting "models.turbo: 'models'
     // must be a non-empty object" instead of naming the allowed tiers. Only 'invalid_type' (the
     // "not an object at all" case) gets this message; 'invalid_key' gets its own, using the same
-    // pyReprValue-formatted style as every other enum-membership message in this file rather than
+    // show()-formatted style as every other enum-membership message in this file rather than
     // the key schema's own generic-enum wording (which `undefined` here would otherwise expose).
     error: (issue) => {
       if (issue.code === 'invalid_type') return "'models' must be a non-empty object";
       if (issue.code === 'invalid_key') {
         const path = issue.path ?? [];
         const badKey = path[path.length - 1];
-        return `must be one of ${pyReprValue(MODEL_TIERS)}, got ${pyReprValue(badKey)}`;
+        return `must be one of ${show(MODEL_TIERS)}, got ${show(badKey)}`;
       }
       // Structurally unreachable: `z.partialRecord()`'s own record-level check can only ever
       // produce 'invalid_type' or 'invalid_key' at this record's own path — same reasoning as
@@ -542,16 +542,16 @@ const SmokeSchema = z.strictObject({
 
 const GUARD_ENTRY = nonEmptyStr().check((ctx) => {
   if (ctx.value.includes('/')) {
-    ctx.issues.push({ code: 'custom', input: ctx.value, message: `entries are module filenames (no '/'), got ${pyRepr(ctx.value)}` });
+    ctx.issues.push({ code: 'custom', input: ctx.value, message: `entries are module filenames (no '/'), got ${show(ctx.value)}` });
   }
 });
 
 const DescriptorSchema = z.strictObject({
-  schema: z.literal(1, { error: (issue) => `must be 1, got ${pyReprValue(issue.input)}` }),
-  name: z.string({ error: (issue) => `must be a string, got ${pyReprValue(issue.input)}` }),
+  schema: z.literal(1, { error: (issue) => `must be 1, got ${show(issue.input)}` }),
+  name: z.string({ error: (issue) => `must be a string, got ${show(issue.input)}` }),
   vars: z.record(
     z.string(),
-    z.string({ error: (issue) => `must be a string, got ${pyReprValue(issue.input)}` }),
+    z.string({ error: (issue) => `must be a string, got ${show(issue.input)}` }),
     { error: () => "'vars' must be a non-empty object" },
   ).refine((v) => Object.keys(v).length > 0, { error: () => "'vars' must be a non-empty object" }),
   models: ModelsSchema,
@@ -583,7 +583,7 @@ const DescriptorSchema = z.strictObject({
   error: (issue) => {
     if (issue.code === 'unrecognized_keys') {
       const keys = (issue as { keys?: string[] }).keys ?? [];
-      return `descriptor has unknown key(s) ${pyReprValue([...keys].sort())}`;
+      return `descriptor has unknown key(s) ${show([...keys].sort())}`;
     }
     // Constructs its own message from the real `issue.input` value so it can restore commit 4's
     // int-vs-float distinction (see pyTypeName), which Zod's own default `received` field lacks.
@@ -597,7 +597,7 @@ export function parseDescriptor(descriptorName: string, raw: unknown): Ecosystem
   if (!result.success) throw new DescriptorError(formatError(descriptorName, result.error));
   if (result.data.name !== descriptorName) {
     throw new DescriptorError(
-      `ecosystem descriptor ${pyRepr(descriptorName)}: 'name' must equal the filename stem, got ${pyReprValue(result.data.name)}`,
+      `ecosystem descriptor ${show(descriptorName)}: 'name' must equal the filename stem, got ${show(result.data.name)}`,
     );
   }
   return {
@@ -662,7 +662,7 @@ function validateLayout(root: string, names: ReadonlySet<string>): void {
       throw new DescriptorError(
         `ecosystems/${entryName}: every sibling file must be named ` +
           `'<ecosystem>${DIST_MARKER}<dest>' or '<ecosystem>${TEMPLATE_MARKER}<dest>' ` +
-          `for a known ecosystem ${pyReprValue([...names].sort())}`,
+          `for a known ecosystem ${show([...names].sort())}`,
       );
     }
   }

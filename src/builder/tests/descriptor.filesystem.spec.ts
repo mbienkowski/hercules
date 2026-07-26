@@ -46,7 +46,7 @@ describe('the filesystem boundary: discover, load, distFiles', () => {
     // The directory has a definitive schema: a file that is neither a descriptor nor a
     // '<eco>.dist.<dest>' shipped file must fail — nothing here is ever silently ignored. Exact
     // message (not a substring): a loose `.toThrow('dist')` would not notice the trailing
-    // '${pyReprValue([...names].sort())}' clause going missing or malformed.
+    // '${show([...names].sort())}' clause going missing or malformed.
     const root = workspace({ 'eco.json': JSON.stringify(minimal()), 'notes.md': 'stray' });
     let message = '<did not throw>';
     try {
@@ -56,7 +56,7 @@ describe('the filesystem boundary: discover, load, distFiles', () => {
     }
     expect(message).toBe(
       "ecosystems/notes.md: every sibling file must be named '<ecosystem>.dist.<dest>' " +
-        "or '<ecosystem>.template.<dest>' for a known ecosystem ['eco']",
+        "or '<ecosystem>.template.<dest>' for a known ecosystem [\"eco\"]",
     );
   });
 
@@ -87,7 +87,7 @@ describe('the filesystem boundary: discover, load, distFiles', () => {
     }
     expect(message).toBe(
       "ecosystems/ghost.dist.CAPABILITIES.md: every sibling file must be named " +
-        "'<ecosystem>.dist.<dest>' or '<ecosystem>.template.<dest>' for a known ecosystem ['eco']",
+        "'<ecosystem>.dist.<dest>' or '<ecosystem>.template.<dest>' for a known ecosystem [\"eco\"]",
     );
   });
 
@@ -101,7 +101,7 @@ describe('the filesystem boundary: discover, load, distFiles', () => {
     }
     expect(message).toBe(
       "ecosystems/eco.dist.: every sibling file must be named '<ecosystem>.dist.<dest>' " +
-        "or '<ecosystem>.template.<dest>' for a known ecosystem ['eco']",
+        "or '<ecosystem>.template.<dest>' for a known ecosystem [\"eco\"]",
     );
   });
 

@@ -68,9 +68,9 @@ describe('the two Python quirks this port deliberately does not replicate', () =
     // ambiguously pass Python's check. This port does not special-case it: schema must be the
     // literal number 1. Exact message (not a substring, via expectMessage's try/catch + toBe —
     // `.toThrow(string)` is a substring/containment check in Vitest and would not catch a mutant
-    // that merely appends content after this text): pins that a rejected boolean still renders as
-    // Python's `True`/`False` via pyReprValue, not JS's lowercase `true`/`false`.
-    expectMessage(() => minimal({ schema: true }), "ecosystem descriptor 'eco': schema: must be 1, got True");
+    // that merely appends content after this text): pins that a rejected boolean renders via
+    // show() as JS's lowercase `true`/`false` (JSON), not Python's `True`/`False`.
+    expectMessage(() => minimal({ schema: true }), "ecosystem descriptor \"eco\": schema: must be 1, got true");
   });
 
   it('rejects a list-shaped enum value cleanly instead of crashing on it', () => {
@@ -83,7 +83,7 @@ describe('the two Python quirks this port deliberately does not replicate', () =
     expect(() => parseDescriptor('eco', minimal({ dispatch: ['a', 'b'] }))).toThrow(DescriptorError);
     expectMessage(
       () => minimal({ dispatch: ['a', 'b'] }),
-      "ecosystem descriptor 'eco': dispatch: must be one of ['frontmatter', 'path'], got ['a', 'b']",
+      "ecosystem descriptor \"eco\": dispatch: must be one of [\"frontmatter\",\"path\"], got [\"a\",\"b\"]",
     );
   });
 });

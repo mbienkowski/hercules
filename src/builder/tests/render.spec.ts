@@ -91,7 +91,7 @@ describe('refusing a switch that cannot be understood', () => {
     // document for an invisible typo.
     expect(() =>
       renderBody('a\n${target:Bad-Name}\nX\n${target:end}\n', 'claude-code', NO_TOKENS),
-    ).toThrow("malformed switch directive: '${target:Bad-Name}'");
+    ).toThrow("malformed switch directive: \"${target:Bad-Name}\"");
   });
 
   it('rejects a malformed name on a later branch, not just the first', () => {

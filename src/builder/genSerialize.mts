@@ -26,7 +26,7 @@ import type { EcosystemDescriptor, FieldSpec, RoleSpec } from './descriptor.mjs'
 import type { ModelsMap } from './modelMap.mjs';
 import { resolve as resolveModel } from './modelMap.mjs';
 import { parseFrontmatter, renderFrontmatter, splitDocument } from './parse.mjs';
-import { pyRepr } from './pyCompat.mjs';
+import { show } from './show.mjs';
 import { renderBody } from './render.mjs';
 
 /** Raised when a source artifact is missing frontmatter a target requires. */
@@ -39,7 +39,7 @@ export function requireField(meta: ReadonlyMap<string, string>, key: string): st
   if (!meta.has(key)) {
     const name = meta.get('name') ?? '<unnamed>';
     throw new SerializeError(
-      `source artifact ${pyRepr(name)} is missing required frontmatter field ${pyRepr(key)} ` +
+      `source artifact ${show(name)} is missing required frontmatter field ${show(key)} ` +
         `— add a '${key}:' line to its frontmatter`,
     );
   }
@@ -156,7 +156,7 @@ export function computeFields(
       }
       case 'stem': {
         if (stem === null) {
-          throw new SerializeError(`field ${pyRepr(spec.key)} needs the source file stem, but none was provided`);
+          throw new SerializeError(`field ${show(spec.key)} needs the source file stem, but none was provided`);
         }
         out.set(spec.key, stem);
         break;

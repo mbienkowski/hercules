@@ -6,8 +6,6 @@
  * `splitDocument` is the byte-preserving splitter Claude-target rendering relies on.
  */
 
-import { pySplitlines, pyStrip } from './pyCompat.mjs';
-
 const FENCE = '---';
 
 export interface Frontmatter {
@@ -25,16 +23,16 @@ export interface Frontmatter {
  * object would reorder any key that looks like an array index (`"1"`, `"0"`) to the front.
  */
 export function parseFrontmatter(text: string): Frontmatter {
-  const stripped = pyStrip(text);
+  const stripped = text.trim();
   if (!stripped.startsWith(FENCE)) return { metadata: new Map(), body: stripped };
 
   // Split on FENCE *lines*, not the bare substring: a frontmatter VALUE containing "---" (e.g.
   // `description: pros --- cons`) must not be mistaken for the closing fence, which would truncate
   // the value and silently drop every key after it.
-  const lines = pySplitlines(stripped);
+  const lines = stripped.split('\n');
   let close = -1;
   for (let lineIndex = 1; lineIndex < lines.length; lineIndex += 1) {
-    if (pyStrip(lines[lineIndex] as string) === FENCE) {
+    if ((lines[lineIndex] as string).trim() === FENCE) {
       close = lineIndex;
       break;
     }
@@ -45,9 +43,9 @@ export function parseFrontmatter(text: string): Frontmatter {
   for (const line of lines.slice(1, close)) {
     const at = line.indexOf(':');
     if (at === -1) continue;
-    metadata.set(pyStrip(line.slice(0, at)), pyStrip(line.slice(at + 1)));
+    metadata.set(line.slice(0, at).trim(), line.slice(at + 1).trim());
   }
-  return { metadata, body: pyStrip(lines.slice(close + 1).join('\n')) };
+  return { metadata, body: lines.slice(close + 1).join('\n').trim() };
 }
 
 /** Render an ordered `metadata` map to a `---`-fenced YAML block (no trailing newline). */

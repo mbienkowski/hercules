@@ -124,12 +124,6 @@ jobs:
       - name: Install dependencies
         run: make install
 
-      # The pyCompat tables encode a specific Unicode version, and CI's interpreter is the one they
-      # must match. A golden generated on a developer's newer Python would silently ship a table for
-      # a Unicode database CI never sees.
-      - name: pyCompat golden is current for this interpreter
-        run: make pycompat-golden-check
-
       - name: Run tests with coverage
         run: make test
 

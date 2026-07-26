@@ -26,8 +26,8 @@ describe('rejecting malformed template values directly', () => {
     const tpl = [{ src: 'eco.template.x.js', dest: 'x.js', values: { __X__: 'not-an-object' } }];
     expectMessage(
       () => minimal({ templates: tpl }),
-      "ecosystem descriptor 'eco': templates[0].values.__X__: 'from' must be one of " +
-        "['js_root_joins', 'js_string', 'js_string_list', 'role_entries_js'], got 'not-an-object'",
+      "ecosystem descriptor \"eco\": templates[0].values.__X__: 'from' must be one of " +
+        "[\"js_root_joins\",\"js_string\",\"js_string_list\",\"role_entries_js\"], got \"not-an-object\"",
     );
   });
 
@@ -38,7 +38,7 @@ describe('rejecting malformed template values directly', () => {
     }];
     expectMessage(
       () => minimal({ templates: tpl }),
-      "ecosystem descriptor 'eco': templates[0].values.__X__.values: 'values' must be a non-empty list",
+      "ecosystem descriptor \"eco\": templates[0].values.__X__.values: 'values' must be a non-empty list",
     );
   });
 
@@ -51,7 +51,7 @@ describe('rejecting malformed template values directly', () => {
     }];
     expectMessage(
       () => minimal({ templates: tpl }),
-      "ecosystem descriptor 'eco': templates[0].values.__X__.values: 'values' must be a non-empty list",
+      "ecosystem descriptor \"eco\": templates[0].values.__X__.values: 'values' must be a non-empty list",
     );
   });
 
@@ -62,7 +62,7 @@ describe('rejecting malformed template values directly', () => {
     }];
     expectMessage(
       () => minimal({ templates: tpl }),
-      "ecosystem descriptor 'eco': templates[0].values.__X__.paths: 'paths' must be a non-empty list",
+      "ecosystem descriptor \"eco\": templates[0].values.__X__.paths: 'paths' must be a non-empty list",
     );
   });
 
@@ -73,7 +73,7 @@ describe('rejecting malformed template values directly', () => {
     }];
     expectMessage(
       () => minimal({ templates: tpl }),
-      "ecosystem descriptor 'eco': templates[0].values.__X__.paths: 'paths' must be a non-empty list",
+      "ecosystem descriptor \"eco\": templates[0].values.__X__.paths: 'paths' must be a non-empty list",
     );
   });
 
@@ -98,7 +98,7 @@ describe('rejecting malformed template values directly', () => {
     }];
     expectMessage(
       () => minimal({ templates: tpl }),
-      "ecosystem descriptor 'eco': templates[0].values.__X__.drop: 'drop' must be a list",
+      "ecosystem descriptor \"eco\": templates[0].values.__X__.drop: 'drop' must be a list",
     );
   });
 });

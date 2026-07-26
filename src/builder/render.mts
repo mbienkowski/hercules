@@ -6,7 +6,7 @@
  * whitespace — only marker spans change — so a Claude render reproduces the source bytes exactly.
  */
 
-import { pyRepr } from './pyCompat.mjs';
+import { show } from './show.mjs';
 
 const TOKEN = /\$\{([A-Za-z0-9_.]+)\}/g;
 const DIRECTIVE = /^\$\{target:([^}]*)\}$/;
@@ -42,7 +42,7 @@ function collectBranches(
     const name = directive[1] as string;
     if (name === 'end') return { branches, nextIndex: lineIndex + 1 }; // closing fence — switch complete
     if (!TARGET_NAME.test(name)) {
-      throw new RenderError(`malformed switch directive: ${pyRepr(lines[lineIndex] as string)}`);
+      throw new RenderError(`malformed switch directive: ${show(lines[lineIndex] as string)}`);
     }
     current = name; // a new branch opens; subsequent body lines belong to it
     branches.set(name, []);
@@ -77,7 +77,7 @@ function resolveSwitches(text: string, target: string): string {
     const name = opening[1] as string;
     if (name === 'end') throw new RenderError('`${target:end}` without an opening branch');
     if (!TARGET_NAME.test(name)) {
-      throw new RenderError(`malformed switch directive: ${pyRepr(lines[lineIndex] as string)}`);
+      throw new RenderError(`malformed switch directive: ${show(lines[lineIndex] as string)}`);
     }
     const { branches, nextIndex } = collectBranches(lines, name, lineIndex + 1);
     out.push(chooseBranch(branches, target).join('\n'));
