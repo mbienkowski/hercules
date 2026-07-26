@@ -74,33 +74,30 @@ describe('rejecting every shape the closed vocabulary forbids', () => {
   };
 
   it.each([
-    ["descriptor is not an object (a list)", () => [], "ecosystem descriptor \"eco\": descriptor must be a JSON object, got list"],
-    // The four cases below pin the OTHER branches of the same type-name ternary as the list case
+    ["descriptor is not an object (a list)", () => [], "ecosystem descriptor \"eco\": descriptor must be a JSON object, got array"],
+    // The four cases below pin the OTHER branches of the same type-name ternary as the array case
     // above — each is its own Stryker mutant (ConditionalExpression/StringLiteral per branch) that
     // was previously NoCoverage: nothing exercised descriptor being null, a string, a boolean, or a
-    // number, so a mutated 'NoneType'/'str'/'bool'/'int'/'float' label would have gone unnoticed.
-    ["descriptor is not an object (null)", () => null, "ecosystem descriptor \"eco\": descriptor must be a JSON object, got NoneType"],
-    ["descriptor is not an object (a string)", () => 'nope', "ecosystem descriptor \"eco\": descriptor must be a JSON object, got str"],
-    ["descriptor is not an object (a boolean)", () => true, "ecosystem descriptor \"eco\": descriptor must be a JSON object, got bool"],
-    ["descriptor is not an object (an int)", () => 5, "ecosystem descriptor \"eco\": descriptor must be a JSON object, got int"],
-    ["descriptor is not an object (a float)", () => 5.5, "ecosystem descriptor \"eco\": descriptor must be a JSON object, got float"],
-    // Pins a documented TS/Python divergence, not parity: JSON.parse('5.0') and JSON.parse('5') both
-    // produce the identical JS number 5 — JS has one numeric type, so the literal's float-ness is
-    // gone by the time this code sees it. Python's json.loads preserves it (type(json.loads('5.0'))
-    // is float), so Python reports 'got float' for this exact input while this port reports 'got
-    // int'. A JS *literal* `5.0` can't express this case at all (it's just the number 5 in source
-    // code too) — JSON.parse is required to construct an integer-VALUED float the way a real
-    // descriptor file's raw bytes would. See the divergence documented at the top of descriptor.mts.
+    // number, so a mutated 'null'/'string'/'boolean'/'integer'/'number' label would have gone unnoticed.
+    ["descriptor is not an object (null)", () => null, "ecosystem descriptor \"eco\": descriptor must be a JSON object, got null"],
+    ["descriptor is not an object (a string)", () => 'nope', "ecosystem descriptor \"eco\": descriptor must be a JSON object, got string"],
+    ["descriptor is not an object (a boolean)", () => true, "ecosystem descriptor \"eco\": descriptor must be a JSON object, got boolean"],
+    ["descriptor is not an object (an int)", () => 5, "ecosystem descriptor \"eco\": descriptor must be a JSON object, got integer"],
+    ["descriptor is not an object (a float)", () => 5.5, "ecosystem descriptor \"eco\": descriptor must be a JSON object, got number"],
+    // Pins an intrinsic JS limitation, not parity: JSON.parse('5.0') and JSON.parse('5') both produce
+    // the identical JS number 5 — JS has one numeric type, so the literal's float-ness is gone by the
+    // time this code sees it, and jsonType reports `integer` for it. A JS *literal* `5.0` can't express
+    // this case at all (it's just the number 5 in source code too) — JSON.parse is required to
+    // construct an integer-VALUED float the way a real descriptor file's raw bytes would.
     [
       "descriptor is not an object (an integer-valued float via JSON.parse)",
       () => JSON.parse('5.0') as unknown,
-      "ecosystem descriptor \"eco\": descriptor must be a JSON object, got int",
+      "ecosystem descriptor \"eco\": descriptor must be a JSON object, got integer",
     ],
     // `undefined` can never come from JSON.parse, but parseDescriptor's signature accepts `unknown`
-    // — and it is the only value that reaches the ternary's FINAL `: typeof raw` fallback, since
-    // every JSON-representable non-object shape (null/list/str/bool/number) is handled by an
-    // earlier branch. Without this, a mutant that widens the 'number' branch to match anything
-    // (Number.isInteger(undefined) is false, so it would misreport 'float') goes unnoticed.
+    // — jsonType matches it in the first branch (`got undefined`), the only non-JSON value the
+    // schema's `error` callback can receive. Every JSON-representable non-object shape
+    // (null/array/string/boolean/number) is handled by its own earlier branch and pinned above.
     ["descriptor is not an object (undefined)", () => undefined, "ecosystem descriptor \"eco\": descriptor must be a JSON object, got undefined"],
     [
       "vars is not an object at all",

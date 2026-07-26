@@ -95,9 +95,9 @@
  *   validation code runs. UNCHANGED post-Zod: the top-level "not an object" error's custom message
  *   callback still runs commit 4's own `Number.isInteger` check directly against the real
  *   `issue.input` value (Zod's OWN default `received: "number"` field doesn't distinguish them, but
- *   that only matters if the message relied on Zod's default text, which this one doesn't). Only the
- *   genuinely unavoidable integer-valued-float case remains a divergence — a plain `5.5` still
- *   correctly reports `got float`.
+ *   that only matters if the message relied on Zod's default text, which this one doesn't). The one
+ *   genuinely unavoidable case is that an integer-valued float reads as `integer` — a plain `5.5`
+ *   still correctly reports `got number`.
  */
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -147,20 +147,21 @@ function formatError(descriptorName: string, error: z.core.$ZodError): string {
 }
 
 /**
- * The Python type name for a decoded-JSON value, for byte-exact "got <type>" error strings.
+ * The JSON-Schema type name for a decoded-JSON value, for `got <type>` error strings.
  *
- * The check ORDER is load-bearing: `typeof null` and `typeof []` are both `'object'`, so null and
- * arrays MUST be matched before any typeof-based branch. The number branch splits int vs float via
- * `Number.isInteger` — the one unavoidable divergence is that `JSON.parse('5.0')` and
- * `JSON.parse('5')` are the identical JS number `5`, so an integer-valued float reads as `int`.
+ * Uses JSON Schema's own vocabulary (`null`/`array`/`string`/`boolean`/`integer`/`number`) rather
+ * than JS `typeof` — `typeof null` and `typeof []` are both `'object'`, so null and arrays MUST be
+ * matched first. The number branch splits `integer` vs `number` via `Number.isInteger`, which keeps
+ * a real validation distinction; the one unavoidable quirk is that `JSON.parse('5.0')` and
+ * `JSON.parse('5')` are the identical JS number `5`, so an integer-valued float reads as `integer`.
  */
-function pyTypeName(input: unknown): string {
+function jsonType(input: unknown): string {
   if (input === undefined) return 'undefined';
-  if (input === null) return 'NoneType';
-  if (Array.isArray(input)) return 'list';
-  if (typeof input === 'string') return 'str';
-  if (typeof input === 'boolean') return 'bool';
-  if (typeof input === 'number') return Number.isInteger(input) ? 'int' : 'float';
+  if (input === null) return 'null';
+  if (Array.isArray(input)) return 'array';
+  if (typeof input === 'string') return 'string';
+  if (typeof input === 'boolean') return 'boolean';
+  if (typeof input === 'number') return Number.isInteger(input) ? 'integer' : 'number';
   return typeof input; // object/function/symbol/bigint — the raw JS typeof
 }
 
@@ -585,9 +586,9 @@ const DescriptorSchema = z.strictObject({
       const keys = (issue as { keys?: string[] }).keys ?? [];
       return `descriptor has unknown key(s) ${show([...keys].sort())}`;
     }
-    // Constructs its own message from the real `issue.input` value so it can restore commit 4's
-    // int-vs-float distinction (see pyTypeName), which Zod's own default `received` field lacks.
-    return `descriptor must be a JSON object, got ${pyTypeName(issue.input)}`;
+    // Constructs its own message from the real `issue.input` value so it can keep the
+    // integer-vs-number distinction (see jsonType), which Zod's own default `received` field lacks.
+    return `descriptor must be a JSON object, got ${jsonType(issue.input)}`;
   },
 });
 

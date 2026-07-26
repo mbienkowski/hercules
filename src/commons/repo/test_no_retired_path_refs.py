@@ -14,8 +14,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-TESTS_ROOT = Path(__file__).resolve().parent
-REPO_ROOT = TESTS_ROOT.parent.parent
+TESTS_ROOT = Path(__file__).resolve().parent   # src/commons/repo
+SRC_ROOT = TESTS_ROOT.parents[1]               # src/  (this file lives at src/commons/repo/)
+REPO_ROOT = TESTS_ROOT.parents[2]              # the repository root
 
 # Retired path prefixes that should never appear as live path references in test source.
 # Matches `plugin/<word>/` or `.opencode/` — a path segment after the prefix — so the literal
@@ -27,8 +28,13 @@ def _test_files() -> list[Path]:
     # hooks/tests/ is the hooks island's own Python test tree (see CODE_OF_CONDUCT.md § Testing),
     # scanned here too so a retired-path reference can't creep in there unnoticed just because it
     # sits outside tests/ itself.
-    roots = [TESTS_ROOT, REPO_ROOT / "hooks" / "tests"]
-    found = (p for root in roots if root.is_dir() for p in root.rglob("test_*.py"))
+    roots = [TESTS_ROOT, SRC_ROOT / "hooks" / "tests"]
+    # Fail LOUDLY if a future move breaks one of these paths, rather than silently scanning less of
+    # the enforcement surface — a dropped root would quietly shrink coverage of exactly src/hooks/
+    # with no red test to notice.
+    missing = [str(r) for r in roots if not r.is_dir()]
+    assert not missing, f"retired-path guard: scan root(s) no longer exist, fix the paths: {missing}"
+    found = (p for root in roots for p in root.rglob("test_*.py"))
     # Skip this guard itself — it necessarily names the retired paths in its docstring/regex/error
     # message to document and match what it forbids.
     return sorted(p for p in found if p.name != "test_no_retired_path_refs.py")
