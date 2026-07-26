@@ -160,6 +160,61 @@ jobs:
       - name: Validate manifests and single-source version
         run: make validate
 
+  # ── Complexity gate — cyclomatic + cognitive <= 15, both runtimes (every commit) ─────
+  # A fast quality gate with NO dependency on `build`: it lints SOURCE, not dist/, so it fans out
+  # immediately for the earliest signal. The same ceiling of 15 governs ESLint (the TypeScript
+  # domains) and flake8 (the Python hooks) — see CODE_OF_CONDUCT.md § Complexity. The job id, its
+  # display name and its make target are the SAME string, so a red check reproduces by copy-paste.
+  lint-complexity:
+    name: lint-complexity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # Both runtimes: ESLint (Node) lints the TypeScript domains, flake8 (Python) the hooks.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Complexity gate (cyclomatic + cognitive, both runtimes)
+        run: make lint-complexity
+
+  # ── Supply-chain audit — fail on any HIGH or CRITICAL dependency CVE (every commit) ─────
+  # npm carries the whole dependency surface (the shipped plugin is zero-runtime-dep; the Python
+  # hooks are stdlib-only, so there is no pip runtime-CVE surface). A fast peer gate, no `build`
+  # dependency. Same-string job id / display name / make target.
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
+
+      # Resolve the exact locked tree first, so the audit reflects what CI (and a consumer) installs.
+      - name: Install the TypeScript toolchain
+        run: make install-ts
+
+      - name: Audit dependencies for high/critical CVEs
+        run: make audit
+
   # ── Ecosystem smoke checks — one PARALLEL leg per ecosystem (matrix from `build`) ─────
   # Does the built plugin actually install/load in the REAL Claude Code / OpenCode binary, not
   # just look correct on disk? This is the ONLY job that loads the plugin in a live CLI, so it

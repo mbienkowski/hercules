@@ -376,3 +376,20 @@ move its scores between releases, and a gate whose verdict shifts on a silent bu
 **Fix a breach by extracting named helpers, never by raising the ceiling** — a function over 15 is telling
 you its steps want names a junior can read. Same doctrine as the budgets: the number is immovable; the
 code moves to fit it.
+
+CI runs `make lint-complexity` as its own `lint-complexity` job on **every commit** (a fast peer gate,
+no dependency on the build) — so a complexity regression is caught on the commit that introduces it, not
+at review.
+
+### Dependencies
+
+```bash
+make audit             # fail on any HIGH or CRITICAL dependency CVE
+```
+
+npm carries the **entire** dependency surface: the shipped plugin declares zero runtime dependencies and
+the Python hooks are stdlib-only (`dependencies = []` in `pyproject.toml`), so there is no pip
+runtime-CVE surface — the whole exposure is the dev toolchain in `package-lock.json`. `npm audit
+--audit-level=high` exits non-zero on high/critical only; moderate and low stay visible but do not block.
+CI runs it as the `audit` job on every commit. A flagged advisory is fixed by bumping to the patched
+version (Dependabot proposes these as reviewable, exact-pinned PRs) — never by lowering `--audit-level`.
