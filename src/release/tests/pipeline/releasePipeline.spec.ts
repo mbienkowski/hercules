@@ -23,6 +23,7 @@ interface WorkflowJob {
 }
 
 interface Workflow {
+  readonly permissions?: Record<string, string>;
   readonly jobs?: Record<string, WorkflowJob>;
 }
 
@@ -211,14 +212,17 @@ describe('the release pipeline', () => {
     expect(pinned || guarded).toBe(true);
   });
 
-  it('never runs npm ci in the job that holds contents: write', () => {
-    // The privileged job downloads a toolchain compiled by an earlier, unprivileged job instead of
-    // installing dependencies itself — a malicious devDependency's install-time code never runs with
-    // a push-capable credential in scope.
-    expect(releaseJob?.['permissions']).toEqual({ contents: 'write' });
-    for (const run of releaseSteps) {
-      expect(run).not.toMatch(/\bnpm ci\b/);
-      expect(run).not.toMatch(/\bmake install\b/);
-    }
+  it('is a single job that installs and compiles the toolchain itself, before bumping the version', () => {
+    // No separate unprivileged prepare job / artifact hand-off: the release job runs npm ci directly,
+    // so the compiled toolchain can never silently go missing between jobs (e.g. an artifact step
+    // dropping a dot-prefixed output directory).
+    expect(RELEASE.jobs).not.toHaveProperty('prepare');
+    expect(RELEASE.permissions).toEqual({ contents: 'write' });
+    const installIdx = releaseSteps.findIndex((run) => run.includes('make install-ts'));
+    const compileIdx = releaseSteps.findIndex((run) => run.includes('make compile'));
+    const verIdx = releaseSteps.findIndex((run) => run.includes('make release-version'));
+    expect([installIdx, compileIdx, verIdx]).not.toContain(-1);
+    expect(installIdx).toBeLessThan(compileIdx);
+    expect(compileIdx).toBeLessThan(verIdx);
   });
 });
