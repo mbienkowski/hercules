@@ -96,7 +96,14 @@ const CONFORMANCE_EXPECTATIONS: Record<string, Expectation> = {
     pins: [
       ['agents/cynical-reviewer.md', '\nreadonly: true\n'],
       ['rules/hercules-persona.mdc', 'alwaysApply: true'],
+      // Cursor-specific: the persona's own write-gate note (Cursor cannot block a tool call the way
+      // Claude Code's PreToolUse hook can, so the persona tells the model to ask first instead).
+      ['rules/hercules-persona.mdc', 'ask-before-applying-edits'],
       ['hooks/hooks.json', '${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py shell'],
+      // Cursor-specific: it exposes no orchestrator-forced subagent spawn, so design/build carry a
+      // handshake-or-HALT branch no other host renders.
+      ['commands/design.md', 'HALT and tell the user'],
+      ['commands/build.md', 'HALT and tell the user'],
     ],
     antiPins: [['agents/backend-engineer.md', 'readonly']],
   },
@@ -237,6 +244,14 @@ describe('universal conformance', () => {
             expect(text).toMatch(/^description = ".+"$/m);
           }
           if (exp.commandMarkerBanned) expect(text).not.toContain('disable-model-invocation');
+        }
+      });
+
+      it('every command carries its plan-mode instruction', () => {
+        const files = filesUnder(built[target] as string);
+        for (const stem of srcStems(SRC_CONTENT, 'commands')) {
+          const text = files[exp.commandDest(stem)] as string;
+          expect(text.toLowerCase(), `${stem}: missing plan-mode instruction`).toContain('plan mode');
         }
       });
 
