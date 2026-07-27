@@ -1,6 +1,16 @@
 # Build output
 /build/
 
+# Node / TypeScript
+node_modules/
+# tsc output. Deliberately NOT named build/ — /build/ above is already ignored and pytest's
+# norecursedirs is documented around that name, so reusing it would collide with two existing rules.
+/.ts-out/
+*.tsbuildinfo
+.stryker-tmp/
+reports/
+coverage/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -10,6 +20,7 @@ __pycache__/
 .coverage
 .pytest_cache/
 .mutmut-cache
+/mutmut-results.txt
 
 # Runtime state (lives in the cloned copy at ~/.hercules on user machines)
 .last-pull
@@ -30,3 +41,5 @@ docs/tmp/
 .idea/*
 # Claude Code IDE settings (machine-local)
 .claude/
+# OpenCode CLI scratch state (machine-local, unrelated to the project)
+.opencode/

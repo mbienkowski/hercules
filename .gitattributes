@@ -1,0 +1,8 @@
+# LF everywhere: the compiler parses markdown with native LF handling, so a CRLF file could
+# silently change how frontmatter is read. Binary files are auto-detected and left alone.
+* text=auto eol=lf
+
+# Generated, not authored — collapsed in review by default (still expandable, still diffed).
+# dist/ is the compiled plugin output, gated for drift by `make ci-build`; the lockfile is npm's.
+dist/** linguist-generated=true
+package-lock.json linguist-generated=true

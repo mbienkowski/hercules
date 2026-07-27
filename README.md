@@ -195,7 +195,7 @@ short slug; `NN` = the spec number):
 
 Run `code-of-conduct-generator` once per repo — the one-time onboarding step that calibrates every
 Hercules agent to your actual standards before touching code. Run it **even if you already have a Code
-of Conduct**: it reads your repository (and any existing CoC) and upgrades it — additions only — into
+of Conduct**: it reads your repository (and any existing CoC — code of conduct) and upgrades it — additions only — into
 a standards file tuned for *how* the agents implement (architecture, testing, and quality behaviours),
 not just contributor etiquette.
 
@@ -230,7 +230,8 @@ Once it exists, you don't run it again unless your standards change.
 ## Your first session
 
 Type `/hercules:workflow`. Discovery is where the real work happens — bring everything you have:
-PRDs, ADRs, Figma links, QA scenarios, API contracts, Slack threads. The more context you bring, the
+PRDs (product requirement docs), ADRs (architecture decision records), Figma links, QA scenarios, API
+contracts, Slack threads. The more context you bring, the
 better. Hercules will always paraphrase what it understood before writing — correct it if anything's
 off. Your first session ends with a requirements document saved to `docs/`.
 
@@ -518,7 +519,7 @@ it can do is exactly what Claude Code can do in your session:
 - **Network** — none. All model calls go through your existing Claude Code session and API key.
   Hercules makes no direct API calls and opens no separate network channel — hooks included.
 
-You can audit exactly what runs on your machine in `dist/<your-ecosystem>/` (e.g. `dist/claude-code/`) — the installed plugin tree, generated from the authored source in `src/` (both committed to this repository).
+You can audit exactly what runs on your machine in `dist/<your-ecosystem>/` (e.g. `dist/claude-code/`) — the installed plugin tree, generated from the authored source in `src/content/`, `src/targets/`, and `src/hooks/` (all committed to this repository).
 
 ---
 
@@ -539,7 +540,8 @@ complexity and adds none for trivial work).
   at 500, ~68.9% — the drop is non-linear and invisible (no error, no warning)
   ([arxiv.org/html/2507.11538v1](https://arxiv.org/html/2507.11538v1)). Splitting work across focused
   advisors keeps each one in its high-adherence range.
-- **Context drifts over long sessions.** The counter: a spec locked before code, and TDD that freezes
+- **Context drifts over long sessions.** The counter: a spec locked before code, and test-driven
+  development that freezes
   expected behaviour into tests. Fresh advisors re-read the spec, not the chat history.
 - **A session that produced an artifact can't judge it without bias.** The counter: the requirement-
   coverage and traceability gates are decided by a **fresh independent reviewer** that reads the source
@@ -548,8 +550,8 @@ complexity and adds none for trivial work).
   low-noise replies.
 - **The debate costs fewer tokens than reworking a missed spec.** A requirement gap that slips into
   Build means restated requirements, revised specs, re-run tests, and a second review cycle — far
-  more costly than the advisor debate that would have caught it upfront. The A2A communication
-  protocol keeps advisor messages structured and low-noise, bounding the per-debate cost.
+  more costly than the advisor debate that would have caught it upfront. The A2A (agent-to-agent)
+  communication protocol keeps advisor messages structured and low-noise, bounding the per-debate cost.
 
 You stay in control: advisors are a recommendation you approve, never automatic.
 

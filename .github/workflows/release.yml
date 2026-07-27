@@ -1,20 +1,9 @@
 name: Release
 
-# Every merge to main cuts a release. The bump is derived from conventional commits (standard SemVer):
-#   - feature  (`feat:`)            → MINOR
-#   - fix      (`fix:`)             → PATCH
-#   - anything else                 → MINOR   (default_bump: minor)
-#   - a BREAKING change             → MAJOR   (only when flagged: a `!` after the type, e.g. `feat!:`,
-#                                              or a `BREAKING CHANGE:` footer — never a plain `feat:`)
-# The new version is written into the two literal sources (pyproject.toml — canonical — and
-# package.json); the build then injects it into each dist plugin manifest (whose src carries a
-# ${version} token). The bump + rebuilt dist/ are committed back with [skip ci], tagged v{version},
-# and published as a GitHub Release whose notes are the aggregated commits since the previous release.
-#
-# Notes:
-#   - The bump commit carries [skip ci], so it does not re-trigger this workflow.
-#   - The job pushes directly to main; if main is protected, allow this workflow
-#     (or a PAT) to bypass the rule, or relax the protection.
+# Every merge to main cuts a release: the bump comes from conventional commits (SemVer, `feat!:` or a
+# `BREAKING CHANGE:` footer for major, minor by default), is written to package.json and
+# pyproject.toml, committed back with [skip ci], tagged, and published as a GitHub Release.
+# The job pushes directly to main, so a protection rule must allow this workflow (or a PAT) through.
 
 on:
   workflow_run:
@@ -22,13 +11,59 @@ on:
     types: [completed]
     branches: [main]
 
+# Least-privilege by default: only the `release` job raises to contents:write, and `prepare` never
+# sees a credential beyond the implicit read-only GITHUB_TOKEN.
 permissions:
-  contents: write
+  contents: read
 
 concurrency: release
 
 jobs:
+  # ── Compile the TypeScript toolchain, unprivileged (no contents:write, no NPM_TOKEN) ──────────
+  # `npm ci` must never run in a job holding a push-capable or publish credential: a malicious
+  # dependency's install-time code would inherit it. So the install and compile happen here under a
+  # read-only checkout, and `release` consumes the compiled output as a build artifact instead.
+  prepare:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      !startsWith(github.event.workflow_run.head_commit.message, 'chore(release):')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Pinned to the exact commit CI validated; a workflow_run checkout otherwise resolves to
+          # main's current tip, which would compile the wrong tree.
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
+
+      - name: Install the TypeScript toolchain
+        run: make install-ts
+
+      - name: Compile the TypeScript toolchain
+        run: make compile
+
+      # node_modules travels WITH .ts-out: `tsc` transforms syntax without bundling, so the emitted
+      # .mjs files still import their real npm packages (zod, via descriptor.mjs) at runtime. This
+      # relocates the tree `prepare` resolved from the reviewed package-lock.json — the privileged
+      # job still makes no fresh `npm ci` or network fetch of its own.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ts-out
+          path: |
+            .ts-out
+            node_modules
+          retention-days: 1
+
   release:
+    needs: [prepare]
+    permissions:
+      contents: write
     # Run only when CI passed; also skip the workflow's own release bump commit.
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
@@ -40,20 +75,27 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Guard: on a workflow_run event the checkout resolves to main's CURRENT tip, which may have
-      # advanced past the commit whose CI actually passed. Releasing that unvalidated tree would
-      # defeat the green-CI gate, so abort and let the newer commit's own release run instead.
+      # On a workflow_run event the checkout resolves to main's current tip, which may have advanced
+      # past the commit whose CI passed. Abort rather than release an unvalidated tree; the newer
+      # commit's own release run covers it.
       - name: Verify checkout is the CI-validated commit
         env:
           WANT_SHA: ${{ github.event.workflow_run.head_sha }}
         run: make release-verify
 
-      - uses: actions/setup-python@v6
+      # No setup-python: every step below is TypeScript. setVersion.mjs, updateChangelog.mjs and the
+      # compiler all run from `prepare`'s downloaded artifact, so this job never runs `npm ci`.
+      - uses: actions/setup-node@v7
         with:
-          python-version: "3.9"
+          node-version: "22"
 
-      # 1-pre. Detect whether this is the first release (no v* tags yet) and
-      #        capture the previous tag so git log can scope the commit range.
+      - uses: actions/download-artifact@v7
+        with:
+          name: ts-out
+          path: .
+
+      # 1-pre. Detect a first release (no v* tags yet) and capture the previous tag, so git log can
+      #        scope the commit range.
       - name: Detect first release
         id: meta
         run: make release-meta
@@ -61,10 +103,9 @@ jobs:
       # 1. Compute the next version + changelog from conventional commits (no tag yet).
       - name: Compute next version
         id: bump
-        # Pinned to the full COMMIT SHA (not the mutable v6.2 tag) — this job holds contents:write
-        # and can push to main, so a re-pointed upstream tag must not become code execution here.
-        # NB: v6.2 is an ANNOTATED tag, so the pin must be `git rev-parse v6.2^{commit}`
-        # (a22cf08), NOT `git rev-parse v6.2` (d28fa2c, the tag OBJECT — Actions can't resolve it).
+        # Pinned to a full commit SHA, never the mutable v6.2 tag: this job holds contents:write, so a
+        # re-pointed upstream tag must not become code execution here. v6.2 is an annotated tag, so
+        # the pin is `git rev-parse v6.2^{commit}` — the tag object's own SHA does not resolve.
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -73,17 +114,15 @@ jobs:
           custom_tag: ${{ steps.meta.outputs.is_first == 'true' && '1.0.0' || '' }}
           dry_run: true
 
-      # 2. Write the new version into the two literal sources — pyproject.toml (canonical) and
-      #    package.json (VERSION_TARGETS). The plugin manifests are NOT touched here: their src carries
-      #    a ${version} token, injected at build (step 2b), so there is nothing to bump under src/ecosystems/.
+      # 2. Write the new version into the two literal sources: package.json (canonical) and
+      #    pyproject.toml. Plugin manifests carry a ${version} token, injected at build in step 2b.
       - name: Bump version files
         env:
           NEW_VERSION: ${{ steps.bump.outputs.new_version }}
         run: make release-version
 
-      # 2b. Regenerate dist/ so the built + published artifacts carry the new version. The build injects
-      #     the canonical pyproject.toml version into each dist plugin manifest; without this rebuild the
-      #     committed dist/ would keep the old version and fail the drift gate on the next unrelated push.
+      # 2b. Regenerate dist/ so the published artifacts carry the new version — the build injects the
+      #     canonical package.json version into each manifest, which also keeps the drift gate green.
       - name: Rebuild dist/ to propagate the version
         run: make build
 
@@ -112,13 +151,10 @@ jobs:
           name: ${{ steps.bump.outputs.new_tag }}
           body: ${{ steps.bump.outputs.changelog }}
 
-      # 6. Publish the OpenCode plugin to npm (primary channel). The working tree is at the
-      #    bumped commit, so package.json already carries the new version. `files: ["dist/opencode"]`
-      #    scopes the tarball. Skipped automatically if NPM_TOKEN is not configured.
-      #
-      #    Presence is checked in its OWN step (emitting only a boolean output) rather than a
-      #    job-level `env: NPM_TOKEN`, so the credential is never in scope for the third-party
-      #    tag/release actions above — only this check and the publish step below see it.
+      # 6. Publish the OpenCode plugin to npm, an opt-in alternative channel (see RELEASE.md), scoped
+      #    by `files: ["dist/opencode"]` and skipped when NPM_TOKEN is absent. The token is read in
+      #    its own step emitting a boolean, not a job-level `env:`, so it is never in scope for the
+      #    third-party tag/release actions above.
       - name: Check npm publish credentials
         id: npm
         env:

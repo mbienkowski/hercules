@@ -13,13 +13,16 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = [
-    "tiktoken>=0.7.0",
     "pytest>=8.0",
     "pytest-cov>=5.0",
-    "pytest-mock>=3.14",
-    "pyyaml>=6.0",
-    "tomli>=2.0; python_version < '3.11'",
     "mutmut>=2.4,<3",
+    # Complexity gate for the shipped Python hooks (`make complexity-scan`). Pinned EXACTLY, not by
+    # range, for the same reason .npmrc pins the tokenizer exactly: a linter's algorithm can shift
+    # scores between releases, and a gate whose verdict moves on a silent minor bump is not a gate.
+    # flake8-cognitive-complexity provides CCR001 (SonarSource cognitive complexity); mccabe (C901,
+    # cyclomatic) ships inside flake8. Dependabot proposes bumps as reviewable PRs.
+    "flake8==7.3.0",
+    "flake8-cognitive-complexity==0.1.0",
 ]
 
 # No package is shipped — the deliverable is the compiled plugin tree under dist/claude-code/.
@@ -28,30 +31,30 @@ dev = [
 py-modules = []
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
-testpaths = ["tests"]
-# pytest's DEFAULT norecursedirs includes "build" and "dist" — so a test dir named
-# tests/build/ is silently skipped during recursion (it collects only when named
-# explicitly). We override to the stock list MINUS "build" so tests/build/ (the
-# compiler suite) actually runs under `pytest tests/`. Guarded by
-# tests/test_collection_integrity.py so this can never silently regress.
-norecursedirs = ["*.egg", ".*", "_darcs", "CVS", "dist", "node_modules", "venv", "{arch}"]
+# `src` is on the path (not just ".") so the hook tests' `from hooks.tests.conftest import …` resolves
+# `hooks` as a top-level package now that it lives at src/hooks/.
+pythonpath = [".", "src"]
+# src/hooks/tests/ is a SEPARATE tree from src/commons/repo/ (see CODE_OF_CONDUCT.md § Testing) — the
+# Python hooks island — so both must be listed explicitly.
+testpaths = ["src/commons/repo", "src/hooks/tests"]
 
 [tool.mutmut]
-# Pure transform layer (parse/render/model_map/serialize/version_targets), the generic
-# descriptor engine (descriptor/genserialize/genextras), the shared enforcement hooks (src/hooks/ —
-# the ONE gate adapter every ecosystem ships), and metrics carry the mutation gate. The FS boundary
-# (cli/layout/emit) is round-trip-covered and under the
-# branch-coverage gate but not mutated — their shutil/tempfile/string mutants are largely equivalent
-# and would only add noise. NOTE: emit.py stays out of the gate as FS-boundary noise, but its one
-# real conditional — copy_versioned's fail-loud ${version}-injection guard (n != 1 → SystemExit) —
-# is directly unit-tested at n=0/n=1/n=2 in tests/build/test_version_process.py, so a `!= 1`
-# operator slip fails CI regardless of the gate.
-paths_to_mutate = "tests/metrics/,src/hooks/,scripts/build/parse.py,scripts/build/render.py,scripts/build/model_map.py,scripts/build/serialize.py,scripts/build/descriptor.py,scripts/build/genserialize.py,scripts/build/genextras.py,scripts/build/version_targets.py"
-paths_to_exclude = "test_*.py,__init__.py,conftest.py"
+# src/hooks/ — the shared enforcement hooks (the ONE gate adapter every ecosystem ships) — is the
+# only mutated surface now that the Python compiler is gone; TypeScript's own Stryker mutation gate
+# (`make mutation-ts`) covers everything that used to live in the retired Python compiler.
+paths_to_mutate = "src/hooks/"
+# src/hooks/tests/ nests INSIDE the mutated tree, so it must be excluded explicitly or mutmut would
+# mutate the tests themselves alongside the hook source they're supposed to be judging.
+paths_to_exclude = "test_*.py,__init__.py,conftest.py,src/hooks/tests/*"
 backup = false
-runner = "python -m pytest tests/ -x -q --tb=no --no-header"
-tests_dir = "tests/"
+# src/hooks/tests/ is the hooks island's own tree (see CODE_OF_CONDUCT.md § Testing); src/commons/repo/
+# carries nothing that exercises src/hooks/ mutation behavior, so narrowing the runner to
+# src/hooks/tests/ alone is both correct and considerably faster than the pre-split full-suite run.
+runner = "python -m pytest src/hooks/tests/ -x -q --tb=no --no-header"
+tests_dir = "src/hooks/tests/"
 
 [tool.coverage.run]
-omit = ["tests/**/test_*.py", "tests/**/__init__.py", "tests/**/conftest.py"]
+omit = [
+    "src/commons/**/test_*.py", "src/commons/**/__init__.py", "src/commons/**/conftest.py",
+    "src/hooks/tests/**/test_*.py", "src/hooks/tests/**/__init__.py", "src/hooks/tests/**/conftest.py",
+]

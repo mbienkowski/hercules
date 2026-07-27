@@ -1,19 +1,20 @@
 # Releasing Hercules
 
-Hercules is authored once in `src/` and compiled to per-ecosystem trees under `dist/` (`make build`).
-CI regenerates and drift-checks `dist/` on every push, so `main` always carries an in-sync build.
+Hercules is authored once (in `src/content/`, `src/targets/`, and `src/hooks/`) and compiled to per-ecosystem
+trees under `dist/` (`make build`). CI regenerates and drift-checks `dist/` on every push, so `main`
+always carries an in-sync build.
 
 ## Automated pipeline
 
 On every merge to `main`, `release.yml` runs after CI succeeds:
 
 1. Computes the next version from Conventional Commits (`feat`/`fix`/`perf` bump the CHANGELOG).
-2. `scripts/set_version.py` stamps that version into the two files that MUST carry a literal
-   (`scripts/build/version_targets.py::VERSION_TARGETS`): `pyproject.toml` (the canonical source, read
-   by setuptools) and `package.json` (read by npm/OpenCode). The plugin manifests
-   (`dist/{claude-code,cursor}/…/plugin.json`) are **not** stamped — their source carries a
-   `${version}` token that the build injects from `pyproject.toml` (step below), so there is one
-   version of record and nothing to hand-bump under `src/ecosystems/`.
+2. `src/release/setVersion.mts` stamps that version into the two files that MUST carry a literal
+   (`src/builder/versionTargets.mts::VERSION_TARGETS`): `package.json` (the canonical source, read
+   by npm/OpenCode) and `pyproject.toml` (read by setuptools). Every plugin manifest
+   (`dist/*/…/plugin.json`, all six ecosystems) is **not** stamped — their source carries a
+   `${version}` token that the build injects from `package.json` (step below), so there is one
+   version of record and nothing to hand-bump under `src/targets/`.
 3. `make build` regenerates `dist/`, injecting the canonical version into each plugin manifest.
 4. Commits the bump + rebuilt `dist/` (`chore(release): X.Y.Z [skip ci]`), tags `vX.Y.Z`, pushes.
 5. Publishes the GitHub Release.
@@ -24,13 +25,23 @@ The `validate` CI job re-reads the canonical list (`pyproject.toml` + `package.j
 they disagree; a separate test asserts every shipped `dist/…/plugin.json` version equals the canonical
 one — so a release can never ship a split or an un-injected (`${version}`) version.
 
+## If a release didn't happen
+
+`release.yml` only fires when CI's whole run for that commit succeeded — including `mutation-py` and
+`mutation-ts`, which run only on `main`. A red or timed-out mutation job therefore blocks the release
+silently: nothing pages you, the commit just sits unreleased. Each mutation job's last step names this
+consequence directly in the CI log on failure. Check `mutation-py`/`mutation-ts` on the missing commit
+first; a job that hit its `timeout-minutes` ceiling shows as cancelled with no gate verdict at all — the
+fix is almost always a slow mutant or an environment hiccup, not a real kill-rate regression. Re-run the
+job (or push a fix) and the next green run releases normally; nothing needs a manual unblock.
+
 ## Manual smoke checklist (release-gating, once per release)
 
 CI proves the artifacts are valid, in-sync, and regression-checked — it **cannot** prove the plugin
 loads and behaves inside a live tool (no ecosystem offers a headless load-and-assert harness). Before
 announcing a release, run this by hand and record the result (date, version, tester) in the release notes.
 
-### What's automated now
+### What's automated
 
 The `smoke` CI job (and `make test-smoke` locally) runs the real `claude` and `opencode` binaries
 against a built plugin — no tokens spent, no login required, seconds not minutes — and covers the
@@ -41,19 +52,19 @@ needs a live, paid session and stays a manual, release-gating check.
 
 | # | Claude Code item | Status |
 |---|---|---|
-| 1 | Install from the marketplace | ✅ automated (`test_the_plugin_installs_from_a_local_checkout_and_shows_up_enabled`) |
+| 1 | Install from the marketplace | ✅ automated (`src/builder/tests/smoke/claudeCodeSmoke.spec.ts`'s "the plugin installs from a local checkout and shows up enabled") |
 | 2 | `hercules` is the default agent, answers in character | manual |
 | 3 | `/hercules:workflow` drives Discover → Design → Build → Ship | manual |
 | 4 | Write-gate hook blocks/allows | manual |
-| 5 | A specialist advisor spawns, replies in A2A format | manual |
-| 6 | `hercules-reference` skill loads, `§` sections available | manual (component *presence* is automated via `test_the_installed_plugin_declares_its_full_component_inventory`; loading behavior is not) |
+| 5 | A specialist advisor spawns, replies in A2A (agent-to-agent) format | manual |
+| 6 | `hercules-reference` skill loads, `§` sections available | manual (component *presence* is automated via the same file's "the installed plugin declares its full component inventory"; loading behavior is not) |
 | 7 | A fresh `cynical-reviewer` spawns at the coverage gate | manual |
 | 8 | A command's `${CLAUDE_PLUGIN_ROOT}/protocols/…` path resolves | manual |
 
 | # | OpenCode item | Status |
 |---|---|---|
-| 1 | `config` hook fires (agents/commands register) | ✅ automated — [issue #15](https://github.com/mbienkowski/hercules/issues/15) is fixed (the entry exports `{ id, server }`); `test_opencode_plugin_starts_up_with_every_agent_and_command_registered` loads the built `plugin.js` in a real Node process and asserts every agent/command registers (skips only when `node` is absent) |
-| 2 | `plugin.js` loads with no missing-asset throw | ✅ automated — `test_opencode_plugin_refuses_to_start_if_its_bundled_files_are_missing` (same file) drives the real loader |
+| 1 | `config` hook fires (agents/commands register) | ✅ automated — the entry exports `{ id, server }`; `src/builder/tests/targets/opencodeEntrypoint.spec.ts`'s "starts up and registers every agent and command from the roster, defaulting to hercules" loads the built `plugin.js` in a real Node process and asserts every agent/command registers |
+| 2 | `plugin.js` loads with no missing-asset throw | ✅ automated — the same file's "refuses to start if a bundled asset is missing, with a clear error" drives the real loader |
 | 3 | `default_agent` is `hercules`; a subagent spawns | manual |
 | 4 | `/hercules:discover` resolves and runs | manual |
 | 5 | A skill auto-fires from its description | manual |
@@ -144,7 +155,7 @@ opt-in — it needs a `CURSOR_API_KEY` secret and skips without it) — confirm 
 
 | # | Cursor item | Status |
 |---|---|---|
-| 1 | Real `cursor-agent` binary runs + built plugin is structurally valid | ✅ automated (`test_the_real_cursor_agent_binary_runs_and_the_plugin_is_well_formed`, runs on every PR + main) |
+| 1 | Real `cursor-agent` binary runs + built plugin is structurally valid | ✅ automated (`src/builder/tests/smoke/cursorSmoke.spec.ts`'s "the real cursor-agent binary runs and the plugin is well formed", runs on every PR + main) |
 | 2 | Headless `cursor-agent -p` completes a run | ⚙️ keyed (`CURSOR_API_KEY`; skips on forks) |
 | 3 | Persona rule always-applies; commands appear | manual |
 | 4 | Specialist spawns as an isolated subagent | manual |
@@ -172,9 +183,9 @@ proves structure + the in-process guard; these load-time behaviours are verified
 ### Cross-ecosystem
 
 - [ ] `pyproject.toml` and `package.json` — the two literal version sources
-      (`scripts/build/version_targets.py::VERSION_TARGETS`) — both show the release version (matches the
-      git tag). The plugin manifests (versioned artifacts in `src/ecosystems/*.json`) carry a `${version}` token (not a literal); the
-      build injects the canonical `pyproject.toml` version into every `dist/…/plugin.json`.
+      (`src/builder/versionTargets.mts::VERSION_TARGETS`) — both show the release version (matches the
+      git tag). The plugin manifests (versioned artifacts in `src/targets/*.json`) carry a `${version}` token (not a literal); the
+      build injects the canonical `package.json` version into every `dist/…/plugin.json`.
 
 Each shipped ecosystem carries its own smoke section above; add one per target
 (see [CONTRIBUTING.md](CONTRIBUTING.md) § Adding a new target for the proven extension procedure).

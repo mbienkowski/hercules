@@ -1,21 +1,13 @@
 """PreToolUse hook: block edits to frozen test files during an active Hercules build.
 
-Wired by `hooks/hooks.json` on `Edit|MultiEdit|Write|NotebookEdit`. Reads the
-PreToolUse payload as JSON on stdin. Exit 2 (with a plain-language reason on stderr)
-hard-blocks the tool call; exit 0 allows it.
+Wired by `hooks/hooks.json` on `Edit|MultiEdit|Write|NotebookEdit` and spawned in exec form as
+`python3 ${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py`, with the payload as JSON on stdin. Exit 2
+(reason on stderr) hard-blocks the tool call; exit 0 allows it.
 
-Enforcement scope (honest): this hardens the frozen-test guarantee against accidental,
-lazy, and pressure-tested deviation by a cooperative model. It reads model-authored state,
-so it is runtime-*mediated*, not tamper-proof against a model that rewrites its own state.
-
-Fail policy: fail OPEN (allow) whenever no active build session resolves — a fresh repo, a
-non-Hercules repo, Hercules's own development, or any parse error — so the hook never bricks
-an unrelated edit. It only blocks when a confirmed active build owns the target as a frozen
-test. Invoked in hook exec form (`command: "python3"`, `args:
-["${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py"]`) — Claude Code spawns `python3` directly (no
-shebang, no shell), resolving it on PATH. Where no `python3` is found — e.g. stock Windows,
-which ships `python`/`py` — the spawn fails, Claude Code proceeds, and the guard is absent by
-the fail-open policy rather than broken.
+Fails OPEN — no resolvable active build, a parse error, or no `python3` on PATH all allow the edit —
+so the hook never bricks unrelated work; it blocks only when a confirmed active build owns the
+target. It reads model-authored state, so enforcement is runtime-*mediated*, not tamper-proof
+against a model that rewrites that state.
 """
 
 from __future__ import annotations
@@ -32,11 +24,8 @@ _MUTATING_TOOLS = {"Edit", "MultiEdit", "Write", "NotebookEdit"}
 
 
 def _target_paths(tool_input):
-    """Every file path a mutating tool would touch.
-
-    Edit/Write/MultiEdit use a single top-level `file_path` (MultiEdit's `edits[]` share it);
-    NotebookEdit uses `notebook_path`. Also tolerate a per-edit `file_path` defensively.
-    """
+    """Every file path a mutating tool would touch: the top-level `file_path`/`notebook_path`, plus
+    a per-edit `file_path` inside `edits[]` when a host supplies one."""
     paths = []
     if isinstance(tool_input, dict):
         for key in ("file_path", "notebook_path"):
@@ -65,12 +54,9 @@ def _reason(path, session) -> str:
 
 
 def _override_allows(session, roots, target_canon) -> bool:
-    """True iff an explicit user-granted `frozen_override` covers this path right now.
-
-    The override is spec- and round-bound and fails CLOSED: anything malformed, stale,
-    or mistyped leaves the block standing. Parsed inside its own guard so a bad override
-    can never disarm the wider frozen check.
-    """
+    """True iff an explicit user-granted `frozen_override` covers this path right now. Spec- and
+    round-bound, and fails CLOSED: anything malformed, stale, or mistyped leaves the block standing.
+    Parsed inside its own guard so a bad override can never disarm the wider frozen check."""
     try:
         ov = session.get("frozen_override")
         if not isinstance(ov, dict):
@@ -102,27 +88,33 @@ def _sha256(path) -> str | None:
         return None
 
 
+def _entry_drifted(entry, baseline, session, roots) -> bool:
+    """True if one frozen-test entry has drifted from its baseline (fail-closed). Three drift causes:
+    the file was never baselined, every copy vanished, or a present copy's hash differs and no active
+    override covers it. `entry` is already validated as a non-empty string by the caller."""
+    want = baseline.get(entry)
+    if not isinstance(want, str) or not want:
+        return True  # active baseline but this frozen file wasn't baselined → fail-closed
+    candidate_hashes = [(c, _sha256(c)) for c in frozen_candidates(entry, roots)]
+    present = [(c, h) for c, h in candidate_hashes if h is not None]  # copies still on disk
+    if not present:
+        return True  # a frozen test that disappeared is tampering (fail-closed)
+    # EVERY present copy must match the baseline; a mismatch under ANY root is drift unless the
+    # user's override covers that copy (an override spans every root of the entry).
+    mismatched = [(c, h) for c, h in present if h != want]
+    if not mismatched:
+        return False
+    return any(not _override_allows(session, roots, c) for c, _ in mismatched)
+
+
 def frozen_drift(session, roots) -> list:
-    """Frozen tests whose on-disk content no longer matches the baseline recorded at freeze time and
-    which no active ``frozen_override`` covers — the **phase-acceptance backstop** the orchestrator runs
-    before it *accepts/retires a spec*.
+    """The ``frozen_test_files`` entries whose on-disk bytes diverge from ``session['frozen_baseline']``
+    (a ``{repo-relative-path: sha256}`` map) and that no live ``frozen_override`` covers — the
+    phase-acceptance backstop run before a spec is retired, catching a tamper made by any route.
 
-    The tool-time hooks (PreToolUse / Cursor after-edit) can be evaded or, on Cursor's advisory IDE path,
-    are intentionally non-blocking; this re-checks the acceptance tests at the retire gate, catching a
-    tamper no matter how it was made (Composer, ``python -c``, an MCP server, a race). The *check* is
-    deterministic; its *invocation* is prompt-enforced by the Build phase, like the other Build gates.
-
-    Baseline is ``session['frozen_baseline']`` — a ``{repo-relative-path: sha256}`` map recorded when the
-    spec's tests are frozen. When it is absent/empty the backstop is simply inactive for that session
-    (returns ``[]`` — older sessions predate it). When it IS active, every ``frozen_test_files`` entry is
-    checked and the direction is **fail-closed**:
-
-    - a frozen file that *vanished*, or that is in ``frozen_test_files`` but was never baselined, is drift;
-    - a file that resolves under several roots (monorepo/multi-service) is drift if **any** root's copy
-      diverges from the baseline and no override covers it — matching ``frozen_candidates``' own
-      "under any root counts" fail-closed rule, not the inverse.
-
-    Returns the drifted ``frozen_test_files`` entries (repo-relative). Never raises.
+    Inactive (returns ``[]``) when no baseline was recorded. When active the direction is fail-closed:
+    a vanished or never-baselined entry is drift, and an entry resolving under several roots is drift
+    if **any** root's copy diverges. Never raises.
     """
     try:
         baseline = session.get("frozen_baseline")
@@ -133,25 +125,36 @@ def frozen_drift(session, roots) -> list:
             entries = list(baseline)  # fall back to the baselined paths
         drifted = []
         for entry in entries:
-            if not isinstance(entry, str) or not entry:
-                continue
-            want = baseline.get(entry)
-            if not isinstance(want, str) or not want:
-                drifted.append(entry)  # active baseline but this frozen file wasn't baselined → fail-closed
-                continue
-            existing = [(c, _sha256(c)) for c in frozen_candidates(entry, roots)]
-            existing = [(c, h) for c, h in existing if h is not None]
-            if not existing:
-                drifted.append(entry)  # a frozen test that disappeared is tampering (fail-closed)
-                continue
-            # Fail-closed: EVERY existing copy must match the baseline; a mismatch under ANY root is drift
-            # unless the user's override covers that copy (an override spans every root of the entry).
-            mismatched = [(c, h) for c, h in existing if h != want]
-            if mismatched and any(not _override_allows(session, roots, c) for c, _ in mismatched):
+            if isinstance(entry, str) and entry and _entry_drifted(entry, baseline, session, roots):
                 drifted.append(entry)
         return drifted
     except Exception:
         return []
+
+
+def _canonical_targets(tool_input, cwd):
+    """Each target path a tool names, as `(raw, canonical)`. A relative path resolves against the
+    payload's cwd (never the hook process's)."""
+    targets = []
+    for path in _target_paths(tool_input):
+        p = str(path)
+        if not os.path.isabs(p):
+            p = os.path.join(cwd, p)
+        targets.append((path, canon(p)))
+    return targets
+
+
+def _blocked_target(contexts, targets):
+    """The first `(raw_path, session)` where a target hits a frozen test no override covers, or None
+    when nothing is blocked. Every matching build context is checked (fail-closed for the rest)."""
+    for session, roots, _project in contexts:
+        frozen_set = set()
+        for frozen_entry in session.get("frozen_test_files") or []:
+            frozen_set |= frozen_candidates(frozen_entry, roots)
+        for raw, target in targets:
+            if target in frozen_set and not _override_allows(session, roots, target):
+                return raw, session
+    return None
 
 
 def decide(payload, home=None):
@@ -171,19 +174,11 @@ def decide(payload, home=None):
         ]
         if not contexts:
             return 0, ""  # fail-open: nothing active to protect
-        targets = []
-        for path in _target_paths(payload.get("tool_input")):
-            p = str(path)
-            if not os.path.isabs(p):
-                p = os.path.join(cwd, p)  # the payload's cwd, never the hook process's
-            targets.append((path, canon(p)))
-        for session, roots, project in contexts:
-            frozen_set = set()
-            for frozen_entry in session.get("frozen_test_files") or []:
-                frozen_set |= frozen_candidates(frozen_entry, roots)
-            for raw, target in targets:
-                if target in frozen_set and not _override_allows(session, roots, target):
-                    return 2, _reason(raw, session)
+        targets = _canonical_targets(payload.get("tool_input"), cwd)
+        hit = _blocked_target(contexts, targets)
+        if hit is not None:
+            raw, session = hit
+            return 2, _reason(raw, session)
         return 0, ""
     except Exception:
         return 0, ""

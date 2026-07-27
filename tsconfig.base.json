@@ -1,0 +1,32 @@
+{
+  // Shared compiler options, extended by tsconfig.build.json (emit) and tsconfig.tests.json (check).
+  //
+  // ── Why package.json has NO "type" field (do not add one) ────────────────────────────────────
+  // package.json's `main` is the shipped OpenCode plugin, which is CommonJS. Node reads a .js file's
+  // module format from the nearest "type" field, so "type": "module" would break it for every user.
+  // The toolchain sidesteps that with .mts sources emitting .mjs, which Node always loads as ESM.
+  // src/release/tests/packaging/packaging.spec.ts pins the absent field against a positive assertion.
+  //
+  // `verbatimModuleSyntax` stays unset: it forbids the resolution-mode-inferred imports this layout
+  // relies on, and `isolatedModules` plus explicit `import type` covers what it would buy.
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023"],
+    "types": ["node"],
+
+    // Strictness: TypeScript is here for precision, which takes these flags, not `strict` alone.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "useUnknownInCatchVariables": true,
+
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  }
+}

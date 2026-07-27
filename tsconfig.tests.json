@@ -1,0 +1,22 @@
+{
+  // Type-check config for every domain's tests/, the shared helpers, and the Vitest config. Never
+  // emitted — Vitest compiles tests from source, so this module format never reaches Node's loader.
+  // `moduleResolution: bundler` matches how Vite resolves these files, so checks match execution.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "noEmit": true
+  },
+  // Specs import the modules under test from src/builder/, src/release/, src/metrics/, a separate project.
+  "references": [{ "path": "./tsconfig.build.json" }],
+  "include": [
+    "src/builder/tests/**/*.ts",
+    "src/release/tests/**/*.ts",
+    "src/metrics/tests/**/*.ts",
+    "src/content/tests/**/*.ts",
+    "src/commons/support/**/*.ts",
+    "*.config.mts"
+  ]
+}

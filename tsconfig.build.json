@@ -1,0 +1,19 @@
+{
+  // Emit config: compiles each domain's own .mts logic into .ts-out/, never its tests/. Sources are
+  // .mts and emit .mjs, which Node loads as ESM regardless of package.json — see tsconfig.base.json
+  // for why that file must never gain a "type" field.
+  //
+  // .ts-out/ is gitignored and avoids the name build/, which already carries an ignore rule and a
+  // pytest norecursedirs entry. `rootDir: "src"` makes each domain emit under its own subtree.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "module": "node16",
+    "moduleResolution": "node16",
+    "outDir": ".ts-out",
+    "rootDir": "src",
+    "sourceMap": true
+  },
+  "include": ["src/builder/**/*.mts", "src/release/**/*.mts", "src/metrics/**/*.mts"]
+}

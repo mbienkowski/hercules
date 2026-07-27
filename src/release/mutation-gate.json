@@ -1,0 +1,10 @@
+{
+  "_comment": [
+    "Mutation kill-rate thresholds, read by BOTH gate scripts: src/release/check_mutation_gate.py",
+    "(mutmut, over src/hooks/) and src/release/checkMutationGate.mts (Stryker, over src/builder/ +",
+    "src/release/ + src/metrics/). Single-sourced so the two runtimes cannot hold two answers to what",
+    "90 means; both test suites read this file, so a change here moves both gates or fails both."
+  ],
+  "gate": 90,
+  "warn": 95
+}

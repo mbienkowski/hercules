@@ -11,5 +11,32 @@
   "main": "dist/opencode/plugin.js",
   "files": [
     "dist/opencode"
-  ]
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "tsc -b",
+    "compile": "tsc -b tsconfig.build.json",
+    "test": "vitest run",
+    "mutation": "stryker run"
+  },
+  "devDependencies": {
+    "@stryker-mutator/core": "9.6.1",
+    "@stryker-mutator/vitest-runner": "9.6.1",
+    "@types/node": "26.1.1",
+    "@typescript-eslint/parser": "8.65.0",
+    "@vitest/coverage-v8": "4.1.10",
+    "eslint": "10.8.0",
+    "eslint-plugin-sonarjs": "4.2.0",
+    "js-tiktoken": "1.0.21",
+    "js-yaml": "5.2.2",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10",
+    "zod": "4.4.3"
+  },
+  "overrides": {
+    "qs": "6.15.3",
+    "@emnapi/runtime": "1.11.3"
+  }
 }

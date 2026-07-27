@@ -1,0 +1,38 @@
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+import { discover } from '../../descriptor.mjs';
+import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
+import { repoRoot } from '../../../commons/support/repo';
+
+// The Claude-only settings.json roster stays in sync with content/agents/. settings.json is an inline
+// artifact of the claude-code descriptor, emitted verbatim; this is the reader-end pin on it.
+
+const AGENTS = join(repoRoot, 'src', 'content', 'agents');
+
+function settings(): Record<string, unknown> {
+  const claudeCode = discover(ECOSYSTEMS)['claude-code'];
+  if (claudeCode === undefined) throw new Error('claude-code descriptor missing');
+  const artifact = claudeCode.artifacts.find((a) => a.dest === 'settings.json');
+  if (artifact === undefined) throw new Error('settings.json artifact missing');
+  return artifact.content;
+}
+
+describe('registered agent roster matches the agents that actually exist', () => {
+  it('the default agent plus every advisor exactly matches content/agents/', () => {
+    // Catches a new agent added but never registered, or a removed agent whose registration was
+    // left behind, before either ships to users.
+    const s = settings();
+    const roster = new Set(readdirSync(AGENTS).filter((n) => n.endsWith('.md')).map((n) => n.slice(0, -3)));
+    const listed = new Set([s['agent'] as string, ...(s['advisors'] as string[])]);
+    expect(listed).toEqual(roster);
+  });
+});
+
+describe('hercules is the default agent', () => {
+  it('out of the box, with no explicit agent choice made, Claude Code defaults to hercules', () => {
+    expect(settings()['agent']).toBe('hercules');
+  });
+});

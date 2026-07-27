@@ -1,72 +1,146 @@
-.PHONY: test test-mutation test-smoke install build build-check \
+.PHONY: test test-mutation test-smoke install install-py install-ts build build-check \
+        typecheck compile test-py test-ts mutation-py mutation-ts mutation-py-annotate mutation-ts-annotate \
+        complexity-scan complexity-scan-ts complexity-scan-py vulnerability-scan \
         ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate \
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
 
-install:
+# ── Which runtime owns what ──────────────────────────────────────────────────
+# Python owns src/hooks/ (shipped to users) and TypeScript owns src/{builder,release,metrics}/. The
+# -py/-ts suffix is the same string in the make target, the CI job id and the CI display name, so a
+# red check reproduces by copying its name into a terminal. Keep it that way.
+
+install: install-py install-ts
+
+install-py:
 	pip install -e ".[dev]"
 
-build:
-	python -m scripts.build.cli --target all
+install-ts:
+	npm ci
 
-build-check:
-	python -m scripts.build.cli --target all --check
+build: compile
+	node .ts-out/builder/bin/cli.mjs --target all
 
-test: build-check
-	python -m pytest tests/ -v --cov=scripts/build --cov=tests.metrics --cov=src/hooks --cov-branch --cov-report=term-missing --cov-fail-under=90
+build-check: compile
+	node .ts-out/builder/bin/cli.mjs --target all --check
 
-test-mutation:
+test: test-py test-ts
+
+# The Python suite: src/hooks/ (the island, see CODE_OF_CONDUCT.md § Testing) plus the repo-wide
+# meta-guards under src/commons/repo/.
+test-py: build-check
+	python -m pytest src/commons/repo/ src/hooks/tests/ -v --cov=src/hooks --cov-branch --cov-report=term-missing --cov-fail-under=90
+
+test-ts:
+	npm run typecheck
+	npx vitest run --coverage
+
+# Type-check both TypeScript projects without running anything.
+typecheck:
+	npm run typecheck
+
+# `tsc -b` trusts tsbuildinfo, so drop the stamp when .ts-out/ is gone or compile becomes a no-op.
+# `tsc` itself may be absent: release.yml's privileged job runs no `npm ci` and downloads a compiled
+# .ts-out/ instead, so every compile-dependent target must work there too — hence the fallback to an
+# already-populated .ts-out/, and a loud failure only when neither is available.
+compile:
+	@[ -d .ts-out ] || rm -f tsconfig.build.tsbuildinfo tsconfig.tests.tsbuildinfo
+	@if [ -x node_modules/.bin/tsc ]; then \
+		npm run compile; \
+	elif [ -d .ts-out ] && [ -n "$$(ls -A .ts-out 2>/dev/null)" ]; then \
+		echo "no local TypeScript toolchain (node_modules/.bin/tsc missing) — using the existing .ts-out/ as-is"; \
+	else \
+		echo "ERROR: .ts-out/ is missing or empty and there is no local TypeScript toolchain to compile it — run 'make install-ts' first" >&2; \
+		exit 1; \
+	fi
+
+test-mutation: mutation-py mutation-ts
+
+mutation-py:
 	mutmut run || true
 	mutmut results | tee mutmut-results.txt
-	python scripts/check_mutation_gate.py
+	python src/release/check_mutation_gate.py
 
-# Live CLI smoke checks — do the built plugins actually install/load in the real Claude Code,
-# OpenCode, and Cursor binaries? Skips silently if a given CLI isn't installed locally; install
-# Claude Code + OpenCode with `npm install -g @anthropic-ai/claude-code opencode-ai`, and Cursor
-# with `curl https://cursor.com/install -fsSL | bash`, to run the whole set.
+# The gate script reads Stryker's JSON report and applies the same thresholds as the Python gate
+# (src/release/mutation-gate.json), so the two runtimes cannot drift to two answers.
+mutation-ts: compile
+	npx stryker run || true
+	node .ts-out/release/bin/mutationGate.mjs
+
+# A red gate silently skips the next release (release.yml only fires on this workflow's overall
+# success), so CI names that consequence on failure rather than leaving a bare red check.
+mutation-py-annotate:
+	RUNTIME=mutation-py bash src/release/ci/annotate_mutation_failure.sh
+
+mutation-ts-annotate:
+	RUNTIME=mutation-ts bash src/release/ci/annotate_mutation_failure.sh
+
+# ── Complexity gate ───────────────────────────────────────────────────────────
+# Every first-party function stays under 15 on both cyclomatic and cognitive complexity, the same
+# ceiling on both runtimes. Tests are excluded — a table-driven spec is legitimately branchy and is
+# not shipped. See CODE_OF_CONDUCT.md § Complexity.
+complexity-scan: complexity-scan-ts complexity-scan-py
+
+# TypeScript domains (compiler / release / metrics). Config + ceiling live in eslint.config.mjs.
+complexity-scan-ts:
+	npx eslint --max-warnings=0 .
+
+# Shipped Python hooks. --select restricts flake8 to the two complexity checks (C901 = mccabe
+# cyclomatic, CCR001 = cognitive); --extend-exclude drops the hooks' own tests.
+complexity-scan-py:
+	flake8 --select=C901,CCR001 --max-complexity=15 --max-cognitive-complexity=15 --extend-exclude=tests src/hooks
+
+# ── Dependency vulnerability scan ─────────────────────────────────────────────
+# Fail on any high or critical CVE. npm carries the entire dependency surface: the shipped plugin is
+# zero-runtime-dep and the Python hooks are stdlib-only, so the whole exposure is the dev toolchain
+# in package-lock.json. --audit-level=high leaves moderate and low visible but non-blocking.
+vulnerability-scan:
+	npm audit --audit-level=high
+
+# Live CLI smoke checks: do the built plugins install and load in the real binaries? Each leg skips
+# silently when its CLI is not installed locally.
 test-smoke: build-check
-	python -m pytest tests/build/test_claude_code_smoke.py tests/build/test_opencode_smoke.py tests/build/test_cursor_smoke.py tests/build/test_grok_build_smoke.py tests/build/test_gemini_cli_smoke.py tests/build/test_copilot_cli_smoke.py -v
+	npx vitest run src/builder/tests/smoke/claudeCodeSmoke.spec.ts src/builder/tests/smoke/opencodeSmoke.spec.ts src/builder/tests/smoke/cursorSmoke.spec.ts src/builder/tests/smoke/grokBuildSmoke.spec.ts src/builder/tests/smoke/geminiCliSmoke.spec.ts src/builder/tests/smoke/copilotCliSmoke.spec.ts
 
 # ── CI entry points ──────────────────────────────────────────────────────────
-# The GitHub Actions workflows call ONLY `make <target>` — every step's logic lives here and under
-# scripts/ci/, so it is testable and runnable locally. This is enforced by
-# tests/build/test_workflows_use_make.py; add a target + a script, never an inline YAML block.
+# The GitHub Actions workflows call only `make <target>`, so every step is testable and runnable
+# locally. Add a target plus a src/release/ci/ script, never an inline YAML block.
 
 ci-build:
-	bash scripts/ci/build_gates.sh
+	bash src/release/ci/build_gates.sh
 
-validate:
-	python -m scripts.ci.validate_package
+validate: compile
+	node .ts-out/release/bin/validatePackage.mjs
 
-smoke-matrix:
-	python -m scripts.ci.smoke_matrix
+smoke-matrix: compile
+	node .ts-out/release/bin/smokeMatrix.mjs
 
 smoke-install:
-	bash scripts/ci/install_cli.sh
+	bash src/release/ci/install_cli.sh
 
 smoke-run:
-	bash scripts/ci/run_smoke.sh
+	bash src/release/ci/run_smoke.sh
 
 smoke-annotate:
-	bash scripts/ci/annotate_smoke.sh
+	bash src/release/ci/annotate_smoke.sh
 
 # ── Release entry points (release.yml) ───────────────────────────────────────
 release-verify:
-	bash scripts/ci/release_verify_checkout.sh
+	bash src/release/ci/release_verify_checkout.sh
 
 release-meta:
-	bash scripts/ci/release_meta.sh
+	bash src/release/ci/release_meta.sh
 
-release-version:
-	python -m scripts.set_version "$${NEW_VERSION}"
+release-version: compile
+	node .ts-out/release/bin/setVersion.mjs "$${NEW_VERSION}"
 
-changelog:
-	python scripts/update_changelog.py
+changelog: compile
+	node .ts-out/release/bin/updateChangelog.mjs
 
 release-commit:
-	bash scripts/ci/release_commit.sh
+	bash src/release/ci/release_commit.sh
 
 npm-creds:
-	bash scripts/ci/npm_creds.sh
+	bash src/release/ci/npm_creds.sh
 
 release-npm:
 	npm publish --access public
