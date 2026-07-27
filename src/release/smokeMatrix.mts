@@ -76,15 +76,17 @@ export function buildMatrix(
     // Defaults to `{}`, not `{ method: 'npm' }`: only `install['method']` is ever read off this
     // object, and that read already falls back to 'npm' on the next line — a `method` key in this
     // default would be immediately-shadowed dead weight (and, worse, an unkillable mutation target).
-    const install = (cfg['install'] as Record<string, unknown> | undefined) ?? {};
+    const install = (cfg.install as Record<string, unknown> | undefined) ?? {};
     const method = (install['method'] as string | undefined) ?? 'npm';
     legs.push({
       target: name,
-      cli: cfg['cli'] as string,
-      test: cfg['test'] as string,
+      // `cli`/`test` are typed `string` by SmokeSchema, so they need no cast. The rest stay cast:
+      // the schema deliberately leaves them `z.unknown()` (see SmokeSchema's own comment).
+      cli: cfg.cli,
+      test: cfg.test,
       install_method: method,
-      npm_package: (cfg['npm_package'] as string | undefined) ?? '',
-      npm_version: (cfg['npm_version'] as string | undefined) ?? '',
+      npm_package: (cfg.npm_package as string | undefined) ?? '',
+      npm_version: (cfg.npm_version as string | undefined) ?? '',
       install_url: (install['url'] as string | undefined) ?? '',
       install_flags: (install['flags'] as string | undefined) ?? '',
     });

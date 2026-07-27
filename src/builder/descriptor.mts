@@ -488,18 +488,25 @@ const GateSchema = z.discriminatedUnion('protocol', [
   }, { error: objectError('gate (protocol=event_guards)') }),
 ], { error: discriminantError('protocol', ['event_guards', 'pre_tool']) });
 
+/** How a source file's role is determined — the same closed set the schema validates. */
+const DISPATCH_MODES = ['frontmatter', 'path'] as const;
+export type Dispatch = (typeof DISPATCH_MODES)[number];
+
 /** The validated, immutable form of one `ecosystems/<name>.json`. */
 export interface EcosystemDescriptor {
   readonly name: string;
   readonly vars: Readonly<Record<string, string>>;
   readonly models: Readonly<Record<string, string | null>>;
-  readonly smoke: Readonly<Record<string, unknown>>;
-  readonly dispatch: string;
+  // `smoke` and `gate` mirror their Zod schemas rather than restating them as bare key/value bags:
+  // the schema is the single source of truth, so a consumer reads `smoke.cli` as a checked string
+  // instead of casting its way out of `Record<string, unknown>`.
+  readonly smoke: z.infer<typeof SmokeSchema>;
+  readonly dispatch: Dispatch;
   readonly roles: Readonly<Record<string, RoleSpec>>;
   readonly routes: readonly Route[];
   readonly artifacts: readonly Artifact[];
   readonly guard: readonly string[];
-  readonly gate: Readonly<Record<string, unknown>> | null;
+  readonly gate: z.infer<typeof GateSchema> | null;
   readonly templates: readonly Template[];
 }
 
@@ -563,7 +570,7 @@ const DescriptorSchema = z.strictObject({
   ).refine((v) => Object.keys(v).length > 0, { error: () => "'vars' must be a non-empty object" }),
   models: ModelsSchema,
   smoke: SmokeSchema,
-  dispatch: oneOf(['frontmatter', 'path']),
+  dispatch: oneOf(DISPATCH_MODES),
   roles: z.strictObject({
     agent: RoleSchema, command: RoleSchema, persona: RoleSchema, default: RoleSchema,
   }, { error: objectError("'roles'") }),
@@ -620,7 +627,7 @@ export function parseDescriptor(descriptorName: string, raw: unknown): Ecosystem
     routes: result.data.routes,
     artifacts: result.data.artifacts,
     guard: result.data.guard,
-    gate: (result.data.gate ?? null) as Readonly<Record<string, unknown>> | null,
+    gate: result.data.gate ?? null,
     templates: result.data.templates,
   };
 }
