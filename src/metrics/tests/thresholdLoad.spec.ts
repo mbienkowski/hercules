@@ -1,3 +1,6 @@
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { coreTokenCount, loadThresholds } from '../thresholdRunner.mjs';
@@ -80,6 +83,44 @@ describe('loadThresholds: load-time validation errors', () => {
       { name: 'string-limit', target: 'x.md', metric: 'token_count', op: '<=', limit: '100', severity: 'gate' },
     ]);
     expect(() => loadThresholds(file)).toThrow(/'limit' must be a finite number/);
+  });
+
+  it('a non-string target is rejected instead of crashing later in path resolution', () => {
+    const root = tmpWorkspace();
+    const file = writeThresholds(root, [
+      { name: 'bad-target', target: 42, metric: 'token_count', op: '<=', limit: 100, severity: 'gate' },
+    ]);
+    expect(() => loadThresholds(file)).toThrow(/'target' must be a non-empty string/);
+  });
+
+  it('a non-numeric warn_at is rejected instead of comparing a string against the limit', () => {
+    const root = tmpWorkspace();
+    const file = writeThresholds(root, [
+      { name: 'bad-warn', target: 'x.md', metric: 'token_count', op: '<=', limit: 100, warn_at: '90', severity: 'gate' },
+    ]);
+    expect(() => loadThresholds(file)).toThrow(/'warn_at' must be a finite number/);
+  });
+
+  it('a non-boolean per_file is rejected rather than silently selecting summed mode', () => {
+    const root = tmpWorkspace();
+    const file = writeThresholds(root, [
+      { name: 'bad-perfile', target: 'x.md', metric: 'token_count', op: '<=', limit: 1, per_file: 'yes', severity: 'gate' },
+    ]);
+    expect(() => loadThresholds(file)).toThrow(/'per_file' must be a boolean/);
+  });
+
+  it('a top level that is not an array is rejected with a clear error, not a cryptic iteration crash', () => {
+    const root = tmpWorkspace();
+    const file = join(root, 'thresholds.json');
+    writeFileSync(file, JSON.stringify({ name: 'not-a-list' }), 'utf-8');
+    expect(() => loadThresholds(file)).toThrow(/top level must be an array of rows/);
+  });
+
+  it('a non-object row is rejected naming its index', () => {
+    const root = tmpWorkspace();
+    const file = join(root, 'thresholds.json');
+    writeFileSync(file, JSON.stringify(['nonsense']), 'utf-8');
+    expect(() => loadThresholds(file)).toThrow(/row 0 must be an object/);
   });
 
   it('skips the warn_at-vs-limit check entirely when warn_at is not provided, even for a negative limit', () => {

@@ -58,62 +58,85 @@ export interface CheckResult {
   readonly name: string;
   readonly value: number;
   readonly passed: boolean;
-  readonly severity: string;
+  readonly severity: Severity;
   readonly message: string;
   readonly nearWarn: boolean;
 }
 
-interface RawRow {
-  name: string;
-  target: string;
-  metric: string;
-  op: string;
-  limit: number;
-  severity?: string;
-  warn_at?: number | null;
-  per_file?: boolean;
+/**
+ * One row exactly as `JSON.parse` produced it: every field stays `unknown` until `parseRow` proves
+ * it. `thresholds.json` is untrusted input, so declaring the fields as `string`/`number` here would
+ * assert the very shape this module exists to verify — and would make the checks below read as dead
+ * code to anyone maintaining them.
+ */
+type RawRow = Readonly<Record<string, unknown>>;
+
+/** A non-empty string field, or a throw naming the offending row and field. */
+function requireText(value: unknown, row: string, field: string): string {
+  if (typeof value !== 'string' || value === '') {
+    throw new Error(`thresholds.json row '${row}': '${field}' must be a non-empty string, got ${JSON.stringify(value)}`);
+  }
+  return value;
+}
+
+/** A finite number field, or a throw naming the offending row and field. */
+function requireFinite(value: unknown, row: string, field: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`thresholds.json row '${row}': '${field}' must be a finite number, got ${JSON.stringify(value)}`);
+  }
+  return value;
+}
+
+/** Validate one raw row into a ThresholdCheck, naming the offending field on any failure. */
+function parseRow(row: RawRow): ThresholdCheck {
+  const { name } = row;
+  if (typeof name !== 'string' || name === '') {
+    throw new Error(`thresholds.json: a row has a missing or empty 'name' (got ${JSON.stringify(name)})`);
+  }
+  // `.find` over the `as const` tuples narrows to the literal union (Op / Severity / MetricName)
+  // without a cast — a bad value comes back `undefined` and throws loudly, so nothing string-typed
+  // ever leaks into a ThresholdCheck.
+  const metric = (Object.keys(METRIC_REGISTRY) as MetricName[]).find((m) => m === row['metric']);
+  if (metric === undefined) {
+    throw new Error(
+      `thresholds.json row '${name}': unknown metric '${String(row['metric'])}' ` +
+        `(known: ${JSON.stringify([...Object.keys(METRIC_REGISTRY)].sort())})`,
+    );
+  }
+  const severity = SEVERITIES.find((s) => s === (row['severity'] ?? 'gate'));
+  if (severity === undefined) {
+    throw new Error(`thresholds.json row '${name}': unknown severity '${String(row['severity'])}' (must be 'gate' or 'warn')`);
+  }
+  const op = OPS.find((o) => o === row['op']);
+  if (op === undefined) {
+    throw new Error(`thresholds.json row '${name}': unknown op '${String(row['op'])}' (must be one of ${JSON.stringify([...OPS].sort())})`);
+  }
+  const limit = requireFinite(row['limit'], name, 'limit');
+  const target = requireText(row['target'], name, 'target');
+  const rawWarnAt = row['warn_at'] ?? null;
+  const warnAt = rawWarnAt === null ? null : requireFinite(rawWarnAt, name, 'warn_at');
+  if (warnAt !== null && warnAt > limit) {
+    throw new Error(`thresholds.json row '${name}': warn_at (${warnAt}) > limit (${limit})`);
+  }
+  const perFile = row['per_file'] ?? false;
+  if (typeof perFile !== 'boolean') {
+    throw new Error(`thresholds.json row '${name}': 'per_file' must be a boolean, got ${JSON.stringify(perFile)}`);
+  }
+  return { name, target, metric, op, limit, severity, warnAt, perFile };
 }
 
 /** Load and validate `thresholds.json`; throw on any invalid row. */
 export function loadThresholds(path: string): ThresholdCheck[] {
-  const raw = JSON.parse(readFileSync(path, 'utf-8')) as RawRow[];
-  const checks: ThresholdCheck[] = [];
-  for (const row of raw) {
-    const { name } = row;
-    if (typeof name !== 'string' || name === '') {
-      throw new Error(`thresholds.json: a row has a missing or empty 'name' (got ${JSON.stringify(name)})`);
-    }
-    // `.find` over the `as const` tuples narrows to the literal union (Op / Severity / MetricName)
-    // without a cast — a bad value comes back `undefined` and throws loudly, so nothing string-typed
-    // ever leaks into a ThresholdCheck.
-    const metric = (Object.keys(METRIC_REGISTRY) as MetricName[]).find((m) => m === row.metric);
-    if (metric === undefined) {
-      throw new Error(
-        `thresholds.json row '${name}': unknown metric '${row.metric}' ` +
-          `(known: ${JSON.stringify([...Object.keys(METRIC_REGISTRY)].sort())})`,
-      );
-    }
-    const severity = SEVERITIES.find((s) => s === (row.severity ?? 'gate'));
-    if (severity === undefined) {
-      throw new Error(`thresholds.json row '${name}': unknown severity '${row.severity}' (must be 'gate' or 'warn')`);
-    }
-    const op = OPS.find((o) => o === row.op);
-    if (op === undefined) {
-      throw new Error(`thresholds.json row '${name}': unknown op '${row.op}' (must be one of ${JSON.stringify([...OPS].sort())})`);
-    }
-    const { limit } = row;
-    if (typeof limit !== 'number' || !Number.isFinite(limit)) {
-      throw new Error(`thresholds.json row '${name}': 'limit' must be a finite number, got ${JSON.stringify(limit)}`);
-    }
-    const warnAt = row.warn_at ?? null;
-    if (warnAt !== null && warnAt > limit) {
-      throw new Error(`thresholds.json row '${name}': warn_at (${warnAt}) > limit (${limit})`);
-    }
-    checks.push({
-      name, target: row.target, metric, op, limit, severity, warnAt, perFile: row.per_file ?? false,
-    });
+  const raw: unknown = JSON.parse(readFileSync(path, 'utf-8'));
+  if (!Array.isArray(raw)) {
+    throw new Error(`thresholds.json: the top level must be an array of rows, got ${JSON.stringify(raw)}`);
   }
-  return checks;
+  return raw.map((row: unknown, index) => {
+    if (typeof row !== 'object' || row === null || Array.isArray(row)) {
+      throw new Error(`thresholds.json: row ${index} must be an object, got ${JSON.stringify(row)}`);
+    }
+    return parseRow(row as RawRow);
+  });
 }
 
 /** Evaluate `value op limit`; returns `[result, errorMessage]`. Error message is non-empty only for an unknown operator. */
