@@ -85,6 +85,40 @@ describe('loadThresholds: load-time validation errors', () => {
     expect(() => loadThresholds(file)).toThrow(/'limit' must be a finite number/);
   });
 
+  it('an empty name is rejected, not just a missing one', () => {
+    // Pins the `name === ''` half of the guard: a missing name already fails the typeof half, so
+    // without this case that clause could be deleted and every test would still pass.
+    const root = tmpWorkspace();
+    const file = writeThresholds(root, [
+      { name: '', target: 'x.md', metric: 'token_count', op: '<=', limit: 100, severity: 'gate' },
+    ]);
+    expect(() => loadThresholds(file)).toThrow(/missing or empty 'name'/);
+  });
+
+  it('an empty target is rejected, not just a non-string one', () => {
+    const root = tmpWorkspace();
+    const file = writeThresholds(root, [
+      { name: 'empty-target', target: '', metric: 'token_count', op: '<=', limit: 100, severity: 'gate' },
+    ]);
+    expect(() => loadThresholds(file)).toThrow(/'target' must be a non-empty string/);
+  });
+
+  it('a non-finite limit is rejected — 1e400 is legal JSON that parses to Infinity', () => {
+    // Pins the `!Number.isFinite` half: a string limit already fails the typeof half, so a number
+    // that is non-finite is the only input that can prove this clause is load-bearing.
+    const root = tmpWorkspace();
+    const file = join(root, 'thresholds.json');
+    writeFileSync(file, '[{"name":"inf","target":"x.md","metric":"token_count","op":"<=","limit":1e400}]', 'utf-8');
+    expect(() => loadThresholds(file)).toThrow(/'limit' must be a finite number/);
+  });
+
+  it('a non-finite warn_at is rejected before it is compared against the limit', () => {
+    const root = tmpWorkspace();
+    const file = join(root, 'thresholds.json');
+    writeFileSync(file, '[{"name":"infwarn","target":"x.md","metric":"token_count","op":"<=","limit":100,"warn_at":1e400}]', 'utf-8');
+    expect(() => loadThresholds(file)).toThrow(/'warn_at' must be a finite number/);
+  });
+
   it('a non-string target is rejected instead of crashing later in path resolution', () => {
     const root = tmpWorkspace();
     const file = writeThresholds(root, [
