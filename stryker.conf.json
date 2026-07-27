@@ -1,17 +1,9 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "_comment": [
-    "Mutation testing for the TypeScript domains; mutmut covers src/hooks/ in the parallel",
-    "mutation-py job (see pyproject.toml [tool.mutmut]).",
-    "",
-    "The kill-rate gate lives in src/release/checkMutationGate.mts, which reads this run's JSON report",
-    "and applies src/release/mutation-gate.json — the same file the Python gate reads, so the two",
-    "runtimes cannot report two numbers. Stryker's own thresholds stay unset for that reason.",
-    "",
-    "`mutate` skips each domain's bin/: those entry points are logic-free, so every mutant in them is",
-    "equivalent or unkillable. Silencing mutants inside real logic is forbidden by the code-of-conduct.",
-    "",
-    "`coverageAnalysis: all` rather than perTest, which mis-attributes coverage under the Vitest runner."
+    "Mutates the builder/release engine only — never src/metrics/ (a measuring tool, not shipped",
+    "logic) or dist/ (generated output; proven by the drift gate, not mutation). mutmut covers",
+    "src/hooks/ in the parallel mutation-py job; both read the one gate at src/release/mutation-gate.json."
   ],
   "packageManager": "npm",
   "testRunner": "vitest",
@@ -31,8 +23,7 @@
     "src/builder/**/*.mts",
     "!src/builder/bin/**",
     "src/release/**/*.mts",
-    "!src/release/bin/**",
-    "src/metrics/**/*.mts"
+    "!src/release/bin/**"
   ],
   "tempDirName": ".stryker-tmp",
   "cleanTempDir": true,

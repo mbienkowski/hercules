@@ -266,9 +266,8 @@ jobs:
     needs: [test, validate, smoke, complexity-scan, vulnerability-scan]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    # mutmut mutates only src/hooks/, a few hundred lines; the ceiling stays generous rather than
-    # tight until a real run measures the actual runtime.
-    timeout-minutes: 30
+    # Measured locally: 491 mutants, ~3 minutes. 15 keeps 5x headroom while capping a genuine hang's cost.
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v7
@@ -293,17 +292,26 @@ jobs:
           name: mutation-py-results
           path: mutmut-results.txt
 
+      # release.yml only fires on this workflow's overall success — a red gate here silently skips
+      # the next release until someone checks CI, so name that consequence where it is actually seen.
+      - name: Report a gate failure's release impact
+        if: failure()
+        run: make mutation-py-annotate
+
   mutation-ts:
     name: mutation-ts
     needs: [test, validate, smoke, complexity-scan, vulnerability-scan]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Measured locally: 1594 mutants (src/metrics/ excluded — see stryker.conf.json), ~10 minutes at
+    # concurrency 8 on a 10-core machine. CI's actual core count is unverified from here, so 30 keeps
+    # real headroom without paying for a full 60-minute hang on a genuine failure.
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v7
 
-      # Node only — Stryker mutates src/{builder,release,metrics}/, and has no use for Python.
+      # Node only — Stryker mutates src/{builder,release}/, and has no use for Python.
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -322,3 +330,10 @@ jobs:
         with:
           name: mutation-ts-results
           path: reports/mutation/mutation.json
+
+      # A job-level timeout skips every remaining step (this one included), so this only fires on a
+      # gate FAILURE (below-threshold kill rate, malformed report) — but that case is otherwise just
+      # as silent, so name the consequence here too. See RELEASE.md for the timeout case and recovery.
+      - name: Report a gate failure's release impact
+        if: failure()
+        run: make mutation-ts-annotate

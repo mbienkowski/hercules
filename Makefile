@@ -1,5 +1,5 @@
 .PHONY: test test-mutation test-smoke install install-py install-ts build build-check \
-        typecheck compile test-py test-ts mutation-py mutation-ts \
+        typecheck compile test-py test-ts mutation-py mutation-ts mutation-py-annotate mutation-ts-annotate \
         complexity-scan complexity-scan-ts complexity-scan-py vulnerability-scan \
         ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate \
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
@@ -65,6 +65,14 @@ mutation-py:
 mutation-ts: compile
 	npx stryker run || true
 	node .ts-out/release/bin/mutationGate.mjs
+
+# A red gate silently skips the next release (release.yml only fires on this workflow's overall
+# success), so CI names that consequence on failure rather than leaving a bare red check.
+mutation-py-annotate:
+	RUNTIME=mutation-py bash src/release/ci/annotate_mutation_failure.sh
+
+mutation-ts-annotate:
+	RUNTIME=mutation-ts bash src/release/ci/annotate_mutation_failure.sh
 
 # ── Complexity gate ───────────────────────────────────────────────────────────
 # Every first-party function stays under 15 on both cyclomatic and cognitive complexity, the same

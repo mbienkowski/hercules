@@ -25,6 +25,16 @@ The `validate` CI job re-reads the canonical list (`pyproject.toml` + `package.j
 they disagree; a separate test asserts every shipped `dist/…/plugin.json` version equals the canonical
 one — so a release can never ship a split or an un-injected (`${version}`) version.
 
+## If a release didn't happen
+
+`release.yml` only fires when CI's whole run for that commit succeeded — including `mutation-py` and
+`mutation-ts`, which run only on `main`. A red or timed-out mutation job therefore blocks the release
+silently: nothing pages you, the commit just sits unreleased. Each mutation job's last step names this
+consequence directly in the CI log on failure. Check `mutation-py`/`mutation-ts` on the missing commit
+first; a job that hit its `timeout-minutes` ceiling shows as cancelled with no gate verdict at all — the
+fix is almost always a slow mutant or an environment hiccup, not a real kill-rate regression. Re-run the
+job (or push a fix) and the next green run releases normally; nothing needs a manual unblock.
+
 ## Manual smoke checklist (release-gating, once per release)
 
 CI proves the artifacts are valid, in-sync, and regression-checked — it **cannot** prove the plugin
