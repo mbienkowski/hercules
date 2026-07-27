@@ -4,7 +4,7 @@ import { expect } from 'vitest';
 import { parseDescriptor } from '../../builder/descriptor.mjs';
 import { repoRoot } from './repo';
 
-/** Shared across every descriptor.*.spec.ts file — see builder/tests/descriptor.spec.ts's header
+/** Shared across every descriptor.*.spec.ts file — see builder/tests/descriptor/descriptor.spec.ts's header
  * comment for why the suite is split across files in the first place. */
 export const ECOSYSTEMS = join(repoRoot, 'src', 'targets');
 

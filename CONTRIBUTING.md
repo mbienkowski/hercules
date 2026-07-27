@@ -106,7 +106,7 @@ late CI failure. The procedure:
    for any registered ecosystem with no declared write-gate (or an explicit, reasoned waiver) — this
    is a deliberate security forcing-function, so a new target can't ship ungated by accident.
 5. **Add tests** under `src/builder/tests/` pinning the new target's output (see any
-   `<name>Build.spec.ts`), and a conformance block in `src/builder/tests/universalConformance.spec.ts`
+   `<name>Build.spec.ts`), and a conformance block in `src/builder/tests/guards/universalConformance.spec.ts`
    (or `conformance.spec.ts`) for any ecosystem-specific invariants.
 6. **Add a smoke-checklist section** to `RELEASE.md` for the live (non-build-provable) behaviours
    the new target requires a human to confirm before release.

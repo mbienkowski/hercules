@@ -12,6 +12,8 @@ export default defineConfig({
     // specs resolve repo paths from cwd via src/commons/support/repo.ts, which documents why every
     // supported entry point already runs from the repo root.
     root: import.meta.dirname,
+    // Build-driving specs render all six targets; 5s (the default) is a false failure under load.
+    testTimeout: 30_000,
     coverage: {
       provider: 'v8',
       include: ['src/builder/**/*.mts', 'src/release/**/*.mts', 'src/metrics/**/*.mts'],

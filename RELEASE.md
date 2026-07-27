@@ -42,7 +42,7 @@ needs a live, paid session and stays a manual, release-gating check.
 
 | # | Claude Code item | Status |
 |---|---|---|
-| 1 | Install from the marketplace | ✅ automated (`src/builder/tests/claudeCodeSmoke.spec.ts`'s "the plugin installs from a local checkout and shows up enabled") |
+| 1 | Install from the marketplace | ✅ automated (`src/builder/tests/smoke/claudeCodeSmoke.spec.ts`'s "the plugin installs from a local checkout and shows up enabled") |
 | 2 | `hercules` is the default agent, answers in character | manual |
 | 3 | `/hercules:workflow` drives Discover → Design → Build → Ship | manual |
 | 4 | Write-gate hook blocks/allows | manual |
@@ -53,7 +53,7 @@ needs a live, paid session and stays a manual, release-gating check.
 
 | # | OpenCode item | Status |
 |---|---|---|
-| 1 | `config` hook fires (agents/commands register) | ✅ automated — [issue #15](https://github.com/mbienkowski/hercules/issues/15) is fixed (the entry exports `{ id, server }`); `src/builder/tests/opencodeEntrypoint.spec.ts`'s "starts up and registers every agent and command from the roster, defaulting to hercules" loads the built `plugin.js` in a real Node process and asserts every agent/command registers |
+| 1 | `config` hook fires (agents/commands register) | ✅ automated — [issue #15](https://github.com/mbienkowski/hercules/issues/15) is fixed (the entry exports `{ id, server }`); `src/builder/tests/targets/opencodeEntrypoint.spec.ts`'s "starts up and registers every agent and command from the roster, defaulting to hercules" loads the built `plugin.js` in a real Node process and asserts every agent/command registers |
 | 2 | `plugin.js` loads with no missing-asset throw | ✅ automated — the same file's "refuses to start if a bundled asset is missing, with a clear error" drives the real loader |
 | 3 | `default_agent` is `hercules`; a subagent spawns | manual |
 | 4 | `/hercules:discover` resolves and runs | manual |
@@ -145,7 +145,7 @@ opt-in — it needs a `CURSOR_API_KEY` secret and skips without it) — confirm 
 
 | # | Cursor item | Status |
 |---|---|---|
-| 1 | Real `cursor-agent` binary runs + built plugin is structurally valid | ✅ automated (`src/builder/tests/cursorSmoke.spec.ts`'s "the real cursor-agent binary runs and the plugin is well formed", runs on every PR + main) |
+| 1 | Real `cursor-agent` binary runs + built plugin is structurally valid | ✅ automated (`src/builder/tests/smoke/cursorSmoke.spec.ts`'s "the real cursor-agent binary runs and the plugin is well formed", runs on every PR + main) |
 | 2 | Headless `cursor-agent -p` completes a run | ⚙️ keyed (`CURSOR_API_KEY`; skips on forks) |
 | 3 | Persona rule always-applies; commands appear | manual |
 | 4 | Specialist spawns as an isolated subagent | manual |

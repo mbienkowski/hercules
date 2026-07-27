@@ -18,7 +18,7 @@
   },
   "smoke": {
     "cli": "cursor-agent",
-    "test": "builder/tests/cursorSmoke.spec.ts",
+    "test": "builder/tests/smoke/cursorSmoke.spec.ts",
     "install": {
       "method": "script",
       "url": "https://cursor.com/install",

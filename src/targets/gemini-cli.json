@@ -20,7 +20,7 @@
     "npm_package": "@google/gemini-cli",
     "npm_version": "0.51.0",
     "cli": "gemini",
-    "test": "builder/tests/geminiCliSmoke.spec.ts",
+    "test": "builder/tests/smoke/geminiCliSmoke.spec.ts",
     "expect": {
       "version_cmd": [
         "gemini",

@@ -112,12 +112,12 @@ vulnerability-scan:
 # Claude Code + OpenCode with `npm install -g @anthropic-ai/claude-code opencode-ai`, and Cursor
 # with `curl https://cursor.com/install -fsSL | bash`, to run the whole set.
 test-smoke: build-check
-	npx vitest run src/builder/tests/claudeCodeSmoke.spec.ts src/builder/tests/opencodeSmoke.spec.ts src/builder/tests/cursorSmoke.spec.ts src/builder/tests/grokBuildSmoke.spec.ts src/builder/tests/geminiCliSmoke.spec.ts src/builder/tests/copilotCliSmoke.spec.ts
+	npx vitest run src/builder/tests/smoke/claudeCodeSmoke.spec.ts src/builder/tests/smoke/opencodeSmoke.spec.ts src/builder/tests/smoke/cursorSmoke.spec.ts src/builder/tests/smoke/grokBuildSmoke.spec.ts src/builder/tests/smoke/geminiCliSmoke.spec.ts src/builder/tests/smoke/copilotCliSmoke.spec.ts
 
 # ── CI entry points ──────────────────────────────────────────────────────────
 # The GitHub Actions workflows call ONLY `make <target>` — every step's logic lives here and under
 # src/release/ci/, so it is testable and runnable locally. This is enforced by
-# src/release/tests/releasePipeline.spec.ts; add a target + a script, never an inline YAML block.
+# src/release/tests/pipeline/releasePipeline.spec.ts; add a target + a script, never an inline YAML block.
 
 ci-build:
 	bash src/release/ci/build_gates.sh

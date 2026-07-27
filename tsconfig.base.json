@@ -18,7 +18,7 @@
   // real dependency problem: js-tiktoken publishes ONE `types` condition shared by its CJS and ESM
   // entries, so a CommonJS consumer cannot type-check against it at all.
   //
-  // src/release/tests/packaging.spec.ts pins the absent "type" field, paired with a positive assertion
+  // src/release/tests/packaging/packaging.spec.ts pins the absent "type" field, paired with a positive assertion
   // that the shipped plugin really does use require/__dirname, so this cannot regress silently.
   //
   // `verbatimModuleSyntax` is deliberately NOT set: it forbids the resolution-mode-inferred imports

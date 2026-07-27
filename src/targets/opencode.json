@@ -20,7 +20,7 @@
     "npm_package": "opencode-ai",
     "npm_version": "1.18.3",
     "cli": "opencode",
-    "test": "builder/tests/opencodeSmoke.spec.ts",
+    "test": "builder/tests/smoke/opencodeSmoke.spec.ts",
     "expect": {
       "version_cmd": [
         "opencode",

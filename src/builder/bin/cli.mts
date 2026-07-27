@@ -16,7 +16,7 @@
  * module-scope constants — `cli.py:35`'s `TARGETS = tuple(descriptor.names())` runs a filesystem
  * scan as a side effect of `import cli`, which the migration spec's few-shot catalogue (#5) names
  * directly as a pattern NOT to replicate. A bare `import` of this module performs ZERO fs syscalls
- * (pinned by `builder/tests/cli.spec.ts`); every scan happens inside a function call from `main()`,
+ * (pinned by `builder/tests/cli/cli.spec.ts`); every scan happens inside a function call from `main()`,
  * the composition root.
  */
 

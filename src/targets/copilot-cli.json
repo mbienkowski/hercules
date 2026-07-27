@@ -20,7 +20,7 @@
     "npm_package": "@github/copilot",
     "npm_version": "1.0.73",
     "cli": "copilot",
-    "test": "builder/tests/copilotCliSmoke.spec.ts",
+    "test": "builder/tests/smoke/copilotCliSmoke.spec.ts",
     "expect": {
       "version_cmd": [
         "copilot",

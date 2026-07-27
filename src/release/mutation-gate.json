@@ -4,7 +4,7 @@
     "(mutmut, over src/hooks/) and src/release/checkMutationGate.mts (Stryker, over src/builder/ +",
     "src/release/ + src/metrics/). Single-sourced on purpose — two runtimes each hardcoding 90/95 is",
     "exactly how the two gates drift apart, and a project that gates itself at >= 90% must not have two",
-    "answers to what 90 means. src/release/tests/mutationGate.spec.ts and src/release/tests/",
+    "answers to what 90 means. src/release/tests/pipeline/mutationGate.spec.ts and src/release/tests/",
     "test_mutation_gate.py both read this file, so a change here moves both gates or fails both suites."
   ],
   "gate": 90,

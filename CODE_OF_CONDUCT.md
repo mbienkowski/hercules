@@ -119,7 +119,7 @@ Exception: `hercules.md`, the orchestrator persona.
 - Replies follow the A2A `§ Agent-Injected Core` (`src/content/protocols/a2a-communication-protocol.md`).
 - Update the roster in **two places** — the agent list in `src/content/persona.md` and the
   `advisors[]` array in the claude-code descriptor's `settings.json` artifact
-  (`src/targets/claude-code.json`) — `src/builder/tests/rosterSync.spec.ts` reads the compiled
+  (`src/targets/claude-code.json`) — `src/builder/tests/guards/rosterSync.spec.ts` reads the compiled
   `settings.json` roster directly and fails on drift, so there is no third place to keep in sync.
 - **Instruction load is a budget.** Say whose context new content lands in — a delegate's total stays
   under ~150 directives (own file + packet + A2A core + the project CoC). Always-loaded content spends
@@ -269,7 +269,7 @@ one fails CI:
 - **CI is Makefile-driven — no inline code in workflows.** Every GitHub Actions `run:` step is a single
   `make <target>`; the logic lives in the `Makefile` and `src/release/ci/`, so it is one source of truth,
   testable, and runnable locally. A new CI step adds a `make` target + a `src/release/ci/` helper, never an
-  inline YAML heredoc or multi-line shell. Enforced by `src/release/tests/releasePipeline.spec.ts`.
+  inline YAML heredoc or multi-line shell. Enforced by `src/release/tests/pipeline/releasePipeline.spec.ts`.
 
 ---
 

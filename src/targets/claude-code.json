@@ -20,7 +20,7 @@
     "npm_package": "@anthropic-ai/claude-code",
     "npm_version": "2.1.214",
     "cli": "claude",
-    "test": "builder/tests/claudeCodeSmoke.spec.ts",
+    "test": "builder/tests/smoke/claudeCodeSmoke.spec.ts",
     "expect": {
       "version_cmd": [
         "claude",
