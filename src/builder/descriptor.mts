@@ -333,6 +333,12 @@ const RoleSchema = z.discriminatedUnion('mode', [
       if (keys.length !== 1 || keys[0] !== 'description') {
         ctx.issues.push({ code: 'custom', input: role, message: "toml_command emits exactly one field, 'description'" });
       }
+      // `flag_if_name_in` omits its key entirely when the name doesn't match — for the mandatory
+      // single `description` that means it renders literally as `description = "undefined"`. Its
+      // one value must come from a generator that always emits.
+      if (role.fields.some((f) => f.source === 'flag_if_name_in')) {
+        ctx.issues.push({ code: 'custom', input: role, message: "toml_command's 'description' must use a generator that always emits (not flag_if_name_in)" });
+      }
     }
   });
 

@@ -199,6 +199,17 @@ describe('roleEntries', () => {
     expect(entries.length).toBeGreaterThan(0); // files are still enumerated
     expect([...(entries[0]?.fields.keys() ?? ['not empty'])]).toEqual([]); // but no fields computed
   });
+
+  it('throws a role-naming error for a role with no source subdirectory, not a bare TypeError', () => {
+    // The schema admits role names (persona/default) that ROLE_SUBDIRS does not map to a directory.
+    // Reaching roleEntries with one is a descriptor bug; it must fail naming the role, not crash in
+    // join() with an unhelpful "path must be a string" TypeError.
+    const opencode = DESCRIPTORS['opencode'];
+    if (opencode === undefined) throw new Error('opencode descriptor missing');
+    expect(() =>
+      roleEntries(opencode, SRC_CONTENT, new Map(Object.entries(opencode.vars)), 'persona'),
+    ).toThrow(/role 'persona' has no source subdirectory/);
+  });
 });
 
 describe('emitExtras', () => {

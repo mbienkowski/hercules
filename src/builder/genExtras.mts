@@ -177,7 +177,14 @@ export function roleEntries(
   tokens: ReadonlyMap<string, string>,
   role: string,
 ): RoleEntry[] {
-  const dir = join(srcContent, ROLE_SUBDIRS[role] as string);
+  const subdir = ROLE_SUBDIRS[role];
+  if (subdir === undefined) {
+    // The descriptor schema admits role names (e.g. `persona`, `default`) that have no source
+    // subdirectory to walk. Reaching here with one is a descriptor bug — fail with the offending
+    // role named, not a downstream `join(dir, undefined)` TypeError that hides which role broke.
+    throw new Error(`roleEntries: role '${role}' has no source subdirectory (only ${Object.keys(ROLE_SUBDIRS).join('/')} are supported)`);
+  }
+  const dir = join(srcContent, subdir);
   const out: RoleEntry[] = [];
   const names = readdirSync(dir).filter((n) => n.endsWith('.md')).sort(compareCodePoints);
   for (const name of names) {

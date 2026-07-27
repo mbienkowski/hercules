@@ -23,6 +23,7 @@
 import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { discover, TARGETS_DIR, names } from '../descriptor.mjs';
 import { readSource, write } from '../emit.mjs';
@@ -213,7 +214,9 @@ export function main(argv: readonly string[], distRoot: string = DIST): number {
 }
 
 // Only run when invoked directly (`node cli.mjs ...`), not when imported by a test — matching
-// Python's `if __name__ == "__main__":` guard.
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Python's `if __name__ == "__main__":` guard. `pathToFileURL` percent-encodes spaces and
+// non-ASCII exactly the way `import.meta.url` already does, so a checkout under e.g. `My Work/`
+// still matches — a raw `file://${argv[1]}` would not, silently turning `make build` into a no-op.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   process.exitCode = main(process.argv.slice(2));
 }

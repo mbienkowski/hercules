@@ -66,6 +66,22 @@ describe('loadThresholds: load-time validation errors', () => {
     expect(() => loadThresholds(file)).toThrow('["<","<=","==",">",">="]');
   });
 
+  it('a missing or empty name raises a clear error rather than surfacing as \'undefined\' downstream', () => {
+    const root = tmpWorkspace();
+    const file = writeThresholds(root, [
+      { target: 'x.md', metric: 'token_count', op: '<=', limit: 100, severity: 'gate' },
+    ]);
+    expect(() => loadThresholds(file)).toThrow(/missing or empty 'name'/);
+  });
+
+  it('a non-numeric limit is rejected loudly instead of string-coercing in the comparison', () => {
+    const root = tmpWorkspace();
+    const file = writeThresholds(root, [
+      { name: 'string-limit', target: 'x.md', metric: 'token_count', op: '<=', limit: '100', severity: 'gate' },
+    ]);
+    expect(() => loadThresholds(file)).toThrow(/'limit' must be a finite number/);
+  });
+
   it('skips the warn_at-vs-limit check entirely when warn_at is not provided, even for a negative limit', () => {
     // If the omitted-check guard were dropped, a negative limit would make `warnAt > limit` (with
     // warnAt coerced from null to 0) spuriously true, and this would throw instead of loading clean.

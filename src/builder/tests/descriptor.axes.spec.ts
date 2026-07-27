@@ -168,6 +168,20 @@ describe('one rejection per closed-vocabulary axis, with a message naming the al
     );
   });
 
+  it("toml_command rejects a 'description' sourced from flag_if_name_in (it may omit its key)", () => {
+    // A conditional generator leaves the mandatory single `description` unset when the name
+    // doesn't match, which renders as `description = "undefined"`. The check forbids it up front.
+    const raw = minimal();
+    (raw['roles'] as Record<string, unknown>)['command'] = {
+      mode: 'toml_command',
+      fields: [{ key: 'description', from: 'flag_if_name_in', value: 'x', names: ['a'] }],
+    };
+    expectMessage(
+      () => raw,
+      "ecosystem descriptor \"eco\": roles.command: toml_command's 'description' must use a generator that always emits (not flag_if_name_in)",
+    );
+  });
+
   it('an unknown route kind names itself and a known one', () => {
     expectMessage(
       () => minimal({ routes: [{ kind: 'regex', pattern: '.*' }] }),

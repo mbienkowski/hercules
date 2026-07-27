@@ -131,7 +131,9 @@ describe('summed mode', () => {
   it('an unrecognized comparison operator produces a clearly labeled error (summed mode)', () => {
     const root = tmpWorkspace();
     writeFileSync(join(root, 'a.md'), 'x');
-    const bad = check({ name: 'bad', target: 'a.md', metric: 'token_count', op: '??', limit: 1 });
+    // The `as` cast deliberately forges a check that could only exist if it bypassed loadThresholds —
+    // proving the evaluate-time net still throws, not just the load-time validation.
+    const bad = check({ name: 'bad', target: 'a.md', metric: 'token_count', op: '??' as ThresholdCheck['op'], limit: 1 });
     expect(() => runThresholdChecks(root, [bad])).toThrow(/^check/);
   });
 
@@ -226,7 +228,7 @@ describe('per-file mode', () => {
   it('an unrecognized comparison operator produces a clearly labeled error (per-file mode)', () => {
     const root = tmpWorkspace();
     writeFileSync(join(root, 'a.md'), 'x');
-    const badPf = check({ name: 'badpf', target: 'a.md', metric: 'token_count', op: '??', limit: 1, perFile: true });
+    const badPf = check({ name: 'badpf', target: 'a.md', metric: 'token_count', op: '??' as ThresholdCheck['op'], limit: 1, perFile: true });
     expect(() => runThresholdChecks(root, [badPf])).toThrow(/^check/);
   });
 

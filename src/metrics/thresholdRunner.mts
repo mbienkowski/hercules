@@ -9,8 +9,13 @@ import { countTokens } from './tokenCounter.mjs';
 
 type MetricFn = (text: string) => number;
 
-const VALID_SEVERITIES = new Set(['gate', 'warn']);
-const VALID_OPS = new Set(['==', '<=', '>=', '<', '>']);
+// The closed vocabularies live as `as const` tuples so their literal unions (Op, Severity) are the
+// single source of truth for the runtime checks below AND the ThresholdCheck field types — a value
+// outside the set becomes a type error at every consumer, not just a silent string.
+const OPS = ['==', '<=', '>=', '<', '>'] as const;
+type Op = (typeof OPS)[number];
+const SEVERITIES = ['gate', 'warn'] as const;
+type Severity = (typeof SEVERITIES)[number];
 
 // A pattern is treated as a glob (expanded via globSync) rather than a literal path when it contains
 // any glob metacharacter: `*`, `?`, or `[`. (The `[` inside the class is a literal class member.)
@@ -30,20 +35,21 @@ function coreEntryCount(text: string): number {
   return countCoreEntries(extractA2aCore(text).text);
 }
 
-const METRIC_REGISTRY: Readonly<Record<string, MetricFn>> = {
+const METRIC_REGISTRY = {
   instruction_count: countAtomicInstructions,
   token_count: countTokens,
   core_entry_count: coreEntryCount,
   core_token_count: coreTokenCount,
-};
+} as const satisfies Record<string, MetricFn>;
+type MetricName = keyof typeof METRIC_REGISTRY;
 
 export interface ThresholdCheck {
   readonly name: string;
   readonly target: string;
-  readonly metric: string;
-  readonly op: string;
+  readonly metric: MetricName;
+  readonly op: Op;
   readonly limit: number;
-  readonly severity: string;
+  readonly severity: Severity;
   readonly warnAt: number | null;
   readonly perFile: boolean;
 }
@@ -73,23 +79,33 @@ export function loadThresholds(path: string): ThresholdCheck[] {
   const raw = JSON.parse(readFileSync(path, 'utf-8')) as RawRow[];
   const checks: ThresholdCheck[] = [];
   for (const row of raw) {
-    const { name, metric } = row;
-    if (!Object.hasOwn(METRIC_REGISTRY, metric)) {
+    const { name } = row;
+    if (typeof name !== 'string' || name === '') {
+      throw new Error(`thresholds.json: a row has a missing or empty 'name' (got ${JSON.stringify(name)})`);
+    }
+    // `.find` over the `as const` tuples narrows to the literal union (Op / Severity / MetricName)
+    // without a cast — a bad value comes back `undefined` and throws loudly, so nothing string-typed
+    // ever leaks into a ThresholdCheck.
+    const metric = (Object.keys(METRIC_REGISTRY) as MetricName[]).find((m) => m === row.metric);
+    if (metric === undefined) {
       throw new Error(
-        `thresholds.json row '${name}': unknown metric '${metric}' ` +
+        `thresholds.json row '${name}': unknown metric '${row.metric}' ` +
           `(known: ${JSON.stringify([...Object.keys(METRIC_REGISTRY)].sort())})`,
       );
     }
-    const severity = row.severity ?? 'gate';
-    if (!VALID_SEVERITIES.has(severity)) {
-      throw new Error(`thresholds.json row '${name}': unknown severity '${severity}' (must be 'gate' or 'warn')`);
+    const severity = SEVERITIES.find((s) => s === (row.severity ?? 'gate'));
+    if (severity === undefined) {
+      throw new Error(`thresholds.json row '${name}': unknown severity '${row.severity}' (must be 'gate' or 'warn')`);
     }
-    const { op } = row;
-    if (!VALID_OPS.has(op)) {
-      throw new Error(`thresholds.json row '${name}': unknown op '${op}' (must be one of ${JSON.stringify([...VALID_OPS].sort())})`);
+    const op = OPS.find((o) => o === row.op);
+    if (op === undefined) {
+      throw new Error(`thresholds.json row '${name}': unknown op '${row.op}' (must be one of ${JSON.stringify([...OPS].sort())})`);
+    }
+    const { limit } = row;
+    if (typeof limit !== 'number' || !Number.isFinite(limit)) {
+      throw new Error(`thresholds.json row '${name}': 'limit' must be a finite number, got ${JSON.stringify(limit)}`);
     }
     const warnAt = row.warn_at ?? null;
-    const { limit } = row;
     if (warnAt !== null && warnAt > limit) {
       throw new Error(`thresholds.json row '${name}': warn_at (${warnAt}) > limit (${limit})`);
     }
@@ -185,7 +201,7 @@ export function runThresholdChecks(repoRoot: string, checks: readonly ThresholdC
       continue;
     }
 
-    const fn = METRIC_REGISTRY[check.metric] as MetricFn;
+    const fn = METRIC_REGISTRY[check.metric];
     const { passed, reported, msg } = check.perFile
       ? evaluatePerFile(check, targets, repoRoot, fn)
       : evaluateSummed(check, targets, fn);
