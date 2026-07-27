@@ -11,62 +11,13 @@ on:
     types: [completed]
     branches: [main]
 
-# Least-privilege by default: only the `release` job raises to contents:write, and `prepare` never
-# sees a credential beyond the implicit read-only GITHUB_TOKEN.
 permissions:
-  contents: read
+  contents: write
 
 concurrency: release
 
 jobs:
-  # ── Compile the TypeScript toolchain, unprivileged (no contents:write, no NPM_TOKEN) ──────────
-  # `npm ci` must never run in a job holding a push-capable or publish credential: a malicious
-  # dependency's install-time code would inherit it. So the install and compile happen here under a
-  # read-only checkout, and `release` consumes the compiled output as a build artifact instead.
-  prepare:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      !startsWith(github.event.workflow_run.head_commit.message, 'chore(release):')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          # Pinned to the exact commit CI validated; a workflow_run checkout otherwise resolves to
-          # main's current tip, which would compile the wrong tree.
-          ref: ${{ github.event.workflow_run.head_sha }}
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: "package-lock.json"
-
-      - name: Install the TypeScript toolchain
-        run: make install-ts
-
-      - name: Compile the TypeScript toolchain
-        run: make compile
-
-      # node_modules travels WITH .ts-out: `tsc` transforms syntax without bundling, so the emitted
-      # .mjs files still import their real npm packages (zod, via descriptor.mjs) at runtime. This
-      # relocates the tree `prepare` resolved from the reviewed package-lock.json — the privileged
-      # job still makes no fresh `npm ci` or network fetch of its own.
-      - uses: actions/upload-artifact@v7
-        with:
-          name: ts-out
-          path: |
-            .ts-out
-            node_modules
-          # .ts-out is dot-prefixed, and upload-artifact silently drops hidden files/dirs by
-          # default — without this the compiled output never makes it into the artifact.
-          include-hidden-files: true
-          retention-days: 1
-
   release:
-    needs: [prepare]
-    permissions:
-      contents: write
     # Run only when CI passed; also skip the workflow's own release bump commit.
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
@@ -86,16 +37,17 @@ jobs:
           WANT_SHA: ${{ github.event.workflow_run.head_sha }}
         run: make release-verify
 
-      # No setup-python: every step below is TypeScript. setVersion.mjs, updateChangelog.mjs and the
-      # compiler all run from `prepare`'s downloaded artifact, so this job never runs `npm ci`.
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
 
-      - uses: actions/download-artifact@v7
-        with:
-          name: ts-out
-          path: .
+      - name: Install the TypeScript toolchain
+        run: make install-ts
+
+      - name: Compile the TypeScript toolchain
+        run: make compile
 
       # 1-pre. Detect a first release (no v* tags yet) and capture the previous tag, so git log can
       #        scope the commit range.
