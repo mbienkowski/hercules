@@ -58,6 +58,9 @@ jobs:
           path: |
             .ts-out
             node_modules
+          # .ts-out is dot-prefixed, and upload-artifact silently drops hidden files/dirs by
+          # default — without this the compiled output never makes it into the artifact.
+          include-hidden-files: true
           retention-days: 1
 
   release:
