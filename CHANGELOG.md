@@ -1,3 +1,9 @@
+## v1.11.0 (2026-07-27)
+
+* fix(release): rebuild the toolchain in-job instead of a fragile artifact hand-off (#30)
+* feat(tooling): moving to typescript for build tooling (#27)
+* feat(ecosystem): Introducing multiple ecosystems that are 100% compatible with Hercules (#23)
+
 ## v1.10.0 (2026-07-21)
 
 * feat: add Cursor as a third distribution + harden the write-gate on every ecosystem (#21)
