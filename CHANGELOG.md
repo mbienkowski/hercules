@@ -1,3 +1,7 @@
+## v1.12.0 (2026-07-27)
+
+* chore(ci): Ci name unification (#32)
+
 ## v1.11.0 (2026-07-27)
 
 * fix(release): rebuild the toolchain in-job instead of a fragile artifact hand-off (#30)
