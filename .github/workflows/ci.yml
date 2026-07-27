@@ -200,13 +200,14 @@ jobs:
           path: smoke-results-${{ matrix.target }}.txt
 
   # ── Static quality gates — every commit, parallel with test/validate/smoke ────
-  # Both `needs: [build]` only, so they sit in the same tier as the correctness jobs. Each job id,
-  # display name and make target is the same string, so a red check reproduces by copy-paste.
+  # Both `needs: [build]` only, so they sit in the same tier as the correctness jobs. Each job id
+  # and make target is the same string; the display name below is a readable label instead, so a
+  # red check reproduces via the id shown in the job's own `run:`/`make` line, not the check title.
 
   # Cyclomatic + cognitive complexity <= 15, both runtimes — the same ceiling governs ESLint
   # (the TypeScript domains) and flake8 (the Python hooks). See CODE_OF_CONDUCT.md § Complexity.
   complexity-scan:
-    name: complexity-scan
+    name: Complexity scan
     needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -235,7 +236,7 @@ jobs:
   # Fail on any high or critical dependency CVE. npm carries the whole dependency surface: the shipped
   # plugin is zero-runtime-dep and the Python hooks are stdlib-only. See CODE_OF_CONDUCT.md § Dependencies.
   vulnerability-scan:
-    name: vulnerability-scan
+    name: Vulnerability scan
     needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -260,9 +261,10 @@ jobs:
   # tier. One job per runtime — mutmut over the Python island, Stryker over the TypeScript toolchain —
   # so the two mutate concurrently, and both gate release.yml. Their `if:` carries no status-check
   # function, so GitHub keeps the implicit needs-success requirement and the `if:` adds only the
-  # main-push restriction. Job id, display name and make target are the same string in each.
+  # main-push restriction. Job id and make target are the same string in each; the display name
+  # is now a readable label instead (see the `name:` fields below).
   mutation-py:
-    name: mutation-py
+    name: Hooks mutation tests
     needs: [test, validate, smoke, complexity-scan, vulnerability-scan]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -299,7 +301,7 @@ jobs:
         run: make mutation-py-annotate
 
   mutation-ts:
-    name: mutation-ts
+    name: Plugin builder mutation tests
     needs: [test, validate, smoke, complexity-scan, vulnerability-scan]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest

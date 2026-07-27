@@ -130,10 +130,15 @@ describe('the CI job graph', () => {
     },
   );
 
-  it("the mutation job id, display name, and make target are the same string (mutation-py / mutation-ts)", () => {
-    // A red check can be reproduced by copying its name straight into a terminal (few-shot rule #12).
+  it("the mutation job id and make target are the same string (mutation-py / mutation-ts); the display name is a separate readable label", () => {
+    // The id (used by `needs:` and `make`) still reproduces a red check via `make {id}`; the display
+    // name in the GitHub UI is a human-readable label instead of the raw id (see ci-check-name-unification).
+    const readableName: Record<string, string> = {
+      'mutation-py': 'Hooks mutation tests',
+      'mutation-ts': 'Plugin builder mutation tests',
+    };
     for (const jobName of ['mutation-py', 'mutation-ts']) {
-      expect(CI_JOBS[jobName]?.['name']).toBe(jobName);
+      expect(CI_JOBS[jobName]?.['name']).toBe(readableName[jobName]);
       const runSteps = (CI_JOBS[jobName]?.steps ?? []).map((s) => s.run).filter(Boolean) as string[];
       expect(runSteps.some((run) => run.trim() === `make ${jobName}`)).toBe(true);
     }
@@ -157,9 +162,13 @@ describe('the CI job graph', () => {
   );
 
   it.each(['complexity-scan', 'vulnerability-scan'])(
-    "'%s' job id, display name, and make target are the same string",
+    "'%s' job id and make target are the same string; the display name is a separate readable label",
     (jobName) => {
-      expect(CI_JOBS[jobName]?.['name']).toBe(jobName);
+      const readableName: Record<string, string> = {
+        'complexity-scan': 'Complexity scan',
+        'vulnerability-scan': 'Vulnerability scan',
+      };
+      expect(CI_JOBS[jobName]?.['name']).toBe(readableName[jobName]);
       const runSteps = (CI_JOBS[jobName]?.steps ?? []).map((s) => s.run).filter(Boolean) as string[];
       expect(runSteps.some((run) => run.trim() === `make ${jobName}`)).toBe(true);
     },
