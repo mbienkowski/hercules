@@ -317,10 +317,28 @@ one per runtime, each provisioning only the toolchain it needs. The `-py`/`-ts` 
 string in the make target, the CI job id, and the CI display name — a red check can be reproduced by
 copying its name straight into a terminal.
 
-Hercules holds itself to the bar it enforces on its users: **>= 90% branch coverage** and a **>= 90%
-mutation kill rate**, gated in CI on every PR, for **each** runtime independently — a strong
-TypeScript suite does not excuse a weak Python one, or vice versa.
+Hercules holds itself to the bar it enforces on its users: **>= 90% branch coverage**, gated on every
+PR, and a **>= 90% mutation kill rate**, gated on every push to `main` (every merge ships a release —
+see RELEASE.md — so mutation gates the release, not the PR), for **each** runtime independently — a
+strong TypeScript suite does not excuse a weak Python one, or vice versa. A red or timed-out mutation
+job silently skips the next release; see RELEASE.md § If a release didn't happen.
 
+- **Mutate the engine, never the output.** Stryker's `mutate` globs cover `src/builder/` and
+  `src/release/` only — never `dist/` (generated; proven by the drift + determinism gate, not
+  mutation) and never `src/metrics/` (a measuring tool, not shipped logic — you don't mutate your own
+  ruler). A correct, mutation-hardened engine given fixed input still only proves the *transform*; a
+  wrong fact in `src/content/` or `src/targets/*.json` ships byte-perfect through it regardless, which
+  is why `src/content/tests/` and each descriptor's own schema validation exist as separate gates.
+  `src/hooks/` is copied, not computed, so the "prove the engine, trust the output" argument does not
+  cover it at all — its own logic is mutated in place by `mutmut`, independent of the builder.
+- **One synthetic contract, six real conformance suites.** `src/builder/tests/targets/
+  syntheticEcosystem.spec.ts` hand-composes a descriptor exercising every role mode, field source,
+  route kind, artifact form, gate protocol, and template value kind the schema allows — it proves the
+  ENGINE handles the full vocabulary, independent of any one ecosystem. `src/builder/tests/guards/
+  universalConformance.spec.ts` then proves each of the six REAL descriptors' own declared choices
+  render correctly. A per-target spec (`src/builder/tests/targets/`) exists only for a fact neither of
+  those can know — a host-specific rendering contract (Gemini's TOML escaping, OpenCode's `plugin.js`
+  entrypoint shape) — never a restatement of something the generic suite already proves for every target.
 - **A surviving mutant is a verdict** — a missing test (write it) or a better behaviour than the code
   (adopt it). Never a `# pragma: no mutate` to silence it; that pragma is allowed only on static strings
   whose mutants are all behaviourally equivalent, never on a branch, comparison, or return value.
