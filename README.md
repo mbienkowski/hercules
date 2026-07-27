@@ -1,5 +1,16 @@
 # Hercules
 
+[![CI](https://img.shields.io/github/actions/workflow/status/mbienkowski/hercules/ci.yml?branch=main&style=flat-square)](https://github.com/mbienkowski/hercules/actions/workflows/ci.yml)
+[![Latest Release](https://img.shields.io/github/v/release/mbienkowski/hercules?style=flat-square)](https://github.com/mbienkowski/hercules/releases)
+[![License: AGPL-3.0](https://img.shields.io/github/license/mbienkowski/hercules?style=flat-square)](https://github.com/mbienkowski/hercules/blob/main/LICENSE)
+
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-supported-blue?style=flat-square)](#install-claude-code)
+[![OpenCode](https://img.shields.io/badge/OpenCode-supported-blue?style=flat-square)](#install-opencode)
+[![Cursor](https://img.shields.io/badge/Cursor-supported-blue?style=flat-square)](#install-cursor)
+[![Grok Build](https://img.shields.io/badge/Grok%20Build-supported-blue?style=flat-square)](#install-grok-build)
+[![Gemini CLI](https://img.shields.io/badge/Gemini%20CLI-supported-blue?style=flat-square)](#install-gemini-cli)
+[![GitHub Copilot CLI](https://img.shields.io/badge/GitHub%20Copilot%20CLI-supported-blue?style=flat-square)](#install-github-copilot-cli)
+
 Half god, half man — strong enough to wrestle a lion, patient enough to sit through your kickoff meeting.
 
 **Hercules is a universal, spec-first delivery plugin** — install it natively in your AI coding tool — that enforces **Discover → Design → Build → Ship** so what you're building ships fast and reliably, without the rework.
@@ -35,7 +46,7 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
 
 Hercules installs natively in each supported ecosystem — **pick yours**.
 
-<details>
+<details id="install-claude-code">
 <summary><b>Claude Code</b></summary>
 
 - **Requires** [Claude Code](https://code.claude.com) — Hercules runs inside it. No extra packages; the enforcement hooks use your system `python3` (see Requirements).
@@ -73,7 +84,7 @@ local) so everyone gets Hercules on clone:
 
 </details>
 
-<details>
+<details id="install-opencode">
 <summary><b>OpenCode</b></summary>
 
 - **Requires** [OpenCode](https://opencode.ai).
@@ -104,7 +115,7 @@ Also published to npm as `hercules` (on release, when an `NPM_TOKEN` is configur
 
 </details>
 
-<details>
+<details id="install-cursor">
 <summary><b>Cursor</b></summary>
 
 - **Requires** [Cursor](https://cursor.com) **≥ 2.5** (added plugin packaging; the isolated advisor subagents landed in 2.4).
@@ -125,7 +136,7 @@ Gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
 
 </details>
 
-<details>
+<details id="install-grok-build">
 <summary><b>Grok Build</b></summary>
 
 - **Requires** [Grok Build](https://x.ai/cli) — `npm install -g @xai-official/grok` (reads Claude-format plugins natively).
@@ -135,7 +146,7 @@ Gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
 
 </details>
 
-<details>
+<details id="install-gemini-cli">
 <summary><b>Gemini CLI</b></summary>
 
 - **Requires** [Gemini CLI](https://github.com/google-gemini/gemini-cli) — `npm install -g @google/gemini-cli`.
@@ -145,7 +156,7 @@ Gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
 
 </details>
 
-<details>
+<details id="install-github-copilot-cli">
 <summary><b>GitHub Copilot CLI</b></summary>
 
 - **Requires** [GitHub Copilot CLI](https://github.com/github/copilot-cli) — `npm install -g @github/copilot`.
