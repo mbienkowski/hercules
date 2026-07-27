@@ -1,6 +1,8 @@
-# Normalise every text file to LF in the repository. The build compiler parses markdown with native
-# LF line handling (src/builder/parse.mts uses String.split('\n')/trim() rather than reproducing
-# Python's full splitlines() boundary set), so LF-only sources are a guaranteed invariant here, not a
-# convention — a CRLF file can never enter and silently change how frontmatter is parsed. Binary
-# files are auto-detected and left untouched.
+# LF everywhere: the compiler parses markdown with native LF handling, so a CRLF file could
+# silently change how frontmatter is read. Binary files are auto-detected and left alone.
 * text=auto eol=lf
+
+# Generated, not authored — collapsed in review by default (still expandable, still diffed).
+# dist/ is the compiled plugin output, gated for drift by `make ci-build`; the lockfile is npm's.
+dist/** linguist-generated=true
+package-lock.json linguist-generated=true
