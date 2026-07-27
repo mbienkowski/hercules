@@ -7,8 +7,7 @@ import { loadThresholds, resolveTargets } from '../../thresholdRunner.mjs';
 import { repoRoot } from '../../../commons/support/repo';
 import { tmpWorkspace } from '../support';
 
-// Ported from tests/metrics/test_threshold_targets.py — resolveTargets: glob, comma-separated,
-// dedup, plain-path.
+// resolveTargets: glob expansion, comma-separated lists, dedup, and plain literal paths.
 
 describe('resolveTargets', () => {
   it('treats a comma-separated list of files as multiple targets', () => {

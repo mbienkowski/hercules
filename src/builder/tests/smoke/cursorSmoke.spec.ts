@@ -8,16 +8,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { buildTarget } from '../../bin/cli.mjs';
 import { which } from '../../../commons/support/which';
 
-// Ported from tests/build/test_cursor_smoke.py — a live Cursor CLI smoke check: does the real
-// `cursor-agent` binary run, and is the built plugin tree structurally loadable?
-//
-// Cursor has no auth-free introspection equivalent to `opencode agent list` (only `--version`
-// runs without a paid key), so the ALWAYS-ON check is deliberately structural: prove the real
-// binary executes (not a stub) and re-validate the built `dist/cursor` plugin against the
-// official component contract (kebab manifest name, per-type frontmatter, `.mdc` rules, the
-// reviewer subagent). The genuinely live end-to-end run (a headless `cursor-agent -p` prompt)
-// needs `CURSOR_API_KEY` and is therefore opt-in — it SKIPs (never fails) on forks and unkeyed
-// runs so the fork-safe gate stays green.
+// Live Cursor CLI smoke check. Cursor has no auth-free introspection beyond `--version`, so the
+// always-on check is structural: the real `cursor-agent` binary executes and the built
+// `dist/cursor` tree satisfies the component contract. The headless run needs `CURSOR_API_KEY`.
 
 const TIMEOUT_MS = 60_000;
 
@@ -47,9 +40,8 @@ function tmpDir(): string {
 
 describe.skipIf(which('cursor-agent') === null)('cursor live-CLI smoke', () => {
   it('the real cursor-agent binary runs and the plugin is well formed', () => {
-    // The real `cursor-agent --version` must exit 0 (a stub-on-PATH would not), and the freshly
-    // built plugin must satisfy the official component contract — the load-bearing, auth-free
-    // guard, since a malformed rule/agent loads as absent on Cursor with no error.
+    // `cursor-agent --version` must exit 0 (a stub-on-PATH would not), and the built plugin must
+    // satisfy the component contract — a malformed rule or agent loads as absent, with no error.
     const env = isolatedHomeEnv();
     const res = spawnSync('cursor-agent', ['--version'], { encoding: 'utf-8', timeout: TIMEOUT_MS, env });
     expect(res.status, `cursor-agent --version failed: ${res.stdout}\n${res.stderr}`).toBe(0);
@@ -89,9 +81,8 @@ describe.skipIf(which('cursor-agent') === null)('cursor live-CLI smoke', () => {
   it.skipIf(!process.env['CURSOR_API_KEY'])(
     'the real cursor-agent runs a headless prompt',
     () => {
-      // With a key present, the real binary must complete one trivial headless prompt
-      // end-to-end — proving auth + the CLI drive a run (the deterministic-independent-review
-      // path uses this same `cursor-agent -p` mode). Non-required and main-only; skips on forks.
+      // With a key present, the real binary must complete one trivial headless prompt end-to-end —
+      // the same `cursor-agent -p` mode the deterministic-independent-review path uses.
       const env = isolatedHomeEnv();
       const res = spawnSync(
         'cursor-agent',

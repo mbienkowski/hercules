@@ -11,11 +11,8 @@ import { emitExtras, GenExtrasError, jsObjectLiteral, jsString, roleEntries } fr
 import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
 import { repoRoot } from '../../../commons/support/repo';
 
-// Ported from tests/build/test_manifests.py plus new coverage for emitExtras' own branches
-// (artifacts/siblings/guard/gate) that the thin Python file leaves to test_target_registry.py /
-// test_opencode_commands.py / test_opencode_mirror.py — those three depend on cli.build_target,
-// which isn't ported until commit 8, so their TS equivalents land there too. This file tests
-// genExtras.mts's own exported surface directly, against the real shipped descriptors.
+// Tests genExtras.mts's own exported surface — including emitExtras' artifacts/siblings/guard/gate
+// branches — directly, against the real shipped descriptors.
 
 const DESCRIPTORS = discover(ECOSYSTEMS);
 const SRC_CONTENT = join(repoRoot, 'src', 'content');
@@ -58,8 +55,7 @@ describe('jsObjectLiteral', () => {
 
   it('accepts a plain object the same way it accepts a Map', () => {
     // The real caller (templateValue's role_entries_js branch) always builds a Map, for insertion
-    // order; this branch exists for API parity with the Python original (a plain dict) and this
-    // test — not a real call site with an integer-like key, see the function's own comment.
+    // order; the plain-object branch exists for API parity and is reached only from this test.
     expect(jsObjectLiteral({ ok_key: 1, 'needs:quote': 2 })).toContain('"needs:quote": 2,');
   });
 
@@ -79,14 +75,11 @@ describe('jsObjectLiteral', () => {
     expect(out).toContain('\n      },\n');
   });
 
-  it('a plain object with an integer-like key diverges from Python — V8 reorders it first (documented, not parity-fixtured)', () => {
-    // Verified directly against the real Python engine (python3 -m scripts.ci.parity_run):
-    // js_object_literal({"b": 1, "1": "one", "a": 2, "0": "zero"}) there renders key order
-    // b, 1, a, 0 (dict.items() preserves insertion order) — genuinely different from V8's below.
-    // This is why the case is NOT a tests/testdata/parity/ fixture: make parity requires
-    // byte-identical output across engines, and this input never produces that. See this file's
-    // top-of-file comment for the full divergence writeup and why it's latent for every real caller
-    // (the Map branch, used by every actual template value, is unaffected).
+  it('a plain object with an integer-like key is reordered first by V8', () => {
+    // V8 hoists integer-like keys ahead of the rest, so this input can never render byte-identically
+    // across engines — which is why it is pinned here rather than as a tests/testdata/parity/
+    // fixture (those require byte-identical output). Latent for every real caller: the Map branch,
+    // used by every actual template value, is unaffected.
     const obj = { b: 1, '1': 'one', a: 2, '0': 'zero' };
     const out = jsObjectLiteral(obj);
     const keyOrder = [...out.matchAll(/"?([\w:]+)"?: /g)].map((m) => m[1]);
@@ -95,18 +88,16 @@ describe('jsObjectLiteral', () => {
 
   it('separates multiple entries with a real newline, not a bare concatenation', () => {
     // Content alone doesn't distinguish items.join('\n') from items.join('') UNLESS there are at
-    // least two entries and the assertion checks for the newline explicitly — a single-entry
-    // rendering (as in the tests above) can't tell the two apart.
+    // least two entries and the assertion checks for the newline explicitly.
     const out = jsObjectLiteral(new Map([['a', '1'], ['b', '2']]));
     expect(out).toContain('"1",\n');
     expect(out.split('\n')).toHaveLength(4); // "{", "  a: ...,", "  b: ...,", "}"
   });
 
   it('indents a nested map one level deeper inside an array element, not shallower', () => {
-    // Distinguishes indent + 2 from indent - 2 in the array branch's recursive call: at the
-    // (arbitrary, non-default) starting indent used here, decrementing would still produce valid
-    // (non-negative) spacing, so only an exact space count — not merely "did it throw" — proves
-    // which direction indent actually moved.
+    // Distinguishes indent + 2 from indent - 2 in the array branch's recursive call: at this
+    // non-default starting indent, decrementing still yields valid (non-negative) spacing, so only
+    // an exact space count proves which direction indent moved.
     const out = jsObjectLiteral([new Map([['k', 'v']])], 4);
     // Outer array item is rendered at indent 4+2=6; its own nested entry line is prefixed with
     // that nested "spaces" (6) plus the literal "  " the entry-line template always adds = 8.
@@ -124,8 +115,7 @@ describe('jsObjectLiteral', () => {
 
 describe('the opencode.json artifact', () => {
   it('has the required top-level fields', () => {
-    // Plain descriptor DATA now (an inline artifact) — pinned here reader-side, same as Python's
-    // test_opencode_config_artifact_has_the_required_top_level_fields.
+    // The config is plain descriptor data (an inline artifact); this pins it reader-side.
     const opencode = DESCRIPTORS['opencode'];
     const artifact = opencode?.artifacts.find((a) => a.dest === 'opencode.json');
     const cfg = artifact?.content as Record<string, unknown>;
@@ -185,10 +175,9 @@ describe('roleEntries', () => {
   });
 
   it('does not crash when a role has no field spec at all, falling back to no computed fields', () => {
-    // Every real descriptor defines every role roleEntries is ever called with — this can only be
-    // reached by constructing a descriptor that deliberately omits one. Proves the `?.` on
-    // `descriptor.roles[role]` is load-bearing: without it, reading `.fields` off the missing
-    // roleSpec would throw instead of falling back.
+    // Every real descriptor defines every role roleEntries is called with, so only a descriptor that
+    // deliberately omits one reaches this. Proves the `?.` on `descriptor.roles[role]` is
+    // load-bearing: without it, reading `.fields` off the missing roleSpec throws.
     const opencode = DESCRIPTORS['opencode'];
     if (opencode === undefined) throw new Error('opencode descriptor missing');
     const withNoRoles: EcosystemDescriptor = { ...opencode, roles: {} };
@@ -201,9 +190,8 @@ describe('roleEntries', () => {
   });
 
   it('throws a role-naming error for a role with no source subdirectory, not a bare TypeError', () => {
-    // The schema admits role names (persona/default) that ROLE_SUBDIRS does not map to a directory.
-    // Reaching roleEntries with one is a descriptor bug; it must fail naming the role, not crash in
-    // join() with an unhelpful "path must be a string" TypeError.
+    // The schema admits role names (persona/default) that ROLE_SUBDIRS does not map to a directory;
+    // reaching roleEntries with one must fail naming the role, not crash in join() with a TypeError.
     const opencode = DESCRIPTORS['opencode'];
     if (opencode === undefined) throw new Error('opencode descriptor missing');
     expect(() =>
@@ -319,10 +307,9 @@ describe('emitExtras', () => {
   });
 
   it('falls back to no key prefix when a template value leaves it unset (null), not a filler string', () => {
-    // Every real descriptor's role_entries_js key_prefix is either "" or "hercules:" — a defined,
-    // non-nullish string — so the `spec.keyPrefix ?? ''` fallback is never exercised by real data
-    // (it exists only because the schema types key_prefix nullable). Forcing it to `null` here is
-    // the only way to reach the fallback at all, and matches the type exactly (not `undefined`).
+    // Every real descriptor's role_entries_js key_prefix is a defined string ("" or "hercules:"), so
+    // forcing `null` here is the only way to reach the `spec.keyPrefix ?? ''` fallback the nullable
+    // schema type requires.
     const opencode = DESCRIPTORS['opencode'];
     if (opencode === undefined) throw new Error('opencode descriptor missing');
     const template = opencode.templates[0];

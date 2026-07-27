@@ -3,9 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { countAtomicInstructions, extractSection } from '../../instructionCounter.mjs';
 import { readRepoFile } from '../../../commons/support/repo';
 
-// Hand-labelled golden corpus for the V2 atomic instruction counter — see instructionCounter.mts's
-// own top comment for why this design (plain separator + length-only splitting, no vocabulary
-// filter) shipped over the vocabulary-anchored variant tried first.
+// Hand-labelled fixtures pinning the atomic instruction counter — see instructionCounter.mts's own
+// top comment for the unit and separator rules these encode.
 
 describe('countAtomicInstructions: hand-labelled fixtures', () => {
   it('counts one bullet as one directive when it has no separator', () => {
@@ -28,8 +27,7 @@ describe('countAtomicInstructions: hand-labelled fixtures', () => {
   });
 
   it('drops a fragment under two words as noise', () => {
-    // "or else" is one word after trimming punctuation-adjacent splits — actually two words, so
-    // this pins the boundary case directly: a genuinely single-word remainder is dropped.
+    // Pins the two-word floor directly: a single-word remainder never earns its own directive.
     expect(countAtomicInstructions('- stop, now')).toBe(1); // "now" alone (1 word) doesn't count
   });
 
@@ -45,7 +43,7 @@ describe('countAtomicInstructions: hand-labelled fixtures', () => {
     expect(countAtomicInstructions('**Step 1 —** scaffold the class, then write tests')).toBe(2);
   });
 
-  it('counts a numbered rule INSIDE a fence, unlike the old fence-excluding counter', () => {
+  it('counts a numbered rule INSIDE a fence', () => {
     const md = '```\n1. always name the role\n2. never omit the action\n```\n';
     expect(countAtomicInstructions(md)).toBe(2);
   });
@@ -78,10 +76,8 @@ describe('countAtomicInstructions: hand-labelled fixtures', () => {
   });
 
   it('sums multiple units in one document', () => {
-    // "two, and three" splits into "two" (2 words incl. the bullet dash, counts) and "three"
-    // (1 word once the splitting "and" itself is consumed by String.split — not counted): the
-    // connector word never survives into either fragment, so a short clause on its far side can
-    // drop below the two-word floor even though the whole sentence reads as two real clauses.
+    // String.split consumes the connector, so "two, and three" yields "- two" (2 words, counts) and
+    // "three" (1 word, dropped): a short clause beside a connector can fall below the two-word floor.
     const md = '- one\n- two, and three\n1. four';
     expect(countAtomicInstructions(md)).toBe(1 + 1 + 1);
   });
@@ -122,10 +118,9 @@ describe('extractSection', () => {
   });
 });
 
-// The reference measurement this metric was calibrated against, when atomic directive counting
-// landed. Pinned here so a future edit to the counting algorithm, or to these exact source files,
-// shows up as a failing test rather than a silent drift in what the orchestrator waiver (see
-// instructionBudget.spec.ts) is actually measuring.
+// The reference measurements this metric is calibrated against, pinned so an edit to the counting
+// algorithm or to these exact shipped files fails a test rather than silently drifting what the
+// orchestrator waiver (see instructionBudget.spec.ts) measures.
 describe('reference chain measurements against real shipped content', () => {
   const claudeMd = readRepoFile('dist', 'claude-code', 'CLAUDE.md');
   const a2a = readRepoFile('dist', 'claude-code', 'protocols', 'a2a-communication-protocol.md');

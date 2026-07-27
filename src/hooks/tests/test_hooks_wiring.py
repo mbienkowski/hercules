@@ -1,16 +1,10 @@
 """Structural wiring tests for the plugin's hooks manifest.
 
-Claude Code's ``hooks/hooks.json`` auto-loads by convention at the plugin root (no plugin.json key
-needed); it is authored as an inline artifact in ``ecosystems/claude-code.json``. These tests
-pin that it is valid, registers the frozen-tests guard on the mutating tools, and that every
-referenced command path resolves to a real script in the BUILT plugin — a hooks.json that points at
-a missing script is a dead guard.
-
-Reads the COMMITTED ``dist/claude-code/`` tree directly rather than importing the compiler to build
-a fresh copy: this island is Python that ships to end users forever, while the compiler that
-produces ``dist/`` is migrating to TypeScript and is deleted outright in a later commit. Any drift
-between source and committed output is the separate `make ci-build` gate's job, not this file's —
-these tests only need the SHIPPED artifact, never a fresh build of it.
+Claude Code's ``hooks/hooks.json`` auto-loads by convention at the plugin root and is authored as an
+inline artifact in ``src/targets/claude-code.json``. These tests pin that it is valid, registers the
+frozen-tests guard on every mutating tool, and that each referenced command path resolves to a real
+script in the committed ``dist/claude-code/`` tree — a hooks.json pointing at a missing script is a
+dead guard. Source-to-output drift is the separate ``make ci-build`` gate's job, not this file's.
 """
 
 from __future__ import annotations

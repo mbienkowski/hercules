@@ -10,14 +10,9 @@ import { srcStems } from '../../../commons/support/buildTree';
 import { repoRoot } from '../../../commons/support/repo';
 import { which } from '../../../commons/support/which';
 
-// Ported from tests/build/test_copilot_cli_smoke.py — a live Copilot CLI smoke check: does the
-// real `copilot` binary run, and is the built plugin tree structurally loadable?
-//
-// The ALWAYS-ON checks are structural (never skip): re-validate the built `dist/copilot-cli`
-// plugin against the plugin contract (kebab manifest name, per-type frontmatter, `.agent.md`
-// agents, `.prompt.md` commands, the `preToolUse` write-gate, the reviewer subagent). The
-// genuinely live check (the real `copilot` binary executes) is opt-in — it SKIPs (never fails)
-// when the CLI is not installed, so the fork-safe gate stays green.
+// Live Copilot CLI smoke check. The structural checks never skip: the built `dist/copilot-cli` tree
+// must satisfy the plugin contract — manifest name, per-type frontmatter, `.agent.md` agents,
+// `.prompt.md` commands, the `preToolUse` write-gate. The live binary check SKIPs when it is absent.
 
 const SRC_CONTENT = join(repoRoot, 'src', 'content');
 const TIMEOUT_MS = 60_000;
@@ -75,9 +70,8 @@ it('the built plugin is well formed', () => {
 });
 
 it('ships the full component inventory', () => {
-  // The built plugin must carry the WHOLE inventory — all 5 commands (as `.prompt.md`), every
-  // advisor agent (as `.agent.md`), and every skill — so nothing silently fails to load. Names
-  // derive from content (the single source of truth).
+  // The built plugin must carry the WHOLE inventory — every command (as `.prompt.md`), agent (as
+  // `.agent.md`), and skill. Names derive from content, the single source of truth.
   const out = join(tmpDir(), 'copilot-cli');
   buildTarget('copilot-cli', out);
   for (const name of srcStems(SRC_CONTENT, 'commands')) {
@@ -100,11 +94,8 @@ describe.skipIf(which('copilot') === null)('live copilot binary', () => {
   }, TIMEOUT_MS + 5_000);
 
   it('the plugin installs into the real cli and is listed', (ctx) => {
-    // Add the repo's local marketplace, install the plugin, then confirm the real `copilot` lists
-    // it — a genuine install + load check beyond `--version`. Copilot plugin management may
-    // require a login, so it SKIPs (never fails the leg) on any error/timeout; the structural
-    // inventory above runs every commit regardless. If install+list DO succeed, the plugin MUST
-    // be listed (a real bug otherwise).
+    // A genuine install + load check beyond `--version`. Plugin management may require a login, so
+    // any error or timeout SKIPs the leg; if install and list DO succeed, it MUST be listed.
     const home = join(tmpDir(), 'home');
     mkdirSync(home);
     const env = { ...process.env, HOME: home };

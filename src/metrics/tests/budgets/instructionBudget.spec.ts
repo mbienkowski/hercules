@@ -7,12 +7,9 @@ import {
 } from '../../loadingChains.mjs';
 import { repoRoot } from '../../../commons/support/repo';
 
-// Replaces tests/budgets/test_instruction_budget.py. That file counted "instruction blocks"
-// (bullets/numbers/bold-labels — one block bundles 2-4 real directives) and divided the 150
-// research ceiling by 3, giving three independently-guessed gates (35/55/20). This gates the ONE
-// atomic count (`countAtomicInstructions`) directly against the absolute ceiling, no scaling — see
-// loadingChains.mts's own top comment for why chain definitions are data here, and
-// instructionCounter.mts for why the counter shipped without a vocabulary filter.
+// Gates every loading chain's atomic instruction count directly against the absolute ceiling, with
+// no per-role scaling — see loadingChains.mts for the chain data and instructionCounter.mts for the
+// counting rules.
 
 const DIST_CLAUDE_CODE = join(repoRoot, 'dist', 'claude-code');
 
@@ -23,8 +20,7 @@ describe('every loading chain stays within the instruction budget', () => {
   it.each(chains.map((c) => [c.name, c] as const))('%s', (_name, chain) => {
     const waiver = waiverByChain.get(chain.name);
     if (chain.value <= HARD_GATE) {
-      // A waiver whose chain no longer breaches the gate is dead weight — the fix landed, the
-      // waiver should have been deleted with it.
+      // A waiver whose chain sits under the gate is dead weight: there is nothing left to waive.
       expect(waiver, `${chain.name}: measures ${chain.value} (under the gate) but still carries a waiver — delete it`).toBeUndefined();
       return;
     }
@@ -55,9 +51,8 @@ describe('every waiver names a chain that actually exists and actually breaches 
 
 describe('near-warn visibility', () => {
   it('flags chains within the warn margin without failing the build', () => {
-    // No assertion failure here by design (WARN, not GATE) — this test exists so a chain
-    // approaching the ceiling shows up in CI output rather than only being noticed once it
-    // actually breaches and needs a waiver.
+    // WARN, not GATE: nothing fails here by design — a chain approaching the ceiling surfaces in
+    // CI output before it breaches and needs a waiver.
     const chains = resolveChains(DIST_CLAUDE_CODE, CHAIN_TEMPLATES);
     const nearWarn = chains.filter((c) => c.value >= WARN_AT && c.value <= HARD_GATE);
     for (const c of nearWarn) {

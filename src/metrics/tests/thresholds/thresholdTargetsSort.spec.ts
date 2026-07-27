@@ -6,15 +6,10 @@ import {
   afterEach, describe, expect, it, vi,
 } from 'vitest';
 
-// A SEPARATE spec file, deliberately — vi.mock('node:fs') is module-scoped and hoisted (see
-// builder/tests/descriptor/descriptorSort.spec.ts for the full rationale). In short: Node's own fs.globSync
-// already returns matches in name order on this platform (verified directly: creating files named
-// zeta/alpha/mid and globbing them back yields alpha/mid/zeta with no explicit sort at all), so an
-// unmocked directory can never prove resolveTargets's own `.sort()` call (thresholdRunner.mts) is
-// doing real work rather than riding an incidental default — the mutant that drops it survives
-// every test built on a real, unmocked filesystem. Reversing globSync's real result here is enough
-// to prove the sort is load-bearing without relying on any particular OS/filesystem's incidental
-// ordering.
+// A SEPARATE spec file, deliberately — vi.mock('node:fs') is module-scoped and hoisted. Node's own
+// globSync already returns matches in name order on this platform, so on a real FS (filesystem) the
+// mutant dropping resolveTargets's `.sort()` (thresholdRunner.mts) survives; reversing globSync's
+// result proves the sort is load-bearing without relying on incidental platform ordering.
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
   return {

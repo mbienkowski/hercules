@@ -3,19 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { type RoleSpec, parseDescriptor } from '../../descriptor.mjs';
 import { expectMessage, minimal, withAgentRole } from '../../../commons/support/descriptorFixtures';
 
-// Split out of descriptor.spec.ts (CODE_OF_CONDUCT.md's 500-line test-file cap) — see that file's
-// header comment for the full split rationale. This file owns: every remaining checkStr/
-// checkRelPath call site not already covered by descriptor.malformed.spec.ts/descriptor.axes.spec.ts,
-// boolean-field defaults, and the two cross-field rules (empty-fields-required, wrap-mode-all-
-// literal). The "checkKeys per-shape what label" cases moved to descriptor.axes.spec.ts once this
-// file's OWN growth (a 14-variant it.each table) pushed it over the 500-line cap in turn.
+// Every checkStr/checkRelPath call site not covered by descriptor.malformed.spec.ts or
+// descriptor.axes.spec.ts, plus boolean-field defaults and the two cross-field rules.
 
 describe('every remaining checkStr/checkRelPath call site, one failure each', () => {
   it("checkStr rejects an explicit empty string, not only an absent value", () => {
-    // `typeof value !== 'string' || value === ''` — every other checkStr test in this suite passes
-    // an ABSENT value (undefined), which the first clause alone already rejects. This is the only
-    // test exercising the SECOND clause: an explicit empty string is itself a distinct, real string
-    // value that must still be rejected.
+    // `typeof value !== 'string' || value === ''` — every other checkStr test passes an ABSENT
+    // value, which the first clause rejects. This is the only test exercising the SECOND clause.
     expectMessage(
       () => withAgentRole({ mode: 'fields', fields: [{ key: '', from: 'stem' }] }),
       "ecosystem descriptor \"eco\": roles.agent.fields[0].key: must be a non-empty string, got \"\"",
@@ -30,8 +24,8 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
   });
 
   it("a template requires 'dest'", () => {
-    // No existing test exercised a TEMPLATE's own 'dest' at all — route 'dest' and artifact 'dest'
-    // are covered separately, but templates have their own checkRelPath call site.
+    // A template's 'dest' has its own checkRelPath call site, separate from route and artifact
+    // 'dest'.
     expectMessage(
       () => minimal({ templates: [{ src: 'eco.template.x.js', values: {} }] }),
       "ecosystem descriptor \"eco\": templates[0].dest: must be a non-empty string, got undefined",
@@ -73,10 +67,8 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
   });
 
   it("a flag_if_name_in 'names' must be a list, not merely have string entries", () => {
-    // `z.array(nonEmptyStr()).min(1)` has TWO error sources: the array's own type check (names
-    // isn't an array at all) and .min(1) (names is an empty array). Every existing 'names' test
-    // supplies an actual array (with a bad entry, or none), so the array-type check itself was
-    // never exercised.
+    // `z.array(nonEmptyStr()).min(1)` has TWO error sources: the array's own type check and
+    // .min(1). Every other 'names' test supplies a real array, so only .min(1) is exercised there.
     expectMessage(() => withAgentRole({
         mode: 'fields',
         fields: [{ key: 'k', from: 'flag_if_name_in', names: 'not-an-array', value: 'v' }],
@@ -123,11 +115,9 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
       }), "ecosystem descriptor \"eco\": gate.tools.edit: must be a non-empty string, got 5");
   });
 
-  it('pins the CURRENT key-reporting order for gate.tools with multiple bad entries (documented TS/Python divergence)', () => {
-    // The same Object.entries() integer-like-key reordering as the 'vars' divergence test in
-    // descriptor.malformed.spec.ts, at gate.tools' own separate call site (descriptor.mts's
-    // parseGate, not parseDescriptor). Python would report 'zeta' first; this pins the TS-current
-    // '42'-first order rather than claiming parity.
+  it('pins the CURRENT key-reporting order for gate.tools with multiple bad entries', () => {
+    // The same Object.entries() integer-like-key reordering pinned for 'vars', at gate.tools' own
+    // separate call site (descriptor.mts's parseGate, not parseDescriptor).
     expectMessage(() => minimal({
         gate: {
           protocol: 'pre_tool', tools: { zeta: 1, '42': 2 }, path_keys: ['p'], deny: {}, reason_key: 'r',
@@ -154,18 +144,14 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
   });
 
   it("an event_guards gate's 'allow' must be an object", () => {
-    // Mirrors the pre_tool 'allow'/'deny' shape checks in descriptor.malformed.spec.ts, but for the
-    // OTHER protocol branch (descriptor.mts line ~406-412), which loops ['allow', 'deny']
-    // independently of pre_tool's checks. Proven against Python via tests/testdata/parity/
-    // descriptor-malformed-gate-eventguards-allow-not-object.in.json.
+    // The event_guards branch loops ['allow', 'deny'] independently of the pre_tool shape checks in
+    // descriptor.malformed.spec.ts, so each protocol needs its own case.
     expectMessage(() => minimal({
         gate: { protocol: 'event_guards', allow: 'nope', deny: { d: 1 }, user_key: 'u', agent_key: 'a' },
       }), "ecosystem descriptor \"eco\": gate.allow: must be an object (the host's decision shape)");
   });
 
   it("an event_guards gate's 'deny' must be an object", () => {
-    // Proven against Python via tests/testdata/parity/descriptor-malformed-gate-eventguards-
-    // deny-not-object.in.json.
     expectMessage(() => minimal({
         gate: { protocol: 'event_guards', allow: { a: 1 }, deny: ['nope'], user_key: 'u', agent_key: 'a' },
       }), "ecosystem descriptor \"eco\": gate.deny: must be an object (the host's decision shape)");
@@ -229,9 +215,7 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
 
   it('a smoke expect version_cmd must be a list, not merely present', () => {
     // The guard is `!Array.isArray(cmd) || cmd.length === 0` — one condition, two branches. The
-    // entry-not-a-string test above only exercises code reached AFTER this guard passes; neither
-    // branch of the guard itself had a test. Proven against Python via tests/testdata/parity/
-    // descriptor-smoke-expect-versioncmd-not-a-list.in.json.
+    // entry-not-a-string test above only runs code reached AFTER the guard passes.
     expectMessage(
       () => minimal({ smoke: { cli: 'eco', test: 't', expect: { version_cmd: 'not-a-list' } } }),
       "ecosystem descriptor \"eco\": smoke.expect.version_cmd: 'version_cmd' must be a non-empty command list",
@@ -239,8 +223,7 @@ describe('every remaining checkStr/checkRelPath call site, one failure each', ()
   });
 
   it('a smoke expect version_cmd must not be empty', () => {
-    // The other branch of the same guard. Proven against Python via tests/testdata/parity/
-    // descriptor-smoke-expect-versioncmd-empty.in.json.
+    // The other branch of the same guard.
     expectMessage(
       () => minimal({ smoke: { cli: 'eco', test: 't', expect: { version_cmd: [] } } }),
       "ecosystem descriptor \"eco\": smoke.expect.version_cmd: 'version_cmd' must be a non-empty command list",
@@ -264,9 +247,8 @@ describe('boolean fields fall back to their documented default when absent', () 
   });
 
   it('a preserve role defaults resolveModelTier to false and required to [] when both are absent', () => {
-    // Every OTHER test using minimal()'s default 'preserve' roles relies on these defaults working
-    // without ever asserting the RESULTING values — only the "wrong type is rejected" case was
-    // pinned, never the "omitted key produces the documented default" case.
+    // Other tests rely on these defaults without asserting the RESULTING values, pinning only the
+    // wrong-type rejection — this pins the omitted-key default itself.
     const { resolveModelTier, required } = parseDescriptor('eco', withAgentRole({ mode: 'preserve' }))
       .roles['agent'] as RoleSpec;
     expect(resolveModelTier).toBe(false);
@@ -281,10 +263,8 @@ describe('boolean fields fall back to their documented default when absent', () 
   });
 
   it("guard defaults to an empty list when the key is entirely absent", () => {
-    // `minimal()` never sets 'guard' by default, so every other test in this suite already
-    // exercises the omitted-key path — but none of them assert on the RESULTING value, only on
-    // other fields. Without this, the `Array.isArray(raw['guard']) ? raw['guard'] : []` fallback's
-    // `[]` literal has no test proving it's actually `[]` and not some other placeholder.
+    // `minimal()` never sets 'guard', so every other test takes the omitted-key path but asserts on
+    // other fields — only this one proves the `Array.isArray(...) ? ... : []` fallback yields [].
     expect(parseDescriptor('eco', minimal()).guard).toEqual([]);
   });
 });
@@ -315,8 +295,8 @@ describe('the empty-fields-required check applies to wrap and toml_command, not 
 
 describe('wrap mode checks that ALL fields are literal, not merely that one is', () => {
   it('rejects when only the second of several fields is non-literal', () => {
-    // A `some(f => f.source !== 'literal')` and an `every(...)` mutant agree whenever a single-field
-    // role is tested; they can only be told apart with a MIX of literal and non-literal fields.
+    // A `some(f => f.source !== 'literal')` and an `every(...)` mutant agree on any single-field
+    // role; only a MIX of literal and non-literal fields tells them apart.
     const raw = minimal();
     (raw['roles'] as Record<string, unknown>)['persona'] = {
       mode: 'wrap',

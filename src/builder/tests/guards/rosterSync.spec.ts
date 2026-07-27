@@ -7,10 +7,8 @@ import { discover } from '../../descriptor.mjs';
 import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
 import { repoRoot } from '../../../commons/support/repo';
 
-// Ported from tests/build/test_roster_sync.py — Spec 02: the Claude-only settings.json roster
-// stays in sync with content/agents/. settings.json is authored as an inline artifact in the
-// claude-code descriptor (emitted verbatim); this sync test is the reader-end pin so a new agent
-// can't ship without being registered. Frozen for spec-02-claude-code-target.
+// The Claude-only settings.json roster stays in sync with content/agents/. settings.json is an inline
+// artifact of the claude-code descriptor, emitted verbatim; this is the reader-end pin on it.
 
 const AGENTS = join(repoRoot, 'src', 'content', 'agents');
 

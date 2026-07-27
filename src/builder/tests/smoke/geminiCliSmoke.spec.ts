@@ -10,14 +10,9 @@ import { srcStems } from '../../../commons/support/buildTree';
 import { repoRoot } from '../../../commons/support/repo';
 import { which } from '../../../commons/support/which';
 
-// Ported from tests/build/test_gemini_cli_smoke.py — a live Gemini CLI smoke check + an
-// always-on structural guard on the built extension.
-//
-// The ALWAYS-ON check is structural (never skips): the freshly built `dist/gemini-cli` tree must
-// satisfy the Gemini extension contract — a kebab manifest name with contextFileName, subagents
-// with name+description, TOML commands with a prompt, and the BeforeTool write-gate wired to the
-// adapter. The genuinely live check (the real `gemini` binary runs) is opt-in and SKIPs when the
-// CLI is absent, so the fork-safe gate stays green.
+// Live Gemini CLI smoke check plus an always-on structural guard: the built `dist/gemini-cli` tree
+// must satisfy the extension contract — manifest name with contextFileName, subagents with
+// name+description, TOML commands with a prompt, the BeforeTool write-gate wired to the adapter.
 
 const SRC_CONTENT = join(repoRoot, 'src', 'content');
 const TIMEOUT_MS = 60_000;
@@ -43,9 +38,8 @@ function srcSkills(): string[] {
 }
 
 it('built extension is well formed', () => {
-  // Always-on, auth-free: the built extension satisfies the Gemini contract — a malformed
-  // manifest, a `.md` (not `.toml`) command, or an unwired hook would load as absent with no
-  // error.
+  // Always-on and auth-free: a malformed manifest, a `.md` (not `.toml`) command, or an unwired
+  // hook would load as absent, with no error.
   const out = build();
   const manifest = JSON.parse(readFileSync(join(out, 'gemini-extension.json'), 'utf-8')) as {
     name: string;
@@ -72,9 +66,8 @@ it('built extension is well formed', () => {
 });
 
 it('before-tool gate is wired to the adapter', () => {
-  // The write-gate wiring: hooks.json wires BeforeTool (matcher covering both edit tools) to
-  // hercules_gate.py via python3 and the ${extensionPath} script path — the exact command form
-  // pinned.
+  // hooks.json wires BeforeTool (its matcher covering both edit tools) to hercules_gate.py via
+  // python3 and the ${extensionPath} script path — the exact command form is pinned.
   const out = build();
   const hooks = JSON.parse(readFileSync(join(out, 'hooks', 'hooks.json'), 'utf-8')) as {
     hooks: { BeforeTool: Array<{ matcher: string; hooks: Array<{ command: string }> }> };
@@ -90,9 +83,8 @@ it('before-tool gate is wired to the adapter', () => {
 });
 
 it('ships the full component inventory', () => {
-  // The built extension must carry the WHOLE inventory — all 5 commands (as `.toml`), every
-  // advisor agent, and every skill — so nothing silently fails to load. Names derive from
-  // content (the single source of truth).
+  // The built extension must carry the WHOLE inventory — every command (as `.toml`), advisor
+  // agent, and skill. Names derive from content, the single source of truth.
   const out = build();
   for (const name of srcStems(SRC_CONTENT, 'commands')) {
     expect(readdirSync(join(out, 'commands')), `gemini missing command ${name}`).toContain(`${name}.toml`);
@@ -107,13 +99,11 @@ it('ships the full component inventory', () => {
 });
 
 describe.skipIf(which('gemini') === null)('live gemini binary', () => {
-  // gemini spawns a background update/telemetry child that INHERITS and holds open any stdout pipe
-  // it is handed — which makes a piped `spawnSync` block far past its own `timeout` (synchronously,
-  // so vitest's testTimeout cannot interrupt it, and the whole leg hangs to the job timeout). Every
-  // gemini call therefore routes stdout/stderr to a FILE, never an inherited pipe, and force-kills
-  // with SIGKILL, so the timeout actually fires. A call that still can't complete cleanly (timeout /
-  // spawn error) SKIPs — best-effort, exactly as this block already intended; the always-on
-  // structural checks above are the real gate.
+  // gemini spawns a background update/telemetry child that INHERITS and holds open any stdout pipe,
+  // making a piped `spawnSync` block far past its own `timeout` — synchronously, so vitest cannot
+  // interrupt it. Every call therefore routes stdout/stderr to a FILE, never an inherited pipe, and
+  // force-kills with SIGKILL so the timeout actually fires. A call that still cannot complete
+  // cleanly SKIPs; the always-on structural checks above are the real gate.
   function runGemini(args: string[], env: NodeJS.ProcessEnv = process.env) {
     const dir = mkdtempSync(join(tmpdir(), 'hercules-gemini-run-'));
     dirs.push(dir);
@@ -139,11 +129,8 @@ describe.skipIf(which('gemini') === null)('live gemini binary', () => {
   }, TIMEOUT_MS + 5_000);
 
   it('the extension installs into the real cli and is listed', (ctx) => {
-    // Install the built extension into an isolated HOME and confirm the real `gemini` lists it —
-    // a genuine install + load check beyond `--version`. Extension management is local (no API
-    // call), so it should run without auth; but it SKIPs (never fails the leg) on any
-    // error/timeout or a differing subcommand shape, so the every-commit gate stays green while
-    // the structural inventory above still runs.
+    // A genuine install + load check beyond `--version`, into an isolated HOME. Extension
+    // management is local, so it needs no auth; any error or timeout SKIPs rather than fails.
     const root = mkdtempSync(join(tmpdir(), 'hercules-gemini-smoke-'));
     dirs.push(root);
     const home = join(root, 'home');

@@ -1,10 +1,7 @@
 {
-  // Type-check config for every domain's tests/ tree, the shared src/commons/support/ helpers, and the
-  // Vitest config itself. ESM, never emitted — Vitest compiles tests from source, so this project's
-  // module format never reaches Node's loader and cannot affect the shipped CommonJS plugin.
-  //
-  // `moduleResolution: bundler` matches how Vite actually resolves these files at runtime, so what
-  // type-checks here is what executes there.
+  // Type-check config for every domain's tests/, the shared helpers, and the Vitest config. Never
+  // emitted — Vitest compiles tests from source, so this module format never reaches Node's loader.
+  // `moduleResolution: bundler` matches how Vite resolves these files, so checks match execution.
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "composite": true,

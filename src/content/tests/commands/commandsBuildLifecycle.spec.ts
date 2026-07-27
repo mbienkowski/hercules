@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BUILD, SHIP, readFile, readPersona, section } from './support';
 
-// Ported from tests/commands/test_commands_build_lifecycle.py — Build session lifecycle: resume,
-// reconcile, start-fresh, handoff, discovery.
+// Build session lifecycle: resume, reconcile, start-fresh, handoff, discovery.
 
 describe('build session lifecycle', () => {
   it('build offers to resume a project from saved state', () => {

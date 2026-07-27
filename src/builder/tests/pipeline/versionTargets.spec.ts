@@ -3,12 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-// vi.mock('node:fs') wraps (not replaces) writeFileSync so every test still hits real disk — only
-// the CALL ARGUMENTS are additionally observable, for the one test below that needs to pin the
-// exact encoding writeVersion() passes (content-based verification alone can't distinguish 'utf-8'
-// from '' here: Node treats an empty-string encoding identically to 'utf-8' at the byte level for
-// every string writeVersion() ever writes, verified directly — same pattern as
-// release/tests/packaging/updateChangelog.spec.ts's own writeFileSync encoding pins).
+// vi.mock('node:fs') wraps (not replaces) writeFileSync so every test still hits real disk while the
+// CALL ARGUMENTS stay observable — the encoding pin below cannot be proven from content alone, since
+// Node treats an empty-string encoding identically to 'utf-8' for every string writeVersion() emits.
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
   return { ...actual, writeFileSync: vi.fn(actual.writeFileSync) };
@@ -30,12 +27,9 @@ function workspace(pyproject: string, packageJson: string): string {
   dirs.push(root);
   writeFileSync(join(root, 'pyproject.toml'), pyproject, 'utf-8');
   writeFileSync(join(root, 'package.json'), packageJson, 'utf-8');
-  // The two writes above (workspace setup) already called the mocked writeFileSync with 'utf-8' —
-  // clearing here means every remaining recorded call in a test belongs to the code under test,
-  // not to fixture setup. Without this, an assertion pinning writeVersion()'s own encoding arg
-  // would trivially pass by matching these SETUP calls instead, regardless of what writeVersion()
-  // itself actually passes — verified directly: this exact bug was caught live by a manual mutation
-  // rehearsal (writeVersion()'s 'utf-8' changed to '' still left the unguarded assertion green).
+  // The two writes above are fixture setup and already called the mocked writeFileSync with 'utf-8';
+  // clearing keeps every recorded call belonging to the code under test, so the encoding pin cannot
+  // pass by matching a SETUP call regardless of what writeVersion() itself passes.
   vi.mocked(writeFileSync).mockClear();
   return root;
 }
@@ -181,8 +175,8 @@ describe('tolerating the formatting variations these files really carry', () => 
     ['extra spaces around the equals', 'version   =   "1.0.0"\n'],
     ['a tab before the equals', 'version\t= "1.0.0"\n'],
   ])('reads a TOML version written with %s', (_label, pyproject) => {
-    // Reads pyproject.toml directly (not readCanonicalVersion, which now resolves to package.json)
-    // — this is exercising TOML-parsing robustness, not canonical-source selection.
+    // Reads pyproject.toml directly rather than readCanonicalVersion (which resolves to
+    // package.json): this exercises TOML-parsing robustness, not canonical-source selection.
     const root = workspace(pyproject, '{"version": "1.0.0"}');
     expect(readVersions(root)['pyproject.toml']).toBe('1.0.0');
   });
@@ -197,16 +191,16 @@ describe('tolerating the formatting variations these files really carry', () => 
   });
 
   it('ignores a version-like line that is not at the start of a line', () => {
-    // Without the line anchor, `# bumped from version = "0.9.0"` in a comment would count as a
-    // second version and the file would be rejected as ambiguous. Reads pyproject.toml directly
-    // (not readCanonicalVersion, which now resolves to package.json) — same reasoning as the TOML
-    // formatting-variation tests above.
+    // Without the line anchor, a `version = "0.9.0"` inside a comment would count as a second
+    // version and the file would be rejected as ambiguous. Reads pyproject.toml directly, for the
+    // same reason as the TOML formatting-variation tests above.
     const root = workspace('# was version = "0.9.0"\nversion = "1.0.0"\n', '{"version": "1.0.0"}');
     expect(readVersions(root)['pyproject.toml']).toBe('1.0.0');
   });
 
   it('reads the repository’s own files when no root is given', () => {
-    // The default argument is what the CI validate job and the release scripts rely on.
+    // The default argument is what the continuous-integration (CI) validate job and the release
+    // scripts rely on.
     expect(readCanonicalVersion()).toMatch(/^\d+\.\d+\.\d+$/);
     expect(() => checkInSync()).not.toThrow();
     expect(Object.keys(readVersions())).toEqual(['pyproject.toml', 'package.json']);

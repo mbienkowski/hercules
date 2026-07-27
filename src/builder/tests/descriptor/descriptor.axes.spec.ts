@@ -3,11 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { parseDescriptor } from '../../descriptor.mjs';
 import { expectMessage, minimal, withAgentRole } from '../../../commons/support/descriptorFixtures';
 
-// Split out of descriptor.malformed.spec.ts (CODE_OF_CONDUCT.md's 500-line test-file cap) once
-// commit 5's Zod rewrite pushed that file over the cap — see descriptor.spec.ts's header comment
-// for the full split rationale. This file owns: one rejection per closed-vocabulary enum/shape
-// axis, each asserting the exact message naming the offending value and (where the schema still
-// enumerates it) the allowed set.
+// One rejection per closed-vocabulary enum/shape axis, each asserting the exact message naming the
+// offending value and, where the schema enumerates it, the allowed set.
 
 describe('one rejection per closed-vocabulary axis, with a message naming the allowed set', () => {
   it('an unknown top-level key names itself and the allowed set', () => {
@@ -24,11 +21,8 @@ describe('one rejection per closed-vocabulary axis, with a message naming the al
   });
 
   it("'routes' is required, not merely defaulted to [] like artifacts/guard/templates", () => {
-    // Caught by review: an earlier draft of DescriptorSchema gave 'routes' the SAME `.default([])`
-    // treatment as artifacts/guard/templates below, but the Python original's own required-key list
-    // is schema/name/vars/models/smoke/dispatch/roles/ROUTES — omitting it entirely must fail the
-    // same way omitting 'vars' or 'roles' does, not silently default to an empty list. minimal()
-    // always sets routes:[] explicitly, so no OTHER test exercises the fully-omitted case.
+    // 'routes' is required, unlike artifacts/guard/templates which default to []. minimal() always
+    // sets routes:[] explicitly, so no OTHER test exercises the fully-omitted case.
     const raw = minimal();
     delete raw['routes'];
     expectMessage(() => raw, "ecosystem descriptor \"eco\": routes: 'routes' must be a list");
@@ -59,13 +53,9 @@ describe('one rejection per closed-vocabulary axis, with a message naming the al
     );
   });
 
-  it('pins the CURRENT key-reporting order for vars with multiple bad entries (documented TS/Python divergence)', () => {
-    // `Object.entries()` reorders integer-LIKE string keys ('42') ahead of every other key,
-    // regardless of source order — a JS object-model behavior Python's dict.items() does not share.
-    // Python would report 'zeta' first (source order); this port reports '42' first. See the
-    // "Object.entries()/Object.keys() ... reorder integer-like string keys" divergence documented
-    // at the top of descriptor.mts. This test exists to PIN the current TS-side behavior, not to
-    // claim it matches Python — a regression here is a silent further drift, not a fix.
+  it('pins the CURRENT key-reporting order for vars with multiple bad entries', () => {
+    // `Object.entries()` reorders integer-LIKE string keys ('42') ahead of the rest regardless of
+    // source order, so '42' is reported first — a divergence noted at the top of descriptor.mts.
     expectMessage(
       () => minimal({ vars: { zeta: 1, '42': 2 } }),
       "ecosystem descriptor \"eco\": vars.42: must be a string, got 2; vars.zeta: must be a string, got 1",
@@ -73,11 +63,8 @@ describe('one rejection per closed-vocabulary axis, with a message naming the al
   });
 
   it('an unknown model tier is rejected', () => {
-    // This test caught a real schema bug during review: ModelsSchema's object-level `error`
-    // callback was NOT checking `issue.code`, so it swallowed the 'invalid_key' (wrong tier name)
-    // case under the SAME text as 'invalid_type' (not an object at all) — this exact scenario was
-    // reporting "models.turbo: 'models' must be a non-empty object" instead of naming the allowed
-    // tiers, before the fix.
+    // ModelsSchema's object-level `error` callback must branch on `issue.code`, or an unknown tier
+    // ('invalid_key') collapses into the not-an-object text meant for 'invalid_type'.
     expectMessage(
       () => minimal({ models: { high: null, turbo: 'x' } }),
       "ecosystem descriptor \"eco\": models.turbo: must be one of [\"high\",\"low\",\"medium\"], got \"turbo\"",
@@ -94,9 +81,8 @@ describe('one rejection per closed-vocabulary axis, with a message naming the al
   it('roles must define exactly the four role names', () => {
     const raw = minimal();
     raw['roles'] = { agent: { mode: 'preserve' } };
-    // The three MISSING roles (command/persona/default) each independently fail the SAME way a
-    // present-but-empty role would — Zod reports one 'mode' issue per absent key, not a single
-    // summary naming the whole missing set the way commit 4's hand-written check did.
+    // The three MISSING roles (command/persona/default) each fail the SAME way a present-but-empty
+    // role would: Zod reports one 'mode' issue per absent key, not one summary naming the whole set.
     const missingMode = (role: string) =>
       `${role}: 'mode' must be one of ["fields","plain","preserve","toml_command","wrap"], got undefined`;
     expectMessage(
@@ -154,9 +140,8 @@ describe('one rejection per closed-vocabulary axis, with a message naming the al
   });
 
   it('toml_command rejects a SECOND field even when the first is description', () => {
-    // `keys.length !== 1 || keys[0] !== 'description'` — the test above only exercises the RIGHT
-    // clause (wrong single field). This exercises the LEFT clause independently: the right field
-    // name, but a wrong COUNT.
+    // `keys.length !== 1 || keys[0] !== 'description'` — the test above exercises the RIGHT clause
+    // (wrong single field); this exercises the LEFT one: the right field name, but a wrong COUNT.
     const raw = minimal();
     (raw['roles'] as Record<string, unknown>)['command'] = {
       mode: 'toml_command',
@@ -227,11 +212,8 @@ describe('one rejection per closed-vocabulary axis, with a message naming the al
   });
 
   it('a template placeholder must be upper-snake dunder', () => {
-    // This test (and its two siblings below) caught a real schema bug during review: the `values`
-    // record's object-level `error` callback was code-blind, so it swallowed the KEY schema's own
-    // "must match __UPPER_SNAKE__" message (Zod's `invalid_key` code, for a malformed placeholder)
-    // under the generic "'values' must be an object" text (meant only for `invalid_type`, values not
-    // being an object at all) — the exact same bug class ModelsSchema had for an unknown model tier.
+    // The `values` record's `error` callback must branch on `issue.code`, so a malformed
+    // placeholder keeps the KEY schema's message instead of the generic not-an-object text.
     const tpl = [{ src: 'eco.template.x.js', dest: 'x.js', values: { '{{x}}': { from: 'js_string', value: 'v' } } }];
     expectMessage(
       () => minimal({ templates: tpl }),
@@ -240,10 +222,8 @@ describe('one rejection per closed-vocabulary axis, with a message naming the al
   });
 
   it('a template placeholder must match the WHOLE string, not just contain a valid dunder', () => {
-    // PLACEHOLDER is /^__[A-Z_]+__$/ — anchored at both ends. '{{x}}' above proves the pattern
-    // rejects something with no dunder shape at all; this proves the anchors themselves matter: a
-    // dunder-shaped substring with extra characters BEFORE it must still be rejected, not accepted
-    // because the tail happens to match `__[A-Z_]+__$`.
+    // PLACEHOLDER is /^__[A-Z_]+__$/ — anchored at both ends. This pins the leading anchor: extra
+    // characters BEFORE a dunder-shaped substring must still be rejected.
     const tpl = [{ src: 'eco.template.x.js', dest: 'x.js', values: { 'X__FOO__': { from: 'js_string', value: 'v' } } }];
     expectMessage(
       () => minimal({ templates: tpl }),
@@ -252,8 +232,7 @@ describe('one rejection per closed-vocabulary axis, with a message naming the al
   });
 
   it('a template placeholder with extra characters AFTER a valid dunder is also rejected', () => {
-    // The other anchor: a dunder-shaped substring with extra characters trailing it must not be
-    // accepted because the head happens to match `^__[A-Z_]+__`.
+    // The trailing anchor: extra characters AFTER a dunder-shaped substring must also be rejected.
     const tpl = [{ src: 'eco.template.x.js', dest: 'x.js', values: { '__FOO__X': { from: 'js_string', value: 'v' } } }];
     expectMessage(
       () => minimal({ templates: tpl }),
@@ -296,20 +275,15 @@ describe('one rejection per closed-vocabulary axis, with a message naming the al
   });
 
   it('smoke requires cli, when test is present', () => {
-    // The sibling test above only ever supplies `cli` and omits `test` — caught by review: every
-    // other smoke-touching test in this suite also always supplies `cli`, so nothing proved `cli`
-    // itself is required rather than merely present-by-convention. Verified by live regression
-    // injection (making `cli` optional in SmokeSchema) before this test existed: the full suite
-    // passed undetected.
+    // Every other smoke-touching test in this suite supplies `cli`, so this is the only proof that
+    // SmokeSchema requires it rather than it merely being present by convention.
     expectMessage(
-      () => minimal({ smoke: { test: 'tests/build/test_eco_smoke.py' } }),
+      () => minimal({ smoke: { test: 'builder/tests/smoke/ecoSmoke.spec.ts' } }),
       "ecosystem descriptor \"eco\": smoke.cli: must be a non-empty string, got undefined",
     );
   });
 });
 
-// Moved here from descriptor.fields.spec.ts once its own growth (the it.each table below) pushed
-// THAT file over the 500-line cap in turn.
 describe('checkKeys is exercised with an unknown key for every distinct "what" label', () => {
   it('names the mode in a field-shape error: field (from=X)', () => {
     expectMessage(
@@ -385,11 +359,8 @@ describe('checkKeys is exercised with an unknown key for every distinct "what" l
     );
   });
 
-  // Every discriminated union in descriptor.mts (field/role/route/template-value/gate) gets its OWN
-  // objectError(...) call per VARIANT, so each one is a SEPARATE Stryker mutant — the tests above
-  // only exercised a representative sample per union (field's 'stem', route's 'omit', one template
-  // value kind, one gate protocol), leaving every OTHER variant's unknown-key wiring unproven. This
-  // table covers the rest without repeating the same test body fourteen times.
+  // Each union VARIANT in descriptor.mts has its own objectError(...) call, so each is a separate
+  // mutant. The tests above cover one variant per union; this table covers the remaining fourteen.
   it.each([
     [
       "field (from=frontmatter)",

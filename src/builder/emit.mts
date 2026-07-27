@@ -1,7 +1,6 @@
 /**
  * Leaf filesystem primitives for the build — no target knowledge.
- *
- * Pure I/O: write a text file, or byte-copy a `src -> dest` map.
+ * Pure I/O (input/output): write a text file, or byte-copy a `src -> dest` map.
  */
 
 import { copyFileSync, chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -10,14 +9,11 @@ import { dirname, join } from 'node:path';
 const VERSION_TOKEN = /\$\{version\}/g;
 
 /**
- * The mode every emitted file carries.
+ * The mode every emitted file carries, forced explicitly.
  *
- * Python's `shutil.copyfile` copies CONTENT ONLY and leaves the destination at the process umask;
- * Node's `fs.copyFileSync` propagates the SOURCE's permission bits. Left alone, a source checked
- * out as 0755 would emit an executable file into `dist/` under Node and a 0644 one under Python.
- * Every file in the committed `dist/` tree is git mode 100644, so the divergence is invisible to a
- * byte comparison — `diff -r` and `cmp` compare content, not modes — and would surface only as a
- * spurious permission change in a later commit.
+ * `fs.copyFileSync` propagates the SOURCE's permission bits, so a source checked out 0755 would emit
+ * an executable file. Every file in the committed `dist/` tree is git mode 100644, and a byte
+ * comparison cannot see the difference — it would surface only as a spurious permission change later.
  */
 const FILE_MODE = 0o644;
 
@@ -38,28 +34,21 @@ export function write(dest: string, text: string): void {
 }
 
 /**
- * Read a source file as UTF-8, refusing invalid input the way Python does.
+ * Read a source file as UTF-8, refusing a malformed byte sequence.
  *
- * `Path.read_text(encoding='utf-8')` RAISES on a malformed byte sequence; Node's
- * `readFileSync(p, 'utf-8')` silently substitutes U+FFFD. Without this check a corrupted source
- * would build cleanly under Node and refuse to build under Python — the two engines disagreeing
- * about whether the repository is even valid.
+ * `readFileSync(p, 'utf-8')` silently substitutes U+FFFD instead of failing, so without this check a
+ * corrupted source would be baked into `dist/` rather than failing the build.
  */
 export function readSource(path: string): string {
   const bytes = readFileSync(path);
   // `ignoreBOM: true` means "do not treat U+FEFF specially", i.e. KEEP it. TextDecoder's default
-  // silently strips a leading byte-order mark while Python's read_text preserves it — which would
-  // change the first byte of any BOM-carrying source in dist/, invisibly, in the very function
-  // written to close the UTF-8 decoding divergence.
+  // strips a leading byte-order mark, invisibly changing the first byte of a BOM-carrying source.
   const text = new TextDecoder('utf-8', { fatal: false, ignoreBOM: true }).decode(bytes);
   if (text.includes('�')) {
-    // U+FFFD may legitimately appear in a source file; only flag it when it was MANUFACTURED by
-    // decoding, which a strict re-decode detects precisely.
-    // `ignoreBOM` only controls whether a leading U+FEFF is stripped from the DECODED TEXT — and
-    // that text is discarded here; only whether `.decode()` throws matters. Verified directly:
-    // `ignoreBOM: true` and `ignoreBOM: false` throw identically for every malformed byte sequence
-    // tested, so this argument's value is unobservable in this call — a TRUE equivalent mutant per
-    // CODE_OF_CONDUCT.md's Testing section's pragma exception.
+    // U+FFFD may legitimately appear in a source file; only flag it when DECODING manufactured it,
+    // which a strict re-decode detects precisely. `ignoreBOM` only affects the decoded text — which
+    // is discarded here — so it cannot change whether `.decode()` throws: a TRUE equivalent mutant
+    // per CODE_OF_CONDUCT.md's Testing section's pragma exception.
     try {
       // Stryker disable next-line BooleanLiteral: ignoreBOM never affects whether a fatal decode throws — see comment above
       new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
@@ -73,20 +62,16 @@ export function readSource(path: string): string {
 /**
  * Copy `src` to `dest`, substituting the single `${version}` token with `version`.
  *
- * Deliberately NOT routed through `render` (whose token pass is fail-OPEN: an unknown or absent
- * token survives verbatim, which for a version field would silently ship the literal `${version}`
- * into a release manifest). This is a targeted substitution that throws unless the token count is
- * exactly one — the same fail-LOUD contract as `versionTargets.writeVersion`. A pure string replace
- * with no JSON re-serialisation, so key order, indentation and the trailing newline are preserved
- * exactly, keeping `dist/` byte-identical.
+ * Deliberately NOT routed through `render`, whose token pass is fail-OPEN — an absent token survives
+ * verbatim, shipping the literal `${version}` into a release manifest. This throws unless the token
+ * count is exactly one, and is a pure string replace, so key order, indentation and the trailing
+ * newline stay byte-identical.
  */
 export function copyVersioned(src: string, dest: string, version: string): void {
   const text = readSource(src);
   const matches = text.match(VERSION_TOKEN);
   const count = matches === null ? 0 : matches.length;
   if (count !== 1) {
-    // Byte-identical to the Python original's message, snake_case name included, so the parity
-    // harness can diff stderr directly. That obligation ends when the Python compiler is deleted.
     throw new EmitError(
       `emit.copy_versioned: expected exactly one \${version} token in ${src}, found ${count}`,
     );

@@ -1,27 +1,22 @@
 import { defineConfig } from 'vitest/config';
 
-// Hercules holds itself to >= 90% BRANCH coverage — the same bar it enforces on its users, and the
-// same number the Python side gates at via pytest-cov (see the Makefile's test-py target). Branch,
-// not line: a line-coverage gate passes on code whose conditionals were never both-way exercised.
+// Hercules holds itself to >= 90% branch coverage, the same bar it enforces on its users and the
+// same number pytest-cov gates at. Branch, not line: line coverage passes on untested conditionals.
 export default defineConfig({
   test: {
     include: ['src/{builder,release,metrics,content}/tests/**/*.spec.ts'],
     // dist/ is committed build output and node_modules/ is vendored; neither holds our specs.
     exclude: ['node_modules/**', 'dist/**', '.ts-out/**'],
-    // Scopes spec DISCOVERY to this directory. It does not change the process working directory —
-    // specs resolve repo paths from cwd via src/commons/support/repo.ts, which documents why every
-    // supported entry point already runs from the repo root.
+    // Scopes spec discovery to this directory without changing the process working directory —
+    // specs resolve repo paths from cwd via src/commons/support/repo.ts.
     root: import.meta.dirname,
     // Build-driving specs render all six targets; 5s (the default) is a false failure under load.
     testTimeout: 30_000,
     coverage: {
       provider: 'v8',
       include: ['src/builder/**/*.mts', 'src/release/**/*.mts', 'src/metrics/**/*.mts'],
-      // Every domain's bin/ holds logic-free process entry points — a few lines that resolve a path
-      // and call process.exit. They are exercised by `make mutation-ts` and `make build`, not by
-      // unit specs, and counting them would push the gate toward testing process.exit wiring
-      // instead of logic. stryker.conf.json excludes the same directories for the same reason; keep
-      // the two exclusions in step.
+      // Every domain's bin/ holds logic-free process entry points, exercised by `make build` rather
+      // than unit specs. stryker.conf.json excludes the same directories; keep the two in step.
       exclude: [
         'src/builder/**/*.d.mts', 'src/release/**/*.d.mts', 'src/metrics/**/*.d.mts',
         'src/builder/bin/**', 'src/release/bin/**',

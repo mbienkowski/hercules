@@ -1,10 +1,7 @@
 /**
- * Mutation kill-rate gate for the TypeScript side (Stryker), mirroring the Python side
- * (src/release/check_mutation_gate.py, mutmut over src/hooks/).
- *
- * The two gates are deliberately symmetric: same thresholds (src/release/mutation-gate.json), same
- * failure modes, same wording. A contributor who has debugged one has debugged both — which is the
- * whole point of splitting the mutation run across two runtimes rather than one.
+ * Mutation kill-rate gate for TypeScript (Stryker), symmetric with the Python gate
+ * (src/release/check_mutation_gate.py, mutmut over src/hooks/): same thresholds
+ * (src/release/mutation-gate.json), same failure modes, same wording.
  *
  * Usage: node .ts-out/bin/mutationGate.mjs
  */
@@ -19,9 +16,8 @@ export interface Thresholds {
 }
 
 /**
- * Mutant tallies, normalised from Stryker's report into the same five buckets the Python gate
- * counts. Stryker's `NoCoverage` folds into `survived` — an uncovered mutant is a survived one
- * with a more specific cause, and counting it any other way would flatter the score.
+ * Mutant tallies, normalised from Stryker's report into the five buckets the Python gate counts.
+ * `NoCoverage` folds into `survived` — counting an uncovered mutant any other way flatters the score.
  */
 export interface Counts {
   killed: number;
@@ -75,11 +71,10 @@ export function tally(statuses: readonly string[]): Counts {
       case 'Ignored':
         break;
       default:
-        // Everything else is suspicious: Stryker's own error statuses (`RuntimeError`,
-        // `CompileError`) and any status a future Stryker introduces. They are deliberately NOT
-        // listed as explicit cases — doing so would be redundant with this branch and produce
-        // equivalent mutants. A result that is not a clean kill, survive, timeout or reviewed
-        // exclusion must fail the gate loudly rather than vanish from the denominator.
+        // Everything else is suspicious: Stryker's error statuses (`RuntimeError`, `CompileError`)
+        // and any status a future Stryker introduces, deliberately not listed as explicit cases
+        // (that would produce equivalent mutants). A result that is not a clean kill, survive,
+        // timeout or reviewed exclusion fails the gate rather than vanishing from the denominator.
         counts.suspicious += 1;
     }
   }
@@ -101,15 +96,9 @@ export function statusesFromReport(reportJson: string): string[] {
 }
 
 /**
- * Evaluate the gate. Returns a process exit code.
- *
- * Failure modes are in the same order and carry the same meaning as the Python gate:
- *   1. incomplete run (untested / suspicious mutants) — a kill rate over a partial run is a green
- *      gate over data that never existed;
- *   2. zero mutants — the config selected nothing, so nothing was proven;
- *   3. every mutant timed out — no signal in either direction;
- *   4. below warn — pass, but say so;
- *   5. below gate — fail.
+ * Evaluate the gate; returns a process exit code. Failure modes match the Python gate's order and
+ * meaning: incomplete run (a score over data that never existed), zero mutants (nothing proven),
+ * all-timeout (no signal either way), below warn (pass, but say so), below gate (fail).
  */
 export function evaluate(counts: Counts, thresholds: Thresholds, io: GateIo = DEFAULT_IO): number {
   const { killed, survived, timeout, untested, suspicious } = counts;

@@ -6,13 +6,10 @@ import { describe, expect, it } from 'vitest';
 import { CHAIN_TEMPLATES, resolveChains, WAIVERS } from '../../loadingChains.mjs';
 import { tmpWorkspace } from '../support';
 
-// A SEPARATE file from instructionBudget.spec.ts, deliberately: that file's first describe block
-// computes `resolveChains(DIST_CLAUDE_CODE, CHAIN_TEMPLATES)` at describe-body level (outside any
-// `it()`), so a CHAIN_TEMPLATES/WAIVERS data mutant that makes resolveChains throw crashes that
-// whole file's test COLLECTION, not just one test — none of ITS tests get a chance to run, so none
-// can register a kill. Every test below either runs resolveChains inside its own `it()` (so a throw
-// only fails that one test) or asserts directly against the exported data, insulating this file's
-// results from that collection-time crash.
+// A SEPARATE file from instructionBudget.spec.ts, deliberately: that file resolves its chains at
+// describe-body level, so a CHAIN_TEMPLATES/WAIVERS mutant that makes resolveChains throw crashes
+// its whole test COLLECTION and no test there can register a kill. Every test below instead calls
+// resolveChains inside its own `it()`, or asserts against the exported data directly.
 
 describe('measurePart (exercised via resolveChains): fixed file parts', () => {
   it('counts instructions from a literal file relative to distRoot', () => {
@@ -135,9 +132,8 @@ describe('resolveChains: variable template expansion', () => {
 });
 
 describe('CHAIN_TEMPLATES: pinned data shape', () => {
-  // This module's own top comment: adding a chain is "a new entry in CHAIN_TEMPLATES ... not
-  // hardcoded per-scenario logic" — so CHAIN_TEMPLATES is itself DATA this project depends on, and
-  // deserves a pinning test exactly like a golden file, not just indirect exercise via real dist/.
+  // CHAIN_TEMPLATES is DATA the project depends on, so it earns a pinning test of its own like any
+  // golden file, rather than only indirect exercise through the real dist/ tree.
 
   it('defines exactly the three templates this project gates today, in order', () => {
     expect(CHAIN_TEMPLATES.map((t) => t.name)).toEqual([

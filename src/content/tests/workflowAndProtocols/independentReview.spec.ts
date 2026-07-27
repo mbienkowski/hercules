@@ -7,12 +7,10 @@ import { discover } from '../../../builder/descriptor.mjs';
 import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
 import { readRepoFile, repoRoot } from '../../../commons/support/repo';
 
-// Ported from tests/workflow/test_independent_review.py — the two true self-judgment gates
-// (Design coverage, Build traceability) are performed by a freshly-spawned `cynical-reviewer`
-// reading the source directly, never by the producing session. Pins the swap so a green suite
-// can't hide a lingering self-review (QA panel Blocker). Checked across EVERY shipped edition
-// (claude-code, opencode, cursor); each edition names the reviewer with its own agent namespace
-// (`hercules:` on Claude Code, bare elsewhere), so the assertions are namespace-aware.
+// The two self-judgment gates (Design coverage, Build traceability) are performed by a freshly
+// spawned `cynical-reviewer` reading the source directly, never by the producing session. Checked
+// across every shipped edition (claude-code, opencode, cursor); each edition names the reviewer with
+// its own agent namespace (`hercules:` on Claude Code, bare elsewhere), so assertions are namespace-aware.
 
 const TREES = ['claude-code', 'opencode', 'cursor'] as const;
 

@@ -7,13 +7,9 @@ import { BUILD, DESIGN, DISCOVER, readFile, readPersona, SHIP, WORKFLOW } from '
 import { readRepoFile, repoRoot } from '../../../commons/support/repo';
 
 /**
- * Ported from tests/workflow/test_workflow_modes.py — the workflow's phase/mode orchestration is
- * explicit and human-first (Effort 2, AC7/AC8a).
- *
- * Static gates only: Claude Code's internal permission-mode state cannot be inspected from the
- * plugin, so we assert the *directives* the commands must carry (construction). The effect
- * (artifacts actually written per phase) is an opt-in manual/e2e smoke documented in
- * CODE_OF_CONDUCT.md.
+ * The workflow's phase/mode orchestration is explicit and human-first. Static gates only: Claude
+ * Code's permission-mode state is not inspectable from the plugin, so these assert the directives
+ * the commands carry; the effect is the manual smoke documented in CODE_OF_CONDUCT.md.
  */
 
 const CLAUDE_MD = 'dist/claude-code/CLAUDE.md';

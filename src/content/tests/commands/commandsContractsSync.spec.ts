@@ -16,9 +16,8 @@ import {
   section,
 } from './support';
 
-// Ported from tests/commands/test_commands_contracts.py (part 2 of 2) — the machine-local
-// settings schema, spec-lifecycle wording, wizard invocation, bundled-path resolution, and the
-// CLAUDE.md<->commands state-field sync guard.
+// Machine-local settings schema, spec-lifecycle wording, wizard invocation, bundled-path
+// resolution, and the CLAUDE.md<->commands state-field sync guard.
 
 describe('machine-local settings and spec-lifecycle contracts', () => {
   it('no doc mentions the removed local context file', () => {

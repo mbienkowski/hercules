@@ -3,20 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { parseDescriptor } from '../../descriptor.mjs';
 import { expectMessage, minimal, withAgentRole } from '../../../commons/support/descriptorFixtures';
 
-// Split out of descriptor.spec.ts (CODE_OF_CONDUCT.md's 500-line test-file cap) — see that file's
-// header comment for the full split rationale. This file owns: what a descriptor with MULTIPLE
-// simultaneous problems reports, and every shape the closed vocabulary forbids at the top level.
-// descriptor.axes.spec.ts owns the sibling "one rejection per closed-vocabulary axis" cases —
-// split out of THIS file once commit 5's Zod rewrite pushed it over the same 500-line cap.
+// What a descriptor with MULTIPLE simultaneous problems reports, and every shape the closed
+// vocabulary forbids at the top level. descriptor.axes.spec.ts owns the per-axis rejection cases.
 
 describe('a descriptor with MULTIPLE simultaneous problems reports every one, not just the first', () => {
-  // Commit 4's hand-written checks failed fast — the first broken section short-circuited the
-  // rest, and this describe block used to pin a specific fail-fast ORDER (guard before roles,
-  // artifacts before gate, gate before templates). Zod validates the WHOLE shape and collects every
-  // issue instead of stopping at the first one, so that specific guarantee no longer holds — what
-  // replaces it, and what these three tests now pin, is the NEW guarantee: nothing is hidden behind
-  // an earlier problem. Each issue keeps its own path-prefixed message, semicolon-joined.
-  it('a broken guard AND a broken role are both named, not just whichever the old code checked first', () => {
+  // Zod collects every issue rather than stopping at the first, so nothing is hidden behind an
+  // earlier problem. Each issue keeps its own path-prefixed message, semicolon-joined.
+  it('a broken guard AND a broken role are both named, not just the first', () => {
     const raw = minimal({ guard: ['bad/path.py'] });
     (raw['roles'] as Record<string, unknown>)['agent'] = { mode: 'improvise' };
     let message = '<did not throw>';
@@ -75,36 +68,27 @@ describe('rejecting every shape the closed vocabulary forbids', () => {
 
   it.each([
     ["descriptor is not an object (a list)", () => [], "ecosystem descriptor \"eco\": descriptor must be a JSON object, got array"],
-    // The four cases below pin the OTHER branches of the same type-name ternary as the array case
-    // above — each is its own Stryker mutant (ConditionalExpression/StringLiteral per branch) that
-    // was previously NoCoverage: nothing exercised descriptor being null, a string, a boolean, or a
-    // number, so a mutated 'null'/'string'/'boolean'/'integer'/'number' label would have gone unnoticed.
+    // The cases below pin the OTHER branches of the same type-name ternary as the array case above.
+    // Each branch is its own mutant, so each label needs its own input to prove it.
     ["descriptor is not an object (null)", () => null, "ecosystem descriptor \"eco\": descriptor must be a JSON object, got null"],
     ["descriptor is not an object (a string)", () => 'nope', "ecosystem descriptor \"eco\": descriptor must be a JSON object, got string"],
     ["descriptor is not an object (a boolean)", () => true, "ecosystem descriptor \"eco\": descriptor must be a JSON object, got boolean"],
     ["descriptor is not an object (an int)", () => 5, "ecosystem descriptor \"eco\": descriptor must be a JSON object, got integer"],
     ["descriptor is not an object (a float)", () => 5.5, "ecosystem descriptor \"eco\": descriptor must be a JSON object, got number"],
-    // Pins an intrinsic JS limitation, not parity: JSON.parse('5.0') and JSON.parse('5') both produce
-    // the identical JS number 5 — JS has one numeric type, so the literal's float-ness is gone by the
-    // time this code sees it, and jsonType reports `integer` for it. A JS *literal* `5.0` can't express
-    // this case at all (it's just the number 5 in source code too) — JSON.parse is required to
-    // construct an integer-VALUED float the way a real descriptor file's raw bytes would.
+    // JS has one numeric type: JSON.parse('5.0') and JSON.parse('5') both yield 5, so jsonType
+    // reports `integer`. Only JSON.parse can build this case — a source literal `5.0` cannot.
     [
       "descriptor is not an object (an integer-valued float via JSON.parse)",
       () => JSON.parse('5.0') as unknown,
       "ecosystem descriptor \"eco\": descriptor must be a JSON object, got integer",
     ],
-    // `undefined` can never come from JSON.parse, but parseDescriptor's signature accepts `unknown`
-    // — jsonType matches it in the first branch (`got undefined`), the only non-JSON value the
-    // schema's `error` callback can receive. Every JSON-representable non-object shape
-    // (null/array/string/boolean/number) is handled by its own earlier branch and pinned above.
+    // `undefined` never comes from JSON.parse, but parseDescriptor accepts `unknown` — it matches
+    // jsonType's first branch, the only non-JSON value the schema's `error` callback can receive.
     ["descriptor is not an object (undefined)", () => undefined, "ecosystem descriptor \"eco\": descriptor must be a JSON object, got undefined"],
     [
       "vars is not an object at all",
-      // `vars`'s own record-type `error` (descriptor.mts's DescriptorSchema, the "not an object at
-      // all" branch) is a DIFFERENT Zod check from the ".refine() empty" one "vars is empty" below
-      // exercises — both currently produce the same TEXT, but they're two separate schema nodes; a
-      // mutant deleting either one independently needs its own input to catch.
+      // `vars`'s record-type `error` is a DIFFERENT Zod check from the `.refine()` that "vars is
+      // empty" below exercises; same text, but each needs its own input to catch its own mutant.
       () => minimal({ vars: [] }),
       "ecosystem descriptor \"eco\": vars: 'vars' must be a non-empty object",
     ],
@@ -112,9 +96,8 @@ describe('rejecting every shape the closed vocabulary forbids', () => {
     ["models is not an object", () => minimal({ models: [] }), "ecosystem descriptor \"eco\": models: 'models' must be a non-empty object"],
     [
       "models is an empty object",
-      // Mirrors "vars is empty" above: the invalid_type check and the refine's non-empty check are
-      // TWO SEPARATE Zod checks — this exercises the refine independently of the type check, the
-      // same way "models is not an object" above only exercises the type check.
+      // Mirrors "vars is empty": the invalid_type check and the refine's non-empty check are two
+      // separate Zod checks, and "models is not an object" above only exercises the type check.
       () => minimal({ models: {} }),
       "ecosystem descriptor \"eco\": models: 'models' must be a non-empty object",
     ],
@@ -132,10 +115,8 @@ describe('rejecting every shape the closed vocabulary forbids', () => {
     ["roles is not an object", () => minimal({ roles: [] }), "ecosystem descriptor \"eco\": roles: 'roles' must be an object, got []"],
     [
       "roles has exactly four keys but one is wrong (not merely the wrong COUNT)",
-      // `roleKeysSorted.every((k, i) => k === roleNamesSorted[i])` vs a `.some(...)` mutant: both
-      // agree whenever the key COUNT is wrong (caught by the length check first) or whenever EVERY
-      // key is wrong. They can only be told apart with the right COUNT (4) and a MIX of matching and
-      // non-matching keys — 'wizard' replacing 'persona' leaves the other three aligned.
+      // `every(...)` and a `.some(...)` mutant agree when the COUNT is wrong or EVERY key is wrong;
+      // only the right count with a MIX separates them, so 'wizard' replaces 'persona' alone.
       () => {
         const raw = minimal();
         raw['roles'] = {
@@ -236,8 +217,7 @@ describe('rejecting every shape the closed vocabulary forbids', () => {
     [
       "gate tools is not an object at all",
       // The record-type `error` (not-an-object) and the `.refine()` (empty) below are two SEPARATE
-      // Zod checks on gate.tools that currently produce the same text — same reasoning as "vars is
-      // not an object at all" in the same table.
+      // Zod checks on gate.tools that produce the same text — as with "vars is not an object at all".
       () => minimal({ gate: { ...GATE_OK, tools: 'not-an-object' } }),
       "ecosystem descriptor \"eco\": gate.tools: 'tools' must be a non-empty object mapping host tool → canonical tool",
     ],
@@ -267,11 +247,8 @@ describe('rejecting every shape the closed vocabulary forbids', () => {
       "ecosystem descriptor \"eco\": gate.nested_keys: 'nested_keys' must be a list",
     ],
   ])('rejects: %s', (_label, build, expected) => {
-    // Exact message equality, not a substring check: a substring check lets an unrelated
-    // literal in the SAME message mutate freely and still pass, which is exactly the class of
-    // Stryker survivor a loose assertion leaves behind. Every one of these is independently
-    // proven correct against the Python original by the parity fixture of the same name
-    // under tests/testdata/parity/descriptor-malformed-*.in.json.
+    // Exact message equality, not a substring check: a substring check lets an unrelated literal in
+    // the SAME message mutate freely and still pass.
     let message = '<did not throw>';
     try {
       parseDescriptor('eco', build());

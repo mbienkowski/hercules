@@ -5,14 +5,9 @@ import { describe, expect, it } from 'vitest';
 import { discover } from '../../descriptor.mjs';
 import { which } from '../../../commons/support/which';
 
-// Ported from tests/build/test_universal_smoke.py — the universal smoke driver: live CLI checks
-// steered by each descriptor's `smoke.expect`.
-//
-// The commands to run and what to expect are per-ecosystem CONFIG (the descriptor's
-// `smoke.expect`, closed vocabulary), so a new ecosystem gets its basic live check by declaring
-// data — no new test file. Deep host-specific install flows (marketplace add/install/list,
-// extension installs) stay as named tests in each ecosystem's own smoke file, pointed at by
-// `smoke.test`.
+// The universal smoke driver: live CLI checks steered by each descriptor's `smoke.expect`, so a new
+// ecosystem gets its basic live check by declaring data alone. Deep host-specific install flows stay
+// as named tests in each ecosystem's own smoke file, pointed at by `smoke.test`.
 
 const TIMEOUT_MS = 120_000;
 
@@ -27,9 +22,7 @@ it('every ecosystem declares its smoke expectations', () => {
 });
 
 describe('the declared version command succeeds when the cli is present', () => {
-  // @pytest.mark.parametrize("name", sorted(discover())) becomes a one-`it()`-per-ecosystem loop,
-  // matching the Python original's per-parametrization test granularity rather than one combined
-  // test.
+  // One `it()` per ecosystem rather than one combined test, so a failing target is named directly.
   for (const name of Object.keys(discover()).sort()) {
     const smoke = discover()[name]?.smoke as Record<string, unknown>;
     const cli = smoke['cli'] as string;

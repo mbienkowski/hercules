@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
-# Install an ecosystem's real CLI for its smoke leg (invoked by `make smoke-install`). Driven by env
-# from the smoke matrix: INSTALL_METHOD (npm|script), NPM_PACKAGE, NPM_VERSION, INSTALL_URL,
-# INSTALL_FLAGS, CLI.
+# Install an ecosystem's real CLI for its smoke leg (invoked by `make smoke-install`). Env from the
+# smoke matrix: INSTALL_METHOD (npm|script), NPM_PACKAGE, NPM_VERSION, INSTALL_URL, INSTALL_FLAGS, CLI.
 #
-# Matrix values arrive via env (never interpolated into the shell), so a fork PR that edits a
-# smoke.json cannot inject a command here. A non-npm (curl) installer is DOWNLOADED to a file then
-# executed — never streamed straight to bash. Ends in `$CLI --version`, so an absent binary fails the
-# job.
+# Matrix values arrive via env, never interpolated into the shell, so a fork pull request editing a
+# smoke config cannot inject a command here. A curl installer is DOWNLOADED to a file then executed,
+# never streamed straight to bash. Ends in `$CLI --version`, so an absent binary fails the job.
 set -euo pipefail
 
 if [ "$INSTALL_METHOD" = "npm" ]; then

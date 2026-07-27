@@ -2,11 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { countTokens, encode } from '../../tokenCounter.mjs';
 
-// Golden token arrays, generated with Python `tiktoken.get_encoding("cl100k_base")` — the engine
-// that produced every budget in tests/testdata/thresholds.json. They are the standing regression
-// guard behind `make parity-tokens`: that gate proves the two engines agree on this repo's whole
-// corpus, but it needs Python present, so these run in the TypeScript suite alone and would catch
-// a tokenizer swap or an unpinned upgrade after Python is gone.
+// Golden token arrays pinning the cl100k_base encoding that every budget in
+// src/metrics/tests/testdata/thresholds.json is measured against: a tokenizer swap or an unpinned
+// upgrade changes these ids and fails here rather than silently moving every budget.
 const GOLDEN: ReadonlyArray<readonly [string, number[]]> = [
   ['hello world', [15339, 1917]],
   ['', []],
@@ -27,15 +25,14 @@ describe('counting cl100k_base tokens', () => {
   });
 
   it('refuses text carrying a control token instead of silently encoding it', () => {
-    // Python tiktoken raises here too. A document that smuggles <|endoftext|> past the counter
-    // would understate its own budget, so both engines reject rather than encode it — and the
-    // parity harness compares that refusal like any other result.
+    // A document smuggling <|endoftext|> past the counter would understate its own budget, so the
+    // encoder refuses it outright rather than encoding it as an ordinary token.
     expect(() => encode('<|endoftext|>')).toThrow();
   });
 
   it('counts a longer string without truncating', () => {
-    // Guards against a lazily-bound or partially-loaded rank table: a truncated BPE table still
-    // encodes short ASCII correctly while silently mis-encoding anything longer.
+    // Guards against a lazily-bound or partially-loaded rank table: a truncated one still encodes
+    // short ASCII correctly while silently mis-encoding anything longer.
     const text = 'The quick brown fox jumps over the lazy dog. '.repeat(20);
     expect(countTokens(text)).toBe(201);
   });

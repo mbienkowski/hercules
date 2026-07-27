@@ -141,9 +141,9 @@ describe('reading Stryker results', () => {
   });
 
   it('maps every Stryker status onto the bucket the Python gate uses for it', () => {
-    // This is the whole Stryker-to-mutmut vocabulary translation in one assertion. The two gates
-    // must agree on what "survived" and "incomplete" mean, or the same quality bar reads as two
-    // different numbers depending on which runtime happened to fail.
+    // The whole Stryker-to-mutmut vocabulary translation in one assertion. The two gates must agree
+    // on what "survived" and "incomplete" mean, or the same quality bar reads as two different
+    // numbers depending on which runtime failed.
     expect(
       tally([
         'Killed',
@@ -234,22 +234,16 @@ describe('running the gate against a report on disk', () => {
 
 describe('the shared kill-rate thresholds', () => {
   it('holds this project to a 90% kill rate, warning from 95%', () => {
-    // The LIVE pin on the numbers themselves. Every behavioural test above feeds `evaluate` a
-    // local 90/95 literal so it exercises the scoring logic at fixed, readable values — which
-    // means those tests stay green if the real thresholds move. This one does not: change
-    // release/mutation-gate.json and this fails.
-    //
-    // It matters more than it looks. release/check_mutation_gate.py reads the same file at import
-    // time, so today the Python suite would also catch a change — but that gate narrows to
-    // hooks/ later in this migration, and when it does this becomes the only end still pinned.
+    // The LIVE pin on the numbers themselves. Every behavioural test above feeds `evaluate` a local
+    // 90/95 literal, exercising the scoring logic at fixed, readable values — so those tests stay
+    // green if the real thresholds move. This one does not: change mutation-gate.json and it fails.
     expect(readThresholds(repoRoot)).toEqual({ gate: 90, warn: 95 });
     expect(thresholds).toEqual(readThresholds(repoRoot));
   });
 
   it('resolves and parses the shared file rather than carrying its own copy', () => {
-    // Guards readThresholds' path join and field mapping — a gate/warn swap or a wrong relative
-    // path fails here. The Python and TypeScript gates agree structurally, because both read this
-    // one file; that agreement is a property of the design, not of this assertion.
+    // Guards readThresholds' path join and field mapping — a gate/warn swap or a wrong relative path
+    // fails here. The two gates agree structurally because both read this one file.
     const shared = readRepoJson<{ gate: number; warn: number }>('src', 'release', 'mutation-gate.json');
     expect(readThresholds(repoRoot)).toEqual({ gate: shared.gate, warn: shared.warn });
   });

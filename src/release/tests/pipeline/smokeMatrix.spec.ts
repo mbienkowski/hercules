@@ -5,9 +5,8 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // Wraps (not replaces) appendFileSync so main()'s $GITHUB_OUTPUT write still hits real disk — every
-// other test in this file reads the real appended file back — while letting one test assert the
-// exact encoding argument main() passes, which real-filesystem behavior alone can't distinguish
-// (Node treats an empty-string encoding the same as 'utf-8' for a string payload).
+// other test here reads the appended file back — while letting one test assert the exact encoding
+// argument (Node treats an empty-string encoding the same as 'utf-8' for a string payload).
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
   return { ...actual, appendFileSync: vi.fn(actual.appendFileSync) };
@@ -21,14 +20,9 @@ import {
 import { SmokeMatrixError, buildMatrix, main } from '../../smokeMatrix.mjs';
 import { minimal } from '../../../commons/support/descriptorFixtures';
 
-// Ported from tests/build/test_ci_smoke_matrix.py's unit-level (build_matrix()) assertions. The
-// CI-job-graph assertions (smoke/mutation `needs`/`if` wiring) live in release/tests/pipeline/releasePipeline.spec.ts
-// instead — they parse the workflow YAML directly and never call buildMatrix().
-//
-// The Python original monkeypatched GITHUB_REF and asserted the matrix was the same either way — but
-// buildMatrix() (like build_matrix() before it) never reads that env var at all; the matrix is a pure
-// function of the descriptor registry. That assertion is preserved here as "every ecosystem is present
-// regardless of context" without actually touching the environment, since there is nothing to fake.
+// Unit-level buildMatrix() assertions. The CI-job-graph wiring (smoke/mutation `needs`/`if`) lives in
+// release/tests/pipeline/releasePipeline.spec.ts instead, parsing the workflow YAML directly. The
+// matrix is a pure function of the descriptor registry — it reads no environment at all.
 
 function legsByTarget(): Record<string, ReturnType<typeof buildMatrix>['include'][number]> {
   const legs = buildMatrix().include;
@@ -36,11 +30,9 @@ function legsByTarget(): Record<string, ReturnType<typeof buildMatrix>['include'
 }
 
 /**
- * A minimal-but-valid fabricated descriptor, for tests that need to inject an unsorted/fabricated
- * `descriptors` record into `buildMatrix`'s (test-only) second parameter — the real registry's own
- * `discover()` result is always already alphabetically ordered (proven by descriptorSort.spec.ts),
- * so only a fabricated set can prove `buildMatrix`'s own `.sort()` calls are load-bearing rather
- * than riding that upstream guarantee.
+ * A minimal-but-valid fabricated descriptor for `buildMatrix`'s test-only `descriptors` parameter.
+ * The real registry's `discover()` result is always already alphabetical (descriptorSort.spec.ts),
+ * so only a fabricated set can prove `buildMatrix`'s own `.sort()` calls are load-bearing.
  */
 function fakeDescriptor(name: string): EcosystemDescriptor {
   return parseDescriptor(name, minimal({ name, smoke: { cli: name, test: 'builder/tests/x.spec.ts' } }));
@@ -100,9 +92,8 @@ describe('the smoke matrix', () => {
   });
 
   it('a multi-ecosystem phantom-leg report lists the orphan names in sorted order, not descriptor order', () => {
-    // The real registry's own discover() result is already alphabetical (descriptorSort.spec.ts),
-    // so only a fabricated `descriptors` record (via the test-only second param) can exercise this:
-    // these two keys are inserted in DELIBERATELY reverse-of-sorted order.
+    // The real registry's discover() result is already alphabetical (descriptorSort.spec.ts), so only
+    // a fabricated `descriptors` record exercises this: these keys are inserted reverse-of-sorted.
     const descriptors: Readonly<Record<string, EcosystemDescriptor>> = {
       'zzz-phantom': fakeDescriptor('zzz-phantom'),
       'aaa-phantom': fakeDescriptor('aaa-phantom'),
@@ -122,10 +113,8 @@ describe('the smoke matrix', () => {
 
   it('extracts every npm/install field the real descriptors carry, not just install_method', () => {
     // claude-code carries npm_package/npm_version but no `install` section; cursor carries
-    // `install.url`/`install.flags` but no npm fields — between the two, every `?? ''` fallback in
-    // buildMatrix's leg-building is exercised on BOTH its present (real value) and absent (default)
-    // side, pinned exactly (not just presence) so a fallback silently returning '' instead of the
-    // real value, or vice versa, cannot pass unnoticed.
+    // `install.url`/`install.flags` but no npm fields — between them every `?? ''` fallback is
+    // exercised on both its present and absent side, pinned exactly rather than by presence alone.
     const legs = legsByTarget();
     expect(legs['claude-code']).toMatchObject({
       install_method: 'npm',

@@ -39,7 +39,7 @@ generated, and CI's drift gate fails when it is hand-edited or left stale.
 - **[`src/release/`](src/release/)** — ships the builder's output: versioning, changelog, npm packaging, CI
   smoke/validate checks, the mutation-kill-rate gate, and the bash glue the GitHub workflows call
   through `make` (`src/release/ci/`). `src/release/tests/` covers it.
-- **[`src/metrics/`](src/metrics/)** — instruction/token budgets, A2A grammar checks, loading-chain gates.
+- **[`src/metrics/`](src/metrics/)** — instruction/token budgets, A2A (agent-to-agent) grammar checks, loading-chain gates.
   `src/metrics/tests/` covers it.
 - **`dist/<ecosystem>/`** — the built plugins (generated; the shipped output), one tree per target.
 - **[`src/commons/`](src/commons/)** — cross-cutting test infrastructure that belongs to no single
@@ -122,8 +122,8 @@ Exception: `hercules.md`, the orchestrator persona.
   (`src/targets/claude-code.json`) — `src/builder/tests/guards/rosterSync.spec.ts` reads the compiled
   `settings.json` roster directly and fails on drift, so there is no third place to keep in sync.
 - **Instruction load is a budget.** Say whose context new content lands in — a delegate's total stays
-  under ~150 directives (own file + packet + A2A core + the project CoC). Always-loaded content spends
-  everyone's headroom.
+  under ~150 directives (own file + packet + A2A core + the project code of conduct). Always-loaded
+  content spends everyone's headroom.
 
 ### Hooks
 
@@ -225,8 +225,8 @@ it holds **zero** per-ecosystem branches, classes, or modules. **A target is one
   target cannot ship ungated; output-pinning tests under `src/builder/tests/`; a `RELEASE.md` smoke section.
 
 The rule is the same for a trivial ecosystem and a complex one — the complex one just fills in more
-of the optional sections. The old "no JSON config DSL" rule stands in spirit: the descriptor is a
-config **file**, not a DSL — control flow stays typed, mutation-covered code; `src/content/` and
+of the optional sections. There is no JSON config DSL (domain-specific language) here: the descriptor
+is a config **file**, not a DSL — control flow stays typed, mutation-covered code; `src/content/` and
 `src/targets/` stay data the compiler only reads (and `src/hooks/` code it only copies). The
 committed-dist drift gate (`--check`) is what proves a descriptor reproduces the intended bytes.
 
@@ -257,10 +257,11 @@ one fails CI:
   is cross-checked against package.json every CI `validate` run. The two are the whole canonical list
   (`src/builder/versionTargets.mts::VERSION_TARGETS`). Every ecosystem's versioned manifest (a
   `"versioned": true` artifact in `src/targets/<ecosystem>.json`) carries a `${version}` **token**,
-  not a literal — a human never sees a version to hand-bump under `src/content/`; the build injects the canonical
-  version into each `dist/…/plugin.json` (fail-loud if the token is absent or duplicated). Tests assert
-  every shipped manifest equals the canonical version and that no `${…}` token survives. Literal version sources are build *inputs* (`pyproject.toml`, `package.json`), never `dist/`
-  outputs (a `dist/` file would be regenerated from source on the next build).
+  not a literal — a human never sees a version to hand-bump under `src/content/`; the build injects the
+  canonical version into each `dist/…/plugin.json` (fail-loud if the token is absent or duplicated).
+  Tests assert every shipped manifest equals the canonical version and that no `${…}` token survives.
+  Literal version sources are build *inputs* (`pyproject.toml`, `package.json`), never `dist/` outputs
+  (a `dist/` file would be regenerated from source on the next build).
 - **Red first, red possible forever.** A new test is born failing — write it before the feature, watch it
   fail for the right reason, then make it pass. Anchor it so it stays able to fail; `"auto" in lower`
   stays green on "automatically" — that's decoration, not a test.
@@ -273,12 +274,20 @@ one fails CI:
 
 ---
 
-## Documentation style
+## Documentation & comment style
 
-Every doc, README, and diagram describes the **present state — what exists now**. No before/after,
-changelog narrative, or "previously / today / used to / new vs old" framing — history lives in `git diff`
-and the generated `CHANGELOG.md`.
+**Every written word in this repo describes the present state — what exists now.** This is not a
+docs-only rule: it binds docs, READMEs, diagrams, code comments, docstrings, YAML and JSON comments,
+test headers, and error messages alike. No before/after, changelog narrative, migration story, or
+"previously / used to / no longer / ported from / unlike the old / new vs old" framing, and no
+reference to a deleted file, language, or tool as context — history lives in `git diff` and the
+generated `CHANGELOG.md`. Explain what the code does and *why it is this way*, never what it was.
 
+- **Comments are 1–2 lines.** A genuinely subtle invariant may take 3–5, and that is rare — if a
+  comment needs more, the code needs a better name or a smaller function, not a longer preamble.
+  The same cap applies to file and function headers: state the contract, not its biography.
+- **Expand every abbreviation at first use**, in every file — write "FS (filesystem)", "A2A
+  (agent-to-agent)", "CC (cognitive complexity)". A reader must never have to guess or grep.
 - Prefer **bullets over prose** for anything a contributor scans — one bullet per rule, the term in bold.
 - **One reading only** — every sentence admits exactly one interpretation; if it reads two ways, split or reword it.
 - **160-character** hard line cap on new and edited content (table rows, long URLs, the HTML diagram's
@@ -303,11 +312,10 @@ make test-mutation    # CI gate: >= 90% mutation kill rate, BOTH runtimes indepe
 ```
 
 `test`/`test-mutation` are each a thin wrapper over `test-py` + `test-ts` / `mutation-py` +
-`mutation-ts` — the split is real, not cosmetic: CI runs each pair as **separate, parallel jobs**
-(`mutation-py` and `mutation-ts` in particular used to be one ~40min sequential job; splitting them
-by runtime, each provisioning only the toolchain it needs, is what makes them run concurrently). The
-`-py`/`-ts` suffix is the same string in the make target, the CI job id, and the CI display name —
-a red check can be reproduced by copying its name straight into a terminal.
+`mutation-ts` — the split is real, not cosmetic: CI runs each pair as **separate, parallel jobs**,
+one per runtime, each provisioning only the toolchain it needs. The `-py`/`-ts` suffix is the same
+string in the make target, the CI job id, and the CI display name — a red check can be reproduced by
+copying its name straight into a terminal.
 
 Hercules holds itself to the bar it enforces on its users: **>= 90% branch coverage** and a **>= 90%
 mutation kill rate**, gated in CI on every PR, for **each** runtime independently — a strong

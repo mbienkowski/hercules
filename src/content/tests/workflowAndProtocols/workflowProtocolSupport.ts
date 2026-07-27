@@ -4,11 +4,8 @@ import { discover } from '../../../builder/descriptor.mjs';
 import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
 
 /**
- * Shared helpers for workflowProtocol.spec.ts.
- *
- * Ported from tests/protocols/test_workflow_protocol.py's module-level helpers
- * (`_declared_anchors`, `_registry_rows`, `_section`, `_hook_wiring`) — kept in a companion module
- * so the spec file itself stays a readable list of `it()` bodies, each under the 20-line cap.
+ * Shared helpers for workflowProtocol.spec.ts — kept in a companion module so the spec file stays a
+ * readable list of `it()` bodies, each under the 20-line cap.
  */
 
 export const PROTOCOL = 'dist/claude-code/protocols/workflow-protocol.md';

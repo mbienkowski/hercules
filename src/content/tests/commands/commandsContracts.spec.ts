@@ -17,8 +17,8 @@ import {
   readPersona,
 } from './support';
 
-// Ported from tests/commands/test_commands_contracts.py (part 1 of 2) — shared contracts:
-// naming/date/format, documentation coverage, Development-principles pins.
+// Contracts shared by every command: naming/date/format, documentation coverage, and the
+// Development-principles prose pins. State-schema contracts live in commandsContractsSync.spec.ts.
 
 describe('command naming, date, and documentation contracts', () => {
   it('documentation lists exactly the commands that exist', () => {

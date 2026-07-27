@@ -4,8 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { readRepoJson, repoRoot } from '../../../commons/support/repo';
 
-// Ported from tests/plugin/test_manifest.py — dist/claude-code/settings.json structure and its
-// sync with the shipped commands/ folder.
+// dist/claude-code/settings.json structure and its sync with the shipped commands/ folder.
 
 interface PluginSettings {
   agent?: unknown;

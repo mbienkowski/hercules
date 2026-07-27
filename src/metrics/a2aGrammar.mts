@@ -1,4 +1,4 @@
-/** A2A protocol entry structure validation and vocabulary checks. */
+/** A2A (agent-to-agent) protocol entry structure validation and vocabulary checks. */
 
 export const ALLOWED_STATUSES: ReadonlySet<string> = new Set([
   'Blocker', 'High', 'Medium', 'Nitpick', 'Pass', 'Info',
@@ -24,11 +24,7 @@ export function extractA2aCore(md: string): { text: string; found: boolean } {
   return { text: '', found: false };
 }
 
-/**
- * Count top-level numbered entries (`^\d+\.`) inside a Core block.
- *
- * Continuation lines are indented and do not match.
- */
+/** Count top-level numbered entries (`^\d+\.`) in a Core block; indented continuation lines never match. */
 export function countCoreEntries(text: string): number {
   return text.split('\n').filter((line) => CORE_ENTRY_RE.test(line)).length;
 }
@@ -44,10 +40,8 @@ export function findCoreEntryLines(text: string): string[] {
 }
 
 /**
- * Return true if a line matches the `[ROLE] STATUS | CONTENT | ACTION` structure.
- *
- * The entry must contain exactly two `' | '` field separators (three fields total). A bare `|`
- * inside the CONTENT field is permitted — only `' | '` with spaces counts.
+ * True when a line matches the `[ROLE] STATUS | CONTENT | ACTION` structure: exactly two `' | '`
+ * separators, three fields. A bare `|` inside CONTENT is permitted — only `' | '` with spaces counts.
  */
 export function matchesA2aEntryFormat(line: string): boolean {
   const FIELD_SEPARATOR = ' | ';

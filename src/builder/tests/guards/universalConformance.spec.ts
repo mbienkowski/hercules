@@ -11,10 +11,9 @@ import { filesUnder, frontmatterKeys, isFile, srcStems, topLevelEntries } from '
 import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
 import { repoRoot } from '../../../commons/support/repo';
 
-// Ported from tests/build/test_universal_conformance.py — the universal conformance suite. Every
-// test parametrizes over the registered targets and asserts against CONFORMANCE_EXPECTATIONS, a
-// HAND-AUTHORED, fail-closed table of flat literals — never derived from the descriptors, so a
-// wrong descriptor edit fails HERE instead of updating the expectation in the same keystroke.
+// The universal conformance suite: every test runs over all registered targets against CONFORMANCE_EXPECTATIONS,
+// a hand-authored, fail-closed table of flat literals. It is never derived from the descriptors, so a wrong
+// descriptor edit fails HERE instead of updating the expectation in the same keystroke.
 
 const SRC_CONTENT = join(repoRoot, 'src', 'content');
 const HERCULES_TOKENS = [
@@ -167,8 +166,7 @@ const dirs: string[] = [];
 const built: Record<string, string> = {};
 
 beforeAll(() => {
-  // Build every registered target once for the whole module (wall-clock), matching the Python
-  // original's module-scoped fixture.
+  // Build every registered target once for the whole module, to keep wall-clock time down.
   for (const target of targets()) {
     const root = mkdtempSync(join(tmpdir(), `hercules-universal-${target}-`));
     dirs.push(root);

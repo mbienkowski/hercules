@@ -10,10 +10,9 @@ import {
 import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
 import { repoRoot } from '../../../commons/support/repo';
 
-// Exact-output pins for every mode, field generator, dispatcher, and route kind, ported 1:1 from
-// tests/build/test_generic_serialize.py — carrying the same mutation-killing power onto the TS
-// engine. Specs come from the SHIPPED descriptors (so the pins also freeze the real ecosystems'
-// data) plus a synthetic descriptor for a branch no shipped ecosystem exercises.
+// Exact-output pins for every mode, field generator, dispatcher, and route kind. Specs come from the
+// SHIPPED descriptors (so the pins also freeze the real ecosystems' data) plus a synthetic
+// descriptor for a branch no shipped ecosystem exercises.
 
 const DESCRIPTORS = discover(ECOSYSTEMS);
 
@@ -193,9 +192,8 @@ describe('dispatch and routing', () => {
   });
 
   it('cursor relocates only the persona — every other component keeps its source path', () => {
-    // Ported from tests/build/test_cursor_serialize.py's test_cursor_dest_relocates_only_the_persona:
-    // pinned against the REAL cursor descriptor's routes, since Cursor's agents/commands/skills
-    // dirs match content exactly and only persona.md's .md -> .mdc + relocation is special.
+    // Pinned against the REAL cursor descriptor's routes: Cursor's agents/commands/skills dirs match
+    // content exactly, and only persona.md's .md -> .mdc relocation is special.
     const d = DESCRIPTORS['cursor'] as NonNullable<(typeof DESCRIPTORS)['cursor']>;
     expect(dest(d, 'persona.md')).toBe('rules/hercules-persona.mdc');
     expect(dest(d, 'agents/cynical-reviewer.md')).toBe('agents/cynical-reviewer.md');
@@ -207,9 +205,8 @@ describe('dispatch and routing', () => {
 
 describe('cursor: the readonly field is exactly the gate-verdict roles (descriptor-level pin)', () => {
   it('pins the exact read-locked membership, not just that members get readonly:true', () => {
-    // Ported from test_cursor_serialize.py's test_readonly_set_is_exactly_the_gate_verdict_roles.
-    // The set is descriptor DATA now; this pin is the reader-end guard on that data — a wrong
-    // membership (a verdict-giver dropped, or a name typo'd) must not ship silently.
+    // The set is descriptor data; this pin is the reader-end guard on it — a wrong membership (a
+    // verdict-giver dropped, or a name typo'd) must not ship silently.
     const cursor = DESCRIPTORS['cursor'] as NonNullable<(typeof DESCRIPTORS)['cursor']>;
     const fields = cursor.roles['agent']?.fields ?? [];
     const readonlyField = fields.find((f) => f.key === 'readonly');
@@ -241,8 +238,7 @@ describe('role-direct sugar', () => {
   });
 
   it('cursor serializeAgent drops model and tools — a subagent carries only name+description', () => {
-    // Ported from test_cursor_serialize.py's test_agent_frontmatter_drops_model_and_tools: the
-    // Claude model_tier and tools are dropped (Cursor subagents inherit the user's model).
+    // The Claude model_tier and tools are dropped — Cursor subagents inherit the user's model.
     const s = ser('cursor');
     const m = meta({
       name: 'backend-engineer', description: 'Implements server code.',
@@ -253,8 +249,7 @@ describe('role-direct sugar', () => {
   });
 
   it('cursor serializeAgent read-locks a reviewer role with an exact field order', () => {
-    // Ported from test_cursor_serialize.py's test_reviewer_agent_is_read_locked: review/audit
-    // roles ship readonly:true so an isolated reviewer can never become an author.
+    // Review/audit roles ship readonly:true so an isolated reviewer can never become an author.
     const s = ser('cursor');
     const m = meta({ name: 'cynical-reviewer', description: 'Finds problems.', model_tier: 'high' });
     const out = s.serializeAgent(m, 'Body.', tokens({}));
@@ -263,8 +258,7 @@ describe('role-direct sugar', () => {
   });
 
   it('cursor serializeCommand drops the disable-model-invocation marker', () => {
-    // Ported from test_cursor_serialize.py's test_command_gets_stem_name_and_drops_claude_marker:
-    // commands need name (the file stem) + description for the official validator; Claude's
+    // Commands need name (the file stem) + description for the official validator; Claude's
     // disable-model-invocation marker must not leak through.
     const s = ser('cursor');
     const m = meta({ description: 'Guided delivery.', 'disable-model-invocation': 'true' });
@@ -273,9 +267,8 @@ describe('role-direct sugar', () => {
   });
 
   it('cursor serializeAgent selects the cursor switch branch and renders tokens', () => {
-    // Ported from test_cursor_serialize.py's test_switch_and_token_rendering_selects_the_cursor_branch:
-    // the body is rendered for the cursor target — switch branches select cursor, and ${var}
-    // tokens substitute — end to end through the serializeAgent sugar.
+    // The body renders for the cursor target — switch branches select cursor and ${var} tokens
+    // substitute — end to end through the serializeAgent sugar.
     const body = '${target:opencode}\nOC\n${target:cursor}\nCUR\n${target:end}\nrun ${ns}design';
     const m = meta({ name: 'hercules', description: 'd', model_tier: 'high' });
     const out = ser('cursor').serializeAgent(m, body, tokens({ ns: '/' }));
@@ -304,8 +297,7 @@ describe('role-direct sugar', () => {
 describe('dispatchers directly', () => {
   it('roleByFrontmatter sniffs agent/command/persona/default', () => {
     const s = ser('opencode') as unknown as {
-      // Private in the class; accessed here the same way the Python tests reach the
-      // underscore-prefixed method directly — dispatcher logic is worth pinning on its own.
+      // Private in the class, reached directly here: dispatcher logic is worth pinning on its own.
       roleByFrontmatter(text: string): string;
     };
     expect(s.roleByFrontmatter(AGENT_SRC)).toBe('agent');
@@ -335,8 +327,7 @@ describe('computeFields', () => {
 
 function repoMarkdownFiles(): string[] {
   const root = join(repoRoot, 'src', 'content');
-  // `.parentPath` is available on Node >=20.1 (this project targets >=22 — see package.json's
-  // `engines`), so no fallback to the deprecated `.path` is needed.
+  // `.parentPath` needs Node >= 20.1; package.json's `engines` pins >= 22, so no fallback is needed.
   return readdirSync(root, { recursive: true, withFileTypes: true })
     .filter((e) => e.isFile() && e.name.endsWith('.md'))
     .map((e) => join(e.parentPath, e.name))
@@ -345,9 +336,8 @@ function repoMarkdownFiles(): string[] {
 
 describe('corpus guards (freeze the facts that make dispatch equivalent)', () => {
   it('model_tier appears only under agents/', () => {
-    // Freezes the corpus fact that makes path- and frontmatter-dispatch equivalent: model_tier
-    // (the agent sniff marker) never appears outside agents/. If a non-agent source ever gains it,
-    // opencode's frontmatter sniff and every path dispatcher would diverge — this fails FIRST.
+    // Freezes the corpus fact that makes path- and frontmatter-dispatch equivalent: model_tier (the
+    // agent sniff marker) never appears outside agents/. A stray one makes the dispatchers diverge.
     for (const rel of repoMarkdownFiles()) {
       if (!rel.startsWith('agents/')) {
         const text = readRepoContentFile(rel);

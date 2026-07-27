@@ -1,23 +1,12 @@
 #!/usr/bin/env node
 /**
- * `hercules-build` entry point (thin FS boundary).
+ * `hercules-build` entry point — the build's filesystem (FS) boundary.
  *
- * `--target {<name>|all} [--check]`. Without `--check` it writes `dist/<target>/`; with `--check`
- * it renders to a temp dir and diffs against the committed `dist/` (exit non-zero on drift). One
- * code path for local dev and CI. The accepted target names derive from the ecosystem descriptors
- * on disk, so `all` and the valid values extend automatically when a descriptor is added.
- *
- * Dispatch is entirely generic: for every source the content loop calls `genSerialize.dest` (the
- * descriptor's route interpreter) and `genExtras.emitExtras` (the descriptor's non-content
- * emitter). There are **zero** per-ecosystem branches here — a target is one
- * `ecosystems/<name>.json` file.
- *
- * Unlike the Python original, `targets()`/`buildTarget()`/`checkTarget()` are plain functions, not
- * module-scope constants — `cli.py:35`'s `TARGETS = tuple(descriptor.names())` runs a filesystem
- * scan as a side effect of `import cli`, which the migration spec's few-shot catalogue (#5) names
- * directly as a pattern NOT to replicate. A bare `import` of this module performs ZERO fs syscalls
- * (pinned by `builder/tests/cli/cli.spec.ts`); every scan happens inside a function call from `main()`,
- * the composition root.
+ * `--target {<name>|all} [--check]`: writes `dist/<target>/`, or with `--check` renders to a temp
+ * dir and diffs against the committed `dist/`, exiting non-zero on drift. Dispatch is entirely
+ * generic — a target is one `ecosystems/<name>.json` file, so the valid target names extend with
+ * the descriptors on disk. Importing this module performs ZERO FS syscalls (pinned by
+ * `builder/tests/cli/cli.spec.ts`): every scan happens inside a call from `main()`, the composition root.
  */
 
 import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
@@ -35,10 +24,9 @@ import type { ModelsMap, TierMap } from '../modelMap.mjs';
 import { buildRegistry } from '../serialize.mjs';
 import { readCanonicalVersion } from '../versionTargets.mjs';
 
-// process.cwd(), not an `import.meta.dirname` relative hop — this module runs BOTH as source
+// `process.cwd()`, not an `import.meta.dirname` relative hop: this module runs BOTH as source
 // (Vitest, under src/builder/bin/) and as compiled output (`.ts-out/builder/bin/cli.mjs`), which sit
-// at different depths, so a fixed relative-hop count cannot be correct in both. See descriptor.mts's
-// own REPO_ROOT for the fuller reasoning — every real entry point already runs from the repo root.
+// at different depths, so no fixed hop count is correct in both. Every real entry point runs from the repo root.
 const REPO_ROOT = process.cwd();
 const SRC_CONTENT = join(REPO_ROOT, 'src', 'content');
 const DIST = join(REPO_ROOT, 'dist');
@@ -71,9 +59,9 @@ function loadTokens(target: string, root: string = TARGETS_DIR): ReadonlyMap<str
 /**
  * Render `target` into `outRoot`; return the sorted list of written relative paths.
  *
- * The body holds no per-ecosystem branches: the content loop relocates each source via the generic
- * route interpreter (`genSerialize.dest`) and the non-content artifacts come from the generic
- * emitter (`genExtras.emitExtras`), both driven wholly by the target's descriptor.
+ * No per-ecosystem branches: each source is relocated by the generic route interpreter
+ * (`genSerialize.dest`) and the non-content artifacts come from `genExtras.emitExtras`, both driven
+ * wholly by the target's descriptor.
  */
 export function buildTarget(target: string, outRoot: string): string[] {
   const descriptors = discover();
@@ -127,9 +115,8 @@ function relFiles(root: string): Set<string> {
 /**
  * Relative paths that differ between `a` and `b`, compared by CONTENT.
  *
- * Always byte-compares (never relies on file size/mtime as a shortcut), matching Python's
- * `filecmp.cmp(..., shallow=False)` — a same-size, same-mtime hand-edit to a committed `dist/`
- * file must still be caught.
+ * Always byte-compares, never taking file size or mtime as a shortcut — a same-size, same-mtime
+ * hand-edit to a committed `dist/` file must still be caught.
  */
 function dirDiff(a: string, b: string): string[] {
   const aFiles = relFiles(a);
@@ -158,11 +145,10 @@ export function checkTarget(target: string, tmpRoot: string, distRoot: string = 
 }
 
 /**
- * Parses `--target {<name>|all} [--check]`, matching the Python original's `argparse` contract:
- * both `--target foo` and `--target=foo` are accepted, and an unrecognized argument is a loud
- * error rather than a silent no-op. Without this, `--target=cursor` (a reasonable, common CLI
- * convention argparse also accepts) would fall through unmatched and silently default `target` to
- * `'all'` — a correct-looking but wrong outcome, not something a typo should produce.
+ * Parse `--target {<name>|all} [--check]`; both `--target foo` and `--target=foo` are accepted.
+ *
+ * An unrecognized argument is a loud error, never a silent no-op: otherwise `--target=cursor` would
+ * fall through unmatched and silently default `target` to `'all'` — a correct-looking wrong build.
  */
 function parseArgs(argv: readonly string[]): { target: string; check: boolean } {
   let target = 'all';
@@ -185,10 +171,9 @@ function parseArgs(argv: readonly string[]): { target: string; check: boolean } 
   return { target, check };
 }
 
-// `distRoot` (an addition over the Python original's hardcoded DIST constant, purely for test
-// benefit — same rationale as checkTarget's own `distRoot` param above) lets a test point the
-// --check comparison at a scratch "committed" tree instead of the real repo's dist/, so the
-// stale-output stderr message can be exercised directly rather than merely trusted.
+// `distRoot` is a test seam (as on `checkTarget` above): it points the `--check` comparison at a
+// scratch "committed" tree instead of the real `dist/`, so the stale-output stderr message can be
+// exercised directly rather than merely trusted.
 export function main(argv: readonly string[], distRoot: string = DIST): number {
   const { target, check } = parseArgs(argv);
   let anyStale = false;
@@ -213,10 +198,9 @@ export function main(argv: readonly string[], distRoot: string = DIST): number {
   return anyStale ? 1 : 0;
 }
 
-// Only run when invoked directly (`node cli.mjs ...`), not when imported by a test — matching
-// Python's `if __name__ == "__main__":` guard. `pathToFileURL` percent-encodes spaces and
-// non-ASCII exactly the way `import.meta.url` already does, so a checkout under e.g. `My Work/`
-// still matches — a raw `file://${argv[1]}` would not, silently turning `make build` into a no-op.
+// Only run when invoked directly (`node cli.mjs ...`), not when imported by a test. `pathToFileURL`
+// percent-encodes spaces and non-ASCII exactly the way `import.meta.url` does, so a checkout under
+// e.g. `My Work/` still matches — a raw `file://${argv[1]}` would not, silently making `make build` a no-op.
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   process.exitCode = main(process.argv.slice(2));
 }

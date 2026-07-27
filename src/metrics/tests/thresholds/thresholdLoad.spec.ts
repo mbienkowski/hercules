@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { coreTokenCount, loadThresholds } from '../../thresholdRunner.mjs';
 import { tmpWorkspace, writeThresholds } from '../support';
 
-// Ported from tests/metrics/test_threshold_load.py — config loading, validation, load-time errors.
+// Threshold config loading: defaults, field validation, and load-time errors.
 
 describe('loadThresholds: safe defaults', () => {
   it('a rule without optional settings gets safe defaults', () => {

@@ -8,12 +8,8 @@ import { srcStems } from '../../../commons/support/buildTree';
 import { repoRoot } from '../../../commons/support/repo';
 import { which } from '../../../commons/support/which';
 
-// Ported from tests/build/test_grok_build_smoke.py — Grok Build smoke: the built plugin is
-// structurally installable (checked against the committed dist/grok-build); live `grok` CLI
-// check when present.
-//
-// The structural checks never skip (so the CI leg produces "N passed" without secrets); the
-// live-CLI check skips cleanly when `grok` is absent, mirroring the Cursor smoke pattern.
+// Grok Build smoke: the committed `dist/grok-build` tree is structurally installable. Those checks
+// never skip (so the CI leg passes without secrets); the live `grok` CLI check skips when absent.
 
 const SRC_CONTENT = join(repoRoot, 'src', 'content');
 const DIST = join(repoRoot, 'dist', 'grok-build');
@@ -58,10 +54,8 @@ it('built plugin ships the core components', () => {
 });
 
 it('ships the full component inventory', () => {
-  // The installed plugin must carry the WHOLE inventory — all 5 commands, every advisor agent,
-  // and every skill — so nothing silently fails to load. Names derive from content (the
-  // single source of truth), so a dropped or renamed component fails here rather than shipping a
-  // half-loaded plugin.
+  // The installed plugin must carry the WHOLE inventory — every command, agent, and skill. Names
+  // derive from content, so a dropped or renamed component fails here, not as a half-loaded plugin.
   for (const name of srcStems(SRC_CONTENT, 'commands')) {
     expect(isFile(DIST, 'commands', `${name}.md`), `grok-build missing command ${name}`).toBe(true);
   }

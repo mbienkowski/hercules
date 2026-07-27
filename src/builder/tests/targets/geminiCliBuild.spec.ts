@@ -11,16 +11,8 @@ import { srcStems } from '../../../commons/support/buildTree';
 import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
 import { repoRoot } from '../../../commons/support/repo';
 
-// Ported from tests/build/test_gemini_cli_build.py — the Gemini CLI target: an extension
-// (gemini-extension.json + subagents, TOML commands, a GEMINI.md context). Determinism,
-// routing/extensions, no per-agent model, the version-injected manifest, protocol-citation
-// resolution, and ecosystem neutrality live in the generic universal-conformance suite already;
-// this file carries the assertions that are specific to Gemini's TOML command shape and its
-// version-injected extension manifest.
-//
-// NOT ported here: test_toml_escapers_handle_backslashes_and_triple_quotes — already covered
-// verbatim (same tomlBasic/tomlMultiline pins) by builder/tests/pipeline/genSerialize.spec.ts's
-// "toml_command mode" describe block.
+// The Gemini CLI (command-line interface) target ships an extension: gemini-extension.json, TOML commands, a GEMINI.md
+// context. This file covers what is Gemini-specific; generic cross-target checks live in builder/tests/guards/universalConformance.spec.ts.
 
 const SRC_CONTENT = join(repoRoot, 'src', 'content');
 
@@ -65,12 +57,8 @@ describe('commands ship as TOML with prompt and description', () => {
   });
 });
 
-// A hand-rolled decoder for exactly the two TOML string constructs genSerialize.mts's
-// tomlCommand emits: a basic (single-line) string and a multiline basic (`"""…"""`) string. No
-// TOML parser is an existing devDependency (js-yaml is the only added parser, for YAML); this
-// mirrors the real TOML escaping grammar independently of the emitter, so it still closes the
-// class of bug the Python original's `tomllib.loads` guarded — a token that renders a stray
-// backslash or `"""` into the body and produces invalid (or silently wrong) TOML.
+// A hand-rolled decoder for the only two TOML string forms genSerialize.mts's tomlCommand emits: basic
+// (single-line) and multiline basic (`"""…"""`). It mirrors the escaping grammar independently of the emitter.
 function decodeTomlBasicString(raw: string): string {
   let out = '';
   for (let i = 0; i < raw.length; i++) {
@@ -111,9 +99,8 @@ function parseGeminiCommandToml(text: string): { description: string; prompt: st
 
 describe('the emitted command TOML parses with the prompt preserved', () => {
   it('every command file is valid TOML with the plan-mode instruction intact', () => {
-    // The real safety net: a source-only invariant can't catch a token that renders a backslash
-    // or `"""` into a body; parsing the RENDERED .toml (and escaping the body in the emitter)
-    // does. Closes the whole class.
+    // Parsing the RENDERED .toml is the real safety net: a source-only invariant can't catch a
+    // token that renders a backslash or `"""` into a body, and this does.
     const out = build();
     for (const name of srcStems(SRC_CONTENT, 'commands')) {
       const f = join(out, 'commands', `${name}.toml`);

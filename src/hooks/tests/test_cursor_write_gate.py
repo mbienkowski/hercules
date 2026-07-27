@@ -1,25 +1,20 @@
-"""The write-gate on Cursor — the ONE generic adapter running its ``cursor_events`` protocol.
+"""The write-gate on Cursor — the ONE generic adapter running its ``event_guards`` protocol.
 
 Cursor has no pre-file-edit veto, so the adapter enforces what Cursor's hooks CAN, all keyed off the
-SAME frozen-test state AND the SAME ``frozen_override`` policy Claude Code and OpenCode read
-(``hercules_state`` + ``frozen_tests._override_allows``):
+SAME frozen-test state and ``frozen_override`` policy every other ecosystem reads:
 
-- ``shell`` (``beforeShellExecution``): DENY a command that writes/commits a frozen test during a build.
-- ``mcp`` (``beforeMCPExecution``): DENY a write-ish MCP call that names a frozen test during a build.
-- ``after_edit`` (``afterFileEdit``): notification-only — **advisory** in the interactive IDE (no
-  working-tree mutation), an honest ``git checkout`` restore only in **headless** runs
-  (``HERCULES_RUNTIME_MODE=headless``).
+- ``shell`` (``beforeShellExecution``): DENY a command that writes/commits a frozen test mid-build.
+- ``mcp`` (``beforeMCPExecution``): DENY a write-ish MCP (Model Context Protocol) call that names a
+  frozen test mid-build.
+- ``after_edit`` (``afterFileEdit``): notification-only — advisory in the interactive IDE (integrated
+  development environment), an honest ``git checkout`` restore only under
+  ``HERCULES_RUNTIME_MODE=headless``.
 
-Reads are NOT blocked (the doctrine locks edits, not reads). A user-sanctioned ``frozen_override`` lifts
-the gate for its files this round.
-
-These drive the real adapter in-process against a throwaway ``~/.hercules`` state tree, asserting the
-emitted Cursor decision JSON. Deny commands are HARDCODED literals (never read from the gate's own tuple)
-so a mutated primitive is actually caught; the exact deny/revert message text is pinned for the same reason.
-
-Reads the COMMITTED ``dist/cursor/`` tree and its gate config directly rather than building a fresh
-copy or importing ``the compiler's descriptor module`` — see ``test_hooks_wiring.py``'s module docstring
-for why (this island stays Python; the compiler is deleted outright in a later commit).
+Reads are NOT blocked, and a user-sanctioned ``frozen_override`` lifts the gate for its files this
+round. These drive the real adapter in-process against a throwaway ``~/.hercules`` state tree, using
+the committed ``dist/cursor/`` gate config, and assert the emitted Cursor decision JSON. Deny commands
+and message text are HARDCODED literals, never read from the gate's own tuple, so a mutated primitive
+is actually caught.
 """
 from __future__ import annotations
 
@@ -91,8 +86,8 @@ def _interactive_by_default(monkeypatch):
 
 
 # ── shell deny: every write/commit primitive, as HARDCODED commands (not read from the tuple) ──
-# One literal per guarded primitive so a mutant that drops/mistypes a primitive makes exactly one of
-# these go green→red. Includes bare `rm`/`rm -f` (the historically-missed destructive primitive).
+# One literal per guarded primitive so a mutant that drops or mistypes a primitive makes exactly one
+# of these go green→red. Bare `rm`/`rm -f` is covered alongside the rest.
 _DENY_COMMANDS = [
     "git add tests/test_frozen.py",
     "git commit -- tests/test_frozen.py",
@@ -175,7 +170,7 @@ def test_shell_deny_carries_the_canonical_reason_with_the_escape_hatch(active_bu
 # ── shell allow: quoted mention, no build, phase, opt-out ────────────────────────────────────
 def test_shell_allows_a_commit_whose_message_merely_names_a_frozen_test(active_build, capsys):
     """``git commit -m "fix test_frozen.py"`` names the file only inside the quoted message — not an
-    operation on it. Quoted spans are stripped before the frozen-path scan, so this is allowed."""
+    operation on it. A ``-m`` span is dropped before the frozen-path scan, so this is allowed."""
     home, proj = active_build
     evt = {"command": 'git commit -m "fix flake in test_frozen.py"', "workspace_roots": [str(proj)]}
     assert _decide("shell", evt, home, capsys)["permission"] == "allow"
@@ -279,9 +274,9 @@ def test_after_edit_headless_restores_via_git_checkout(active_build, capsys, mon
 
 
 def test_after_edit_headless_is_honest_when_restore_cannot_happen(active_build, capsys, monkeypatch):
-    """Headless on an UNTRACKED frozen test (the common case right after Design→Build) or a non-git tree:
-    ``git checkout`` cannot restore it, so the message must SAY it could not — never the old false
-    "reverted, run git stash pop" claim — and the file is left as it was (there is nothing to restore to)."""
+    """Headless on an UNTRACKED frozen test (the common case right after Design→Build) or a non-git
+    tree: ``git checkout`` cannot restore it, so the message must SAY it could not, and the file is
+    left as it was — there is nothing to restore it to."""
     monkeypatch.setenv("HERCULES_RUNTIME_MODE", "headless")
     home, proj = active_build          # active_build's proj is NOT a git repo
     frozen = proj / "tests" / "test_frozen.py"
@@ -295,8 +290,8 @@ def test_after_edit_headless_is_honest_when_restore_cannot_happen(active_build, 
 
 # ── mcp (beforeMCPExecution) — deny a WRITE-ish MCP call naming a frozen test; allow reads ────
 def test_mcp_denies_a_writeish_call_targeting_a_frozen_test(active_build, capsys):
-    """An MCP git/filesystem server that commits/writes a frozen test bypasses the shell gate entirely —
-    beforeMCPExecution closes that hole for write-ish tools whose args name the frozen path."""
+    """An MCP git/filesystem server that commits or writes a frozen test bypasses the shell gate
+    entirely; beforeMCPExecution closes that hole for write-ish tools whose args name the frozen path."""
     home, proj = active_build
     evt = {"tool_name": "git_commit", "arguments": {"files": ["tests/test_frozen.py"], "message": "x"},
            "workspace_roots": [str(proj)]}

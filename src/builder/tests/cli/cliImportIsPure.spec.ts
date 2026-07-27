@@ -1,16 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// A SEPARATE spec file, deliberately — vi.mock('node:fs') is module-scoped and hoisted (see
-// descriptorSort.spec.ts for the fuller rationale), so it must live alone to avoid spying on every
-// other test's real filesystem calls.
-//
-// Proves the migration spec's few-shot catalogue item #5 directly: cli.mts's composition-root
-// functions (targets/buildTarget/checkTarget/main) must be plain functions, never module-scope
-// constants computed at import time — Python's cli.py:35 (`TARGETS = tuple(descriptor.names())`)
-// and serialize.py:58-59 (`for _descriptor in discover().values(): register(...)`) both run a full
-// filesystem scan as a side effect of a bare `import`. A regression here (a stray top-level
-// `discover()`/`readdirSync()`/etc. call reintroduced into cli.mts, serialize.mts, or any module
-// they import) would make this test fail on the IMPORT line itself, before any test body runs.
+// A SEPARATE spec file, deliberately: vi.mock('node:fs') is module-scoped and hoisted (see
+// descriptorSort.spec.ts), so it must live alone. cli.mts's composition-root functions must be plain
+// functions, never import-time constants — a stray top-level `discover()`/`readdirSync()` in
+// cli.mts, serialize.mts, or their imports fails this test on the IMPORT line itself.
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
   const spied: Record<string, unknown> = {};
@@ -21,9 +14,8 @@ vi.mock('node:fs', async (importOriginal) => {
 });
 
 describe('importing the compiler entry points performs zero filesystem syscalls', () => {
-  // The mocked node:fs module (and its per-function call history) is shared across both `it`
-  // blocks below — ESM module caching means `import('node:fs')` returns the SAME mock instance
-  // each time, so a call recorded by one test would otherwise still be visible to the next.
+  // The mocked node:fs module and its call history are shared across both `it` blocks: ES-module
+  // caching returns the SAME mock instance, so one test's calls would otherwise leak into the next.
   beforeEach(() => {
     vi.clearAllMocks();
   });

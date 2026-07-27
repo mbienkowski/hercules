@@ -1,31 +1,21 @@
-"""The ONE write-gate adapter (G1) — generic, parameterized by the ecosystem's ``hooks/gate.json``.
+"""The ONE write-gate adapter — generic, parameterized by the ecosystem's ``hooks/gate.json``.
 
-Every ecosystem's gate is this same file; what differs per host is DATA, emitted at build time from
-the ecosystem descriptor (``src/targets/<name>.json`` → ``gate``) into a ``gate.json`` beside it.
-The verdict logic is never re-implemented per host: everything delegates to the CANONICAL guard
-shipped alongside (``frozen_tests`` + ``hercules_state``, byte-identical on every ecosystem), so the
-frozen set, the block message, and the user-granted ``frozen_override`` escape hatch are identical
-across Claude Code, OpenCode, Cursor, Gemini CLI, Copilot CLI, and Grok Build.
+Every ecosystem's gate is this same file; only ``gate.json`` differs per host (the tool-name mapping,
+the argument keys a target path may arrive under, and the allow/deny decision shapes), emitted at
+build time from ``src/targets/<name>.json`` → ``gate``. Verdicts always delegate to the canonical
+guard shipped alongside (``frozen_tests`` + ``hercules_state``), so the frozen set, the block
+message, and the user-granted ``frozen_override`` escape hatch are identical on every host.
 
-Two named protocols (a closed set — a new host behavior is a new named protocol in THIS file, with
-tests, never logic in the JSON):
-
-- ``pre_tool`` — a real pre-write veto (Gemini's ``BeforeTool``, Copilot's ``preToolUse``). The
-  config maps host tool names to the canonical guard's vocabulary, lists the argument keys a target
-  path may arrive under (JS hosts vary casing/shape; a JSON-string payload and nested edit lists are
-  handled), and gives the host's decision shapes: an optional ``allow`` object (Copilot always emits
-  a decision; Gemini stays silent to allow) and a ``deny`` object + ``reason_key`` carrying the
-  canonical block message.
-- ``event_guards`` — the guard set for IDE-class hosts with shell/MCP/after-edit hook surfaces
-  (``shell`` / ``mcp`` / ``after_edit`` selected via argv), including the runtime-aware after-edit
-  path: advisory in the interactive IDE (no working-tree mutation), an honest ``git checkout``
-  restore only in headless runs (``HERCULES_RUNTIME_MODE=headless``). The host's decision shapes
-  (allow/deny objects, user/agent message keys) are config data; the guard algorithms are shared.
+Two named protocols, a closed set — a new host behavior is a new named protocol in THIS file, with
+tests, never logic in the JSON. ``pre_tool`` is a real pre-write veto. ``event_guards`` covers the
+shell / MCP (Model Context Protocol) / after-edit surfaces, selected via argv, where after-edit is
+advisory in an interactive IDE (integrated development environment) and restores via ``git
+checkout`` only under ``HERCULES_RUNTIME_MODE=headless``.
 
 Invoked as ``python3 hercules_gate.py [<mode>]`` with the host event JSON on stdin. Fails OPEN on
-any error, malformed input, or missing/unreadable config — matching the canonical frozen hook's
-policy, so a gate bug never bricks an unrelated edit (disclosed per ecosystem in CAPABILITIES.md).
-Reads are never blocked: the doctrine locks frozen tests against edits, not reads.
+any error, malformed input, or unreadable config, so a gate bug never bricks an unrelated edit
+(disclosed per ecosystem in CAPABILITIES.md). Reads are never blocked: the doctrine locks frozen
+tests against edits, not reads.
 """
 from __future__ import annotations
 
@@ -66,10 +56,9 @@ def _nested_paths(args: dict, path_keys, nested_keys) -> list:
 
 
 def _extract_paths(args, path_keys, nested_keys):
-    """Return EVERY target file path a host tool's arguments name, in order (deduped). Accepts a
-    dict or an unparsed JSON string, and recurses into nested edit lists (``nested_keys``) so a
-    batched multi-edit is seen in FULL — a frozen file in any later hunk must still block, so this
-    can never stop at the first path. Never raises."""
+    """Return EVERY target file path a host tool's arguments name, in order (deduped). Accepts a dict
+    or an unparsed JSON string, and recurses into nested edit lists so a batched multi-edit is seen in
+    FULL — a frozen file in any later hunk must still block. Never raises."""
     if isinstance(args, str):
         try:
             args = json.loads(args)
@@ -88,9 +77,8 @@ def _extract_paths(args, path_keys, nested_keys):
 
 
 def _emit_pre_tool(cfg, reason) -> None:
-    """Print the host's decision: the ``deny`` shape with the canonical *reason* under
-    ``reason_key``, or the ``allow`` shape — omitted entirely for hosts (Gemini) whose silence
-    means allow."""
+    """Print the host's decision: the ``deny`` shape with the canonical *reason* under ``reason_key``,
+    or the ``allow`` shape — omitted entirely for hosts whose silence means allow."""
     if reason is None:
         allow = cfg.get("allow")
         if allow is not None:
@@ -114,7 +102,7 @@ def _pre_tool_reason(cfg, evt, home=None):
     paths = _extract_paths(args, cfg["path_keys"], cfg.get("nested_keys") or [])
     cwd = evt.get("cwd") or os.getcwd()
     # Check EVERY named path — a batched edit whose first target is innocuous but a later one is a
-    # frozen test must still be denied; stopping at the first path was a real bypass.
+    # frozen test must still be denied.
     for path in paths:
         payload = {"tool_name": mapped, "tool_input": {"file_path": path}, "cwd": cwd}
         code, reason = decide(payload, home=home)
@@ -128,10 +116,9 @@ def _pre_tool_reason(cfg, evt, home=None):
 # Command wrappers that may precede the real verb — consumed so ``time git add …`` / ``xargs rm …`` /
 # ``env X=1 sed -i …`` are still caught. Covers known wrappers, their flags, env assignments, numbers.
 _WRAP = r"(?:(?:sudo|time|nice|env|stdbuf|xargs|nohup|command|\w+=\S+|-\S+|\d+)\s+)*"
-# A write/delete/commit command at the START of a pipeline segment (after optional wrappers). Coarse by
-# necessity — the hook sees only the raw command string, so this is a guardrail against honest/accidental
-# writes, not a sound sandbox: ``python -c``, heredocs, and cross-segment data flow (e.g.
-# ``find … test_x.py | xargs rm``) still evade it. CAPABILITIES.md discloses this coarseness.
+# A write/delete/commit command at the START of a pipeline segment (after optional wrappers). Coarse
+# by necessity — the hook sees only the raw command string, so ``python -c``, heredocs and
+# cross-segment data flow still evade it. A guardrail, not a sandbox; disclosed in CAPABILITIES.md.
 _SEG_WRITE = re.compile(
     r"^\s*" + _WRAP +
     r"(?:git\s+(?:add|commit|mv|rm)|sed\s+-i|rm|mv|cp|dd|tee|truncate|install|ln|patch)\b"
@@ -140,23 +127,19 @@ _FIND_DELETE = re.compile(r"\bfind\b.*\s-delete\b")  # `find … -delete` carrie
 _SEGMENT = re.compile(r"[\n;|&()]")                  # shell separators between pipeline segments
 _REDIRECT = re.compile(r">>?[|&]?\s*(\S+)")           # output redirection (incl. >| clobber, >&) + target
 # A quoted span in a shell command. Spans are UNWRAPPED to their inner text before the frozen-path
-# scan (so ``rm "tests/test_frozen.py"`` — quoting the path is normal — is still caught), EXCEPT a
-# span that is a ``-m``/``--message`` commit message, which is dropped (prose, not a file op) so
-# ``git commit -m "fix test_login.py"`` stays allowed.
+# scan, so ``rm "tests/test_frozen.py"`` is still caught — except a ``-m``/``--message`` span, which
+# is dropped as prose so ``git commit -m "fix test_login.py"`` stays allowed.
 _QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
 _MSG_FLAG = re.compile(r"(?:^|\s)(?:-m|--message)=?\s*$")
 
 
 def _unquote(cmd: str) -> str:
     """Replace each quoted span with its INNER text so a quoted frozen path is still scanned; drop a
-    span that directly follows ``-m``/``--message`` (a commit message, not a path). Closes the
-    'quote the path to evade the gate' bypass while keeping a message that merely names a test."""
+    span that directly follows ``-m``/``--message`` (a commit message, not a path)."""
     out: list = []
-    # `last` is used ONLY as a slice-start bound below (`cmd[last:...]`, twice, never in any other
-    # context) — and Python's slice protocol treats `None` identically to `0` for a start bound
-    # (`s[None:5] == s[0:5]`, unconditionally, for every string). Mutating this literal to `None`
-    # therefore cannot change this function's output for ANY input: a provable equivalent mutant,
-    # not a missing test. See src/hooks/tests/test_hercules_gate_internals.py for the full case.
+    # `last` is used ONLY as a slice-start bound below (`cmd[last:...]`), and Python's slice protocol
+    # treats `None` identically to `0` for a start bound, for every string. Mutating this literal
+    # therefore cannot change this function's output for ANY input: a provable equivalent mutant.
     last = 0  # pragma: no mutate (equivalent: only ever used as a slice-start bound; see comment above)
     for m in _QUOTED.finditer(cmd):
         gap = cmd[last:m.start()]           # the text between the previous quoted span and this one
@@ -167,16 +150,15 @@ def _unquote(cmd: str) -> str:
         last = m.end()
     out.append(cmd[last:])
     return "".join(out)
-# A *write-ish* MCP tool name (an MCP git/filesystem server) — used to avoid blocking pure reads of a
-# frozen test (the doctrine allows reads), while catching write/commit MCP ops on frozen paths.
+# A *write-ish* MCP tool name (an MCP git/filesystem server) — lets a pure read of a frozen test
+# through, as the doctrine allows, while catching write/commit MCP operations on frozen paths.
 _MCP_WRITE_HINT = re.compile(
     r"(write|commit|edit|create|delete|remove|put|add|move|rename|patch|apply|stash|checkout|reset"
     r"|save|update|append|insert|push)", re.I)
 
 # Git write/commit subcommands, plus git's own GLOBAL options that may sit between ``git`` and the
-# subcommand. _SEG_WRITE anchors the verb immediately after ``git`` and so misses ``git -C . add`` /
-# ``git -c k=v commit`` / ``git --git-dir=… rm`` — ordinary forms (the gate itself runs ``git -C`` in
-# _restore). _git_write_seg tokenises past the global options so those are caught too.
+# subcommand. _SEG_WRITE anchors the verb immediately after ``git`` and so misses ordinary forms such
+# as ``git -C . add``; _git_write_seg tokenises past the global options so those are caught too.
 _GIT_WRITE_SUBCMDS = {"add", "commit", "mv", "rm"}
 _GIT_OPT_TAKES_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--config-env"}
 _LEAD_WRAP = re.compile(r"^\s*" + _WRAP)  # strip time/env/sudo/… wrappers before the ``git`` token
@@ -184,9 +166,8 @@ _LEAD_WRAP = re.compile(r"^\s*" + _WRAP)  # strip time/env/sudo/… wrappers bef
 
 def _git_write_seg(seg: str) -> bool:
     """True if *seg* is a ``git`` add/commit/mv/rm even when git GLOBAL OPTIONS precede the subcommand.
-    Value-taking options (``-C <path>``, ``-c <k=v>``, ``--git-dir <p>``) consume their argument so the
-    first non-option token is classified as the subcommand. Coarse like the rest of the gate — it closes
-    the documented global-option evasion, it is not a sandbox."""
+    Value-taking options (``-C <path>``, ``-c <k=v>``, ``--git-dir <p>``) consume their argument, so the
+    first non-option token is classified as the subcommand."""
     toks = _LEAD_WRAP.sub("", seg).strip().split()
     if not toks or toks[0] != "git":
         return False
@@ -203,23 +184,22 @@ def _git_write_seg(seg: str) -> bool:
 
 
 def _seg_names(seg: str, base: str) -> bool:
-    """True if basename *base* appears in *seg* as a whole path component / filename, not as a substring
-    of a longer name — so a frozen ``test_login.py`` is not matched inside ``mytest_login.py.bak``. A
-    path separator before it is fine; a word / dot / dash char on either edge is not."""
+    """True if basename *base* appears in *seg* as a whole filename rather than a substring of a longer
+    name — so a frozen ``test_login.py`` is not matched inside ``mytest_login.py.bak``."""
     return re.search(r"(?:^|[^\w.\-])" + re.escape(base) + r"(?![\w.\-])", seg) is not None
 
 
 def _is_headless() -> bool:
-    """Headless (autonomous, no human) iff Hercules declared it via env. Default = interactive IDE, the
-    safe non-mutating direction — the hook can't tell the two apart from Cursor's event payload, so mode
-    is *declared* by whoever owns the invocation (Hercules sets it when it drives ``cursor-agent -p``)."""
+    """Headless (autonomous, no human) iff Hercules declared it via env. An event payload cannot tell the
+    two apart, so the mode is *declared* by whoever owns the invocation; the default is the interactive
+    IDE — the safe, non-mutating direction."""
     return os.environ.get("HERCULES_RUNTIME_MODE") == "headless"
 
 
 def _restore(cwd: str, fp: str) -> bool:
-    """Restore *fp* to its committed content via ``git checkout`` (CoC-sanctioned working-tree mutation).
-    Returns True ONLY if git actually restored it — so the caller never claims a revert that didn't
-    happen (an untracked frozen test or a non-git tree fails here, honestly)."""
+    """Restore *fp* to its committed content via ``git checkout`` — the one working-tree mutation any
+    hook makes. Returns True ONLY if git actually restored it, so the caller never claims a revert that
+    didn't happen (an untracked frozen test or a non-git tree fails here, honestly)."""
     try:
         r = subprocess.run(["git", "-C", cwd, "checkout", "--", fp],
                            capture_output=True, timeout=10)
@@ -261,12 +241,8 @@ def _guarded_paths(session, roots):
 
 def frozen_map(cwd: str, home=None) -> dict:
     """Map each canonical frozen-test path guarded for *cwd* right now → its owning session (empty when
-    no build is active), so a block can quote that session's spec/round via the canonical ``_reason``.
-
-    A path covered by a live, user-granted ``frozen_override`` is omitted — the exact same policy
-    every ecosystem applies, via the shared ``frozen_tests._override_allows``, so the documented
-    "change this test" escape hatch works identically on every host.
-    """
+    no build is active), so a block can quote that session's spec/round. A path covered by a live,
+    user-granted ``frozen_override`` is omitted, via the shared ``frozen_tests._override_allows``."""
     frozen: dict = {}
     for session, roots, project in resolve_build_contexts(cwd, home=home):
         if not _context_guards_frozen(session, project):
@@ -293,10 +269,9 @@ def _guards_notify(cfg, note: str) -> None:
 
 def _writes_frozen(cmd: str, frozen: dict):
     """Return the frozen canon-path *cmd* writes to / deletes, or None. Coarse and basename-level by
-    design: quoted spans are UNWRAPPED (a quoted path stays visible; only a ``-m`` message is dropped);
-    an output redirection counts only when its TARGET is the frozen file (so ``pytest test_x.py > log``
-    is allowed); and a write/delete verb counts only when a frozen filename shares its pipeline segment
-    (so ``pytest test_x.py | tee log`` — read here, write there — is not a write)."""
+    design: a redirection counts only when its TARGET is the frozen file, and a write/delete verb only
+    when a frozen filename shares its pipeline segment — so ``pytest test_x.py | tee log`` (read here,
+    write there) is not a write."""
     unquoted = _unquote(cmd)
     by_base = {}
     for p in frozen:
@@ -314,17 +289,14 @@ def _writes_frozen(cmd: str, frozen: dict):
 
 
 def _mcp_hits_frozen(evt: dict, frozen: dict):
-    """Return the frozen canon-path a *write-ish* MCP call targets, or None.
-
-    Coarse guardrail (like the shell scan): it can only see what the MCP server exposes. It fires when
-    the tool NAME looks mutating (``_MCP_WRITE_HINT`` — write/commit/edit/…) AND a frozen test's basename
-    appears in the serialized arguments — so a pure read/list/get MCP call (which the doctrine allows) is
-    not blocked, while an MCP git-commit or filesystem-write on a frozen path is. Name/arg field names
-    vary by server, so several candidates are checked defensively."""
+    """Return the frozen canon-path a *write-ish* MCP call targets, or None. Fires when the tool NAME
+    looks mutating (``_MCP_WRITE_HINT``) AND a frozen test's basename appears in the serialized
+    arguments, so a pure read/list/get call stays allowed. Name and argument field names vary by
+    server, so several candidates are checked."""
     name = ""
-    # Cursor's exact beforeMCPExecution payload keys aren't firmly documented, so accept the plausible
-    # snake_case AND camelCase spellings; if none match, the tool name stays "" and we fail OPEN (allow)
-    # — the disclosed guardrail posture. CAPABILITIES.md notes this dependence on the server's payload.
+    # The host's payload keys are not firmly specified, so accept the plausible snake_case AND
+    # camelCase spellings; when none match, the tool name stays "" and the call fails OPEN — the
+    # guardrail posture CAPABILITIES.md discloses.
     for key in ("tool_name", "toolName", "name", "tool", "method", "server_name", "serverName", "server"):
         v = evt.get(key)
         if isinstance(v, str) and v:
@@ -368,9 +340,8 @@ def _decide_mcp(cfg, evt: dict, frozen: dict) -> None:
 
 
 def _after_edit_note(cwd: str, fp: str, session) -> str:
-    """The notification text for an after-edit hit on a frozen file. Interactive IDE → a plain
-    advisory that never touches the tree. Headless → restore from git and say so, but claim the
-    revert ONLY when git actually performed it (an untracked/non-git file fails honestly)."""
+    """The notification text for an after-edit hit on a frozen file: an advisory that never touches the
+    tree in an interactive IDE, a git restore in headless — claimed ONLY when git actually did it."""
     if not _is_headless():
         return _ide_advisory(fp)  # interactive IDE — never mutate the user's tree
     if _restore(cwd, fp):
@@ -441,6 +412,6 @@ def main(argv=None, stdin_text=None, home=None, config=None) -> int:
 
 
 # The __main__ guard carries no behavioural mutant under test (a wrapped "__main__" never equals the
-# real dunder), so it is pragma'd like frozen_tests.py.
+# real dunder), hence the pragma.
 if __name__ == "__main__":  # pragma: no mutate
     sys.exit(main())

@@ -1,12 +1,10 @@
-"""Unit-level coverage for ``hercules_gate.py``'s internal helpers — the pieces the ecosystem-level
-suites (``test_cursor_write_gate.py``, ``test_pre_tool_write_gate.py``, ...) drive only indirectly
-through a full ``main()`` decision. Several of these helpers have a behavioral difference that a
-full end-to-end decision can't observe (``main``'s own fail-open ``except`` clause re-derives the
-SAME safe output an internal exception would have produced), so these tests call the private
-functions directly — the only way to pin their exact contracts.
+"""Unit-level coverage for ``hercules_gate.py``'s internal helpers, which the ecosystem-level suites
+drive only indirectly through a full ``main()`` decision.
 
-Mirrors ``test_cursor_write_gate.py``'s ``_load_gate`` / state-writing helpers rather than importing
-across test files (existing convention in this suite: each file carries its own small copies).
+``main``'s fail-open ``except`` clause re-derives the SAME safe output an internal exception would
+have produced, so an end-to-end decision cannot observe some of these contracts at all — calling the
+private functions directly is the only way to pin them. Each test file in this suite carries its own
+small copy of the ``_load_gate`` / state-writing helpers rather than importing across files.
 """
 from __future__ import annotations
 
@@ -132,9 +130,8 @@ def test_unquote_preserves_the_full_inner_text_of_a_non_message_quote():
     assert gate._unquote('rm "test.py"') == 'rm test.py'
 
 
-# NOTE: `_unquote`'s `last = 0` accumulator is pragma'd at its definition in hercules_gate.py itself
-# (a provable equivalent mutant: `last` is used ONLY as a slice-start bound, and Python's slice
-# protocol treats `None` identically to `0` there — see the comment at that line for the full proof).
+# NOTE: `_unquote`'s `last = 0` accumulator is pragma'd at its definition in hercules_gate.py — a
+# provable equivalent mutant, since `last` is only ever a slice-start bound.
 
 
 # ── _git_write_seg: git subcommand set, value-taking global options, wrapper stripping ───────────

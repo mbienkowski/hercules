@@ -1,10 +1,7 @@
 /**
- * Validate the plugin package: every marketplace lists hercules + single-source version (`make validate`).
- *
- * Runs without any CLI — the live install smoke is the `smoke` job. Fails the build if any ecosystem's
- * marketplace manifest omits the plugin or the canonical version files disagree. Every
- * `<eco>-plugin/marketplace.json` is checked (`.claude-plugin/`, `.cursor-plugin/`, …) so a newly
- * added distribution's marketplace can't ship unvalidated.
+ * Validate the plugin package (`make validate`): every `<eco>-plugin/marketplace.json` at the repo
+ * root — `.claude-plugin/`, `.cursor-plugin/`, … — must list hercules, and the canonical version
+ * files must agree. Runs without any CLI; the live install check is the `smoke` job.
  */
 
 import { globSync, readFileSync } from 'node:fs';
@@ -21,22 +18,16 @@ export function marketplaces(): string[] {
 }
 
 /**
- * Throw if any of `manifests` omits the hercules plugin.
- *
- * Split out from `main()` (an addition over the Python original, purely for test benefit) so a test
- * can exercise the failure path directly against a fabricated manifest, rather than monkeypatching
- * `marketplaces`/`checkInSync`/`readVersions` — ESM import bindings aren't reassignable the way
- * Python's module attributes are.
+ * Throw if any of `manifests` omits the hercules plugin. Split out from `main()` so a test can drive
+ * the failure path against a fabricated manifest — ESM (ECMAScript modules) import bindings aren't
+ * reassignable, so `marketplaces`/`checkInSync`/`readVersions` cannot be stubbed in place.
  */
 export function validateManifests(manifests: readonly string[]): void {
   for (const path of manifests) {
     const mk = JSON.parse(readFileSync(path, 'utf-8')) as MarketplaceManifest;
-    // `?? []`'s only consumer is `.some(p => p.name === 'hercules')` immediately below: an absent
-    // `plugins` key can therefore only ever produce `false` (no test manifest lacking `plugins` can
-    // ever legitimately list hercules), identically whether the fallback is `[]` or any other
-    // filler array — there is no element `.some()`'s predicate could match that would make a
-    // fallback's specific CONTENTS observable. A TRUE equivalent mutant per CODE_OF_CONDUCT.md's
-    // Testing section's pragma exception (a static literal default, not a branch/comparison).
+    // The only consumer of `?? []` is the `.some(p => p.name === 'hercules')` below, and no fallback
+    // array's contents could satisfy that predicate — a TRUE equivalent mutant under
+    // CODE_OF_CONDUCT.md's Testing pragma exception for behaviourally equivalent static literals.
     // Stryker disable next-line ArrayDeclaration: no fallback array's contents can ever satisfy .some(p => p.name === 'hercules') — see comment above
     const listsHercules = (mk.plugins ?? []).some((p) => p.name === 'hercules');
     if (!listsHercules) {

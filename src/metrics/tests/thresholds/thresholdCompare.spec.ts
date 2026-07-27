@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import { compareValue } from '../../thresholdRunner.mjs';
 
-// Ported from tests/metrics/test_threshold_compare.py.
-
 describe('compareValue', () => {
   it('gives the right pass/fail verdict for every supported comparison rule', () => {
     expect(compareValue(7, '==', 7)).toEqual([true, '']);

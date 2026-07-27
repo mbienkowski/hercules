@@ -4,22 +4,18 @@
  * `DescriptorSerializer` renders any source artifact for any ecosystem from its
  * {@link EcosystemDescriptor}: a named *dispatch* picks the role (agent/command/persona/default),
  * the role's named *mode* shapes the output, and named *field generators* compute frontmatter
- * values. Every behavior here is selected by descriptor data but implemented as typed,
- * mutation-covered TypeScript — the closed vocabulary `descriptor.mts` validates.
+ * values — the closed vocabulary `descriptor.mts` validates, implemented as typed TypeScript.
  *
  * Byte-fidelity contracts (pinned by `genSerialize.spec.ts` and the dist drift gate):
  * - `preserve` passes raw frontmatter bytes through untouched, rebuilding ONLY when `model_tier`
  *   is present (in-slot swap for the resolved `model`, omitted when the tier maps to null).
  * - `fields`/`wrap` join `renderFrontmatter(out) + "\n\n" + body`; `preserve` joins the raw block
- *   (ending `---\n`) directly to the body — the blank-line topologies differ and both are
- *   load-bearing.
+ *   (ending `---\n`) directly to the body — both blank-line topologies are load-bearing.
  * - Frontmatter values render tokens only where a field says `render: true`; bodies always render.
- * - Body trim policies are exact: `keep` / `lstrip_newlines` / `strip_newlines` (newlines only,
- *   never general whitespace).
+ * - Body trim policies are exact: `keep` / `lstrip_newlines` / `strip_newlines` (newlines only).
  *
- * `meta`/`tokens`/frontmatter parameters are `ReadonlyMap<string, string>`, matching `parse.mts`'s
- * own convention: insertion order is the emitted key order, and a plain object would reorder any
- * key that looks like an array index ahead of the rest.
+ * `meta`/`tokens`/frontmatter parameters are `ReadonlyMap<string, string>`: insertion order is the
+ * emitted key order, and a plain object would reorder any integer-like key ahead of the rest.
  */
 
 import type { EcosystemDescriptor, FieldSpec, RoleSpec } from './descriptor.mjs';
@@ -52,11 +48,10 @@ export function tomlBasic(s: string): string {
 }
 
 /**
- * Escape a body for a TOML multiline basic (`"""…"""`) string. Backslash is TOML's escape char (a
- * trailing one would also swallow the closing newline), so it is doubled; and any run of
- * three-or-more quotes — which would close the delimiter early — is broken by escaping its third
- * quote. Today's command bodies contain neither, so this is a no-op on current output; it guards a
- * future token that renders a `\` or `"""` into a body from silently emitting invalid TOML.
+ * Escape a body for a TOML multiline basic (`"""…"""`) string: backslash is TOML's escape character
+ * (a trailing one would swallow the closing newline) so it is doubled, and a run of three-or-more
+ * quotes — which would close the delimiter early — is broken by escaping its third quote. A no-op on
+ * today's command bodies; it guards a token that later renders a `\` or `"""` into one.
  */
 export function tomlMultiline(s: string): string {
   const escaped = s.replaceAll('\\', '\\\\');
@@ -93,10 +88,9 @@ export function tomlCommand(description: string, prompt: string): string {
 
 /**
  * Map a `content` path through the descriptor's routes (ordered, first match wins, identity
- * fallback); `null` means the source ships NOTHING on this target (`omit`). Extensions swapped
- * here are load-bearing — a wrong one makes the host silently ignore the file — which is why this
- * interpreter lives in a mutation-gated module and each ecosystem's route data is pinned by its
- * build tests.
+ * fallback); `null` means the source ships NOTHING on this target (`omit`). Swapped extensions are
+ * load-bearing — a wrong one makes the host silently ignore the file — so each ecosystem's route
+ * data is pinned by its build tests.
  */
 export function dest(descriptor: EcosystemDescriptor, rel: string): string | null {
   for (const route of descriptor.routes) {
@@ -113,7 +107,7 @@ export function dest(descriptor: EcosystemDescriptor, rel: string): string | nul
   return rel;
 }
 
-/** The exact trim set the legacy serializers used — newlines only, never all whitespace. */
+/** Apply a role's `body` trim policy — newlines only, never general whitespace. */
 function applyBodyPolicy(body: string, policy: string): string {
   if (policy === 'lstrip_newlines') return body.replace(/^\n+/, '');
   if (policy === 'strip_newlines') return body.replace(/^\n+/, '').replace(/\n+$/, '');
@@ -286,7 +280,7 @@ export class DescriptorSerializer {
     return tomlCommand(out.get('description') as string, prompt);
   }
 
-  // ---- role-direct sugar (the legacy per-class entry points, kept for tests and generators) ----
+  // ---- role-direct sugar (the per-role entry points tests and generators call) ----
 
   /**
    * Serialize `frontmatter`/`body` through the agent role, joined `fm + "\n\n" + body`.

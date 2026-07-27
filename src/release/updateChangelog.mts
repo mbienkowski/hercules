@@ -61,14 +61,9 @@ export function updateChangelog(
 }
 
 /**
- * Environment handling, split out from the process entry point (`bin/updateChangelog.mts`) so it
- * is fully unit-testable — matching `setVersion.mts`'s own `main(argv)` split (see that file's
- * comment for why an entry-point guard cannot be covered directly).
- *
- * `updateChangelogFn` (an addition over the real CLI's implicit call to the module's own
- * `updateChangelog`, purely for test benefit — same rationale as `setVersion.mts`'s `root` param)
- * lets a test verify the env-var parsing in isolation, without touching real git/filesystem state:
- * `updateChangelog`'s own real behavior is already covered directly by `updateChangelog.spec.ts`.
+ * Environment handling, split out from the entry point (`bin/updateChangelog.mts`) so it is fully
+ * unit-testable. `updateChangelogFn` is injectable so a test can verify the env-var parsing without
+ * touching real git or filesystem state; `updateChangelog` itself is covered by its own spec.
  */
 export function main(
   env: NodeJS.ProcessEnv,
@@ -81,12 +76,9 @@ export function main(
   updateChangelogFn(
     newTag,
     env['PREV_TAG'] ?? '',
-    // `?? 'false'`'s only consumer is the `=== 'true'` comparison on this same line: EVERY string
-    // other than (a case-insensitive spelling of) 'true' produces the same `false` result, so this
-    // default's specific literal content is unobservable — 'false', '', or any other non-'true'
-    // filler behave identically for every possible env. A TRUE equivalent mutant per
-    // CODE_OF_CONDUCT.md's Testing section's pragma exception (a static-string default feeding only
-    // an equality check, never a branch/comparison/return value in its own right).
+    // The only consumer of `?? 'false'` is the `=== 'true'` on this same line, so every non-'true'
+    // filler behaves identically for every possible environment — a TRUE equivalent mutant under
+    // CODE_OF_CONDUCT.md's Testing pragma exception for behaviourally equivalent static strings.
     // Stryker disable next-line StringLiteral: any non-'true' fallback here is behaviorally identical once compared with === 'true' — see comment above
     (env['IS_FIRST'] ?? 'false').toLowerCase() === 'true',
   );

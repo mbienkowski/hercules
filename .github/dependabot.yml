@@ -1,12 +1,10 @@
 version: 2
 
-# Keeps the SHA-pinned third-party actions (release.yml) and the `actions/*` refs from rotting
-# silently — a re-pin lands as a reviewable PR instead of a stale, unowned version. Grouped so it
-# opens one PR per week, not one per action.
+# Keeps the SHA-pinned third-party actions and the `actions/*` refs from rotting silently — a re-pin
+# lands as a reviewable PR. Grouped to one PR per week, not one per action.
 #
-# NOTE: the ecosystem CLI pins live in src/targets/<eco>.json smoke config (not a package manifest), so
-# Dependabot cannot bump them, and no CI leg surfaces a stale one — the blocking smoke installs the
-# pinned version and stays green after an upstream release. Bump these pins by hand (see RELEASE.md).
+# The ecosystem CLI pins live in src/targets/<eco>.json, not a package manifest, so Dependabot cannot
+# bump them and no CI leg surfaces a stale one. Bump those by hand (see RELEASE.md).
 updates:
   - package-ecosystem: github-actions
     directory: "/"
@@ -18,10 +16,8 @@ updates:
     commit-message:
       prefix: chore
 
-  # The npm devDependencies are pinned to EXACT versions on purpose (see .npmrc): a caret range is
-  # how a tokenizer minor bump silently moves the token counts that tests/testdata/thresholds.json
-  # gates on. Dependabot is what turns that pin from "stale forever" into a reviewable PR. Grouped
-  # weekly to match the actions convention above — one PR, not one per package.
+  # The npm devDependencies are pinned to exact versions on purpose (see .npmrc); Dependabot is what
+  # turns that pin from "stale forever" into a reviewable PR. Grouped weekly, like the actions above.
   - package-ecosystem: npm
     directory: "/"
     schedule:

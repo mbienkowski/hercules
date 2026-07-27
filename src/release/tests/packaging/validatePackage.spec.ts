@@ -4,26 +4,19 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-// vi.mock('node:fs') is module-scoped and hoisted (see builder/tests/descriptor/descriptorSort.spec.ts for
-// the fuller rationale) — it wraps (not replaces) globSync so every test still hits the real
-// repo's manifests, just with the RESULT ORDER reversed. That proves marketplaces()'s own `.sort()`
-// call is load-bearing rather than riding an incidentally-sorted glob result (real readdir order is
-// filesystem-dependent, same concern descriptorSort.spec.ts documents for readdirSync), while
-// leaving `main() validates the real repo` correct regardless — it never depends on manifest order.
-// One test below further overrides this mock with `.mockReturnValueOnce([])` to reach main()'s
-// zero-manifest branch without needing an actual manifest-free checkout.
+// vi.mock('node:fs') is module-scoped and hoisted (builder/tests/descriptor/descriptorSort.spec.ts has the
+// fuller rationale). It wraps (not replaces) globSync so every test still hits the real repo's
+// manifests, just with the RESULT ORDER reversed — proving marketplaces()'s own `.sort()` is
+// load-bearing rather than riding an incidentally-sorted, filesystem-dependent glob result.
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
   return {
     ...actual,
     globSync: vi.fn((...args: Parameters<typeof actual.globSync>) => {
       const result = actual.globSync(...args);
-      // Sorted-then-reversed, not just `.reverse()`: the real filesystem's raw (pre-sort) glob
-      // order is NOT guaranteed alphabetical OR reverse-alphabetical (it happens to already be
-      // reverse-alphabetical on this checkout, which would make a plain `.reverse()` here
-      // coincidentally UNDO that and produce an already-sorted result — defeating the whole point).
-      // Sort-then-reverse is deterministically the opposite of sorted order for >= 2 distinct
-      // entries, regardless of what the real glob's natural order happens to be.
+      // Sorted-then-reversed, not a plain `.reverse()`: the raw glob order is guaranteed neither
+      // alphabetical nor reverse-alphabetical, so a plain reverse could coincidentally produce a
+      // sorted result. Sort-then-reverse is deterministically the opposite of sorted order.
       return Array.isArray(result) ? [...result].sort().reverse() : result;
     }),
   };
@@ -32,11 +25,9 @@ vi.mock('node:fs', async (importOriginal) => {
 import { readVersions } from '../../../builder/versionTargets.mjs';
 import { main, marketplaces, validateManifests } from '../../validatePackage.mjs';
 
-// Ported from tests/build/test_validate_package.py. The Python original's failure-path test
-// monkeypatched module attributes (vp._marketplaces, vp.check_in_sync, vp.read_versions) to isolate
-// the "must list hercules" check from the rest of main()'s work; the TS port instead calls
-// validateManifests() directly — an addition over the Python original, purely for this test's
-// benefit, since ESM import bindings cannot be reassigned from outside the module.
+// The failure-path tests call validateManifests() directly, isolating the "must list hercules" check
+// from the rest of main()'s work — ESM import bindings cannot be reassigned from outside the module,
+// so `marketplaces`/`checkInSync`/`readVersions` cannot be stubbed in place.
 
 const dirs: string[] = [];
 
@@ -48,7 +39,7 @@ describe('marketplaces()', () => {
   it('finds every ecosystem manifest', () => {
     const found = marketplaces();
     expect(found).toContain('.claude-plugin/marketplace.json');
-    expect(found).toContain('.cursor-plugin/marketplace.json'); // the one that used to ship unvalidated
+    expect(found).toContain('.cursor-plugin/marketplace.json');
   });
 
   it('lists manifests in sorted order, not whatever order the (deliberately reverse-sorted, mocked) glob returned', () => {

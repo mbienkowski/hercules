@@ -4,10 +4,8 @@ import { describe, expect, it } from 'vitest';
 
 import { readRepoFile, readRepoJson, repoRoot } from '../../../commons/support/repo';
 
-// Ported from tests/agents/test_agents.py — roster completeness, frontmatter identity fields, the
-// A2A reply-shape requirement, stack-literal and Hercules-internal-literal bans (parametrized over
-// every dist/claude-code/agents/*.md), QA/reviewer tool-permission and prose-pin checks, persona
-// (hercules.md) prose pins, and advisor-roster<->settings.json sync.
+// Agent roster completeness, frontmatter identity, the A2A (agent-to-agent) reply shape, stack- and
+// Hercules-internal-literal bans, tool-permission and persona prose pins, roster<->settings.json sync.
 
 function glob(pattern: string): string[] {
   return [...globSync(`dist/claude-code/${pattern}`, { cwd: repoRoot })].sort();

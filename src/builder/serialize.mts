@@ -2,12 +2,9 @@
  * The serializer registry — populated from the ecosystem descriptors, zero per-ecosystem classes.
  *
  * Every registered serializer is the ONE generic {@link DescriptorSerializer}, constructed from its
- * `ecosystems/<name>.json`. Unlike the Python original, {@link buildRegistry} is an explicit
- * FACTORY rather than a module-scope bootstrap loop — `serialize.py:58-59` runs a full filesystem
- * scan (`discover()`) as a side effect of `import serialize`, which the migration spec's few-shot
- * catalogue (#5) names directly as a pattern NOT to replicate: a bare `import` must never touch the
- * filesystem. `cli.mts`'s composition root calls `buildRegistry(discover(...))` explicitly instead.
- * A 7th descriptor file still needs no new serializer class — only a new call to `discover()`.
+ * `ecosystems/<name>.json`. {@link buildRegistry} is an explicit FACTORY, never a module-scope
+ * bootstrap loop, so a bare `import` of this module never touches the filesystem — `cli.mts`'s
+ * composition root calls `buildRegistry(discover(...))`. A new descriptor file needs no new class.
  */
 
 import type { EcosystemDescriptor } from './descriptor.mjs';
@@ -34,9 +31,8 @@ export interface SerializerLike {
 }
 
 /**
- * A registry instance — deliberately NOT a module-scope singleton (unlike Python's `_REGISTRY`
- * dict): each caller builds and owns its own, so tests can register a stub target without any
- * shared, order-dependent global state leaking between them.
+ * A registry instance — deliberately NOT a module-scope singleton: each caller builds and owns its
+ * own, so a test can register a stub target with no shared, order-dependent state leaking between them.
  */
 export interface Registry {
   /** Register `serializer` under its `.target` key; returns it (usable as a decorator). */

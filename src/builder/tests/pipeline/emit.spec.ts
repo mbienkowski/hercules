@@ -3,12 +3,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-// vi.mock('node:fs') wraps (not replaces) writeFileSync so every test still hits real disk — only
-// the CALL ARGUMENTS are additionally observable, for the one test below that needs to pin the
-// exact encoding write() passes (content-based verification alone can't distinguish 'utf-8' from ''
-// here: Node treats an empty-string encoding identically to 'utf-8' at the byte level for every
-// string write() ever writes) — same pattern as builder/tests/pipeline/versionTargets.spec.ts's own
-// writeFileSync encoding pin.
+// vi.mock('node:fs') wraps (not replaces) writeFileSync so every test still hits real disk while the
+// CALL ARGUMENTS stay observable — the encoding pin below cannot be proven from content alone, since
+// Node treats an empty-string encoding identically to 'utf-8' for every string write() emits.
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
   return { ...actual, writeFileSync: vi.fn(actual.writeFileSync) };
@@ -25,10 +22,8 @@ function workspace(files: Record<string, string> = {}): string {
     mkdirSync(dirname(join(root, rel)), { recursive: true });
     writeFileSync(join(root, rel), text, 'utf-8');
   }
-  // The setup writes above already called the mocked writeFileSync with 'utf-8' — clearing here
-  // means every remaining recorded call in a test belongs to the code under test, not to fixture
-  // setup (an unguarded assertion would otherwise trivially match these SETUP calls regardless of
-  // what write() itself passes).
+  // Fixture setup above already called the mocked writeFileSync with 'utf-8'; clearing keeps every
+  // recorded call belonging to the code under test, so an encoding pin cannot match a SETUP call.
   vi.mocked(writeFileSync).mockClear();
   return root;
 }
@@ -75,10 +70,8 @@ describe('copying files into the build output', () => {
   });
 
   it('normalises the destination mode instead of inheriting the source’s', () => {
-    // Node's copyFileSync propagates the SOURCE's permission bits while Python's shutil.copyfile
-    // leaves the destination at the umask. Every file in the committed dist/ tree is 100644, and a
-    // byte comparison cannot see a mode — so an executable source would silently emit an
-    // executable file and surface later as a spurious permission change.
+    // copyFileSync propagates the SOURCE's permission bits, and a byte comparison cannot see a mode
+    // — an executable source would silently emit an executable file into dist/, where all are 100644.
     const root = workspace({ 'in/tool.md': 'x' });
     // eslint-disable-next-line no-bitwise
     require('node:fs').chmodSync(join(root, 'in/tool.md'), 0o755);
@@ -124,9 +117,8 @@ describe('reading a source file', () => {
   });
 
   it('refuses a file that is not valid UTF-8 instead of silently mangling it', () => {
-    // Node substitutes U+FFFD for a malformed byte sequence while Python raises. Without this
-    // check a corrupted source would build cleanly here and refuse to build there — the two
-    // engines disagreeing about whether the repository is even valid.
+    // Node substitutes U+FFFD for a malformed byte sequence rather than failing, so without this
+    // check a corrupted source would build cleanly and ship mangled bytes.
     const root = workspace();
     writeFileSync(join(root, 'bad.md'), Buffer.from([0x61, 0xff, 0xfe, 0x62]));
     expect(() => readSource(join(root, 'bad.md'))).toThrow(EmitError);
@@ -152,14 +144,10 @@ describe('identifying its own failures', () => {
   });
 
   it('reads a file with no replacement character at all without re-decoding it', () => {
-    // The strict re-decode is only reached when a replacement character is present; ordinary
-    // sources must not pay for it. Counts constructions of the global TextDecoder — content alone
-    // can't distinguish this from an always-re-decode implementation, since re-decoding
-    // already-valid UTF-8 produces an identical result either way; only the CONSTRUCTION COUNT
-    // tells them apart (`text.includes('')` is always true, which would make every source
-    // re-decode unconditionally). A `class extends TextDecoder`, not `vi.fn(TextDecoder)`: wrapping
-    // a native constructor in a plain mock function breaks its `new`-ability (the resulting
-    // "instance" loses `.decode`), a class subclass does not.
+    // The strict re-decode is reached only when a replacement character is present. Content cannot
+    // prove that (re-decoding valid UTF-8 gives an identical result), so this counts TextDecoder
+    // constructions instead. A `class extends TextDecoder`, not `vi.fn(TextDecoder)`: wrapping a
+    // native constructor in a plain mock breaks `new`, leaving the "instance" without `.decode`.
     let constructions = 0;
     class CountingTextDecoder extends TextDecoder {
       constructor(...args: ConstructorParameters<typeof TextDecoder>) {
@@ -180,9 +168,8 @@ describe('identifying its own failures', () => {
 
 describe('preserving a byte-order mark', () => {
   it('keeps a leading BOM rather than silently stripping it', () => {
-    // TextDecoder's default strips U+FEFF; Python's read_text preserves it. Stripping it would
-    // change the first byte of the emitted file, invisibly, in the very function written to close
-    // the UTF-8 decoding divergence.
+    // TextDecoder's default strips U+FEFF, which would invisibly change the first byte of the
+    // emitted file — the leading byte-order mark (BOM) must survive readSource untouched.
     const root = workspace({ 'bom.md': '\ufeffcontent\n' });
     expect(readSource(join(root, 'bom.md'))).toBe('\ufeffcontent\n');
   });

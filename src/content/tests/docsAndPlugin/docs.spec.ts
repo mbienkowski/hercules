@@ -6,10 +6,8 @@ import { readRepoFile, readRepoJson, repoRoot } from '../../../commons/support/r
 import { ALL_COMMANDS, section } from './support';
 import type { PluginManifest } from './support';
 
-// Ported from tests/docs/test_docs.py — README/CLAUDE.md/pyproject.toml/plugin.json consistency,
-// marketing/removed-feature prose pins, and code-of-conduct resolution rule checks (spec 04).
-// The "Plugin permissions" prose-pin cluster lives in docsPermissions.spec.ts to keep this file
-// under the CoC's 500-line-per-file cap.
+// README/CLAUDE.md/pyproject.toml/plugin.json consistency, marketing prose pins, and
+// code-of-conduct resolution rules. The "Plugin permissions" pins live in docsPermissions.spec.ts.
 
 const PLUGIN_JSON = ['dist', 'claude-code', '.claude-plugin', 'plugin.json'];
 

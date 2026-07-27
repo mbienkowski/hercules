@@ -1,17 +1,9 @@
 /**
- * Assemble the ecosystem smoke matrix from the build's target registry (invoked by `make smoke-matrix`).
- *
- * The ecosystem list comes from `descriptor.names()` — the SAME source the build dispatches on — so
- * the smoke matrix cannot drift from what actually ships. Each ecosystem's descriptor
- * (`ecosystems/<name>.json`) must declare a `smoke` section (its CLI + install method + smoke-test
- * path — schema-required); it becomes one parallel smoke leg that runs on every PR and on `main`. This
- * workflow uses `on: pull_request` with `permissions: contents: read` — a fork PR gets no repository
- * secrets — so every ecosystem's installer (npm-pinned or a script installer like Cursor's) runs on
- * PRs; the keyed live checks (e.g. Cursor's `cursor-agent -p` needing `CURSOR_API_KEY`) simply skip
- * when the secret is absent. NOTE: a script installer is not version-pinned (npm legs are), so a
- * change upstream at the installer URL can affect PR runs — pin it if that becomes flaky.
- *
- * Writes `matrix=<json>` to `$GITHUB_OUTPUT` when set, else prints it (for local inspection).
+ * Assemble the ecosystem smoke matrix (invoked by `make smoke-matrix`), writing `matrix=<json>` to
+ * `$GITHUB_OUTPUT` when set and printing it otherwise. The ecosystem list comes from
+ * `descriptor.names()` — the same source the build dispatches on — so the matrix cannot drift from
+ * what ships; each descriptor's schema-required `smoke` section becomes one parallel leg, and a leg
+ * whose live check needs an absent secret skips rather than fails.
  */
 
 import { appendFileSync } from 'node:fs';
@@ -37,18 +29,12 @@ interface SmokeLeg {
 /**
  * Return the `{"include": [...]}` smoke matrix; throw on any drift or emptiness.
  *
- * Fail CLOSED in three ways, because an empty/partial matrix expands to fewer jobs and GitHub counts
- * a skipped leg as success — which would let an ungated build reach release:
+ * Fails CLOSED three ways, because GitHub counts a skipped leg as success and an ungated build would
+ * reach release: a registered ecosystem with no `smoke` config is untestable, a `smoke` config for an
+ * unregistered ecosystem is a phantom leg, and a zero-leg matrix is no gate at all.
  *
- * - a registered ecosystem with no descriptor `smoke` config is untestable → error (don't skip it);
- * - a smoke config for an unregistered ecosystem is a phantom leg → error (don't smoke a ghost);
- * - a matrix that resolves to zero legs → error (the whole gate would vanish).
- *
- * `registered` and `descriptors` (additions over the Python original's hardcoded
- * `registered_target_names()`/`discover()` calls, purely for test benefit — same rationale as
- * cli.mts's `distRoot` params) let a test inject a fabricated registry/descriptor set to exercise
- * the drift-detection branches directly, since ESM import bindings cannot be monkeypatched the way
- * Python's `smoke_matrix.registered_target_names` could.
+ * `registered`/`descriptors` are injectable so a test can drive those branches with a fabricated
+ * registry — ESM (ECMAScript modules) import bindings cannot be monkeypatched.
  */
 export function buildMatrix(
   registered: readonly string[] = registeredTargetNames(),
@@ -73,9 +59,9 @@ export function buildMatrix(
   const legs: SmokeLeg[] = [];
   for (const name of registered) {
     const cfg = descriptors[name]!.smoke;
-    // Defaults to `{}`, not `{ method: 'npm' }`: only `install['method']` is ever read off this
-    // object, and that read already falls back to 'npm' on the next line — a `method` key in this
-    // default would be immediately-shadowed dead weight (and, worse, an unkillable mutation target).
+    // Defaults to `{}`, not `{ method: 'npm' }`: only `install['method']` is read off this object,
+    // and the next line already falls back to 'npm' — a `method` key here would be dead weight and
+    // an unkillable mutation target.
     const install = (cfg.install as Record<string, unknown> | undefined) ?? {};
     const method = (install['method'] as string | undefined) ?? 'npm';
     legs.push({
@@ -100,9 +86,8 @@ export function buildMatrix(
 export function main(): void {
   const matrix = buildMatrix();
   const line = 'matrix=' + JSON.stringify(matrix);
-  // Always echo the resolved matrix to the job log — so an operator debugging "why did/didn't
-  // ecosystem X get a smoke leg" can read the chosen list off the Build job's log — and additionally
-  // write it to $GITHUB_OUTPUT when running under CI.
+  // Always echo the resolved matrix to the job log, so an operator debugging "why did/didn't
+  // ecosystem X get a smoke leg" can read the list off the Build job; also write it under CI.
   const legs = matrix.include.map((leg) => leg.target);
   process.stdout.write(`smoke matrix (${legs.length} legs): ${legs.join(', ')}\n`);
   process.stdout.write(line + '\n');

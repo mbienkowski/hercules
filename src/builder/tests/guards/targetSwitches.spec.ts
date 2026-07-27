@@ -8,13 +8,9 @@ import { buildRegistry } from '../../serialize.mjs';
 import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
 import { repoRoot } from '../../../commons/support/repo';
 
-// Ported from tests/build/test_target_switches.py — a guard that every `${target:NAME}` switch
-// names a real target (or default/end). render.mts's switch resolution silently renders an empty
-// branch when a switch matches no target and has no default — deliberate for single-target blocks
-// (e.g. an opencode-only note that is empty on Claude). The failure mode this guards is a TYPO'D
-// target name (${target:opencde}), which would silently drop content on every target with no
-// error. Coverage is intentionally NOT required (single-target blocks are supported); only name
-// validity is.
+// Every `${target:NAME}` switch must name a real target (or default/end). render.mts renders an empty branch when
+// a switch matches no target and has no default — intended for single-target blocks, which is why coverage is not
+// required here. Only name validity is: a typo like ${target:opencde} silently drops content on every target.
 
 const SRC_CONTENT = join(repoRoot, 'src', 'content');
 const DIRECTIVE = /^\$\{target:([^}]*)\}$/;

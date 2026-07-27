@@ -6,12 +6,8 @@ import { describe, expect, it } from 'vitest';
 
 import { readRepoFile, repoRoot } from '../../../commons/support/repo';
 
-// Ported from tests/build/test_workflows_use_make.py (the make-only invariant) and the CI-job-graph
-// + release-pipeline assertions in tests/build/test_version_process.py and
-// tests/build/test_ci_smoke_matrix.py — the parts of those files that parse the workflow/script TEXT
-// directly rather than calling into any ported Python module. Deliberately homed together, at the top
-// level (mirroring packaging.spec.ts), since commit 13 is what makes these files' own content change
-// (build_gates.sh, release_commit.sh, the Makefile, ci.yml, release.yml).
+// Covers the workflow and CI-script TEXT directly — the make-only invariant, the CI job graph, and
+// the release pipeline — rather than calling into any of the modules those workflows run.
 
 interface WorkflowStep {
   readonly run?: string;
@@ -106,9 +102,8 @@ describe('the CI job graph', () => {
     expect(smokeIf).not.toContain('pull_request');
   });
 
-  // mutation-py and mutation-ts run as two PARALLEL jobs (split so the Python-only and
-  // TypeScript-only mutation gates no longer share one sequential ~40min job) — both must carry
-  // identical gating so neither is the weak link.
+  // mutation-py and mutation-ts run as two PARALLEL jobs, each provisioning only the toolchain it
+  // needs — both must carry identical gating so neither is the weak link.
   it.each(['mutation-py', 'mutation-ts'])(
     "'%s' waits for ALL five fast checks via needs (it is the sole job at the end)",
     (jobName) => {
@@ -116,9 +111,8 @@ describe('the CI job graph', () => {
         new Set(['test', 'validate', 'smoke', 'complexity-scan', 'vulnerability-scan']),
       );
       // The success gate is `needs` itself: the if carries NO status-check function, so GitHub keeps
-      // the implicit needs-success requirement rather than it being re-spelled with `.result` checks.
-      // This is the SAME single gating dialect every job uses — the only difference is the branch
-      // restriction below.
+      // the implicit needs-success requirement rather than re-spelling it with `.result` checks —
+      // the same gating dialect every job uses, differing only in the branch restriction below.
       const mutationIf = CI_JOBS[jobName]?.if ?? '';
       expect(mutationIf).not.toContain('cancelled()');
       expect(mutationIf).not.toContain('.result');
@@ -148,11 +142,9 @@ describe('the CI job graph', () => {
     expect(CI_JOBS).not.toHaveProperty('discover');
   });
 
-  // complexity-scan and vulnerability-scan are static quality gates that run in the SAME tier as
-  // test/validate/smoke — they `needs: [build]` only (they lint source / audit the lockfile, not the
-  // compiled output), so they run in PARALLEL with the correctness jobs on EVERY commit, never gated
-  // behind them. Only mutation waits and is main-only. The default `if: success()` (no explicit `if:`)
-  // gates them on `build` alone while leaving them unrestricted by branch/event.
+  // complexity-scan and vulnerability-scan are static quality gates in the SAME tier as
+  // test/validate/smoke: they `needs: [build]` only and run in PARALLEL on EVERY commit. The default
+  // `if: success()` gates them on `build` alone, unrestricted by branch or event.
   it.each(['complexity-scan', 'vulnerability-scan'])(
     "'%s' runs in parallel with test/validate/smoke (needs only build), every commit",
     (jobName) => {
@@ -184,9 +176,9 @@ describe('the build-output tracked guard', () => {
 });
 
 describe('CI jobs that run compiled TypeScript scripts install the toolchain first', () => {
-  // The build job emits the smoke matrix (release/smokeMatrix.mts, which imports the
-  // zod-validated descriptor module) and validate checks the package (release/validatePackage.
-  // mts) — both now need the compiled toolchain present, unlike when they were stdlib-only Python.
+  // The build job emits the smoke matrix (release/smokeMatrix.mts, which imports the zod-validated
+  // descriptor module) and validate checks the package (release/validatePackage.mts) — both need the
+  // compiled toolchain present.
   it.each(['build', 'validate'])("the '%s' job installs and compiles the TypeScript toolchain", (jobName) => {
     const runSteps = (CI_JOBS[jobName]?.steps ?? []).map((s) => s.run).filter(Boolean) as string[];
     expect(runSteps.some((run) => run.includes('make install-ts'))).toBe(true);

@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BUILD, DESIGN, DISCOVER, SHIP, WORKFLOW, readFile, section } from './support';
 
-// Ported from tests/commands/test_commands_ship_and_flow.py — Ship phase, workflow
-// orchestration, and cross-phase continuity.
+// Ship phase, workflow orchestration, and cross-phase continuity.
 
 describe('ship phase and workflow orchestration', () => {
   it('each delivery step points forward to the next', () => {

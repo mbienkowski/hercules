@@ -25,18 +25,14 @@ export const VERSION_TARGETS: ReadonlyArray<readonly [string, VersionFormat]> = 
 ];
 
 /**
- * Write and read patterns per format.
- *
- * The `m` flag is a REGEX FLAG here, not an inline `(?m)` prefix as in the Python original. This is
- * not cosmetic: JavaScript has no inline-flag syntax, so `new RegExp('(?m)^(version…)')` throws
- * `Invalid regular expression: Invalid group` at construction. A literal transcription of the
- * Python pattern would therefore fail at MODULE LOAD, inside the exact code path CI's `validate`
- * job and the release pipeline run.
+ * Write and read patterns per format. Multiline is a REGEX FLAG (`m`), never an inline `(?m)`
+ * prefix: JavaScript has no inline-flag syntax, so `new RegExp('(?m)^(version…)')` throws at
+ * construction — at MODULE LOAD, inside the exact path CI's `validate` job and the release run.
  */
 // The `write` patterns capture the text AROUND the value as `prefix` (e.g. `version = "`) and
-// `suffix` (the closing `"`), so the replacer can swap only the value and keep the surrounding
-// punctuation byte-for-byte. Named groups are also positional groups 1 & 2, so the replacer reads
-// them by position below. The `read` patterns need only the value itself, in a single group.
+// `suffix` (the closing `"`), so the replacer swaps only the value and keeps the punctuation
+// byte-for-byte; the named groups are also positional groups 1 & 2, which is how the replacer reads
+// them. The `read` patterns need only the value itself, in a single group.
 const PATTERNS: Record<VersionFormat, { write: RegExp; read: RegExp }> = {
   toml: {
     write: /^(?<prefix>version\s*=\s*")[^"]+(?<suffix>")/m,
@@ -60,8 +56,6 @@ export class VersionError extends Error {
  * `"engines": {"version": …}` could be mis-read or mis-written with no signal. Every occurrence is
  * counted and exactly one is required.
  */
-// Messages below are byte-identical to the Python original's, snake_case names included, so the
-// parity harness can diff stderr directly. That obligation ends when the Python compiler is deleted.
 function soleVersionMatch(text: string, format: VersionFormat, rel: string): RegExpMatchArray {
   const matches = [...text.matchAll(PATTERNS[format].read)];
   if (matches.length !== 1) {
@@ -72,13 +66,10 @@ function soleVersionMatch(text: string, format: VersionFormat, rel: string): Reg
   return matches[0] as RegExpMatchArray;
 }
 
-// `root`'s default value ('.') only ever reaches `join(root, rel)` below, and Node's `path.join`
-// normalizes a leading '.' segment away — verified directly for both real VERSION_TARGETS entries,
-// `join('.', 'pyproject.toml') === join('', 'pyproject.toml')` and likewise for `package.json`. No
-// test can ever observe a difference, so mutating this default's literal is a TRUE equivalent
-// mutant per CODE_OF_CONDUCT.md's Testing section's pragma exception (a default-parameter string
-// feeding only a path-join, never a branch/comparison/return value) — same reasoning already
-// applied to `setVersion.mts`'s own `root` defaults.
+// `root`'s default ('.') only ever reaches `join(root, rel)`, and `path.join` normalizes a leading
+// '.' away, so `root='.'` and `root=''` are indistinguishable for both VERSION_TARGETS entries. No
+// test can observe a difference — a TRUE equivalent mutant per CODE_OF_CONDUCT.md's Testing section's
+// pragma exception (a default-parameter string feeding only a path-join, never a branch or return).
 // Stryker disable next-line StringLiteral: root='.' and root='' resolve identically through join(root, rel) — see comment above
 /** Write `version` into every canonical file, in place, preserving formatting. */
 export function writeVersion(version: string, root = '.'): void {

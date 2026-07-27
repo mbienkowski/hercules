@@ -46,25 +46,24 @@ describe('finding the markdown sources to compile', () => {
 
 describe('the order sources are compiled in', () => {
   it('is stable rather than filesystem order', () => {
-    // Filesystem order is not guaranteed, and it differs between APFS locally and ext4 on the CI
-    // runner — exactly where an unsorted walk diverges silently.
+    // Filesystem order is not guaranteed, and it differs between APFS locally and ext4 on the
+    // continuous-integration (CI) runner — exactly where an unsorted walk diverges silently.
     const root = workspace(['c.md', 'a.md', 'b.md']);
     expect(relativeTo(root, discoverSources(root))).toEqual(['a.md', 'b.md', 'c.md']);
   });
 
   it('orders a directory ahead of a sibling file whose name shares its prefix', () => {
-    // The subtle one. Python sorts Path objects by their PARTS TUPLE, so `x/a/b.md` precedes
-    // `x/a-c.md`; sorting the joined strings reverses that, because '-' precedes '/'. Today's
-    // content/ tree happens to sort identically either way, so a plain string sort would pass
-    // every other fixture here and silently reorder the build the first time someone added a
-    // hyphenated file beside a directory sharing its prefix.
+    // The subtle one: paths compare by their PARTS, so `x/a/b.md` precedes `x/a-c.md` — sorting the
+    // joined strings reverses that, because '-' precedes '/'. Today's content/ tree sorts identically
+    // either way, so a plain string sort would pass every other fixture here and silently reorder the
+    // build the first time a hyphenated file sat beside a directory sharing its prefix.
     const root = workspace(['x/a-c.md', 'x/a/b.md']);
     expect(relativeTo(root, discoverSources(root))).toEqual([join('x', 'a', 'b.md'), join('x', 'a-c.md')]);
   });
 
   it('orders a nested file ahead of a sibling whose name extends the directory name', () => {
-    // Verified against CPython: comparing the parts tuples puts 'a' before 'a.md', so x/a/b.md
-    // sorts BEFORE x/a.md. Reading it as "shorter path first" gets this backwards.
+    // Comparing the path parts puts 'a' before 'a.md', so x/a/b.md sorts BEFORE x/a.md. Reading it
+    // as "shorter path first" gets this backwards.
     const root = workspace(['x/a.md', 'x/a/b.md']);
     expect(relativeTo(root, discoverSources(root))).toEqual([join('x', 'a', 'b.md'), join('x', 'a.md')]);
   });
@@ -101,10 +100,10 @@ describe('comparing paths segment by segment', () => {
   });
 });
 
-describe('following symbolic links the way Python does', () => {
+describe('following symbolic links', () => {
   it('treats a symlink to a markdown file as a source', () => {
-    // Node's Dirent reports isSymbolicLink(), not isFile(), so an isFile() filter would silently
-    // drop it while Python's rglob includes it — a source vanishing from the build with no error.
+    // Dirent reports isSymbolicLink(), not isFile(), so an isFile() filter would silently drop a
+    // symlinked source — it would vanish from the build with no error.
     const root = workspace(['real/target.md', 'root/plain.md']);
     symlinkSync(join(root, 'real/target.md'), join(root, 'root/linked.md'));
     const names = discoverSources(join(root, 'root')).map((p) => p.split(sep).pop());
@@ -112,8 +111,8 @@ describe('following symbolic links the way Python does', () => {
   });
 
   it('lists a dangling symlink rather than failing on it', () => {
-    // Python's rglob lists it without stat-ing it. Stat-ing here would throw on a broken link and
-    // fail the whole build over a stray file.
+    // The walk must list entries without stat-ing them: stat-ing throws on a broken link, failing
+    // the whole build over a stray file.
     const root = workspace(['root/plain.md']);
     symlinkSync(join(root, 'root/nowhere.md'), join(root, 'root/dangling.md'));
     const names = discoverSources(join(root, 'root')).map((p) => p.split(sep).pop());
@@ -121,8 +120,8 @@ describe('following symbolic links the way Python does', () => {
   });
 
   it('does not descend into a symlinked directory', () => {
-    // rglob does not follow directory symlinks. Following one would compile the same source twice
-    // under two paths, or loop forever on a cycle.
+    // Following a directory symlink would compile the same source twice under two paths, or loop
+    // forever on a cycle.
     const root = workspace(['real/deep.md', 'root/plain.md']);
     symlinkSync(join(root, 'real'), join(root, 'root/linkeddir'));
     const names = discoverSources(join(root, 'root')).map((p) => p.split(sep).pop());
@@ -144,21 +143,18 @@ describe('compareCodePoints, tested directly rather than through a real director
   });
 
   it('orders the shorter of two prefix-related strings first', () => {
-    // The length tiebreak specifically: characters match up to the shorter string's length, so
-    // only the LENGTH difference decides it. An addition-based typo (`left.length + right.length`)
-    // can never be negative, so it can only ever agree with subtraction when a<b happens to also
-    // hold some other way — these two assertions cover left-shorter and right-shorter respectively,
-    // so a `+`-for-`-` typo is wrong in at least one of them.
+    // The length tiebreak specifically: characters match up to the shorter string's length, so only
+    // the LENGTH difference decides. An addition-based typo (`left.length + right.length`) is never
+    // negative, so covering left-shorter and right-shorter makes a `+`-for-`-` typo wrong in one.
     expect(compareCodePoints('a', 'ab')).toBeLessThan(0);
     expect(compareCodePoints('ab', 'a')).toBeGreaterThan(0);
   });
 
   it('compares by Unicode code point, not by UTF-16 code unit', () => {
-    // A code-UNIT compare (plain `charCodeAt` / `<` over a JS string) would put a supplementary-
-    // plane character BEFORE a Basic Multilingual Plane character from the E000-FFFF range,
-    // because a surrogate pair's leading unit falls in D800-DBFF -- numerically below E000 -- even
-    // though the supplementary character's actual CODE POINT (0x10000+) is higher. This is the one
-    // assertion a naive `a < b` string compare would get backwards; codePointAt gets it right.
+    // A code-UNIT compare (plain `charCodeAt` / `<`) would put a supplementary-plane character
+    // BEFORE a Basic Multilingual Plane character in E000-FFFF, because a surrogate pair's leading
+    // unit falls in D800-DBFF — numerically below E000 — even though the supplementary character's
+    // actual CODE POINT (0x10000+) is higher. codePointAt gets it right.
     const bmpHigh = String.fromCodePoint(0xe000);
     const supplementary = String.fromCodePoint(0x10000);
     expect(supplementary.codePointAt(0) as number).toBeGreaterThan(bmpHigh.codePointAt(0) as number);
@@ -181,10 +177,9 @@ describe('comparePathParts, tested directly', () => {
   });
 
   it('orders the shallower of two paths first when every shared segment is equal', () => {
-    // The outer length tiebreak. Two DISTINCT real files can never actually reach this branch (a
-    // path component cannot be simultaneously a leaf file and an ancestor directory), so no
-    // filesystem-driven test can exercise it — comparePathParts is a general comparator and this
-    // pins its behaviour directly regardless.
+    // The outer length tiebreak. Two DISTINCT real files can never reach this branch (a path
+    // component cannot be both a leaf file and an ancestor directory), so no filesystem-driven test
+    // exercises it — comparePathParts is a general comparator and this pins its behaviour directly.
     expect(comparePathParts(join('a', 'b'), join('a', 'b', 'c'))).toBeLessThan(0);
     expect(comparePathParts(join('a', 'b', 'c'), join('a', 'b'))).toBeGreaterThan(0);
   });

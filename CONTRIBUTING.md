@@ -53,13 +53,13 @@ Every top-level directory is a domain, not a language or category — nothing is
   the one domain that stays Python permanently — it ships to and runs on the end user's machine, so
   it can't carry a Node runtime dependency. `src/hooks/tests/` is its own island (see § Testing below).
 - `src/builder/` — the generic compiler: `parse` → `render` → `genSerialize` (descriptor-driven)
-  → `genExtras` → the `bin/cli` entry point (FS write). `descriptor.mts` validates the closed
+  → `genExtras` → the `bin/cli` entry point (filesystem write). `descriptor.mts` validates the closed
   vocabulary. `src/builder/tests/` covers the compiler itself.
 - `src/release/` — ships the builder's output: versioning, changelog, npm packaging, CI smoke/validate
   checks, and the mutation-kill-rate gate (both its TypeScript and Python halves — see
   `src/release/mutation-gate.json`). `src/release/ci/` holds the bash glue the GitHub workflows call through
   `make`. `src/release/tests/` covers all of it.
-- `src/metrics/` — instruction/token budgets, A2A grammar checks, loading-chain gates. `src/metrics/tests/`
+- `src/metrics/` — instruction/token budgets, A2A (agent-to-agent) grammar checks, loading-chain gates. `src/metrics/tests/`
   covers it.
 - `dist/` — generated output, committed and tracked (never git-ignored).
 - `src/commons/` — cross-cutting test infrastructure that belongs to no single domain: repo-wide

@@ -1,13 +1,12 @@
-"""Guard: test docstrings and messages must not reference the retired `plugin/` or `.opencode/` paths.
+"""Guard: test source must not reference the retired `plugin/` or `.opencode/` build-output paths.
 
-The src/→dist/ cutover renamed `plugin/`→`dist/claude-code/` and `.opencode/`→`dist/opencode/`.
-Test logic resolved correctly, but docstrings and error messages were left pointing at the old
-paths — misleading for anyone reading a failure or grepping for an artifact. This meta-test fails
-if a retired path reference creeps back into a test module's source, so the cleanup cannot rot.
+Built artifacts live under `dist/claude-code/` and `dist/opencode/`. A docstring or error message
+naming a path that does not exist sends whoever reads a failure, or greps for an artifact, to the
+wrong place. This meta-test fails if such a reference appears in a test module's source.
 
 Allowed: the literal filename `plugin.json` (a real file), `marketplace.json` references, and
-explicit "old path must be gone" assertions (which necessarily name the retired path to assert
-against it). The guard matches path-like usages (`plugin/<segment>/`, `.opencode/`) only.
+explicit "this path must be gone" assertions, which necessarily name the path to assert against it.
+The guard matches path-like usages (`plugin/<segment>/`, `.opencode/`) only.
 """
 from __future__ import annotations
 
@@ -41,10 +40,8 @@ def _test_files() -> list[Path]:
 
 
 def test_old_project_folder_names_dont_linger_in_test_documentation():
-    """After `plugin/` and `.opencode/` were renamed to `dist/claude-code/` and `dist/opencode/`,
-    no test file's explanatory text or error messages may still mention the old folder names.
-    A leftover mention would send someone chasing a failure, or searching for a file, at a path
-    that no longer exists."""
+    """No test file's explanatory text or error messages may name a build-output folder that does not
+    exist -- a stray mention sends someone chasing a failure, or searching for a file, at a dead path."""
     offenders: list[tuple[str, int, str]] = []
     for path in _test_files():
         rel = path.relative_to(REPO_ROOT).as_posix()

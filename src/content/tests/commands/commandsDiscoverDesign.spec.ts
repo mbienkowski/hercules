@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BUILD, DESIGN, DISCOVER, readFile, section } from './support';
 
-// Ported from tests/commands/test_commands_discover_design.py — Discover and Design phase
-// contracts.
+// Discover and Design phase contracts.
 
 describe('discover and design phase contracts', () => {
   it('README does not promise Discover drafts can be resumed later', () => {

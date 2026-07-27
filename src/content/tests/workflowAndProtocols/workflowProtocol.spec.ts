@@ -12,14 +12,10 @@ import {
 } from './workflowProtocolSupport';
 
 /**
- * Ported from tests/protocols/test_workflow_protocol.py — the workflow protocol is the source of
- * truth for step order and hard guardrails.
- *
- * These are structural/policy gates over dist/claude-code/protocols/workflow-protocol.md and its
- * wiring: anchors resolve, the delegation packet keeps its field order, the guardrail registry
- * stays well-formed and bidirectionally anchored to the commands, and the one hook-class row maps
- * to a live PreToolUse hook. Tests assert packet/registry TEXT and STRUCTURE — no test can prove an
- * agent *obeyed* a prompt-only rule at runtime (see workflowModes.spec.ts).
+ * Structural gates over dist/claude-code/protocols/workflow-protocol.md, the source of truth for step
+ * order and hard guardrails: anchors resolve, the delegation packet keeps its field order, the registry
+ * stays well-formed and bidirectionally anchored to the commands, and the hook-class row maps to a live
+ * PreToolUse hook. Text and structure only — no test proves an agent obeyed a prompt-only rule.
  */
 
 it('every core protocol section can be linked to directly', () => {

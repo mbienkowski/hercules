@@ -1,16 +1,10 @@
 /**
  * Data-driven loading-chain definitions for the instruction-budget gate.
  *
- * A "chain" is everything one agent invocation actually has to read at once. Each chain TEMPLATE
- * below is DATA — a list of fixed parts (always present) plus at most one variable part (a glob
- * that fans out into one concrete chain per matching file, e.g. one chain per agent, per command,
- * per skill) — not hardcoded per-scenario logic. Adding a chain for a new action, or a per-ecosystem
- * chain, is a new entry in `CHAIN_TEMPLATES`, never a new function.
- *
- * The ceiling is ABSOLUTE (150 hard, 130 warn — see `HARD_GATE`/`WARN_AT`), not the old
- * `_SUB_AGENT_GATE`/`_ORCHESTRATOR_GATE`/`_SKILL_GATE` trio, each an independently-guessed ÷3
- * scaling of the same 150-instruction research ceiling. One ceiling, uniformly applied, is simpler
- * and removes three numbers that could silently drift apart from each other.
+ * A "chain" is everything one agent invocation has to read at once. Each chain TEMPLATE below is
+ * DATA — fixed parts (always present) plus at most one variable part (a glob fanning out into one
+ * concrete chain per matching file: per agent, per command, per skill) — not hardcoded per-scenario
+ * logic, so adding a chain is a new entry in `CHAIN_TEMPLATES`, never a new function.
  */
 
 import { globSync, readFileSync } from 'node:fs';
@@ -18,12 +12,12 @@ import { join } from 'node:path';
 
 import { countAtomicInstructions, extractSection } from './instructionCounter.mjs';
 
-/** Absolute ceiling, grounded in arXiv:2507.11538 (IFScale): top models hold near-perfect
- * adherence through 150+ instructions before declining. Frontier-reasoning-specific — a cheaper
- * model tier degrades earlier (a documented, deliberately deferred follow-up: tier-aware ceilings,
- * once a chain's resolved model tier is available at gate time). */
+/** The one absolute ceiling for every chain, grounded in arXiv:2507.11538 (IFScale): top models hold
+ * near-perfect adherence through 150+ instructions before declining. Frontier-reasoning-specific — a
+ * cheaper model tier degrades earlier, so tier-aware ceilings are a deliberately deferred follow-up,
+ * pending a chain's resolved model tier being available at gate time. */
 export const HARD_GATE = 150;
-/** NOT a research figure — a project safety margin (~87% of the hard gate), documented as such. */
+/** NOT a research figure — a project safety margin, ~87% of the hard gate. */
 export const WARN_AT = 130;
 
 /** One fixed or variable part of a chain, resolved against `distRoot` (a target's `dist/<eco>/`). */
@@ -66,9 +60,9 @@ function measurePart(distRoot: string, part: ChainPart): number {
 }
 
 /**
- * The concrete chains one template expands to: just itself for a fixed template, or one per glob
- * match for a `variable` template (each carrying that match as an extra part). Because the glob arm
- * runs only after the early return, `variable` is provably defined there — no `?.` or cast needed.
+ * The concrete chains one template expands to: itself for a fixed template, or one per glob match
+ * for a `variable` template, each carrying that match as an extra part. The glob arm runs only after
+ * the early return, so `variable` is provably defined there — no optional chaining or cast needed.
  */
 function expandTemplate(
   template: ChainTemplate,
@@ -129,11 +123,11 @@ export const CHAIN_TEMPLATES: readonly ChainTemplate[] = [
 ];
 
 /**
- * A named, expiring exception: a chain that measures over `HARD_GATE` today, recorded — not
- * hidden — so CI stays green without the breach being invisible. `measuredAt` PINS the accepted
- * value: a chain may not grow even one instruction past it without the waiver itself being edited
- * (a reviewed diff), and shrinking below `HARD_GATE` again makes the waiver dead code the gate
- * test flags on its own (see `instructionBudget.spec.ts`), which is the signal to delete it.
+ * A named, expiring exception: a chain measuring over `HARD_GATE`, recorded rather than hidden so CI
+ * stays green without the breach going invisible. `measuredAt` PINS the accepted value — the chain
+ * may not grow one instruction past it without the waiver itself being edited in a reviewed diff,
+ * and once it shrinks back under `HARD_GATE` the gate test flags the waiver as dead code to delete
+ * (see `instructionBudget.spec.ts`).
  */
 export interface Waiver {
   readonly chain: string;

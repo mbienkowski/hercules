@@ -3,26 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { parseDescriptor } from '../../descriptor.mjs';
 import { expectMessage, minimal } from '../../../commons/support/descriptorFixtures';
 
-// Split out of descriptor.spec.ts (CODE_OF_CONDUCT.md's 500-line test-file cap) — see that file's
-// header comment for the full split rationale. This file owns the two smallest cohesive shape
-// groups: malformed template values (checked directly, not via a rejection-message table) and both
-// gate protocols' full positive-path parse.
-//
-// Every rejection below goes through the shared `expectMessage` helper (try/catch + `toBe`), not
-// bare `expect(fn).toThrow(string)` — `.toThrow(string)` is a SUBSTRING/containment check in
-// Vitest, not exact equality, so it does not back the "exact message, not a substring" claim these
-// tests make about themselves. Caught by review: an earlier draft of this file used `.toThrow(
-// string)` throughout, and a live mutation experiment (appending a suffix to every message in
-// `formatError`) sailed through every one of those assertions undetected while the SAME mutant
-// failed 45 tests elsewhere in this suite that already used `expectMessage`.
+// Malformed template values and both gate protocols' full positive-path parse. Rejections use the
+// shared `expectMessage` helper, not `expect(fn).toThrow(string)` — that is a SUBSTRING check in
+// Vitest and would let a message-suffix mutation pass undetected.
 
 describe('rejecting malformed template values directly', () => {
   it('a template value that is not an object is rejected', () => {
-    // Unlike `objectError`'s strictObject case, a discriminatedUnion DOES have a separate "not an
-    // object at all" issue code (`invalid_type`) distinct from "the discriminant didn't match"
-    // (`invalid_union`) — see discriminantError's own doc comment. This reports through the SAME
-    // discriminantError('from', [...]) path either way, but now names the actual rejected value
-    // ('not-an-object') rather than misreporting it as None the way a code-blind version once did.
+    // A discriminatedUnion's `invalid_type` ("not an object") is distinct from `invalid_union`
+    // ("discriminant didn't match"); both report through discriminantError and must name the value.
     const tpl = [{ src: 'eco.template.x.js', dest: 'x.js', values: { __X__: 'not-an-object' } }];
     expectMessage(
       () => minimal({ templates: tpl }),
@@ -43,8 +31,8 @@ describe('rejecting malformed template values directly', () => {
   });
 
   it("js_string_list's values must be a list at all, not merely have entries", () => {
-    // Same "two error sources on one z.array().min(1)" gap as flag_if_name_in's 'names' — the empty-
-    // array test above only exercises .min(1); this exercises the array's own type check.
+    // One z.array().min(1) has two error sources: the empty-array test above exercises .min(1),
+    // this exercises the array's own type check.
     const tpl = [{
       src: 'eco.template.x.js', dest: 'x.js',
       values: { __X__: { from: 'js_string_list', values: 'not-an-array' } },
@@ -78,9 +66,8 @@ describe('rejecting malformed template values directly', () => {
   });
 
   it("role_entries_js defaults 'drop' to an empty list when the key is entirely absent", () => {
-    // The "requires 'body_key'" test elsewhere always omits 'drop' too, but it throws before
-    // returning — no test constructs a SUCCESSFUL role_entries_js parse with 'drop' omitted to
-    // prove the resulting `.drop` is actually `[]` and not some other placeholder.
+    // The "requires 'body_key'" test omits 'drop' too but throws before returning, so this is the
+    // only SUCCESSFUL parse proving the resulting `.drop` is actually `[]`.
     const tpl = [{
       src: 'eco.template.x.js', dest: 'x.js',
       values: { __X__: { from: 'role_entries_js', role: 'agent', body_key: 'b' } },
@@ -90,8 +77,8 @@ describe('rejecting malformed template values directly', () => {
   });
 
   it("role_entries_js 'drop' must be a list, not merely have string entries", () => {
-    // Every existing 'drop' test supplies an actual array (empty, or with a bad entry) — none
-    // exercised `drop` being present but not an array at all (e.g. a bare string).
+    // Every other 'drop' test supplies a real array (empty, or with a bad entry); this covers
+    // 'drop' being present but not an array at all.
     const tpl = [{
       src: 'eco.template.x.js', dest: 'x.js',
       values: { __X__: { from: 'role_entries_js', role: 'agent', drop: 'not-a-list', body_key: 'b' } },

@@ -166,14 +166,12 @@ describe('an unclosed fence falls back to the FULL original text as body', () =>
 
 describe('splitDocument’s closing-fence search skips past the opening fence itself', () => {
   it('does not recognise two fences on adjacent lines as an empty frontmatter block', () => {
-    // Mirrors the Python original's `text.find("\n" + FENCE, len(FENCE) + 1)`: the search starts
-    // just past the OPENING fence's own text, not at its second character. Starting one character
-    // too early would let the opening fence's own trailing dash be mistaken for a closing one.
+    // The closing-fence search starts just past the OPENING fence's own text, not at its second
+    // character: one character too early lets the opening fence's trailing dash pass as a closing one.
     const { block, body } = splitDocument('---\n---\n');
     expect(block).toBeNull();
     expect(body).toBe('---\n---\n');
   });
-  // The "still finds a real closing fence one full line later" contrast case is deliberately not
-  // repeated here — it would be structurally identical to the pre-existing "splits a document whose
-  // body starts immediately after the closing fence" test above, adding no incremental coverage.
+  // The "still finds a real closing fence one full line later" contrast case is covered by the
+  // "splits a document whose body starts immediately after the closing fence" test above.
 });

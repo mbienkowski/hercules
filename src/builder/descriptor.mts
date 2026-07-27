@@ -1,103 +1,32 @@
 /**
  * Ecosystem descriptors — the ONE per-ecosystem file, loaded and validated (closed vocabulary).
  *
- * An ecosystem is described entirely by `ecosystems/<name>.json`: token `vars`, `models`
- * tiers, the `smoke` install matrix entry, per-role output shapes (`roles`), destination `routes`,
- * inline JSON `artifacts`, shared-`guard` modules, write-`gate` params, and rendered `templates`.
- * The filename is the registry key; discovery is a glob — a new ecosystem is one new JSON file,
- * never new TypeScript.
+ * An ecosystem is described entirely by `ecosystems/<name>.json`: token `vars`, `models` tiers, the
+ * `smoke` install matrix entry, per-role output shapes (`roles`), destination `routes`, inline JSON
+ * `artifacts`, shared-`guard` modules, write-`gate` params, and rendered `templates`. The filename is
+ * the registry key and discovery is a glob, so a new ecosystem is one new JSON file, never new code.
  *
- * The DIRECTORY itself has a definitive schema, validated on discovery: every file is either a
- * `<name>.json` descriptor or a `<name>.dist.<dest>` shipped file — the filename IS the contract,
- * so the input→output mapping is a pure, testable function of the name. A stray file, an unknown
- * ecosystem prefix, or a nested dest fails discovery loudly.
+ * The DIRECTORY has a definitive schema too, validated on discovery: every file is a `<name>.json`
+ * descriptor or a `<name>.dist.<dest>` / `<name>.template.<dest>` sibling, so the input→output
+ * mapping is a pure function of the name. A stray file, an unknown ecosystem prefix, or a nested
+ * dest fails loudly — nothing in this directory is ever silently ignored.
  *
  * The vocabulary is CLOSED: a descriptor selects named, mutation-covered behaviours and supplies
- * operands only. An unknown key or enum value throws {@link DescriptorError} naming the offending
- * key and the allowed set — control flow stays typed, descriptors stay data.
+ * operands only. A Zod schema enforces that — five `z.discriminatedUnion()`s (field `from`, role
+ * `mode`, route `kind`, gate `protocol`, template-value `from`) over `z.strictObject` variants, whose
+ * own unknown-key rejection is the "no unknown keys" rule. Every schema node carries a custom `error`
+ * callback, so a thrown {@link DescriptorError} names the offending key, its dot/bracket path
+ * (`roles.agent.fields[2].value: …`) and the allowed set — and reports ALL failing fields at once,
+ * semicolon-separated, because Zod validates the whole shape rather than failing fast.
  *
- * ── Zod validation (commit 5 of the migration) ───────────────────────────────
- * `parseDescriptor` is now backed by a Zod v4 schema: five `z.discriminatedUnion()`s (field `from`,
- * role `mode`, route `kind`, gate `protocol`, template-value `from`) each built from `z.strictObject`
- * variants — `strictObject`'s own unknown-key rejection replaces the hand-rolled `checkKeys` +
- * per-mode allowed-key tables commit 4 carried. Two `.superRefine()` blocks enforce the cross-field
- * rules a discriminated union can't express alone: wrap-mode fields must all be literals, and
- * `toml_command` emits exactly one field named `description`. `models` is a `z.partialRecord` over
- * the three tiers, nullable per tier, refined non-empty.
+ * This is the ONLY module importing `zod`; every other module consumes the plain
+ * `EcosystemDescriptor`/`RoleSpec`/etc. interfaces below, inferred from these schemas but exported as
+ * ordinary TypeScript types. Zod validates the parsed JSON shape only — the filesystem functions
+ * (`load`/`discover`/`distFiles`/`names`/`validateLayout`) own the directory layout.
  *
- * Every issue gets a CUSTOM message via each schema node's own `error` callback — this is the actual
- * point of choosing Zod (see the migration spec's few-shot catalogue): byte-identical Python error
- * TEXT was a commit-4-only goal, not a permanent contract. What replaced it: every thrown
- * `DescriptorError` now carries the Zod-derived, dot/bracket-notation PATH of every failing field
- * ahead of its message (`roles.agent.fields[2].value: ...`), and — because Zod validates the WHOLE
- * shape rather than failing fast on the first problem the way commit 4's hand-written checks did —
- * a descriptor with several simultaneous problems now reports ALL of them in one error, semicolon
- * -separated, not just the first one encountered. The `show` helper formats the "got X" part of most
- * leaf messages as compact JSON (`"x"`, `["a","b"]`, `true`, `null`) — plain TS diagnostics, never
- * shipped to `dist/`.
- *
- * `descriptor.mts` is the ONLY module in this codebase importing `zod` — every other module consumes
- * the plain `EcosystemDescriptor`/`RoleSpec`/etc. interfaces below, inferred from this file's schemas
- * but exported as ordinary TypeScript types. That boundary is what makes a future `z.toJSONSchema()`
- * follow-up (validating `ecosystems/*.json` live in an editor) a near-free addition later.
- *
- * Filesystem functions (`load`/`discover`/`distFiles`/`names`/`validateLayout`) are UNCHANGED from
- * commit 4 — Zod validates the parsed JSON shape, not the directory layout, so nothing here needed
- * to move.
- *
- * Accepted, documented divergences (all pre-dating this commit; see commit 4's own history for how
- * each was found — most are now MOOT rather than merely accepted, because Zod's own structural
- * checks made the original hand-written special case unnecessary):
- *
- * - Python treats `bool` as an `int` subclass, so `True == 1` makes `schema: true` ambiguously
- *   pass the `!= 1` check there. This port does not replicate that — `schema` must be exactly the
- *   JSON number 1.
- *
- * - Every `x not in <enum>` check backed by a Python SET (`dispatch`, role `mode`, route `kind`,
- *   gate `protocol`, field `from`, template-value `from`) CRASHES with an unhandled
- *   `TypeError: unhashable type` if the offending value is a list or a dict. Zod's own enum/literal
- *   matching never crashes regardless of input type, which is strictly more robust, not a regression.
- *
- * - `load`/`discover` guard the `*.json` glob with `statSync(path).isFile()` before reading it, where
- *   Python's own `path.read_text()` / `Path.glob("*.json")` would crash on a directory literally
- *   named `<name>.json` with an unhandled `IsADirectoryError`. `validateLayout`'s own sibling-file
- *   walk and `distFiles` both already carry an equivalent `is_file()` guard on the Python side too
- *   (`descriptor.py` lines 450 and 470), so only the `discover()` glob path itself diverges.
- *
- * - `load()`'s `JSON.parse` rejects the bare `NaN`/`Infinity`/`-Infinity` tokens that Python's
- *   `json.loads` accepts by default (a Python-specific, spec-violating extension). A descriptor file
- *   containing one crashes this port with an uncaught `SyntaxError` before `parseDescriptor` ever
- *   runs; Python parses it into `float('nan')`/`float('inf')` and rejects it through the normal,
- *   non-crashing path instead. Accepted because no legitimate descriptor ever contains a
- *   non-standard JSON token. (See below for the SECOND, narrower TS-stricter divergence — `key_prefix`
- *   — this file no longer claims to have only one.)
- *
- * - `role_entries_js`'s `key_prefix` is typed `z.string().nullable().default('')`, but Python's
- *   `TemplateValue` is a dataclass with an unenforced `str` annotation — `key_prefix=raw.get(
- *   "key_prefix", "")` accepts any JSON type at runtime with no `isinstance` check at all (a number,
- *   list, or object silently lands on the field as-is). Zod's `z.string()` rejects anything that
- *   isn't a string, null, or absent. Reverse-direction from every other divergence above (TS
- *   stricter, not looser) and low-impact — caught by review, no real descriptor has ever authored a
- *   non-string `key_prefix` — but recorded here rather than left to contradict the NaN/Infinity
- *   bullet's now-inaccurate "the one divergence" framing.
- *
- * - `Object.entries()`/`Object.keys()` on a plain JS object reorder integer-like string keys ahead of
- *   every other key, regardless of the source JSON's actual key order; Python's `dict.items()` always
- *   preserves it. `vars` and a `pre_tool` gate's `tools` both iterate their raw object this way (via
- *   Zod's own record/object traversal now, same underlying JS semantics as commit 4's hand-written
- *   loops) — a descriptor with MULTIPLE invalid entries in either section, where at least one key
- *   looks like a non-negative integer, can report a DIFFERENT offending key first than Python does.
- *   Moot in one sense post-Zod: since Zod reports ALL bad entries, not just the first, this only
- *   changes ORDER within the joined message, never which entries are reported at all.
- *
- * - An integer-VALUED float is indistinguishable from a true int once `JSON.parse` sees it — JS has
- *   one numeric type, so `JSON.parse('5.0')` and `JSON.parse('5')` are identical by the time any
- *   validation code runs. UNCHANGED post-Zod: the top-level "not an object" error's custom message
- *   callback still runs commit 4's own `Number.isInteger` check directly against the real
- *   `issue.input` value (Zod's OWN default `received: "number"` field doesn't distinguish them, but
- *   that only matters if the message relied on Zod's default text, which this one doesn't). The one
- *   genuinely unavoidable case is that an integer-valued float reads as `integer` — a plain `5.5`
- *   still correctly reports `got number`.
+ * One irreducible quirk of decoded JSON: JavaScript has a single numeric type, so `JSON.parse('5.0')`
+ * and `JSON.parse('5')` are the same value and an integer-valued float reads as `integer` in a
+ * `got <type>` message. A plain `5.5` still correctly reports `got number`.
  */
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -138,8 +67,7 @@ function formatIssue(issue: z.core.$ZodIssue): string {
 
 /**
  * `DescriptorError`'s message for a whole failed parse: every issue Zod collected, not just the
- * first — Zod validates the WHOLE shape rather than failing fast the way commit 4's hand-written
- * checks did, so a descriptor with several simultaneous problems now reports all of them at once.
+ * first, so a descriptor with several simultaneous problems reports all of them at once.
  */
 function formatError(descriptorName: string, error: z.core.$ZodError): string {
   const parts = error.issues.map(formatIssue);
@@ -195,11 +123,10 @@ function oneOf<T extends readonly [string, ...string[]]>(values: T): z.ZodEnum<{
 }
 
 /**
- * `z.strictObject()`'s own object-level `error` param fires for BOTH "the input isn't an object at
- * all" (`invalid_type`) and "the input has a key `strictObject` doesn't recognise" (`unrecognized_
- * keys`) — a single string param can't distinguish them, so every `strictObject` in this file that
- * needs a custom "must be an object" message ALSO needs this to keep its unknown-key message
- * sensible rather than falling back to Zod's generic one.
+ * `z.strictObject()`'s object-level `error` fires for BOTH "not an object at all" (`invalid_type`)
+ * and "has an unrecognised key" (`unrecognized_keys`), which a plain string param cannot
+ * distinguish — so every `strictObject` wanting a custom "must be an object" message routes through
+ * here to keep its unknown-key message sensible too.
  */
 function objectError(label: string): (issue: { code: string; input?: unknown; keys?: string[] }) => string | undefined {
   return (issue) => {
@@ -207,29 +134,20 @@ function objectError(label: string): (issue: { code: string; input?: unknown; ke
     if (issue.code === 'unrecognized_keys') {
       return `${label} has unknown key(s) ${show([...(issue.keys ?? [])].sort())}`;
     }
-    // Structurally unreachable, not merely untested: `z.strictObject()`'s OWN object-level check
-    // (as opposed to a nested field's) can only ever produce 'invalid_type' or 'unrecognized_keys'
-    // at this object's own path — every other issue code Zod defines belongs to a FIELD schema
-    // (too_small, invalid_value, ...) or a record/union wrapper this function is never attached to,
-    // and those report through their OWN error settings at their OWN nested path, never through
-    // this callback. Kept as a fallback anyway so this function's return type stays honest (Zod's
-    // `error` callback signature always permits `undefined`) rather than asserting a code union
-    // this function doesn't actually need to enumerate.
+    // Structurally unreachable, not merely untested: `z.strictObject()`'s OWN object-level check can
+    // only produce 'invalid_type' or 'unrecognized_keys' at this object's own path; every other issue
+    // code belongs to a field or wrapper schema and reports through its own callback. Kept so the
+    // return type stays honest — Zod's `error` callback signature always permits `undefined`.
     return undefined;
   };
 }
 
 /**
- * `z.discriminatedUnion(field, variants)`'s own top-level `error` param fires for TWO distinct
- * issue codes, exactly the same ambiguity `objectError` above resolves for `strictObject`: `
- * invalid_union` when the input IS an object but its discriminant value matches no variant (read
- * the real discriminant off `issue.input[field]`), and `invalid_type` when the input isn't an
- * object at all (a string/array/number/null) — there `issue.input[field]` is always `undefined`,
- * so reporting it would print "got None" regardless of the actual offending value. A code-blind
- * version of this shipped briefly and was caught by review before commit: `routes: ['oops']`
- * rendered "'kind' must be one of [...], got None" instead of naming the string `'oops'` that was
- * actually rejected. Shared by all five discriminated unions in this file so each call site stays
- * a single, unindented line instead of repeating this cast-and-format boilerplate five times over.
+ * `z.discriminatedUnion()`'s top-level `error` carries the same ambiguity `objectError` resolves:
+ * `invalid_union` means the input IS an object whose discriminant matches no variant (read the real
+ * value off `issue.input[field]`), while `invalid_type` means it isn't an object at all — there that
+ * lookup is always `undefined`, so a code-blind version reports "got null" for `routes: ['oops']`
+ * instead of naming the string actually rejected. Shared by all five unions in this file.
  */
 function discriminantError(field: string, values: readonly string[]) {
   const sorted = [...values].sort();
@@ -394,9 +312,8 @@ export interface TemplateValue {
   readonly keyPrefix: string | null;
 }
 
-// Python's TemplateValue dataclass defaults `key_prefix` to `""` at the FIELD level: js_string/
-// js_string_list/js_root_joins never pass key_prefix to the constructor at all, so they always get
-// that structural `""` default. Only role_entries_js reads an explicit `key_prefix` from raw input.
+// `key_prefix` defaults to `''` structurally: only `role_entries_js` reads an explicit one from raw
+// input, so the other kinds always carry the empty default.
 const emptyTplVal = { value: null, values: [], paths: [], role: null, drop: [], bodyKey: null, keyPrefix: '' } as const;
 
 const TemplateValueSchema = z.discriminatedUnion('from', [
@@ -446,14 +363,10 @@ const TemplateSchema = z.strictObject({
     z.string().regex(PLACEHOLDER, { error: (issue) => `placeholder ${show(String(issue.input))} must match __UPPER_SNAKE__` }),
     TemplateValueSchema,
     {
-      // Same class of bug as ModelsSchema's — caught by the SAME review pass: a code-blind `error`
-      // here swallowed the key schema's own "must match __UPPER_SNAKE__" message under the generic
-      // "'values' must be an object" text for a MALFORMED PLACEHOLDER (code 'invalid_key'), not just
-      // for "values isn't an object at all" (code 'invalid_type'). Unlike objectError/ModelsSchema's
-      // invalid_key branch, `z.record()`'s own key-schema error does NOT bubble up to this issue's
-      // own `.message` even when this callback returns `undefined` for it (verified empirically) —
-      // it stays the generic "Invalid key in record" wrapper text — so the nested issue's message
-      // has to be read out and returned explicitly here.
+      // Code-aware, not blind: only 'invalid_type' ("values isn't an object at all") gets the generic
+      // text. A MALFORMED PLACEHOLDER arrives as 'invalid_key', and `z.record()`'s key-schema message
+      // never bubbles up on its own — it stays the "Invalid key in record" wrapper — so the nested
+      // issue's own message has to be read out and returned explicitly.
       error: (issue) => {
         if (issue.code === 'invalid_type') return "'values' must be an object";
         if (issue.code === 'invalid_key') {
@@ -467,7 +380,7 @@ const TemplateSchema = z.strictObject({
 }, { error: objectError('a template') })
   .transform((t): Template => ({ src: t.src, dest: t.dest, values: t.values }));
 
-/** One write-gate configuration — returned as-is (not transformed), matching Python's dict. */
+/** One write-gate configuration — returned as-is, never transformed. */
 const GateSchema = z.discriminatedUnion('protocol', [
   z.strictObject({
     protocol: z.literal('pre_tool'),
@@ -516,13 +429,9 @@ const ModelsSchema = z.partialRecord(
   oneOf(['high', 'medium', 'low']),
   z.string({ error: (issue) => `must be a string or null, got ${show(issue.input)}` }).nullable(),
   {
-    // A blind, code-blind `error` here would swallow EVERY issue this schema can produce under the
-    // SAME "must be a non-empty object" text, including a wrong TIER NAME (code 'invalid_key') —
-    // caught by review: `models: {high: null, turbo: 'x'}` was reporting "models.turbo: 'models'
-    // must be a non-empty object" instead of naming the allowed tiers. Only 'invalid_type' (the
-    // "not an object at all" case) gets this message; 'invalid_key' gets its own, using the same
-    // show()-formatted style as every other enum-membership message in this file rather than
-    // the key schema's own generic-enum wording (which `undefined` here would otherwise expose).
+    // Code-aware, not blind: only 'invalid_type' (not an object at all) gets the "must be a non-empty
+    // object" text. A wrong TIER NAME arrives as 'invalid_key' and must name the allowed tiers
+    // instead, in the same show()-formatted style as every other enum message in this file.
     error: (issue) => {
       if (issue.code === 'invalid_type') return "'models' must be a non-empty object";
       if (issue.code === 'invalid_key') {
@@ -541,10 +450,9 @@ const ModelsSchema = z.partialRecord(
 const SmokeSchema = z.strictObject({
   cli: nonEmptyStr(),
   test: nonEmptyStr(),
-  // npm_package/npm_version/install are ALLOWED keys with no type validation of their own in the
-  // Python original (`_SMOKE_KEYS` only names them; nothing checks their shape) — `install` in
-  // particular carries an OBJECT for some ecosystems (`{method, url, flags}`), not a string, so
-  // z.unknown() here is deliberate, not an oversight. Only `cli`/`test`/`expect` are actually typed.
+  // npm_package/npm_version/install are allowed but untyped: `install` carries an OBJECT for some
+  // ecosystems (`{method, url, flags}`), not a string, so `z.unknown()` is deliberate. Only
+  // `cli`/`test`/`expect` are actually typed.
   npm_package: z.unknown().optional(),
   npm_version: z.unknown().optional(),
   install: z.unknown().optional(),
@@ -574,23 +482,15 @@ const DescriptorSchema = z.strictObject({
   roles: z.strictObject({
     agent: RoleSchema, command: RoleSchema, persona: RoleSchema, default: RoleSchema,
   }, { error: objectError("'roles'") }),
-  // UNLIKE artifacts/guard/templates below, `routes` is a REQUIRED top-level key in the Python
-  // original (`_check_keys`' required-key loop names schema/name/vars/models/smoke/dispatch/roles/
-  // routes, and only those eight) — caught by review: an earlier draft of this schema gave routes
-  // the SAME `.default([])` treatment as the three genuinely-optional array sections, so a
-  // descriptor omitting 'routes' entirely was silently ACCEPTED here while Python correctly rejects
-  // it with "missing required key 'routes'". No `.default()`: an absent key must fail the same way
-  // a wrong-type one does, not fall through to an empty list.
+  // No `.default([])`, unlike the genuinely optional array sections below: `routes` is a REQUIRED
+  // top-level key, so an absent one must fail exactly as a wrong-typed one does rather than falling
+  // through to an empty list.
   routes: z.array(RouteSchema, { error: () => "'routes' must be a list" }),
   artifacts: z.array(ArtifactSchema, { error: () => "'artifacts' must be a list" }).default([]),
   guard: z.array(GUARD_ENTRY, { error: () => "'guard' must be a list" }).default([]),
-  // UNLIKE the OUTPUT type (`gate: ... | null`, coalesced below), the INPUT schema must not be
-  // `.nullable()`: Python's `gate=_parse_gate(name, raw["gate"]) if "gate" in raw else None` only
-  // treats an ABSENT key as None — an explicit `"gate": null` still reaches `_parse_gate`, which
-  // rejects it (`isinstance(None, dict)` is False). A stray `.nullable()` here (the one place this
-  // schema had it, unlike the plain `.default([])` on the sibling optional sections above) made an
-  // explicit null silently equivalent to omitting the key — caught by review, no test had covered
-  // `gate: null` to catch it beforehand.
+  // `.optional()`, never `.nullable()` — unlike the OUTPUT type (`gate: … | null`, coalesced below):
+  // only an ABSENT key means "no gate". An explicit `"gate": null` is a malformed descriptor and must
+  // be rejected, not silently treated as omission.
   gate: GateSchema.optional(),
   templates: z.array(TemplateSchema, { error: () => "'templates' must be a list" }).default([]),
 }, {
@@ -641,9 +541,8 @@ export function parseDescriptor(descriptorName: string, raw: unknown): Ecosystem
 // src/commons/support/repo.ts's own repoRoot for the fuller reasoning) already runs from the repo
 // root, so `process.cwd()` resolves correctly in both execution modes without tracking directory depth.
 const REPO_ROOT = process.cwd();
-// Exported (unlike REPO_ROOT) because genExtras.mts needs the SAME default `distFiles`/`discover`
-// use, for reading a template's own `.src` sibling file directly — matching Python's
-// `from scripts.build.descriptor import TARGETS_DIR` import in the retired Python `genextras.py`.
+// Exported (unlike REPO_ROOT) so genExtras.mts resolves a template's own `.src` sibling against the
+// SAME default directory `discover`/`distFiles` use.
 export const TARGETS_DIR = join(REPO_ROOT, 'src', 'targets');
 
 /** Load and validate one descriptor file (the filename stem is the ecosystem name). */

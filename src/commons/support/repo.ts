@@ -2,23 +2,12 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
- * The repository root.
- *
- * This is the process working directory, inherited from whatever invoked the run. Vitest's `root`
- * option scopes spec DISCOVERY only — it never chdirs the process — so the guarantee here comes
- * from the entry points, not from Vitest:
- *
- *   - the Makefile's `test-ts` / `mutation-ts` targets and the npm `test` / `mutation` scripts all
- *     run from the repo root;
- *   - Stryker's runner child calls `process.chdir()` into its sandbox copy of the tree, so specs
- *     resolve against the copy rather than the original — which is what makes them valid there.
- *
- * Invoking `vitest` from a subdirectory therefore fails loudly with ENOENT on the first repo read,
- * rather than silently reading the wrong tree.
- *
- * A module-relative path (`import.meta.dirname`) is deliberately NOT used: it would resolve to the
- * original checkout even when Stryker is running the suite against its sandbox copy, so mutants
- * would be scored against unmutated files.
+ * The repository root: the process working directory. Vitest's `root` option scopes spec discovery
+ * only and never chdirs, so the guarantee comes from the entry points — the Makefile targets and npm
+ * scripts run from the repo root, and Stryker's runner chdirs into its sandbox copy so specs resolve
+ * against the mutated tree. Running `vitest` from a subdirectory therefore fails loudly with ENOENT
+ * on the first repo read. A module-relative path is deliberately NOT used: it would resolve to the
+ * original checkout under Stryker, scoring mutants against unmutated files.
  */
 export const repoRoot = process.cwd();
 
@@ -31,11 +20,9 @@ export function readRepoJson<T>(...segments: string[]): T {
 }
 
 /**
- * Read a JSON file that carries `//` comments, as the tsconfig family does.
- *
- * Only whole comment LINES are stripped — never a trailing `//` — so a value containing a URL
- * (`"$schema": "https://…"`) survives intact. That is enough for the tsconfig files and avoids
- * pulling in a JSONC parser for two assertions.
+ * Read a JSON file carrying `//` comments, as the tsconfig family does. Only whole comment LINES are
+ * stripped, never a trailing `//`, so a value holding a URL survives intact — enough for the tsconfig
+ * files without pulling in a JSONC (JSON with comments) parser for two assertions.
  */
 export function readRepoJsonc<T>(...segments: string[]): T {
   const stripped = readRepoFile(...segments)

@@ -19,9 +19,8 @@ def test_override_allows_edit_to_named_frozen_file_in_matching_round(tmp_path):
 
 
 def test_editing_a_frozen_file_stays_blocked_when_the_grant_round_does_not_match(tmp_path):
-    """A permission grant recorded for a different round than the one currently in
-    progress no longer applies -- the frozen file stays protected until the user gives
-    a fresh approval that matches the current round."""
+    """A permission grant recorded for a different round than the one in progress does not apply --
+    the frozen file stays protected until the user gives a fresh approval matching the current round."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     _grant(tmp_path, files=["tests/test_login.py"], round_=2)  # session round is 1
@@ -121,9 +120,8 @@ def test_an_internal_error_while_checking_a_grant_still_leaves_the_file_blocked(
 
 
 def test_turning_off_the_frozen_file_guard_for_a_project_allows_all_edits(tmp_path):
-    """A project can opt out of automatic frozen-file protection by setting its guard to
-    "off", relying on prompt discipline instead. Once that opt-out is set, edits to
-    frozen files are no longer blocked."""
+    """A project can opt out of automatic frozen-file protection by setting its guard to "off",
+    relying on prompt discipline instead. With that opt-out set, edits to frozen files are allowed."""
     project = tmp_path / "proj"
     _setup(tmp_path, project)
     hh = tmp_path / ".hercules"

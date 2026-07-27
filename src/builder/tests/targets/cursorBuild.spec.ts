@@ -8,9 +8,8 @@ import { buildTarget } from '../../bin/cli.mjs';
 import { filesUnder, srcStems } from '../../../commons/support/buildTree';
 import { repoRoot } from '../../../commons/support/repo';
 
-// Ported from tests/build/test_cursor_build.py's non-YAML-typed assertions (the frontmatter-TYPE
-// checks — e.g. alwaysApply being a real boolean, not the string "false" — need a real YAML parser,
-// which lands with commit 10's js-yaml dependency; deferred there rather than adding it early).
+// Cursor target checks that need no YAML parser: load-bearing switch branches render non-empty,
+// and every cited protocol file is actually shipped.
 
 const SRC_CONTENT = join(repoRoot, 'src', 'content');
 

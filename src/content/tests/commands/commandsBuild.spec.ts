@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BUILD, RETIRE_STEP, readFile, readPersona, section } from './support';
 
-// Ported from tests/commands/test_commands_build.py — Build-phase TDD loop: freeze, retire,
-// cross-check, cadence, gates.
+// Build-phase TDD (test-driven development) loop: freeze, retire, cross-check, cadence, gates.
 
 describe('build-phase TDD loop', () => {
   it('spec files are deleted only after traceability is confirmed', () => {

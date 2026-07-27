@@ -55,9 +55,9 @@ def test_blocked_edit_message_tells_user_exactly_how_to_proceed(tmp_path, capsys
     # When the hook blocks the write
     assert run_hook(project, FROZEN_TEST, home=tmp_path) == 2
     reason = capsys.readouterr().err
-    # Then the stderr message — the model's only feedback channel — carries the contract users and
-    # the agent rely on: who blocked, which spec, the human's plain-sentence exit, the agent's
-    # recorded-grant path, and the project opt-out. (Not every clause verbatim — that was bloat.)
+    # Then the stderr message — the model's only feedback channel — carries the contract users and the
+    # agent rely on: who blocked, which spec, the human's plain-sentence exit, the agent's
+    # recorded-grant path, and the project opt-out. Clause presence, not verbatim wording.
     assert reason.startswith("Hercules: ")             # who blocked
     assert SPEC in reason                              # which spec
     assert 'User: saying "change this test' in reason  # the human's one plain sentence, first

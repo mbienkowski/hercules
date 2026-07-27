@@ -24,7 +24,7 @@ function isGlob(pattern: string): boolean {
   return GLOB_CHARS.test(pattern);
 }
 
-/** Exported for direct unit testing (mirrors the Python original's own test importing `_core_token_count`). */
+/** Tokens in the fenced A2A (agent-to-agent) Core block; throws when the document carries none. */
 export function coreTokenCount(text: string): number {
   const { text: core, found } = extractA2aCore(text);
   if (!found) throw new Error('no fenced Core block found');
@@ -65,9 +65,8 @@ export interface CheckResult {
 
 /**
  * One row exactly as `JSON.parse` produced it: every field stays `unknown` until `parseRow` proves
- * it. `thresholds.json` is untrusted input, so declaring the fields as `string`/`number` here would
- * assert the very shape this module exists to verify — and would make the checks below read as dead
- * code to anyone maintaining them.
+ * it. `thresholds.json` is untrusted input, so typing the fields here would assert the very shape
+ * this module exists to verify, making the checks below read as dead code.
  */
 type RawRow = Readonly<Record<string, unknown>>;
 
@@ -206,11 +205,7 @@ function evaluateSummed(check: ThresholdCheck, targets: readonly string[], fn: M
   return { passed: ok, reported: total, msg };
 }
 
-/**
- * Run all data-driven threshold checks and return results.
- *
- * Gate failures are returned as results with `passed: false`; they do not throw.
- */
+/** Run every data-driven threshold check. A gate failure comes back as `passed: false`, never a throw. */
 export function runThresholdChecks(repoRoot: string, checks: readonly ThresholdCheck[]): CheckResult[] {
   const results: CheckResult[] = [];
 

@@ -31,7 +31,7 @@ CI proves the artifacts are valid, in-sync, and regression-checked — it **cann
 loads and behaves inside a live tool (no ecosystem offers a headless load-and-assert harness). Before
 announcing a release, run this by hand and record the result (date, version, tester) in the release notes.
 
-### What's automated now
+### What's automated
 
 The `smoke` CI job (and `make test-smoke` locally) runs the real `claude` and `opencode` binaries
 against a built plugin — no tokens spent, no login required, seconds not minutes — and covers the
@@ -46,14 +46,14 @@ needs a live, paid session and stays a manual, release-gating check.
 | 2 | `hercules` is the default agent, answers in character | manual |
 | 3 | `/hercules:workflow` drives Discover → Design → Build → Ship | manual |
 | 4 | Write-gate hook blocks/allows | manual |
-| 5 | A specialist advisor spawns, replies in A2A format | manual |
+| 5 | A specialist advisor spawns, replies in A2A (agent-to-agent) format | manual |
 | 6 | `hercules-reference` skill loads, `§` sections available | manual (component *presence* is automated via the same file's "the installed plugin declares its full component inventory"; loading behavior is not) |
 | 7 | A fresh `cynical-reviewer` spawns at the coverage gate | manual |
 | 8 | A command's `${CLAUDE_PLUGIN_ROOT}/protocols/…` path resolves | manual |
 
 | # | OpenCode item | Status |
 |---|---|---|
-| 1 | `config` hook fires (agents/commands register) | ✅ automated — [issue #15](https://github.com/mbienkowski/hercules/issues/15) is fixed (the entry exports `{ id, server }`); `src/builder/tests/targets/opencodeEntrypoint.spec.ts`'s "starts up and registers every agent and command from the roster, defaulting to hercules" loads the built `plugin.js` in a real Node process and asserts every agent/command registers |
+| 1 | `config` hook fires (agents/commands register) | ✅ automated — the entry exports `{ id, server }`; `src/builder/tests/targets/opencodeEntrypoint.spec.ts`'s "starts up and registers every agent and command from the roster, defaulting to hercules" loads the built `plugin.js` in a real Node process and asserts every agent/command registers |
 | 2 | `plugin.js` loads with no missing-asset throw | ✅ automated — the same file's "refuses to start if a bundled asset is missing, with a clear error" drives the real loader |
 | 3 | `default_agent` is `hercules`; a subagent spawns | manual |
 | 4 | `/hercules:discover` resolves and runs | manual |

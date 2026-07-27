@@ -7,33 +7,21 @@ import { describe, expect, it } from 'vitest';
 import { isFile } from '../../../commons/support/buildTree';
 import { readRepoFile, readRepoJson, repoRoot } from '../../../commons/support/repo';
 
-// Ported from tests/build/test_cutover.py — spec-04 cutover guards: no raw `plugin/` path literals
-// pointing at the retired flat tree, tracked markdown never sends readers there either, the shared
-// test setup resolves to the shipped dist/claude-code tree, both marketplaces (claude-code AND
-// cursor) resolve to a real plugin manifest, and mutation testing targets the current hooks
-// location. This file does not import scripts.build itself (verified against the Python original),
-// so it is ported for completeness/parity rather than to unblock the retired Python compiler's deletion.
-//
-// The claude-code marketplace-resolves case is already covered, with the same assertion, by
-// docsAndPlugin/pluginIntegrity.spec.ts's "the marketplace listing can actually find and install
-// hercules" — not duplicated here; only the cursor-specific case (genuinely uncovered — the
-// existing ci/validatePackage.spec.ts and docsAndPlugin/pluginIntegrity.spec.ts checks stop at "the
-// manifest lists hercules" and never resolve cursor's `source` to a real `.cursor-plugin/plugin.json`)
-// is added below.
+// Guards that keep the `plugin/` flat tree gone: no source file or tracked markdown may reference it. The cursor
+// marketplace listing must also resolve to a real plugin manifest, and mutation testing must scan src/hooks/.
 
-// Path-literal patterns that reach the retired plugin/ tree (NOT `.claude-plugin/`, `plugin.json`,
-// the `plugin_root` fixture name, or the prose "Claude Code plugin").
+// Path literals that reach into a `plugin/` folder. Deliberately unmatched: `.claude-plugin/`,
+// `plugin.json`, the `plugin_root` fixture name, and the prose "Claude Code plugin".
 const RAW_PLUGIN = /parents\[\d+]\s*\/\s*["']plugin["']|\/\s*["']plugin["']\s*\//;
-// Markdown reference to the retired `plugin/` tree. The negative lookbehind excludes the legitimate
-// `.claude-plugin/` (and `opencode-plugin/`) — a bare `plugin/` segment is the retired path.
+// Markdown reference to a bare `plugin/` path segment. The negative lookbehind exempts the legitimate
+// `.claude-plugin/` and `opencode-plugin/`.
 const RETIRED_PLUGIN_MD = /(?<![-.\w])plugin\//;
 // Generated / not-authored-here markdown the guard must not police.
 const MD_GUARD_SKIP = new Set(['CHANGELOG.md']);
 
 describe('no source file hardcodes a path into the retired plugin/ folder', () => {
   it('scans every Python test and tooling file (other than conftest.py)', () => {
-    // The former "tests/ and scripts/" scope, now split across the domain restructure: commons/repo/
-    // and hooks/tests/ are the two former tests/ trees; release/ is the former scripts/ tree.
+    // Scope: both Python test trees (commons/repo/, hooks/tests/) plus the release tooling.
     const files = [
       ...globSync('src/commons/repo/**/*.py', { cwd: repoRoot }),
       ...globSync('src/hooks/tests/**/*.py', { cwd: repoRoot }),
@@ -95,10 +83,8 @@ it('the cursor marketplace listing points to a plugin that actually exists', () 
 });
 
 it('mutation testing targets the current hooks location, not the retired one', () => {
-  // The mutation-testing configuration must scan the hooks code at its current, migrated location
-  // and must not still reference an old, retired location. Otherwise mutation testing would
-  // silently exercise the wrong (or no longer existing) files, giving false confidence in how well
-  // the real hooks code is covered.
+  // Mutation testing must scan the hooks code where it actually lives; pointed anywhere else it
+  // exercises the wrong files and gives false confidence in how well the hooks are covered.
   const pyproject = readRepoFile('pyproject.toml');
   expect(pyproject).toContain('paths_to_mutate = "src/hooks/"');
   expect(pyproject).not.toContain('plugin/hooks/');

@@ -1,12 +1,10 @@
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
-// A SEPARATE spec file, deliberately — see builder/tests/descriptor/descriptorSort.spec.ts's own header
-// comment for the full rationale. In short: a real, unmocked directory walk cannot prove the
-// explicit `.sort(compareCodePoints)` call in roleEntries is doing real work rather than riding a
-// lucky filesystem default (APFS already returns entries in name order). `vi.mock('node:fs')` is
-// module-scoped and hoisted, so it must live in its own file to avoid affecting every other
-// genExtras test.
+// A SEPARATE spec file, deliberately: `vi.mock('node:fs')` is module-scoped and hoisted, so it must
+// live alone. An unmocked walk cannot prove roleEntries' `.sort(compareCodePoints)` does real work
+// rather than riding a lucky filesystem default, since APFS already returns entries in name order.
+// Full rationale: builder/tests/descriptor/descriptorSort.spec.ts.
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
   return {

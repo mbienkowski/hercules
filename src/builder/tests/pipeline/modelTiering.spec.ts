@@ -9,8 +9,6 @@ import { buildTarget } from '../../bin/cli.mjs';
 import { buildRegistry } from '../../serialize.mjs';
 import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
 
-// Ported from tests/build/test_model_tiering.py.
-
 const MODELS: Record<string, Record<string, string | null>> = {};
 for (const [name, d] of Object.entries(discover(ECOSYSTEMS))) MODELS[name] = d.models;
 

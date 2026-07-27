@@ -9,8 +9,7 @@ import { buildTarget } from '../../bin/cli.mjs';
 import { filesUnder, isFile } from '../../../commons/support/buildTree';
 import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
 
-// Ported from tests/build/test_conformance.py: ecosystem-conformance hardening — doc-grounded
-// runtime fixes from two ecosystem-specialist audits, each pinned here so it can't regress.
+// Ecosystem-conformance hardening: each doc-grounded runtime fix is pinned here so it cannot regress.
 
 const dirs: string[] = [];
 

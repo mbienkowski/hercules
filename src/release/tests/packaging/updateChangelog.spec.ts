@@ -5,20 +5,17 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// vi.mock('node:child_process') is module-scoped and hoisted (see builder/tests/descriptor/descriptorSort.spec.ts
-// for the fuller rationale on why this must sit at the top of the file rather than inline). Fully
-// replaced, not wrapped: getCommitsSince() is the ONLY caller of execFileSync anywhere in this
-// suite, and every other test in this file supplies its own `commits` array (bypassing
-// getCommitsSince entirely), so nothing else here ever needs a real git process.
+// vi.mock('node:child_process') is module-scoped and hoisted (builder/tests/descriptor/descriptorSort.spec.ts
+// has the fuller rationale). Fully replaced, not wrapped: getCommitsSince() is the ONLY caller of
+// execFileSync in this suite, and every other test here supplies its own `commits` array.
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:child_process')>();
   return { ...actual, execFileSync: vi.fn() };
 });
 
 // vi.mock('node:fs') wraps (not replaces) writeFileSync/readFileSync so every test still hits real
-// disk — only the CALL ARGUMENTS are additionally observable, for tests that need to pin the exact
-// encoding/path updateChangelog() passes, which real-filesystem behavior alone can't always
-// distinguish (Node treats an empty-string encoding the same as 'utf-8' for a string payload).
+// disk — only the CALL ARGUMENTS become additionally observable, for tests pinning the exact
+// encoding/path (Node treats an empty-string encoding the same as 'utf-8' for a string payload).
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
   return {
@@ -29,8 +26,6 @@ vi.mock('node:fs', async (importOriginal) => {
 });
 
 import { formatEntry, getCommitsSince, main, updateChangelog } from '../../updateChangelog.mjs';
-
-// Ported from tests/release/test_update_changelog.py.
 
 const V1_COMMITS = ['feat: initial release', 'chore: add CI'];
 const V2_COMMITS = ['feat: add new thing', 'fix: correct bug'];
@@ -73,11 +68,9 @@ describe('getCommitsSince', () => {
   });
 
   it('trims whitespace, drops blank lines, and drops chore(release) commits from the raw git log output', () => {
-    // Exercises every stage of the split/map/filter chain in one pass: a padded normal line (must
-    // be trimmed AND kept), a chore(release) line (non-empty, must be dropped despite passing the
-    // length check), and blank lines from leading/trailing/doubled newlines (must be dropped despite
-    // never matching the chore(release) prefix) — together these distinguish `&&` from `||`, both
-    // `> 0` neighbors, the `!`, and startsWith from endsWith.
+    // Exercises every stage of the split/map/filter chain in one pass: a padded normal line (trimmed
+    // and kept), a chore(release) line (non-empty, dropped), and blank lines — together these
+    // distinguish `&&` from `||`, both `> 0` neighbors, the `!`, and startsWith from endsWith.
     vi.mocked(execFileSync).mockReturnValueOnce(
       '  feat: add stuff  \nchore(release): bump version\n\n   \nfix: another change\n',
     );
@@ -104,10 +97,9 @@ describe('updateChangelog', () => {
   });
 
   it('a subsequent release actually gets prepended — the file is not left untouched', () => {
-    // A companion, positive-presence assertion to the two tests above (CODE_OF_CONDUCT.md's Testing
-    // section: "pair every absence check with a positive companion assertion"): both of those pass
-    // vacuously if updateChangelog's `else` branch silently did nothing at all, since neither
-    // "1.1.0 comes before 1.0.0" nor "contains initial release" requires 1.1.0 to be present.
+    // A positive-presence companion to the two tests above (CODE_OF_CONDUCT.md's Testing section:
+    // "pair every absence check with a positive companion assertion"): both pass vacuously if the
+    // `else` branch did nothing, since neither of them requires 1.1.0 to be present.
     const cl = tmpChangelog();
     writeFileSync(cl, '## v1.0.0\n\n* feat: initial release\n\n', 'utf-8');
     updateChangelog('v1.1.0', 'v1.0.0', false, cl, V2_COMMITS);
@@ -158,9 +150,8 @@ describe('updateChangelog', () => {
   });
 
   it('defaults to CHANGELOG.md in the working directory when no path is given', () => {
-    // `path`'s default value is only observable through the ARGUMENT it passes onward — actually
-    // letting it write would touch this repo's real CHANGELOG.md, so writeFileSync is stubbed to a
-    // no-op for this one call rather than delegating to the real filesystem.
+    // `path`'s default is only observable through the ARGUMENT it passes onward, and letting it
+    // write would touch this repo's real CHANGELOG.md — so writeFileSync is stubbed to a no-op here.
     vi.mocked(writeFileSync).mockImplementationOnce(() => undefined);
     updateChangelog('v1.0.0', '', true, undefined, V1_COMMITS);
     expect(writeFileSync).toHaveBeenCalledWith('CHANGELOG.md', expect.any(String), 'utf-8');
@@ -200,10 +191,8 @@ describe('formatEntry', () => {
 
 // main(env) is the environment-variable handling split out of bin/updateChangelog.mts (an
 // entry-point guard cannot be covered directly — see that file's own comment). The injectable
-// `updateChangelogFn` param (purely for test benefit) verifies main()'s env parsing in isolation,
-// without touching real git/filesystem state — updateChangelog()'s own real behavior is already
-// covered directly by the describe block above. Avoids process.chdir(), which Stryker's
-// worker-thread test runner rejects ("process.chdir() is not supported in workers").
+// `updateChangelogFn` verifies main()'s env parsing without touching real git/filesystem state,
+// and without process.chdir(), which Stryker's worker-thread test runner rejects.
 describe('main', () => {
   it('throws when NEW_TAG is not set, rather than writing a changelog with an empty header', () => {
     expect(() => main({})).toThrow("environment variable 'NEW_TAG' is required");

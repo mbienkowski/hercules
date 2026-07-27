@@ -1,7 +1,6 @@
 /**
- * Shared helpers for the docs/plugin specs, ported from tests/conftest.py's `ALL_COMMANDS` and
- * `section()`. Kept local to this directory rather than added to src/commons/support/ — nothing
- * outside docsAndPlugin/ needs them.
+ * Shared helpers for the docs/plugin specs. Local to this directory rather than
+ * src/commons/support/ — nothing outside docsAndPlugin/ needs them.
  */
 
 const DISCOVER = 'dist/claude-code/commands/discover.md';
@@ -15,10 +14,9 @@ export const ALL_COMMANDS: readonly string[] = [DISCOVER, DESIGN, BUILD, WORKFLO
 /**
  * Slice `text` from `start` up to `stop` (or the end), failing LOUDLY.
  *
- * The prose-pin idiom `text.slice(text.indexOf(a), text.indexOf(b))` dies with a silent `-1`
- * turning into an empty or inverted slice; this helper turns a missing or renamed anchor into an
- * actionable thrown error naming the marker and the file. `stop` is searched AFTER `start`, so a
- * window can never silently invert or bind to an earlier occurrence.
+ * The prose-pin idiom `text.slice(text.indexOf(a), text.indexOf(b))` turns a silent `-1` into an
+ * empty or inverted slice; a missing or renamed anchor throws here instead, naming the marker.
+ * `stop` is searched AFTER `start`, so a window can never invert or bind to an earlier occurrence.
  */
 export function section(text: string, start: string, stop?: string, label = ''): string {
   const i = text.indexOf(start);

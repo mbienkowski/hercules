@@ -1,9 +1,9 @@
-"""The OpenCode hard write-gate (G1) — a real pre-write veto, matching Claude Code's PreToolUse gate.
+"""The OpenCode hard write-gate — a real pre-write veto, matching Claude Code's PreToolUse gate.
 
-The generated plugin.js `tool.execute.before` hook invokes the CANONICAL Python guard
-(hooks/frozen_tests.py, the same code Claude runs) via python3; throwing aborts the Write/Edit before
-it touches disk. These tests prove the wiring is emitted (Python-level, for coverage/mutation) and that
-the whole chain actually blocks a frozen edit in a real Node process (skipped when node/python3 absent).
+The generated plugin.js `tool.execute.before` hook invokes the canonical Python guard
+(hooks/frozen_tests.py) via python3, and throwing aborts the Write/Edit before it touches disk. These
+tests prove the wiring is emitted and that the whole chain blocks a frozen edit in a real Node process
+(skipped when node or python3 is absent).
 """
 from __future__ import annotations
 
@@ -17,18 +17,18 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-# The plugin.js source of truth is sibling DATA now — the template the descriptor renders.
+# The plugin.js source of truth: the template the descriptor renders.
 _TEMPLATE = REPO_ROOT / "src" / "targets" / "opencode.template.plugin.js"
-# The committed dist/ tree, read directly rather than built fresh — see test_hooks_wiring.py's
-# module docstring for why (this island stays Python; the compiler is deleted in a later commit).
+# The committed dist/ tree, read directly — the `make ci-build` drift gate keeps it byte-identical
+# to a fresh build.
 _DIST_OPENCODE = REPO_ROOT / "dist" / "opencode"
 
 
 def test_generated_plugin_js_ships_no_network_channel():
-    """Hooks are the only executable code the plugin ships; the Python guards are AST-scanned by
-    test_hook_hygiene, but the hand-written plugin.js — which already `require`s child_process and
-    `spawnSync`s — is not. Pin that it `require`s ONLY an allowlist of stdlib modules and references no
-    network primitive, so the "no external network channel" promise can't be silently broken in JS."""
+    """The hand-written plugin.js sits outside test_hook_hygiene's AST (abstract syntax tree) scan of
+    the Python guards, and it already `require`s child_process. Pin that it `require`s ONLY an allowlist
+    of standard-library modules and names no network primitive, so the "no external network channel"
+    promise cannot be broken in JavaScript."""
     js = _TEMPLATE.read_text(encoding="utf-8")
     requires = set(re.findall(r'require\(["\']([^"\']+)["\']\)', js))
     allowed = {"path", "fs", "os", "child_process"}

@@ -9,9 +9,8 @@ import { buildTarget } from '../../bin/cli.mjs';
 import { srcStems } from '../../../commons/support/buildTree';
 import { repoRoot } from '../../../commons/support/repo';
 
-// Ported from tests/build/test_opencode_entrypoint.py (Spec 03 — the OpenCode plugin.js
-// entry-point smoke, adapted from PR #11's node probe). Counts are derived from the roster/config,
-// not magic literals. Frozen for spec-03-opencode-target.
+// Smoke test for the built OpenCode plugin.js entry point. Expected agent and command counts are
+// derived from the roster and config, never magic literals.
 
 const SRC = join(repoRoot, 'src');
 
@@ -31,10 +30,8 @@ afterEach(() => {
 
 describe('the OpenCode plugin.js entry point', () => {
   it('starts up and registers every agent and command from the roster, defaulting to hercules', () => {
-    // After building the OpenCode target, the generated plugin loads in OpenCode and registers
-    // every agent and command from the roster, with the default agent set to hercules — so a
-    // user installing the OpenCode plugin gets the complete, correctly wired toolset, not a
-    // partial or stale one.
+    // A user installing the plugin must get the complete, correctly wired toolset — every agent
+    // and command from the roster — rather than a partial one.
     const out = build();
     const nAgents = srcStems(join(SRC, 'content'), 'agents').length;
     const nCommands = srcStems(join(SRC, 'content'), 'commands').length;
@@ -65,10 +62,8 @@ describe('the OpenCode plugin.js entry point', () => {
   });
 
   it('refuses to start if a bundled asset is missing, with a clear error', () => {
-    // If a file that must ship alongside the built OpenCode plugin (like the instructions file)
-    // is missing, the plugin fails to start with a clear error instead of silently running with
-    // incomplete instructions — this holds no matter how deep the plugin is installed on disk,
-    // so a broken install is caught immediately rather than misbehaving quietly for the user.
+    // A broken install must surface immediately: a missing bundled asset aborts startup rather
+    // than letting the plugin run quietly on incomplete instructions.
     const out = build();
     unlinkSync(join(out, 'instructions.md'));
     const res = spawnSync('node', ['-e', `require(${JSON.stringify(join(out, 'plugin.js'))}).server()`], {

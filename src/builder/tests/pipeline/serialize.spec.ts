@@ -4,11 +4,8 @@ import { discover } from '../../descriptor.mjs';
 import { buildRegistry, SerializeError } from '../../serialize.mjs';
 import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
 
-// Ported from tests/build/test_serialize.py. Unlike Python's serialize.py (whose _REGISTRY is a
-// module-scope singleton, bootstrapped by a plain `import`), buildRegistry() is an explicit
-// factory — see serialize.mts's own top comment — so each test builds its OWN registry rather than
-// mutating a shared global. That also means the extensibility test doesn't need to worry about
-// polluting state for tests that run after it.
+// buildRegistry() is an explicit factory — see serialize.mts's own top comment — so each test builds
+// its OWN registry instead of mutating a shared global; the extensibility test cannot leak state.
 
 const MODELS = { 'claude-code': { high: 'opus', medium: 'sonnet', low: 'haiku' } };
 

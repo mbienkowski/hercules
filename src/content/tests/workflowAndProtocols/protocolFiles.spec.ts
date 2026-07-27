@@ -7,8 +7,7 @@ import { countStatusTableRows } from '../../../metrics/markdownMetrics.mjs';
 import { readFile } from '../commands/support';
 import { readRepoFile } from '../../../commons/support/repo';
 
-// Ported from tests/protocols/test_protocol_files.py — verifies the A2A and debate protocol files
-// follow the methodology.
+// The A2A (agent-to-agent) and debate protocol files follow the methodology.
 
 const A2A_PROTOCOL = 'dist/claude-code/protocols/a2a-communication-protocol.md';
 const DEBATE_PROTOCOL = 'dist/claude-code/protocols/debate-consensus-protocol.md';

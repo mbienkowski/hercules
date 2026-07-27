@@ -9,11 +9,9 @@ import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
 import { repoRoot } from '../../../commons/support/repo';
 import { join } from 'node:path';
 
-// Ported from tests/build/test_opencode_mirror.py: OpenCode loads agents/commands at runtime from
-// the inlined cfg.agent/cfg.command maps in plugin.js (built by genExtras.roleEntries through the
-// generic template) — NOT from the standalone dist/opencode/{agents,commands}/*.md files, which are
-// a human-readable, diff-friendly mirror. Both paths are driven by the SAME descriptor role fields,
-// so this is the wiring guard that the shared source stays actually shared.
+// OpenCode loads agents and commands at runtime from the inlined cfg.agent/cfg.command maps in plugin.js;
+// dist/opencode/{agents,commands}/*.md are a human-readable mirror. Both are driven by the same descriptor
+// role fields, and this is the wiring guard that the shared source stays actually shared.
 
 const SRC_CONTENT = join(repoRoot, 'src', 'content');
 
@@ -59,9 +57,8 @@ describe('OpenCode standalone mirror files match the inlined plugin.js entries',
   });
 
   it('every inline command entry has a real description and clean prompt text', () => {
-    // Ported from test_opencode_commands.py's test_opencode_commands_have_real_descriptions_...:
-    // the one path that used to skip the target-aware serializer — commands embedded raw YAML
-    // frontmatter with an empty description in plugin.js, and lost the agent binding.
+    // Inline command entries must go through the target-aware serializer: skipping it embeds raw
+    // YAML frontmatter with an empty description into plugin.js and drops the agent binding.
     const commands = roleEntries(opencode, SRC_CONTENT, tokens, 'command');
     expect(commands.length).toBeGreaterThan(0);
     for (const { stem, fields, body } of commands) {

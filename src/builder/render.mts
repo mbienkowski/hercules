@@ -61,8 +61,8 @@ function chooseBranch(branches: Map<string, string[]>, target: string): string[]
 }
 
 function resolveSwitches(text: string, target: string): string {
-  // Plain '\n' split, matching the Python original: this operates on an already-parsed body and
-  // must not re-interpret exotic line boundaries the way frontmatter parsing does.
+  // Plain '\n' split: this operates on an already-parsed body and must not re-interpret exotic line
+  // boundaries the way frontmatter parsing does.
   const lines = text.split('\n');
   const out: string[] = [];
   let lineIndex = 0;

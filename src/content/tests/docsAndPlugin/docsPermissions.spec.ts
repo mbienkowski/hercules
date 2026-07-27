@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { readRepoFile } from '../../../commons/support/repo';
 
-// Ported from tests/docs/test_docs.py — the README "Plugin permissions" prose-pin cluster, split
-// out of docs.spec.ts to keep both files under the CoC's 500-line-per-file cap.
+// The README "Plugin permissions" prose-pin cluster; companion to docs.spec.ts.
 
 describe('README "Plugin permissions" section', () => {
   it('truthfully discloses that the plugin runs code automatically', () => {

@@ -13,12 +13,9 @@ import { discoverSources } from '../../layout.mjs';
 import { buildRegistry } from '../../serialize.mjs';
 import { repoRoot } from '../../../commons/support/repo';
 
-// The CoC keystone under test, and the plan's own verification step 7 for this migration: "a
-// target is one ecosystems/<name>.json file, never new TypeScript." A synthetic 7th ecosystem,
-// built ONLY from vocabulary the closed descriptor schema already accepts, must compile end to end
-// with ZERO changes to any .mts file. This hand-composes the same steps buildTarget performs
-// (rather than writing a real file into ecosystems/, which would mutate the checked-out repo)
-// so the proof needs no filesystem write outside a scratch temp dir.
+// The code-of-conduct keystone: "a target is one ecosystems/<name>.json file, never new TypeScript." A synthetic
+// 7th ecosystem built only from vocabulary the closed descriptor schema accepts must compile end to end with zero
+// changes to any .mts file. It hand-composes buildTarget's steps, so the checked-out repo is never mutated.
 
 const SYNTHETIC_RAW = {
   schema: 1,
@@ -28,7 +25,7 @@ const SYNTHETIC_RAW = {
     agent_ns: 'hercules:', plugin_root: '${SYNTHETIC_PLUGIN_ROOT}/', plan_enter: 'plan mode', plan_exit: 'approval',
   },
   models: { high: null, medium: null, low: null },
-  smoke: { cli: 'synthetic', test: 'tests/build/test_synthetic_smoke.py' },
+  smoke: { cli: 'synthetic', test: 'builder/tests/smoke/syntheticSmoke.spec.ts' },
   dispatch: 'path',
   roles: {
     agent: { mode: 'preserve', resolve_model_tier: true, required: ['name', 'description'] },
@@ -76,9 +73,8 @@ describe('a synthetic 7th ecosystem, built from existing vocabulary only', () =>
     };
     written.push(...emitExtras(ctx, descriptor));
 
-    // The two exact routes actually fired (only capabilities.md/persona.md are routed; everything
-    // else identity-falls-through and is never claimed by an `exact`/`omit` route in this synthetic
-    // descriptor, so it still ships, just under its own content-relative name).
+    // The two exact routes fired. Everything else falls through unrouted and still ships, under
+    // its own content-relative name.
     expect(written).toContain('CAPABILITIES.md');
     expect(written).toContain('CLAUDE.md');
     expect(readFileSync(join(outRoot, 'CLAUDE.md'), 'utf-8')).toContain('Hercules');

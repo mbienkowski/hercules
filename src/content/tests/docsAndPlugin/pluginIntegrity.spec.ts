@@ -8,9 +8,8 @@ import { isFile } from '../../../commons/support/buildTree';
 import { readRepoFile, readRepoJson, repoRoot } from '../../../commons/support/repo';
 import type { PluginManifest } from './support';
 
-// Ported from tests/plugin/test_plugin_integrity.py — plugin file hygiene and shared settings
-// correctness: token-budget gate, lowercase filenames, plugin.json required fields, marketplace
-// resolution, README permissions-section checks, agent-name casing.
+// Plugin file hygiene and shared-settings correctness: token-budget gate, lowercase filenames,
+// plugin.json required fields, marketplace resolution, README permissions, agent-name casing.
 
 const CONTENT_DIRS = ['dist/claude-code/commands', 'dist/claude-code/agents', 'dist/claude-code/skills'];
 const LOWERCASE_EXCEPT = new Set(['SKILL.md']);

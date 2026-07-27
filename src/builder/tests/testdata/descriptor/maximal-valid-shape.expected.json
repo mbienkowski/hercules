@@ -10,7 +10,7 @@
   },
   "smoke": {
     "cli": "eco",
-    "test": "tests/build/test_eco_smoke.py"
+    "test": "builder/tests/smoke/ecoSmoke.spec.ts"
   },
   "dispatch": "path",
   "roles": {

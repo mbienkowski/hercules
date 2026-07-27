@@ -1,14 +1,10 @@
-"""Unit-level coverage for ``hercules_gate.py``'s MCP-payload probing (``_mcp_hits_frozen``) and the
-``event_guards``/``main`` dispatch glue.
+"""Unit-level coverage for ``hercules_gate.py``'s MCP (Model Context Protocol) payload probing
+(``_mcp_hits_frozen``) and the ``event_guards``/``main`` dispatch glue.
 
-Several of these call the private functions DIRECTLY rather than through ``main()``: ``main``'s own
-``except Exception`` clause fails open by re-deriving the exact same safe output an internal
-exception would already have produced (e.g. ``_guards_allow(cfg)`` after a caught crash looks
-IDENTICAL, on stdout, to the crash never happening) — so a full end-to-end decision can't observe
-some of these bugs at all. Calling the function directly is the only way an errant exception (or a
-silently wrong return value) actually fails the test.
-
-Mirrors ``test_cursor_write_gate.py``'s ``_load_gate`` (own small copy — existing convention here).
+``main``'s ``except Exception`` clause fails open by re-deriving the exact same stdout an internal
+exception would already have produced, so an end-to-end decision cannot observe some of these bugs at
+all — calling the private function directly is the only way an errant exception or a silently wrong
+return value fails the test. Each file here carries its own small ``_load_gate`` copy.
 """
 from __future__ import annotations
 
@@ -200,11 +196,10 @@ def test_event_guards_decide_after_edit_headless_restore_failure_note_is_pinned_
 
 def test_event_guards_decide_after_edit_on_a_non_frozen_file_is_silent(
         active_build_home, capsys):
-    """A build is active (so the frozen map is non-empty), but the edited file is NOT one of the
-    frozen tests — the after-edit guard must stay completely silent, never announcing or restoring a
-    file it does not guard. Pins the AND in ``_decide_after_edit``'s ``c is not None and c in frozen``:
-    an OR there would enter the branch for any real path and key the frozen map with a non-member,
-    crashing on a perfectly ordinary edit."""
+    """A build is active, so the frozen map is non-empty, but the edited file is NOT a frozen test —
+    the after-edit guard must stay silent rather than announce or restore a file it does not guard.
+    Pins the AND in ``_decide_after_edit``'s ``c is not None and c in frozen``; an OR would key the
+    frozen map with a non-member and crash on an ordinary edit."""
     home, proj = active_build_home
     fp = str(proj / "src" / "app.py")  # a real path under the project, but not a frozen test
     gate._event_guards_decide(_CFG, "after_edit",

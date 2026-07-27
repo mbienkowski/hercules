@@ -1,25 +1,19 @@
 /**
- * Source discovery for the build (thin filesystem boundary).
- *
- * Enumerates the `*.md` sources under `content` in a stable order for the serializers to
- * consume. `cli.buildTarget` maps each source to its per-target destination.
+ * Source discovery for the build (a thin filesystem boundary): enumerates the `*.md` sources under
+ * `content` in a stable order. `cli.buildTarget` maps each source to its per-target destination.
  */
 
 import { readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 /**
- * Compare two strings by Unicode CODE POINT, as Python does.
+ * Compare two strings by Unicode CODE POINT.
  *
  * JavaScript's `<` compares UTF-16 code units, which orders supplementary-plane characters before
- * U+E000–U+FFFF instead of after. Filenames here are ASCII today, so this changes nothing now — it
- * is here so that the day one is not, the ordering does not quietly shift.
- *
- * Exported (not just used internally) so its branches can be unit-tested directly, with synthetic
- * strings whose order is fully controlled. A real-filesystem test cannot do that reliably: APFS's
- * `readdirSync` already returns entries in name order regardless of creation order, so on a
- * developer's Mac a real directory walk can pass every ordering assertion even with the comparator
- * disabled entirely. ext4 (the CI runner) does not make that guarantee — see `discoverSources`.
+ * U+E000–U+FFFF instead of after. Filenames here are ASCII today, so this changes nothing yet; it is
+ * here so the ordering does not quietly shift the day one is not. Exported so its branches can be
+ * unit-tested with synthetic strings — APFS returns directory entries in name order regardless, so a
+ * real-directory test on macOS passes even with the comparator disabled entirely.
  */
 export function compareCodePoints(a: string, b: string): number {
   const left = [...a];
@@ -33,13 +27,12 @@ export function compareCodePoints(a: string, b: string): number {
 }
 
 /**
- * Order two paths the way Python's `sorted()` orders `pathlib.Path` objects.
+ * Order two paths by their PARTS, never as joined strings.
  *
- * This is NOT a plain string comparison, and the difference is not academic. `pathlib` compares the
- * PARTS TUPLE, so `x/a/b` sorts before `x/a-c`; comparing the joined strings reverses that, because
- * `-` (U+002D) precedes `/` (U+002F). Today's `content/` tree happens to sort identically both
- * ways, so a plain sort would pass every current fixture and silently reorder the build the first
- * time someone adds a file whose name contains a hyphen next to a directory sharing its prefix.
+ * `x/a/b` must sort before `x/a-c`; comparing the joined strings reverses that, because `-` (U+002D)
+ * precedes `/` (U+002F). Today's `content/` tree sorts identically either way, so a plain sort would
+ * pass every current fixture and silently reorder the build the first time a hyphenated filename
+ * lands next to a directory sharing its prefix.
  */
 export function comparePathParts(a: string, b: string): number {
   const left = a.split(sep);
@@ -54,16 +47,14 @@ export function comparePathParts(a: string, b: string): number {
 /**
  * Every `*.md` source under `contentRoot`, in a stable (sorted) order. Absolute paths.
  *
- * The walk is manual rather than `readdirSync({recursive: true})` so it can classify entries the
- * way Python's `rglob` does. Two behaviours matter and the recursive helper gets both wrong:
+ * The walk is manual rather than `readdirSync({recursive: true})` so entries classify correctly:
  *
- *   - a SYMLINK to a markdown file is a source. Its Dirent reports `isSymbolicLink()`, not
- *     `isFile()`, so an `isFile()` filter silently drops it while `rglob` includes it;
- *   - a symlinked DIRECTORY is not descended into, matching `rglob`, which does not follow them.
- *     A Dirent for one reports `isDirectory() === false`, so recursing only on `isDirectory()`
- *     reproduces that for free.
+ *   - a SYMLINK to a markdown file IS a source — its Dirent reports `isSymbolicLink()`, not
+ *     `isFile()`, so an `isFile()` filter would silently drop it;
+ *   - a symlinked DIRECTORY is NOT descended into — its Dirent reports `isDirectory() === false`,
+ *     so recursing only on `isDirectory()` gets that for free.
  *
- * Entries are deliberately not `stat`ed: a dangling symlink would throw, and `rglob` lists it.
+ * Entries are deliberately not `stat`ed: a dangling symlink would throw, and it belongs in the list.
  */
 export function discoverSources(contentRoot: string): string[] {
   const found: string[] = [];
@@ -73,8 +64,8 @@ export function discoverSources(contentRoot: string): string[] {
     try {
       entries = readdirSync(dir, { withFileTypes: true });
     } catch (error) {
-      // Python's `if not content_root.exists(): return []`. Only a missing directory is benign — a
-      // permission error or a file where a directory was expected must still fail loudly.
+      // Only a missing content root is benign — a permission error, or a file where a directory was
+      // expected, must still fail loudly.
       if ((error as NodeJS.ErrnoException).code === 'ENOENT' && dir === contentRoot) return;
       throw error;
     }

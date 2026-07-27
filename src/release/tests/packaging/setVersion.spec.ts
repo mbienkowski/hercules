@@ -7,10 +7,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { VERSION_TARGETS, readVersions } from '../../../builder/versionTargets.mjs';
 import { main, setVersion } from '../../setVersion.mjs';
 
-// Ported from test_version_process.py's test_bumping_the_version_updates_every_canonical_file, the
-// one test that exercises scripts/set_version.py's own set_version() wrapper directly (as opposed to
-// versionTargets.spec.ts's exhaustive coverage of writeVersion() itself, which set_version.py/
-// setVersion.mts is a thin, one-line delegation to).
+// Covers setVersion()'s own thin wrapper directly; versionTargets.spec.ts covers the writeVersion()
+// it delegates to, exhaustively.
 
 const dirs: string[] = [];
 
@@ -44,9 +42,8 @@ describe('setVersion', () => {
 });
 
 // main(argv) is the CLI argument handling split out of bin/setVersion.mts (an entry-point guard
-// cannot be covered directly — see that file's own comment), matching cli.mts's own main(argv)
-// convention: argv is already sliced (no node/script-path entries). The optional `root` param
-// (purely for test benefit) avoids process.chdir(), which Stryker's worker-thread runner rejects.
+// cannot be covered directly — see that file's own comment): argv is already sliced. The optional
+// `root` param avoids process.chdir(), which Stryker's worker-thread runner rejects.
 describe('main', () => {
   const originalWrite = process.stderr.write.bind(process.stderr);
 
@@ -82,9 +79,8 @@ describe('main', () => {
   });
 
   it('reports a usage error and returns 1 when the single argument is undefined, not just when argv.length is wrong', () => {
-    // A length-1 argv whose sole element is undefined (a sparse-array hole reaching main, or a caller
-    // passing `undefined` through) must still be rejected by the `version === undefined` half of the
-    // guard clause, independent of the `argv.length !== 1` half.
+    // A length-1 argv whose sole element is undefined must still be rejected by the
+    // `version === undefined` half of the guard, independent of the `argv.length !== 1` half.
     let stderr = '';
     process.stderr.write = ((chunk: string) => {
       stderr += chunk;

@@ -8,8 +8,7 @@ import type { ThresholdCheck } from '../../thresholdRunner.mjs';
 import { loadThresholds, runThresholdChecks } from '../../thresholdRunner.mjs';
 import { runOneCheck, tmpWorkspace, writeThresholds } from '../support';
 
-// Ported from tests/metrics/test_threshold_execution.py — summed and per-file modes, warn_at,
-// results, messages.
+// Threshold evaluation: summed and per-file modes, warn_at flagging, results and messages.
 
 function check(overrides: Partial<ThresholdCheck> & Pick<ThresholdCheck, 'name' | 'target' | 'metric' | 'op' | 'limit'>): ThresholdCheck {
   return { severity: 'gate', warnAt: null, perFile: false, ...overrides };

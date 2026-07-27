@@ -1,13 +1,9 @@
 """Grok Build write-gate: the SHIPPED plugin denies a frozen-test edit before it lands.
 
-Grok Build reads Claude-format hooks, so its ``PreToolUse`` wiring invokes the byte-identical canonical
-guard. This runs the guard exactly as Grok deploys it — the plugin's own shipped ``frozen_tests.py``
-fed a real ``PreToolUse`` payload — and never skips (no live CLI needed), so the deny path always
-carries coverage; the live smoke leg is an additional check, never the sole proof.
-
-Reads the COMMITTED ``dist/grok-build/`` guard directly rather than building a fresh copy — see
-``test_hooks_wiring.py``'s module docstring for why (this island stays Python; the compiler that
-built ``dist/`` is migrating to TypeScript and is deleted outright in a later commit).
+Grok Build reads Claude-format hooks, so its ``PreToolUse`` wiring invokes the byte-identical
+canonical guard. This runs the committed ``dist/grok-build/`` guard exactly as Grok deploys it, fed a
+real ``PreToolUse`` payload, and never skips — no live CLI needed — so the deny path always carries
+coverage and the live smoke leg is an extra check rather than the sole proof.
 """
 from __future__ import annotations
 

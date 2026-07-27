@@ -4,13 +4,8 @@ import { describe, expect, it } from 'vitest';
 
 import { readRepoFile, readRepoJson, repoRoot } from '../../../commons/support/repo';
 
-// Ported from tests/skills/test_skills.py — skill-directory<->canonical-list sync, per-skill
-// frontmatter/description/precondition checks (parametrized over every dist/claude-code/skills/
-// */SKILL.md), stack-literal bans, bare-subcommand-form bans, and settings.json<->skill-list sync.
-//
-// The code-of-conduct-generator/coverage-map prose pins and the write-test-scenarios prose pin
-// live in skillsCodeOfConductGenerator.spec.ts — split out to stay under CODE_OF_CONDUCT.md's
-// 500-line test-file cap.
+// Skill-directory<->canonical-list sync, per-skill frontmatter/precondition checks, stack-literal and
+// bare-subcommand bans, settings.json sync. Generator prose pins: skillsCodeOfConductGenerator.spec.ts.
 
 /** Glob under dist/claude-code/, returning paths relative to the repo root (repo.ts-compatible). */
 function glob(pattern: string): string[] {

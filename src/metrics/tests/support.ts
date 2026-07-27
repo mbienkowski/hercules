@@ -8,9 +8,8 @@ import type { CheckResult } from '../thresholdRunner.mjs';
 import { loadThresholds, runThresholdChecks } from '../thresholdRunner.mjs';
 
 /**
- * Shared helpers for the threshold-runner test files, mirroring tests/metrics/conftest.py's
- * `_write_thresholds`/`_run_one_check`: setup lives in one place so each test body stays a
- * Given/When/Then that fits on one screen.
+ * Shared helpers for the threshold-runner test files: setup lives in one place so each test body
+ * stays a Given/When/Then that fits on one screen.
  */
 
 const dirs: string[] = [];

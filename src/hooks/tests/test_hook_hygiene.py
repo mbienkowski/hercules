@@ -1,12 +1,9 @@
 """Hygiene scans for every shipped hook script — the shared `hooks/*.py` tree.
 
-The plugin claims "no external network channel" and "no credentials"; hooks are the only
-executable Python it ships, so they must be scanned (the markdown-only network scan in
-`test_plugin_integrity` does not cover `.py`). All enforcement code is authored ONCE in
-`hooks/` (the canonical guard + the one generic gate adapter) and byte-copied to every
-ecosystem, so scanning that tree covers every shipped hook. These tests enforce: stdlib-only
-(portability — no third-party install step), no network modules, and no state-corrupting
-filesystem writes.
+Hooks are the only executable Python the plugin ships, and it claims "no external network channel"
+and "no credentials". All enforcement code is authored ONCE in `hooks/` and byte-copied to every
+ecosystem, so scanning that tree covers every shipped hook. Enforced here: stdlib-only (so a
+consumer carries no install step), no network modules, and no state-corrupting filesystem writes.
 """
 
 from __future__ import annotations
@@ -42,19 +39,15 @@ def _top_level_imports(tree: ast.AST):
 
 
 def test_the_hook_checks_below_would_fail_loudly_if_no_hooks_shipped():
-    """If the plugin shipped zero hook scripts, every check further down this file would run
-    against an empty list and silently report success without having checked anything. This
-    guarantees there is at least one real hook script to scan, so the safety checks can't be
-    quietly disabled just by deleting all the hooks."""
+    """Every check below scans a list of hook scripts, so an empty list would report success without
+    checking anything. At least one real hook script must exist for those checks to mean something."""
     assert _HOOK_SCRIPTS, "expected shipped hook scripts under hooks/"
 
 
 @pytest.mark.parametrize("script", _HOOK_SCRIPTS, ids=lambda p: p.name)
 def test_a_shipped_hook_never_requires_installing_a_separate_package(script: Path):
-    """Every hook that ships with the plugin must run using only what already comes with Python,
-    plus its own sibling hook files - it must never depend on a separately installed package.
-    This guarantees a user can run a Hercules hook immediately with no install step; a hook that
-    quietly gained an extra dependency would otherwise fail on machines that don't have it."""
+    """A shipped hook may import only the Python standard library and its own sibling hook files, so
+    a user can run it immediately with no install step and on any machine with Python."""
     tree = ast.parse(script.read_text())
     stdlib = getattr(sys, "stdlib_module_names", None)
     violations = []
@@ -70,9 +63,8 @@ def test_a_shipped_hook_never_requires_installing_a_separate_package(script: Pat
 
 @pytest.mark.parametrize("script", _HOOK_SCRIPTS, ids=lambda p: p.name)
 def test_a_shipped_hook_cannot_open_a_network_connection(script: Path):
-    """The plugin promises it has no way to send or receive data over the network. This checks
-    that none of the shipped hook scripts import any networking module, so that promise can't be
-    silently broken by a hook that phones home or leaks data off the user's machine."""
+    """The plugin promises it cannot send or receive data over the network: no shipped hook script
+    imports a networking module, so nothing can phone home or leak data off the user's machine."""
     tree = ast.parse(script.read_text())
     offenders = sorted(m for m in _top_level_imports(tree) if m in _NETWORK_MODULES)
     assert not offenders, f"{script.name} imports network module(s) {offenders}"
@@ -95,12 +87,11 @@ def _open_modes(call: ast.Call):
 
 @pytest.mark.parametrize("script", _HOOK_SCRIPTS, ids=lambda p: p.name)
 def test_a_shipped_hook_never_writes_hercules_state(script: Path):
-    """No hook performs a DIRECT filesystem write — ``open`` for write/append, an ``os``/``Path``
-    write attribute, or ``shutil``. Those are the operations that could corrupt Hercules's saved
-    state under ``~/.hercules`` by racing the model's atomic writes, so every ecosystem's hooks
-    stay read-only over state. The single sanctioned working-tree mutation — Cursor's disclosed
-    ``git checkout`` restore backstop — goes through ``subprocess``/git, never a direct write, and
-    is bounded separately by ``test_the_after_edit_backstop_is_bounded_honest_and_headless_only``."""
+    """No hook performs a DIRECT filesystem write — ``open`` for write/append, an ``os``/``Path`` write
+    attribute, or ``shutil`` — because such a write could corrupt Hercules's saved state under
+    ``~/.hercules`` by racing the model's atomic writes. The one sanctioned working-tree mutation, the
+    ``git checkout`` restore backstop, goes through ``subprocess`` and is bounded by
+    ``test_the_after_edit_backstop_is_bounded_honest_and_headless_only``."""
     tree = ast.parse(script.read_text())
     offenders = []
     for node in ast.walk(tree):
@@ -118,17 +109,11 @@ def test_a_shipped_hook_never_writes_hercules_state(script: Path):
 
 
 def test_the_after_edit_backstop_is_bounded_honest_and_headless_only():
-    """Cursor's ``afterFileEdit`` hook cannot veto an edit (notification-only). Its backstop is the ONE
-    working-tree mutation any hook performs, and it is tightly constrained:
-
-      - it restores via a PATH-BOUNDED ``git checkout -- <file>`` (the CoC-sanctioned mutation), never a
-        broad/destructive ``reset --hard`` / ``clean`` / ``rm -`` / bare ``checkout .``;
-      - it runs ONLY in headless mode (gated on ``HERCULES_RUNTIME_MODE``) — the interactive IDE never
-        mutates the user's tree, it only advises;
-      - it claims success ONLY when git actually restored the file (gated on the return code), never the
-        old false "reverted, run git stash pop" message on an untracked file or non-git tree.
-
-    If Cursor ever ships no such hook, this test is simply vacuous."""
+    """The after-edit hook is notification-only, and its restore backstop is the ONE working-tree
+    mutation any hook performs. It stays bounded three ways: a path-bounded ``git checkout -- <file>``
+    and never a broad or destructive form; headless mode only, so an interactive IDE (integrated
+    development environment) advises rather than mutates the user's tree; and success claimed only when
+    git's return code says the file was actually restored. Vacuous if no such hook ships."""
     gate = _SHARED_HOOKS / "hercules_gate.py"
     if not gate.is_file():
         pytest.skip("no gate adapter shipped")
@@ -136,23 +121,19 @@ def test_the_after_edit_backstop_is_bounded_honest_and_headless_only():
     assert '"checkout", "--"' in src, "the backstop must restore via a path-bounded `git checkout -- <file>`"
     assert "HERCULES_RUNTIME_MODE" in src, "the mutation must be gated to headless mode (IDE is advisory)"
     assert "returncode == 0" in src, "success must be claimed only when git actually restored the file"
-    # No destructive/broad working-tree ops, and no reintroduced git-stash command (we no longer touch
-    # the stash stack). `'"stash"'` targets the subprocess arg token, not the MCP write-hint regex word.
+    # No destructive or broad working-tree operations, and no git-stash command — the backstop leaves
+    # the stash stack alone. `'"stash"'` targets the subprocess argument token, not the write-hint regex
+    # word of the same spelling.
     assert '"stash"' not in src, "the after-edit backstop must not run git stash (no false-recovery path)"
     for forbidden in ("reset --hard", "clean -", "rm -"):
         assert forbidden not in src, f"the after-edit backstop must not use `{forbidden}`"
 
 
 def test_test_coverage_exemptions_cannot_be_used_to_hide_untested_logic():
-    """A line of hook code can be marked as exempt from the automated check that verifies tests
-    actually catch bugs. That exemption is only legitimate on lines that are just fixed text, a
-    type declaration, or a documented equivalent-behavior case - never on a line that makes a real
-    decision. This guards against someone quietly turning off test coverage on code that genuinely
-    needs it, letting a bug slip through unnoticed.
-
-    Scoped to `hooks/` only: the metrics/budgets checks this exemption once also covered moved
-    to `metrics/` (TypeScript, gated by Stryker mutation testing instead) as part of the
-    TypeScript migration — this island's own mutation gate is the only one left in Python."""
+    """A line of hook code can be marked exempt from the mutation check that verifies tests actually
+    catch bugs. That exemption is legitimate only on a line that is fixed text, a type declaration, or a
+    documented equivalent-behavior case — never on a line that makes a real decision. Scoped to
+    `hooks/`, the one Python mutation gate in the repo."""
     for path in _SHARED_HOOKS.glob("*.py"):
         if path.name.startswith("test_"):
             continue

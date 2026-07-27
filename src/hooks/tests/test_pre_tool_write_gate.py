@@ -1,20 +1,14 @@
 """The universal ``pre_tool`` write-gate suite — one behavior body per case, every gated ecosystem.
 
-Drives the ONE shared adapter (``hooks/hercules_gate.py``) in-process with each ecosystem's REAL
-descriptor gate config, against a throwaway ``~/.hercules`` tree. The expected decision JSON per
-ecosystem is a HARDCODED literal in ``PRE_TOOL_EXPECTATIONS`` — never read from the config — so
-drift in either the adapter or the descriptor data is caught (pin both ends). A gated ``pre_tool``
-ecosystem missing its expectations entry FAILS (fail-closed completeness, GATE_EXPECTATIONS style).
+Drives the ONE shared adapter (``hooks/hercules_gate.py``) in-process against a throwaway
+``~/.hercules`` tree, using each ecosystem's gate config as read from the committed
+``dist/<eco>/hooks/gate.json``. The expected decision JSON is a HARDCODED literal in
+``PRE_TOOL_EXPECTATIONS``, never read from that config, so drift in either the adapter or the
+descriptor data is caught; a gated ``pre_tool`` ecosystem with no expectations entry FAILS.
 
-Behavioral cases preserved verbatim from the per-ecosystem suites this replaces: deny on every write
-tool (file bytes untouched), canonical reason + escape hatch, both payload casings, JSON-string and
-nested-edit arguments, reads/non-frozen/no-build/override allows, and full fail-open discipline.
-
-Reads each ecosystem's gate config from the COMMITTED ``dist/<eco>/hooks/gate.json`` rather than
-importing the compiler's descriptor module — see ``test_hooks_wiring.py``'s module docstring for
-why (this island stays Python; the compiler is deleted outright in a later commit).
-``universalConformance.spec.ts``'s "the shipped gate config is the descriptor gate verbatim" test
-is what makes this substitution exact, not approximate.
+Covered: deny on every write tool with the file's bytes untouched, the canonical reason and escape
+hatch, both payload casings, JSON-string and nested-edit arguments, allows for reads / non-frozen
+targets / no active build / a live override, and fail-open discipline.
 """
 from __future__ import annotations
 
@@ -271,8 +265,7 @@ def test_an_edit_list_whose_items_name_no_path_fails_open(eco, active_build, cap
 @pytest.mark.parametrize("eco", [e for e in ECOS if PRE_TOOL_EXPECTATIONS[e]["nested_edits"]])
 def test_a_batched_edit_with_a_frozen_file_in_a_LATER_hunk_is_denied(eco, active_build, capsys):
     """A batched multi-edit whose FIRST target is innocuous but a later one is a frozen test must be
-    denied — the gate checks every named path, not just the first (regression for the first-path-only
-    bypass: a mixed [non-frozen, frozen] patch previously sailed through)."""
+    denied — the gate checks every named path, not just the first."""
     home, proj, frozen = active_build
     tool = PRE_TOOL_EXPECTATIONS[eco]["write_tools"][-1]
     evt = {"toolName": tool, "toolArgs": {"edits": [{"file_path": str(proj / "src" / "ok.py")},

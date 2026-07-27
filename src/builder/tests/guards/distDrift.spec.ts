@@ -4,10 +4,8 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-// Ported from tests/build/test_dist_drift.py. The "every registered target reproduces committed
-// dist/ exactly" case is already covered, more directly, by cli.spec.ts's checkTarget tests (which
-// call the same dirDiff machinery this file's Python original re-derives per-file). This file owns
-// what that doesn't: the same-size/same-mtime content-drift trap, specifically.
+// This file owns the same-size/same-mtime content-drift trap. Full "every target reproduces committed
+// dist/" coverage lives in cli.spec.ts's checkTarget tests.
 import { buildTarget } from '../../bin/cli.mjs';
 
 const dirs: string[] = [];

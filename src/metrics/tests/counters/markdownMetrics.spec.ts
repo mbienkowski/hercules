@@ -2,11 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import { countStatusTableRows } from '../../markdownMetrics.mjs';
 
-// Ported from tests/metrics/test_markdown_metrics.py. Its countInstructions tests moved to
-// instructionCounter.spec.ts alongside commit 11's countAtomicInstructions, which replaced both
-// this module's old countInstructions AND the instruction-budget gate's separate block counter —
-// see instructionCounter.mts's own top comment.
-
 describe('countStatusTableRows', () => {
   it('counts only the data entries of a status table', () => {
     const md = 'prose\n| STATUS | Meaning | ACTION |\n|---|---|---|\n' +

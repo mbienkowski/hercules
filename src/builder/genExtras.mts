@@ -4,8 +4,7 @@
  * Four descriptor sections map onto four named emission behaviors (a closed set, validated by
  * `descriptor.mts`):
  * - `artifacts` — inline JSON objects dumped canonically (2-space, trailing newline); `versioned`
- *   substitutes the single `${version}` token from the canonical version, fail-loud on zero/many
- *   (the same contract as the version-injection invariant).
+ *   substitutes the single `${version}` token from the canonical version, fail-loud on zero or many.
  * - shipped siblings — every `ecosystems/<name>.dist.<dest>` file byte-copied to plugin-root
  *   `<dest>`: the filename IS the routing (`descriptor.distFiles`), no separate mapping to drift.
  * - `guard` + `gate` — the shared enforcement code (`hooks/`: canonical guard modules and the
@@ -13,26 +12,15 @@
  *   parameters emitted as `hooks/gate.json` beside it.
  * - `templates` — `<name>.template.<dest>` sibling text rendered by single-pass placeholder
  *   substitution with values from a closed computed-value vocabulary (`js_string`,
- *   `js_string_list`, `js_root_joins`, `role_entries_js`). Role entries are computed from the SAME
+ *   `js_string_list`, `js_root_joins`, `role_entries_js`). Role entries come from the SAME
  *   descriptor role fields the standalone files use, so an inlined entry (e.g. OpenCode's
- *   `plugin.js` agent map) and its standalone mirror can never drift by construction.
+ *   `plugin.js` agent map) and its standalone mirror cannot drift by construction.
  *
- * Accepted, documented V8-vs-Python key-order divergence: `Object.entries()`/plain-`JSON.stringify`
- * iteration walks integer-like string keys FIRST (ascending, ahead of every other key) regardless
- * of insertion order, unlike Python's `dict`, which always preserves insertion order. Pinned by
- * `genExtras.spec.ts`'s "V8 key reordering" test, the same way `descriptor.mts` documents its own
- * instance of this rather than fixturing it (the compiler is TypeScript-only now — there is no
- * second engine left to cross-diff against):
- *
- * - `jsObjectLiteral`'s plain-object branch reads `Object.entries(obj)`. `js_object_literal({"b":
- *   1, "1": "one", "a": 2, "0": "zero"})` would render key order `b, 1, a, 0` in the deleted Python
- *   original but `0, 1, b, a` here. Latent in practice: the only real caller (`templateValue`'s
- *   `role_entries_js` branch) always passes a `Map` built from source-file stems, which are never
- *   integer-like, and the `Map` branch preserves insertion order on both.
- * - `dumpJson` (below) is equally subject to this for `artifact.content` and `descriptor.gate` —
- *   both are `Record<string, unknown>` sourced from `JSON.parse`, serialized via plain
- *   `JSON.stringify`. Also latent: no committed `ecosystems/*.json` artifact or gate object
- *   uses an integer-like string key today.
+ * Emitted key order follows V8: `Object.entries()` and plain `JSON.stringify` — the paths
+ * `jsObjectLiteral`'s plain-object branch and `dumpJson` take — walk integer-like string keys FIRST,
+ * ascending, ahead of every other key, whatever the source order. Pinned by `genExtras.spec.ts`'s
+ * "V8 key reordering" test and latent in practice: role entries arrive as a `Map` (insertion order
+ * preserved) keyed by source-file stems, and no committed artifact or gate object uses such a key.
  */
 
 import { readdirSync } from 'node:fs';
@@ -99,12 +87,9 @@ export type JsLiteralValue =
   | JsLiteralMap
   | JsLiteralRecord;
 
-// Split out as their own interfaces (rather than inlined `ReadonlyMap<string, JsLiteralValue>` /
-// `Readonly<Record<string, JsLiteralValue>>` directly in the union above): TypeScript's circularity
-// check for a recursive type alias does not see through `Readonly<Record<...>>`'s utility-type
-// wrapping, and rejects the union as self-referencing even though the recursion is only ever
-// reached through a Map/object boundary. An `interface` breaks the cycle the same way a `type`
-// with a named object-literal shape would, without losing the `Readonly`/index-signature semantics.
+// Named interfaces rather than inlined `Readonly<Record<...>>` in the union above: TypeScript's
+// circularity check does not see through a utility type's wrapping and rejects the alias as
+// self-referencing. An `interface` breaks the cycle without losing the `Readonly` semantics.
 interface JsLiteralMap extends ReadonlyMap<string, JsLiteralValue> {}
 interface JsLiteralRecord extends Readonly<Record<string, JsLiteralValue>> {}
 
@@ -118,8 +103,7 @@ export function jsString(value: string): string {
  * values rendered recursively at a deeper indent. Empty entries collapse to `{}`.
  *
  * Shared by both object-like inputs — a `Map` (insertion order) and a plain object (`Object.entries`,
- * which walks integer-like string keys first, the divergence documented at this file's top). The
- * caller decides which entry list to pass; the formatting is identical.
+ * whose key order is described at this file's top). The formatting is identical either way.
  */
 function renderObjectBody(entries: ReadonlyArray<readonly [string, JsLiteralValue]>, indent: number): string {
   if (entries.length === 0) return '{}';
@@ -134,20 +118,16 @@ function renderObjectBody(entries: ReadonlyArray<readonly [string, JsLiteralValu
 export function jsObjectLiteral(obj: JsLiteralValue, indent = 8): string {
   if (obj instanceof Map) return renderObjectBody([...obj], indent);
   if (Array.isArray(obj)) {
-    // An empty array's `.map(...).join(', ')` always produces `''`, making `` `[${''}]` `` === '[]'
-    // regardless of whether this early return fires — verified directly. A TRUE equivalent mutant
-    // per CODE_OF_CONDUCT.md's Testing section's pragma exception (Stryker cannot express an
-    // equivalent early return, so the exemption is applied here rather than left as a survivor).
+    // An empty array's `.map(...).join(', ')` is already `''`, making the template literal `'[]'`
+    // whether or not this early return fires — a TRUE equivalent mutant per CODE_OF_CONDUCT.md's
+    // Testing section's pragma exception (Stryker cannot express an equivalent early return).
     // Stryker disable next-line ConditionalExpression: obj.map(...).join(', ') on an empty array is already '', making the early return observably identical — see comment above
     if (obj.length === 0) return '[]';
     return `[${obj.map((v) => jsObjectLiteral(v as JsLiteralValue, indent + 2)).join(', ')}]`;
   }
-  // For a boolean, `obj ? 'true' : 'false'` and the function's own final `return String(obj)`
-  // fallback produce byte-identical output (`String(true) === 'true'`, `String(false) === 'false'`)
-  // — verified directly — and every earlier branch's `typeof`/`instanceof`/`=== null` check already
-  // excludes a boolean from reaching it. A TRUE equivalent mutant per CODE_OF_CONDUCT.md's Testing
-  // section's pragma exception, for BOTH the condition (ConditionalExpression) and the literal
-  // (StringLiteral) mutants Stryker generates here.
+  // A boolean reaches the final `return String(obj)` fallback with byte-identical output, and every
+  // earlier branch already excludes it — a TRUE equivalent mutant per CODE_OF_CONDUCT.md's Testing
+  // section's pragma exception, for both the ConditionalExpression and the StringLiteral mutant.
   // Stryker disable next-line all: a boolean falls through to the identical `return String(obj)` fallback below regardless of this branch — see comment above
   if (typeof obj === 'boolean') return obj ? 'true' : 'false';
   if (typeof obj === 'string') return jsString(obj);
@@ -194,13 +174,10 @@ export function roleEntries(
     const { body } = splitDocument(text);
     const stem = name.slice(0, -'.md'.length);
     const roleSpec = descriptor.roles[role];
-    // A missing roleSpec (role absent from descriptor.roles) has no `.fields` to read, and the
-    // filler `computeFields` would receive instead is a bare string, not a FieldSpec object — its
-    // `.source` is `undefined`, which matches no case in computeFields' exhaustive switch and falls
-    // through the silent `default` branch, contributing nothing to the output Map either way.
-    // Verified directly: `computeFields([], ...)` and `computeFields(['Stryker was here'], ...)`
-    // produce byte-identical (empty) Maps. A TRUE equivalent mutant per CODE_OF_CONDUCT.md's Testing
-    // section's pragma exception.
+    // A missing roleSpec has no `.fields` to read, and any non-FieldSpec filler passed instead has
+    // an `undefined` `.source`, which matches no case in computeFields' exhaustive switch and adds
+    // nothing to the output Map. A TRUE equivalent mutant per CODE_OF_CONDUCT.md's Testing section's
+    // pragma exception.
     // Stryker disable next-line ArrayDeclaration: any non-FieldSpec filler array is silently ignored by computeFields' exhaustive switch — see comment above
     const fields = computeFields((roleSpec?.fields ?? []), meta, descriptor.name, tokens, stem);
     fields.delete('name');
@@ -251,22 +228,17 @@ export function emitExtras(ctx: ExtrasContext, descriptor: EcosystemDescriptor):
     written.push(artifact.dest);
   }
   const siblings = distFiles(descriptor.name);
-  // When `siblings` is empty, `Object.entries(siblings)` below is also empty, so `mapping` stays an
-  // empty Map either way — and emit.copyMap's `for (const … of mapping)` loop then iterates zero
-  // times, performing no fs call at all (verified by reading emit.mts's copyMap: the loop body,
-  // which is the ONLY side effect, never runs on an empty Map). The guard is a pure skip of dead
-  // work, not a behavior fork — a TRUE equivalent mutant per CODE_OF_CONDUCT.md's Testing section's
-  // pragma exception.
+  // An empty `siblings` yields an empty `mapping`, and copyMap's loop — its only side effect — then
+  // never runs, so this guard skips dead work rather than forking behavior. A TRUE equivalent mutant
+  // per CODE_OF_CONDUCT.md's Testing section's pragma exception.
   // Stryker disable next-line all: an empty siblings map already makes copyMap's loop a no-op regardless of this guard — see comment above
   if (Object.keys(siblings).length > 0) {
     const mapping = new Map<string, string>();
     for (const [destName, path] of Object.entries(siblings)) mapping.set(basename(path), destName);
     written.push(...copyMap(TARGETS_DIR, ctx.outRoot, mapping));
   }
-  // Same equivalence class as the siblings guard above: `descriptor.guard.map(...)` on an empty
-  // array is itself an empty array, so `mapping` is an empty Map and copyMap's loop is a no-op
-  // regardless of whether this `if` fires — true for both the ConditionalExpression mutant (forcing
-  // the branch to always run) and the EqualityOperator one (`>= 0`).
+  // Same equivalence class as the siblings guard above — an empty guard array makes copyMap's loop a
+  // no-op regardless — for both the ConditionalExpression mutant and the EqualityOperator one (`>= 0`).
   // Stryker disable next-line all: an empty guard array already makes copyMap's loop a no-op regardless of this guard — see comment above
   if (descriptor.guard.length > 0) {
     const mapping = new Map(descriptor.guard.map((name) => [name, `hooks/${name}`]));

@@ -5,7 +5,7 @@ import {
   matchesA2aEntryFormat,
 } from '../../a2aGrammar.mjs';
 
-// Ported from tests/metrics/test_a2a_grammar.py — each function tested independently.
+// A2A (agent-to-agent) grammar helpers, each function covered independently.
 
 describe('ALLOWED_STATUSES', () => {
   it('names exactly the six approved statuses', () => {

@@ -1,21 +1,13 @@
-"""Every shipped distribution MUST carry the frozen-test write-gate (G1) — the *presence* invariant.
+"""Every shipped distribution MUST carry the frozen-test write-gate — the *presence* invariant.
 
-The per-ecosystem write-gate tests (``test_opencode_write_gate.py``, ``test_cursor_write_gate.py``, and
-the Claude ``frozen_tests`` tests) prove each gate *works*. They do NOT fail if a distribution ships
-*without* its gate: a dropped ``hooks/`` copy, a refactor that stops emitting the wiring, or a brand-new
-4th ecosystem added with no enforcement would all pass silently.
+The per-ecosystem write-gate suites prove each gate *works*; none of them fails when a distribution
+ships *without* its gate. This module iterates every ecosystem directory committed under ``dist/``
+and asserts each ships its required gate wiring. The load-bearing check is
+``test_every_registered_target_declares_a_gate``: a target with no declared expectation FAILS, so a
+new ecosystem cannot ship without either wiring a gate or recording an explicit, reasoned waiver.
 
-This module closes that hole. It iterates **every registered target** (every ecosystem directory
-actually committed under ``dist/``) and asserts each ships its required gate wiring. The
-load-bearing check is ``test_every_registered_target_declares_a_gate``: a target with no declared
-expectation FAILS, so a new ecosystem cannot ship without either wiring a gate or recording an
-explicit, reasoned waiver.
-
-Reads the COMMITTED ``dist/`` tree directly rather than building a fresh copy via the compiler:
-this island is Python that ships to end users forever, while the compiler is migrating to
-TypeScript and is deleted outright in a later commit. The drift gate (``make ci-build``) already
-guarantees committed ``dist/`` is byte-identical to a fresh build, so reading the committed tree
-equivalently guards what ships.
+Reads the committed ``dist/`` tree directly; the drift gate (``make ci-build``) guarantees it is
+byte-identical to a fresh build, so reading it equivalently guards what ships.
 """
 from __future__ import annotations
 
@@ -26,8 +18,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 _DIST = REPO_ROOT / "dist"
-# The registered target list is the sorted set of ecosystem dirs actually committed under dist/ —
-# the same set descriptor.names()/cli.TARGETS derived it from when the compiler still built here.
+# The registered target list is the sorted set of ecosystem directories committed under dist/.
 TARGETS = sorted(p.name for p in _DIST.iterdir() if p.is_dir())
 
 # The frozen-guard state reader every gate reuses — one source of truth across ecosystems.

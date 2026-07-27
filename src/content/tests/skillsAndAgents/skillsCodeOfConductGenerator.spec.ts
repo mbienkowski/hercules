@@ -2,11 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { readRepoFile } from '../../../commons/support/repo';
 
-// Ported from tests/skills/test_skills.py — split out of skills.spec.ts (CODE_OF_CONDUCT.md's
-// 500-line test-file cap). Owns: the prose pins specific to code-of-conduct-generator/SKILL.md and
-// its coverage-map.md companion (the v4 lean-spine + relocated-detail split), plus the one
-// write-test-scenarios prose pin. Tests read whichever file owns the behavior, whitespace-collapsed
-// so a pinned phrase survives line-wrapping.
+// Prose pins for code-of-conduct-generator/SKILL.md and its coverage-map.md companion, plus the one
+// write-test-scenarios pin. Text is whitespace-collapsed so a pinned phrase survives line-wrapping.
 
 const COC_GENERATOR = 'dist/claude-code/skills/code-of-conduct-generator/SKILL.md';
 const COC_MAP = 'dist/claude-code/skills/code-of-conduct-generator/coverage-map.md';
