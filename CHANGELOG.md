@@ -1,3 +1,7 @@
+## v1.13.0 (2026-07-28)
+
+* feat(badges): Add badges to readme (#33)
+
 ## v1.12.0 (2026-07-27)
 
 * chore(ci): Ci name unification (#32)
