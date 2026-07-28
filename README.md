@@ -4,12 +4,12 @@
 [![Latest Release](https://img.shields.io/github/v/release/mbienkowski/hercules?style=flat-square)](https://github.com/mbienkowski/hercules/releases)
 [![License: AGPL-3.0](https://img.shields.io/github/license/mbienkowski/hercules?style=flat-square)](https://github.com/mbienkowski/hercules/blob/main/LICENSE)
 
-[![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%85-blue?style=flat-square)](#install-claude-code)
-[![OpenCode](https://img.shields.io/badge/OpenCode-%E2%9C%85-blue?style=flat-square)](#install-opencode)
-[![Cursor](https://img.shields.io/badge/Cursor-%E2%9C%85-blue?style=flat-square)](#install-cursor)
-[![Grok Build](https://img.shields.io/badge/Grok%20Build-%E2%9C%85-blue?style=flat-square)](#install-grok-build)
-[![Gemini CLI](https://img.shields.io/badge/Gemini%20CLI-%E2%9C%85-blue?style=flat-square)](#install-gemini-cli)
-[![GitHub Copilot CLI](https://img.shields.io/badge/GitHub%20Copilot%20CLI-%E2%9C%85-blue?style=flat-square)](#install-github-copilot-cli)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%85-white?style=flat-square)](#install-claude-code)
+[![OpenCode](https://img.shields.io/badge/OpenCode-%E2%9C%85-white?style=flat-square)](#install-opencode)
+[![Cursor](https://img.shields.io/badge/Cursor-%E2%9C%85-white?style=flat-square)](#install-cursor)
+[![Grok Build](https://img.shields.io/badge/Grok%20Build-%E2%9C%85-white?style=flat-square)](#install-grok-build)
+[![Gemini CLI](https://img.shields.io/badge/Gemini%20CLI-%E2%9C%85-white?style=flat-square)](#install-gemini-cli)
+[![GitHub Copilot CLI](https://img.shields.io/badge/GitHub%20Copilot%20CLI-%E2%9C%85-white?style=flat-square)](#install-github-copilot-cli)
 
 Half god, half man — strong enough to wrestle a lion, patient enough to sit through your kickoff meeting.
 
