@@ -142,12 +142,21 @@ describe('command naming, date, and documentation contracts', () => {
 
   it('high-risk categories are named the same way everywhere', () => {
     const readme = readFile('README.md').toLowerCase();
-    const claude = readPersona().toLowerCase();
-    const canonical = ['auth', 'secrets', 'money', 'migration', 'deletion', 'production config', 'concurrency'];
+    const rubric = readFile('dist/claude-code/protocols/debate-consensus-protocol.md').toLowerCase();
+    const canonical = ['auth', 'secrets', 'money', 'data migration', 'deletion', 'production config',
+      'concurrency', 'personal data'];
     for (const token of canonical) {
-      expect(claude).toContain(token);
-      expect(readme).toContain(token);
+      expect(rubric, `the rubric must name '${token}' — it is the one file the floor is read from`)
+        .toContain(token);
+      expect(readme, `README must name '${token}' — a user decides whether to trust the floor from it`)
+        .toContain(token);
     }
+  });
+
+  it('the floored list is stated as examples, never as a closed catalogue', () => {
+    const rubric = readFile('dist/claude-code/protocols/debate-consensus-protocol.md').toLowerCase();
+    expect(rubric, 'a closed list floors nothing it failed to anticipate')
+      .toContain('examples rather than a closed catalogue');
   });
 
   it('the session index columns are documented and stay in sync', () => {

@@ -48,11 +48,11 @@ Paraphrase what you heard in 2–3 sentences so the user can correct any misunde
 
 Wait for the user to confirm or override. On confirmation, record `tier` and `tier_rationale` — Step 7's session-init write persists them (plan mode allows no writes, and the session slug doesn't exist yet). Complexity is scored **once, here**, and read forward by Design and Build.
 
-Every tier continues through Steps 4–7; the tier sets how many advisors run, never which steps.
+Every tier continues through Steps 4–7; the tier sets how many advisors run plus how far they debate, never which steps.
 
 ## Step 4 — Advisor debate
 
-The advisor count scales with the tier (`hercules-reference § Agent scaling`): `trivial` runs none — skip to Step 5; `low` runs a reduced set; `medium` and up run the fuller set. When advisors apply, follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **business-analyst, challenger, simplicity-advocate**; at `low`, 1–2) — choose deliberately different, even opposing, perspectives so they argue, not echo. Productive disagreement beats easy consensus. On the user's go-ahead, run the debate per `${extensionPath}/protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`${extensionPath}/protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
+Advisors and debate depth both scale with the tier — the rubric is `protocols/debate-consensus-protocol.md` § complexity: `trivial` runs none — skip to Step 5; `low` runs a reduced set of two, one round; `medium` and up run the fuller set, with a later round only where the one before it left a topic contested. When advisors apply, follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **business-analyst, challenger, simplicity-advocate**) — choose deliberately different, even opposing, perspectives so they argue, not echo. Productive disagreement beats easy consensus. On the user's go-ahead, run the debate per `${extensionPath}/protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`${extensionPath}/protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
 
 ## Step 5 — Draft & feedback loop
 

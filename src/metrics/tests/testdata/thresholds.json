@@ -29,8 +29,8 @@
     "target": "dist/claude-code/protocols/debate-consensus-protocol.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 1100,
-    "warn_at": 1060,
+    "limit": 1500,
+    "warn_at": 1450,
     "severity": "gate"
   },
   {
@@ -47,8 +47,8 @@
     "target": "dist/claude-code/commands/discover.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 1670,
-    "warn_at": 1620,
+    "limit": 1750,
+    "warn_at": 1720,
     "severity": "gate"
   },
   {
@@ -112,10 +112,10 @@
     "target": "dist/claude-code/skills/hercules-reference/SKILL.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 3450,
+    "limit": 3700,
     "severity": "gate",
     "per_file": true,
-    "warn_at": 3430
+    "warn_at": 3650
   },
   {
     "name": "coc-generator-token-budget",

@@ -48,14 +48,20 @@ A2A Communication Protocol  (every agent-to-agent reply; any multi-agent workflo
 5. Verbatim relay: after the entries — one [ROLE] Pass | what + source + label | none line,
    then [ATTACHMENT: label] ...unchanged content... [/ATTACHMENT]. Relay external content
    (tool output/file/another agent), never your own prose; never summarise inside.
-6. Debate: one line [ROLE] Agreement: N/5 | reasoning | none (N 0-5). Reasoning must cite
-   the specific claim/section you agree or disagree with; a bare number, "+1", "I agree",
-   or generic praise is invalid. An unresolved vote ends your role; orchestrator escalates.
-7. Debate: classify complexity first — trivial=skip; low=R1 only; medium=R1+R2;
-   high=R1+R2+R3; critical=R1+R2+R3+fresh-eyes(mandatory). R1 blind/parallel →
-   R2 cross-examine (all see R1; Agreement: N/5) → R3 re-invoke ≤3/5 agents only.
-   Max 3 rounds, then synthesise. Fresh-eyes: new agents, no R1/R2 history.
+6. Debate: one entry per topic.
+   State your position on every topic you examined — silence on a topic is never agreement.
+   Agreeing with a peer's position needs your own reasoning; a bare "+1", "I agree", or a
+   reworded copy is invalid.
+7. Debate: classify complexity first.
+   Rounds: trivial none. low 1. medium 1-2. high 1-2. critical 2-3 plus a fresh-eyes panel.
+   R1 is blind/parallel. A later round runs only on a topic the round before left contested,
+   carrying one advisor per position — except at critical, whose second round and panel run
+   whatever the convergence state. Fresh eyes: new agents, no history of earlier rounds.
 Example (review):   [QA] Blocker | auth_handler:42 lets an unauthenticated request reach the admin handler, exposing user data. | Gate the handler behind a session check.
+Example (high):     [SECURITY] High | Refresh tokens never expire, so a leaked token grants permanent access. | Add a TTL, or record the acceptance in the spec.
+Example (medium):   [ARCHITECT] Medium | §Data model calls it userId and §API calls it user_id; the mapping is unwritten. | Name one and use it in both.
+Example (pass):     [QA] Pass | Reviewed §Auth acceptance criteria — expiry, replay and concurrent-refresh all have named tests. | none
+Example (nitpick):  [COPY] Nitpick | The error string says "Kindly retry", which does not match the plain tone used elsewhere. | none
 Example (non-eval): [RESEARCH] Info | Postgres 16 ships logical-replication failover, relevant to the HA requirement. | none
 ```
 
@@ -102,14 +108,15 @@ agents skip `CLAUDE.md`. Use all three channels:
 | `Pass` | Reviewed, nothing to flag — name scope + what was checked | `none` |
 | `Info` | Purely descriptive payload (fact/option/data/answer) | `none` unless a decision is needed |
 
-**Debate agreement** — `[ROLE] Agreement: N/5 | reasoning | none`:
+**Debate convergence** — an advisor states a position per topic; the orchestrator groups the entries
+by topic and reads the positions on each:
 
-| N | Meaning | Effect |
+| The topic | State | Effect |
 |---|---------|--------|
-| 5 | Full agreement | resolved |
-| 4 | Agree, minor reservation | reservation → user's decision (not auto-resolved) |
-| 3 | Neutral | another round |
-| 0–2 | Disagree → strong conflict | another round; if it persists past the cap → open question for the user |
+| two or more advisors agree | settled | folded into the draft, reported as applied |
+| positions differ | contested | carried into the next round |
+| one speaker, Blocker or High | contested | a second opinion is convened, or it goes to the user at the ceiling |
+| nobody addressed it | not settled | blocks closure — silence is never agreement |
 
 **Provenance.** An original re-expression distilling the concepts from two prior internal
 protocol documents — not a copy of their text. The `Info` status extends the source 5-status

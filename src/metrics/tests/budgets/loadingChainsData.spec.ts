@@ -173,11 +173,17 @@ describe('CHAIN_TEMPLATES: pinned data shape', () => {
 });
 
 describe('WAIVERS: pinned data content', () => {
-  it('the build.md waiver records its exact reason and follow-up', () => {
-    const waiver = WAIVERS.find((w) => w.chain === 'orchestrator (per command): commands/build.md');
-    expect(waiver?.reason).toBe("ceiling 150, over by 10 — trim build.md's own instruction load");
-    expect(waiver?.followUp).toBe(
-      'migration spec § What this sets up: "Trimming build.md to retire the orchestrator waiver"',
-    );
+  it('records no waiver, because every chain measures under the ceiling', () => {
+    expect(WAIVERS, 'a waived chain is a breach kept visible — an empty list means none is over')
+      .toEqual([]);
+  });
+
+  it('gives every waiver a chain, a measured value, a reason and a follow-up', () => {
+    for (const w of WAIVERS) {
+      expect(w.chain, 'a waiver names the chain it covers').toBeTruthy();
+      expect(w.measuredAt, 'a waiver pins the value it was accepted at').toBeGreaterThan(0);
+      expect(w.reason, 'a waiver states why the breach is accepted').toBeTruthy();
+      expect(w.followUp, 'a waiver names the work that retires it').toBeTruthy();
+    }
   });
 });
