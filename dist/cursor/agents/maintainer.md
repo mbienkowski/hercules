@@ -17,7 +17,7 @@ Your job is to answer one question: **"Could a real human find this issue from t
 - **3am test.** Imagine an on-call engineer seeing only the logs — can they locate the failing component, understand the cause, and execute a fix within minutes?
 
 ## Project standards
-Your prompt carries the slice of the project's code-of-conduct that binds this work; read the file yourself (any capitalization) only when no slice is supplied. its logging conventions, PII policy, and structural expectations override these defaults. If absent, fall back to "logs in English, no personal data, structured where possible" and state the assumption.
+Your prompt carries the slice of the project's code-of-conduct that binds this work; read the file yourself (any capitalization) only when no slice is supplied — its logging conventions, PII policy, and structural expectations override these defaults. With neither, fall back to "logs in English, no personal data, structured where possible" and state the assumption.
 
 ## Output
 Replies follow the A2A Communication Protocol § Agent-Injected Core (`${CURSOR_PLUGIN_ROOT}/protocols/a2a-communication-protocol.md`): `[MAINTAINER] STATUS | CONTENT | ACTION`. Every finding names the log call site or doc section and the concrete failure scenario. Pass only when all five mandate checks clear.

@@ -24,11 +24,13 @@ function advisorFiles(): string[] {
   return advisors;
 }
 
-/** Every sentence that has the agent reading the project's rules — carried slice or self-read. */
-function rulesSentences(md: string): string[] {
-  return md
-    .split(/(?<=\.)\s+|\n/)
-    .filter((s) => /code-of-conduct/i.test(s) && /\bread\b|\bcarries\b|\binfer/i.test(s));
+/**
+ * The whole paragraph that governs the project's rules — not sentence fragments of it. Splitting on
+ * the full stop hid an override clause that had drifted into its own sentence, so the guard could
+ * not see the very claim it exists to police.
+ */
+function rulesParagraphs(md: string): string[] {
+  return md.split(/\n{2,}/).filter((p) => /code-of-conduct/i.test(p));
 }
 
 describe('the packet carries the rules', () => {
@@ -60,10 +62,15 @@ describe('every advisor', () => {
       // Positive: the carried slice must be stated. Asserting only the ABSENCE of a self-read
       // passes the moment the phrase is reworded, which proves nothing about what the agent is told.
       if (!/carries the slice of the project's code-of-conduct/i.test(md)) missing.push(file);
-      for (const sentence of rulesSentences(md)) {
-        if (/\bread the (file|project)/i.test(sentence)
-          && !/no slice|none is supplied|not supplied|without a slice/i.test(sentence)) {
-          unconditional.push(`${file}: ${sentence.trim().slice(0, 70)}`);
+      for (const para of rulesParagraphs(md)) {
+        if (/\bread the (file|project)/i.test(para)
+          && !/no slice|none is supplied|not supplied|without a slice/i.test(para)) {
+          unconditional.push(`${file}: ${para.trim().slice(0, 70)}`);
+        }
+        // The override claim must stay attached to its condition, or it reads as unconditional.
+        if (/override (these|your) defaults/i.test(para)
+          && !/no slice|none is supplied/i.test(para)) {
+          unconditional.push(`${file}: an override claim with no slice condition beside it`);
         }
       }
     }
@@ -76,8 +83,8 @@ describe('every advisor', () => {
   it('never claims the file it may read outranks the slice it was given', () => {
     const offenders: string[] = [];
     for (const file of advisorFiles()) {
-      for (const sentence of rulesSentences(readFile(`dist/claude-code/agents/${file}`))) {
-        if (/override (these|your) defaults/i.test(sentence) && !/no slice|none is supplied/i.test(sentence)) {
+      for (const para of rulesParagraphs(readFile(`dist/claude-code/agents/${file}`))) {
+        if (/override (these|your) defaults/i.test(para) && !/no slice|none is supplied/i.test(para)) {
           offenders.push(file);
         }
       }
@@ -98,8 +105,8 @@ describe('every advisor', () => {
 describe('the lead agent', () => {
   it('still reads the whole document, because it decides rather than advises', () => {
     const md = readFile(`dist/claude-code/agents/${LEAD}.md`);
-    const sentences = rulesSentences(md);
-    expect(sentences.length, 'the lead agent lost its full read — it synthesises the advisors and '
+    const paragraphs = rulesParagraphs(md);
+    expect(paragraphs.length, 'the lead agent lost its full read — it synthesises the advisors and '
       + 'makes the decisions, so it is the one context that needs the complete picture')
       .toBeGreaterThan(0);
     expect(md, 'the lead agent must not be conditioned on a slice — nobody hands it one')

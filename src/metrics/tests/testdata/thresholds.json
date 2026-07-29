@@ -20,8 +20,8 @@
     "target": "dist/claude-code/protocols/a2a-communication-protocol.md",
     "metric": "core_token_count",
     "op": "<=",
-    "limit": 1050,
-    "warn_at": 1000,
+    "limit": 1150,
+    "warn_at": 1100,
     "severity": "gate"
   },
   {

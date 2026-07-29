@@ -71,6 +71,8 @@ carries each position, so a narrowing board is visible rather than silent.
 
 ## Carrying a position
 
+A position is what an advisor concluded — the verdict it gave and the problems it named — never its speciality. Two advisors of different specialities who reached the same conclusion are one position; two of the same speciality who disagreed are two.
+
 A contested topic carries one advisor per position, including the position that found nothing wrong,
 so that view is argued rather than dropped. Two advisors holding the same position count once, and
 the next round's roster is the number of distinct positions rather than a figure from the table
@@ -90,8 +92,7 @@ agreement.
 
 ## Fresh-eyes panel
 
-`complexity:critical` convenes a panel after its final round, drawn inside its advisor maximum and
-carrying no history of the rounds before it. Its findings are independent — no prior context, no
+`complexity:critical` convenes a panel after its final round whatever the convergence state, drawn inside its advisor maximum and carrying no history of the rounds before it. Its findings are independent — no prior context, no
 convergence bias. Agreement with the debate panel strengthens a finding; contradiction surfaces as an
 open question. Every other level skips it.
 

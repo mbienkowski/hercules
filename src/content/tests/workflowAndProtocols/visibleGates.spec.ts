@@ -84,7 +84,15 @@ describe('gate 2 — who reviews', () => {
   });
 
   it('never spawns an advisor before the user has answered', () => {
-    expect(readFile(REFERENCE)).toContain('never spawns advisors silently');
+    const consent = consentSection().toLowerCase();
+    expect(consent, 'the rule has to sit in the consent block, not merely somewhere in the file')
+      .toContain('never spawns advisors silently');
+    expect(consent, 'the wait is the rule — announcing a roster and proceeding satisfies the phrase '
+      + 'while defeating the gate').toMatch(/recommends advisors and waits/);
+    for (const inversion of ['spawns it immediately', 'without waiting', 'then proceeds']) {
+      expect(consent, `"${inversion}" keeps the pinned phrase and removes the wait`)
+        .not.toContain(inversion);
+    }
   });
 
   it('states the tier count at runtime rather than pinning numbers into the skill', () => {
@@ -107,6 +115,19 @@ describe('gate 2 — who reviews', () => {
   });
 });
 
+describe('a raised tier reaches the state write', () => {
+  it.each(ALL_TREES)('%s writes the tier the user last set, not the one first scored', (tree) => {
+    const rel = DISCOVER_PER_TREE[tree];
+    expect(rel, `no Discover path known for ${tree}`).toBeTruthy();
+    const lower = readFile(`dist/${tree}/${rel}`).toLowerCase();
+    expect(lower, `dist/${tree}: the write must take the user's latest tier, or a raise made at the `
+      + 'roster gate is silently discarded and Design and Build read the superseded value')
+      .toMatch(/as the user last\s+set them/);
+    expect(lower, `dist/${tree}: "from step 3" pins the write to the first judgement and drops a `
+      + 'later raise').not.toContain('from step 3');
+  });
+});
+
 describe('both gates, on every edition', () => {
   it('offers the same choices where no native selection control exists', () => {
     for (const tree of ALL_TREES) {
@@ -125,12 +146,15 @@ describe('both gates, on every edition', () => {
     }
   });
 
-  it('names a native control only on the edition that has one', () => {
-    for (const tree of ALL_TREES.filter((t) => t !== 'claude-code')) {
-      const md = readFile(`dist/${tree}/skills/hercules-reference/SKILL.md`);
-      expect(md, `${tree} has no AskUserQuestion — naming it ships a dead tool name`)
-        .not.toContain('AskUserQuestion');
-    }
+  it('describes the control generically, so no edition is told to use one it lacks', () => {
+    const wording = ALL_TREES.map((t) => {
+      const md = readFile(`dist/${t}/skills/hercules-reference/SKILL.md`);
+      return /native selection control[^.]*/.exec(md)?.[0] ?? '';
+    });
+    expect(wording.filter((w) => w === ''), 'an edition with no such wording gets no fallback rule')
+      .toEqual([]);
+    expect(new Set(wording).size, 'the editions must describe the control identically, or their '
+      + `behaviour diverges: ${JSON.stringify(wording)}`).toBe(1);
   });
 });
 

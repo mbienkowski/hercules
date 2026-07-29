@@ -69,6 +69,31 @@ describe('debate resolution', () => {
     expect(lower, 'duplicated voices are not carried forward').toContain('one advisor per position');
   });
 
+  it('forms a position from the conclusion, never from the advisor’s speciality', () => {
+    const lower = readFile(DEBATE_PROTOCOL).toLowerCase();
+    expect(lower, 'grouping by speciality makes two advisors who agree look like two positions, and '
+      + 'two who disagree look like one — the count that sizes the next round would be wrong')
+      .toContain('never its speciality');
+    expect(lower, 'both halves of the rule have to ship, or the reader guesses the harder case')
+      .toMatch(/same conclusion are one position[^.]*same speciality who disagreed are two/);
+  });
+
+  it('keeps the two-advisor floor stated in prose, not only in the table', () => {
+    const lower = readFile(DEBATE_PROTOCOL).toLowerCase();
+    expect(lower, 'the table is numbers; this sentence is what an orchestrator actually reads')
+      .toContain('a debate needs two advisors and two rounds');
+    expect(lower, 'a single advisor is a review — saying otherwise licenses a one-advisor debate')
+      .toMatch(/a single advisor is a review, not a debate/);
+  });
+
+  it('makes the most demanding level buy its second round and panel unconditionally', () => {
+    const lower = readFile(DEBATE_PROTOCOL).toLowerCase();
+    expect(lower, 'without this the floor is a ceiling and critical can close after one round')
+      .toMatch(/`complexity:critical`, which runs its second round and its fresh-eyes panel whatever the convergence\s+state/);
+    expect(lower, 'the panel itself must not become discretionary')
+      .toContain('convenes a panel after its final round whatever the convergence state');
+  });
+
   it('orders the carrier tie-break: standing, then completeness, then role name', () => {
     const lower = readFile(DEBATE_PROTOCOL).toLowerCase();
     const chain = ['standing the role would hold', 'states the position most completely', 'first by role name'];
