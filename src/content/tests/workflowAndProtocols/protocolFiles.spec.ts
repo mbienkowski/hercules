@@ -6,6 +6,7 @@ import {
 import { countStatusTableRows } from '../../../metrics/markdownMetrics.mjs';
 import { readFile } from '../commands/support';
 import { readRepoFile } from '../../../commons/support/repo';
+import { EXPECTED_MODEL, parseScalingModel } from '../../../metrics/scalingModel.mjs';
 
 // The A2A (agent-to-agent) and debate protocol files follow the methodology.
 
@@ -42,87 +43,6 @@ it('the shared agent instructions block matches the approved reference copy', ()
   expect(core, 'Injected Core changed vs golden. If intentional, update content/tests/core.golden.').toBe(want);
 });
 
-const RETIRED_NOTATION = ['agreement: n/5', '≤3/5', '5/5', 'round 1 + 2 + 3', 'fresh-eyes(mandatory)'];
-
-// The scaling model, stated once. Every surface that repeats it is asserted against this.
-const EXPECTED_MODEL = [
-  { tier: 'trivial', advisors: '0', rounds: '0' },
-  { tier: 'low', advisors: '2', rounds: '1' },
-  { tier: 'medium', advisors: '2–3', rounds: '1–2' },
-  { tier: 'high', advisors: '3–5', rounds: '1–2' },
-  { tier: 'critical', advisors: '4–6', rounds: '2–3 + fresh eyes' },
-] as const;
-
-/** Parse § complexity's rows into {tier, advisors, rounds}; throws rather than returning empty. */
-function parseRubric(md: string): { tier: string; advisors: string; rounds: string }[] {
-  const start = md.indexOf('## complexity');
-  if (start < 0) throw new Error('no "## complexity" section — the rubric heading was renamed or removed');
-  const section = md.slice(start, md.indexOf('\n## ', start + 1));
-  const rows = section.split('\n').filter((l) => l.startsWith('| `complexity:'));
-  if (rows.length !== EXPECTED_MODEL.length) {
-    throw new Error(`§ complexity has ${rows.length} tier rows, expected ${EXPECTED_MODEL.length} — a row was dropped or its shape changed`);
-  }
-  return rows.map((line) => {
-    const c = line.split('|').map((x) => x.trim());
-    const tier = c[1].replace(/`/g, '').replace('complexity:', '');
-    if (!EXPECTED_MODEL.some((m) => m.tier === tier)) throw new Error(`unknown tier token "${tier}"`);
-    return { tier, advisors: c[4], rounds: c[5] };
-  });
-}
-
-describe('the scaling model', () => {
-  it('states every tier’s advisor count and round range in the rubric', () => {
-    const parsed = parseRubric(readFile(DEBATE_PROTOCOL));
-    expect(parsed, 'the rubric is the one place the tier is scored from — a wrong cell '
-      + 'silently changes how much review every future feature gets').toEqual([...EXPECTED_MODEL]);
-  });
-
-  it('scores the tier on both axes, so max(effort, blast radius) is computable', () => {
-    const md = readFile(DEBATE_PROTOCOL);
-    expect(md, 'without the effort column an agent cannot score the axis it is told to take the higher of')
-      .toContain('Effort signals');
-    expect(md, 'without the blast-radius column the floor is the only risk signal an agent has')
-      .toContain('Blast-radius signals');
-  });
-
-  it('never lets a debating tier run on fewer than two advisors', () => {
-    for (const m of parseRubric(readFile(DEBATE_PROTOCOL))) {
-      if (m.rounds === '0') continue;
-      const low = Number(m.advisors.split('–')[0]);
-      expect(low, `${m.tier} may convene ${m.advisors} advisors — one advisor is a review, not a debate`)
-        .toBeGreaterThanOrEqual(2);
-    }
-  });
-
-  it('reserves the third round for the most demanding work alone', () => {
-    const three = parseRubric(readFile(DEBATE_PROTOCOL)).filter((m) => m.rounds.includes('3'));
-    expect(three.map((m) => m.tier), 'a third round anywhere below critical spends depth where it was not earned')
-      .toEqual(['critical']);
-  });
-
-  it('keeps the README table stating the same numbers as the rubric', () => {
-    const readme = readFile('README.md');
-    for (const m of parseRubric(readFile(DEBATE_PROTOCOL))) {
-      const row = readme.split('\n').find((l) => l.startsWith(`| ${m.tier} |`));
-      expect(row, `README has no tier row for ${m.tier} — a user reads the promise from this table`).toBeTruthy();
-      const cells = (row as string).split('|').map((x) => x.trim());
-      expect(`${cells[4]}|${cells[5]}`, `README promises ${m.tier} = ${cells[4]} advisors / ${cells[5]} rounds `
-        + `while the rubric runs ${m.advisors} / ${m.rounds} — the shipped behaviour and the published promise disagree`)
-        .toBe(`${m.advisors}|${m.rounds}`);
-    }
-  });
-});
-
-it('the retired agreement notation appears nowhere in the protocols', () => {
-  for (const rel of ALL_PROTOCOLS) {
-    const lower = readFile(rel).toLowerCase();
-    const found = RETIRED_NOTATION.filter((n) => lower.includes(n));
-    expect(found, `${rel} still states the retired ${found.join(', ')} notation — a debate is `
-      + 'converged by topic, so a numeric agreement vote has no consumer and would be dead text')
-      .toEqual([]);
-  }
-});
-
 describe('debate resolution', () => {
   it('settles a topic only when two or more advisors agree on it', () => {
     const lower = readFile(DEBATE_PROTOCOL).toLowerCase();
@@ -153,8 +73,10 @@ describe('debate resolution', () => {
     const lower = readFile(DEBATE_PROTOCOL).toLowerCase();
     const chain = ['standing the role would hold', 'states the position most completely', 'first by role name'];
     const at = chain.map((t) => lower.indexOf(t));
-    expect(at.filter((i) => i < 0), `carrier tie-break missing: ${chain.filter((_, i) => at[i] < 0).join(', ')}`).toEqual([]);
-    expect(at[0] < at[1] && at[1] < at[2],
+    const missing = chain.filter((_, i) => (at[i] ?? -1) < 0);
+    expect(missing, `carrier tie-break missing: ${missing.join(', ')}`).toEqual([]);
+    const ordered = at.every((pos, i) => i === 0 || pos > (at[i - 1] ?? -1));
+    expect(ordered,
       'the tie-break order is the rule — seniority decides first, wording completeness second, role name last')
       .toBe(true);
   });

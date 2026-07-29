@@ -320,7 +320,8 @@ lets it disagree. Effort is sized to the change.
 | high | auth, payments, migration | data at risk, deletion, prod config | 3–5 | 1–2 |
 | critical | multi-service migration | user data, security primitives, money | 4–6 | 2–3 + fresh eyes |
 
-- **Only `trivial` skips the board** — every other tier recommends it (you consent or skip), sized by the table above.
+- **Only `trivial` skips the board** — every other tier proposes one, sized by the table above, and you decide it
+  advisor by advisor: accept the proposal, drop any of them, or name someone else. Nothing spawns before you answer.
 - **The rounds column is a ceiling, not a schedule** — a second round runs only where the first left advisors disagreeing. A debate that converges ends there. `critical` is the exception: it always runs its second round and a fresh-eyes panel, because that is where a missed problem is least recoverable.
 - **High-risk surfaces are floored at `high`** — auth, secrets, money, data migration, deletion, production config, concurrency, or personal data, however small the diff. Those are examples, not a closed list: your `code-of-conduct.md` can add to them, and Hercules floors anything else it judges equally consequential — and says so when it does.
 - **You stay in control** — you see the score and can override it; advisor dissent is input you weigh, never an automatic re-score.

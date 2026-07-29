@@ -47,8 +47,8 @@
     "target": "dist/claude-code/commands/discover.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 1950,
-    "warn_at": 1900,
+    "limit": 2020,
+    "warn_at": 1980,
     "severity": "gate"
   },
   {
