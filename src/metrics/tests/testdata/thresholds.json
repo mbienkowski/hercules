@@ -38,8 +38,8 @@
     "target": "dist/claude-code/protocols/workflow-protocol.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 1130,
-    "warn_at": 1100,
+    "limit": 1180,
+    "warn_at": 1150,
     "severity": "gate"
   },
   {

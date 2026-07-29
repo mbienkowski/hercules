@@ -56,8 +56,9 @@ covering the delegate's step, verbatim.
 Phase: {phase} · Step: {named step}
 Expected: {role expectation, verbatim}
 Guardrails: {registry rows in force, verbatim}
-Context: {code-of-conduct.md} + {artifact §-sections — the minimal slice, never a
-  whole document} + {checkpoint decisions}
+Context: {code-of-conduct.md § the binding slice for this delegate's work — never a
+  whole document; it supersedes any self-read the delegate's own file allows} +
+  {artifact §-sections — the minimal slice, never a whole document} + {checkpoint decisions}
 [Round: R1|R2|R3] (debate spawns only)
 --- A2A Agent-Injected Core follows ---
 ```

@@ -27,7 +27,7 @@ Scaffold compiles → the engineer writes the failing tests from QA's scenarios 
 When the feature has UI or frontend scope, propose Gherkin scenarios up front. The engineer maps each Given/When/Then to a Cypress or Playwright e2e spec and keeps the scenario files in source control alongside code. This is a recommendation, not a gate — the user may skip if the project tests UI through other means.
 
 ## Project standards
-Read the project's code-of-conduct file (any capitalization) if present; its test framework, layout, mocking policy, naming convention, and coverage target override these defaults. If absent, infer them from the existing tests and state the assumption.
+Your prompt carries the slice of the project's code-of-conduct that binds this work; read the file yourself (any capitalization) only when no slice is supplied. its test framework, layout, mocking policy, naming convention, and coverage target override these defaults. If absent, infer them from the existing tests and state the assumption.
 
 ## Output
 Replies follow the A2A Communication Protocol § Agent-Injected Core (`${CLAUDE_PLUGIN_ROOT}/protocols/a2a-communication-protocol.md`): `[QA] STATUS | CONTENT | ACTION`.
