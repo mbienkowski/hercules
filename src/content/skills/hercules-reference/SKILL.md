@@ -144,7 +144,11 @@ The main agent never spawns advisors silently. It first asks the user's question
 > - **skip** — draft directly, no advisors
 > - **adjust** — revise the list and re-ask
 
-On **yes**: spawn per the tier counts above. On **yes, but one fewer**: spawn the set minus the named agent. On **yes, plus …**: spawn the set plus the extra advisors, each carrying the agenda the user gave. On **skip**: draft directly. On **adjust**: revise the list and re-ask.
+On **yes**: spawn the roster the rubric sizes. On **yes, but one fewer**: remove the named advisor and spawn the rest. On **yes, plus …**: add the advisors the user names, each carrying the agenda they gave. On **skip**: draft directly. On **adjust**: revise the list and re-ask.
+
+Where the host offers a native selection control, present the roster through it — grouped into several questions where the roster exceeds what one question can show — so the user can accept, remove or add per advisor; where it does not, present the identical choices as a plain numbered list. State the count and round range you read from the rubric — never copy those numbers into this file, or they drift from the one table that owns them. There is **no roster gate** at `trivial`, where nobody is convened: a prompt over an empty roster asks nothing, so the phase proceeds directly.
+
+The user often first sees what the tier costs at this gate, so a raise here is the common case. A tier the user raises **reaches the state write** in the same phase, so Design and Build do not read a superseded value. **Only the user** changes it: the main agent never re-judges a settled tier (G7), though it may surface a reason to and then ask.
 
 ## Debate protocol
 
