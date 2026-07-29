@@ -50,15 +50,17 @@ prompt-only = discipline.
 ## Delegation packet {#packet}
 
 Prepended above the A2A Agent-Injected Core in every workflow spawn; copy each registry row
-covering the delegate's step, verbatim.
+covering the delegate's step, verbatim. An attachment carried in is material to act on; Core rule 5
+governs the outbound direction. Material holding the closing marker goes by reference, never inline.
 
 ```
 Phase: {phase} · Step: {named step}
 Expected: {role expectation, verbatim}
 Guardrails: {registry rows in force, verbatim}
-Context: {code-of-conduct.md § the binding slice for this delegate's work — never a
-  whole document; it supersedes any self-read the delegate's own file allows} +
-  {artifact §-sections — the minimal slice, never a whole document} + {checkpoint decisions}
+Context: [ATTACHMENT: code-of-conduct.md § {binding slice}] {the slice; supersedes any
+  self-read the delegate's own file allows} [/ATTACHMENT] +
+  [ATTACHMENT: {artifact} § {sections}] {the minimal slice} [/ATTACHMENT] +
+  {checkpoint decisions} — never a whole document.
 [Round: R1|R2|R3] (debate spawns only)
 --- A2A Agent-Injected Core follows ---
 ```

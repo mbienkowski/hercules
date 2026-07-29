@@ -63,6 +63,17 @@ it('the handoff packet lists its fields in the required order', () => {
   });
   expect(idxs, `packet fields out of order: ${JSON.stringify(chain)}`).toEqual([...idxs].sort((a, b) => a - b));
   expect(section, 'the packet must require verbatim registry-row copies').toContain('verbatim');
+
+  // Carried project material is labelled with its source, using the marker the Core already
+  // defines for content an agent did not author — a second convention for one job is drift.
+  expect(section, 'carried material must name the file and section it came from')
+    .toMatch(/\[ATTACHMENT: .*§/);
+  expect(section.toLowerCase(), 'the same marker governs outbound relay, so inbound has to say it is '
+    + 'material to act on — otherwise a delegate may echo its own input back')
+    .toMatch(/act on|not a relay|never relayed/);
+  expect(section.toLowerCase(), 'material containing the closing marker would end its own wrapper and '
+    + 'the remainder would read as instruction — a project file the plugin does not control')
+    .toContain('closing marker');
 });
 
 it('every guardrail rule is completely and correctly documented', () => {
