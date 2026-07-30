@@ -59,6 +59,26 @@ describe('near-warn visibility', () => {
       // eslint-disable-next-line no-console
       console.warn(`near warn: ${c.name} measures ${c.value} (warn margin ${WARN_AT}, gate ${HARD_GATE})`);
     }
-    expect(nearWarn.length).toBeGreaterThanOrEqual(0);
+    // No assertion on the count: this is deliberately warn-only. `expect(...).toBeGreaterThanOrEqual(0)`
+    // stood here and was a tautology — a named passing test that could not fail, in the module whose
+    // unit tests are its only gate.
+  });
+
+  /**
+   * The gate values themselves, pinned as literals.
+   *
+   * Every other test compares a chain against whatever `HARD_GATE` and `WARN_AT` happen to hold, so
+   * raising them to 400/380 left the whole suite green and silently deleted the constraint that
+   * instruction-size increases be explicit, justified line items. `src/metrics/` is outside the mutation
+   * gate, so nothing else would have caught it.
+   */
+  it('states the ceiling and the warn margin as reviewed numbers', () => {
+    expect(HARD_GATE, 'the hard ceiling is grounded in arXiv:2507.11538 (IFScale) — adherence holds '
+      + 'through roughly 150 instructions before declining. Changing it changes the research claim, so '
+      + 'it is a reviewed decision, not an edit that rides along with a chain that outgrew it.')
+      .toBe(150);
+    expect(WARN_AT, 'the warn margin is ~87% of the ceiling, the room a chain has to grow before it '
+      + 'needs a waiver. Raising it removes the early warning without touching the gate.').toBe(130);
+    expect(WARN_AT, 'the margin must sit below the gate it warns about').toBeLessThan(HARD_GATE);
   });
 });

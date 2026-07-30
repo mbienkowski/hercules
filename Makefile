@@ -101,10 +101,14 @@ vulnerability-scan:
 test-smoke: build-check
 	npx vitest run --config vitest.smoke.config.mts
 
-# Re-baseline the shipped-content hash manifest after an INTENTIONAL content edit. Rebuilds first, so
-# the manifest can never record a stale dist/. Commit the manifest with the edit that caused it and
-# say in the message what behaviour changed — the pin exists to make that one deliberate step.
-bless-content: build
+# Re-baseline the shipped-content hash manifest after an INTENTIONAL content edit. Commit the manifest
+# with the edit that caused it and say in the message what behaviour changed — the pin exists to make
+# that one deliberate step.
+#
+# Depends on build-check, not just build: `make build` writes what the source declares but does not
+# prune, so a stray file dropped into dist/ survives a rebuild and would be hashed straight into the
+# manifest. build-check byte-compares the whole tree and is what actually catches that.
+bless-content: build-check
 	BLESS_CONTENT=1 npx vitest run src/content/tests/docsAndPlugin/shippedContentManifest.spec.ts
 
 # ── CI entry points ──────────────────────────────────────────────────────────

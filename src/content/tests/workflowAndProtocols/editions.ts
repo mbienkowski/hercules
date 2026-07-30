@@ -64,7 +64,12 @@ export function distFile(tree: Tree, rel: string): string {
   return readFile(`dist/${tree}/${rel}`);
 }
 
-/** Every shipped text file in an edition, absolute paths — a short literal list skips the rest. */
+/**
+ * Every shipped text file in an edition, absolute paths — a short literal list skips the rest.
+ *
+ * `.py` is included: the shipped hooks are text an agent's host executes, and leaving them out put them
+ * outside every cross-surface sweep while the manifest still hashed them.
+ */
 export function shippedFiles(tree: Tree): string[] {
   const root = `${repoRoot}/dist/${tree}`;
   const out: string[] = [];
@@ -72,7 +77,7 @@ export function shippedFiles(tree: Tree): string[] {
     for (const name of readdirSync(dir)) {
       const abs = `${dir}/${name}`;
       if (statSync(abs).isDirectory()) walk(abs);
-      else if (/\.(md|toml|mdc|json|js)$/.test(name)) out.push(abs);
+      else if (/\.(md|toml|mdc|json|js|py)$/.test(name)) out.push(abs);
     }
   };
   walk(root);

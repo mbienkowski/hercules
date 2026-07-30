@@ -26,11 +26,16 @@ import { TREES } from './editions';
  * sections are reference material that changes for reasons carrying no behavioural weight.
  *
  * A pin says only that the text has not changed, never that it says the right thing, so a careless
- * re-bless can still ship a wrong rule. The semantic layer is what covers that: `parseScalingModel`
- * and `parseConvergence` compared against `EXPECTED_MODEL` and `EXPECTED_CONVERGENCE` in
- * `protocolFiles.spec.ts`, and the cross-surface sweeps in `crossSurfaceConsistency.spec.ts`. Both
- * layers were verified by re-blessing a golden alongside its mutation and confirming the parsers still
- * failed. See `CODE_OF_CONDUCT.md` § Golden files.
+ * re-bless can still ship a wrong rule. The semantic layer is what covers that: `parseScalingModel` and
+ * `parseConvergence` compared against `EXPECTED_MODEL` and `EXPECTED_CONVERGENCE` in
+ * `protocolFiles.spec.ts`, and the cross-surface sweeps in `crossSurfaceConsistency.spec.ts`.
+ *
+ * Be precise about how far that reaches, because an earlier version of this comment was not. Under a
+ * full re-bless the semantic layer reliably catches what it parses — the rubric table, the convergence
+ * table, the whole-sentence debate rules, and any claim the cross-surface sweeps forbid. An audit that
+ * re-blessed every pin still landed survivors elsewhere, and the fixes for those became the sweeps as
+ * they now stand. Treat a re-bless as the moment a human is the check, and say in the commit message
+ * what behaviour changed. See `CODE_OF_CONDUCT.md` § Golden files.
  */
 
 /** Each normative file and the golden that pins it. */

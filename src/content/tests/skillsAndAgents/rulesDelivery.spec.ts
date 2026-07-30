@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { readFile } from '../commands/support';
 import { repoRoot } from '../../../commons/support/repo';
+import { TREES, type Tree } from '../workflowAndProtocols/editions';
 
 /**
  * The project's own rules are carried to a delegate rather than fetched by it. The lead agent holds
@@ -13,15 +14,25 @@ import { repoRoot } from '../../../commons/support/repo';
  * to be conditional on no slice arriving.
  */
 
-const AGENTS_DIR = `${repoRoot}/dist/claude-code/agents`;
 const LEAD = 'hercules';
 const PACKET = 'dist/claude-code/protocols/workflow-protocol.md';
 
-function advisorFiles(): string[] {
-  const all = readdirSync(AGENTS_DIR).filter((f) => f.endsWith('.md'));
-  const advisors = all.filter((f) => f !== `${LEAD}.md`);
-  if (advisors.length < 10) throw new Error(`only ${advisors.length} advisor files found — the roster is not being read`);
-  return advisors;
+/**
+ * Every advisor file on EVERY edition.
+ *
+ * Reading only `dist/claude-code/agents` left the rule reversible on the other five: a `${target:}`
+ * split keeping claude-code correct and telling the `default` branch to read the code-of-conduct in
+ * full shipped that reversal to opencode, cursor, copilot-cli, gemini-cli and grok-build with the suite
+ * green. The manifest catches the change; it does not catch the wrong rule that ships with a re-bless.
+ */
+function advisorFiles(tree: Tree): { rel: string; md: string }[] {
+  const dir = `${repoRoot}/dist/${tree}/agents`;
+  const files = readdirSync(dir).filter((f) => /\.(?:md|agent\.md)$/.test(f) && !f.startsWith(`${LEAD}.`));
+  if (files.length < 10) {
+    throw new Error(`dist/${tree}/agents yielded only ${files.length} advisor files — the roster is not `
+      + 'being read, and a guard over an almost-empty list reports success');
+  }
+  return files.map((f) => ({ rel: `dist/${tree}/agents/${f}`, md: readFile(`dist/${tree}/agents/${f}`) }));
 }
 
 /**
@@ -54,11 +65,10 @@ describe('the packet carries the rules', () => {
 });
 
 describe('every advisor', () => {
-  it('is told a slice arrives, and reads the file only when one does not', () => {
+  it.each(TREES)('%s is told a slice arrives, and reads the file only when one does not', (tree) => {
     const missing: string[] = [];
     const unconditional: string[] = [];
-    for (const file of advisorFiles()) {
-      const md = readFile(`dist/claude-code/agents/${file}`);
+    for (const { rel: file, md } of advisorFiles(tree)) {
       // Positive: the carried slice must be stated. Asserting only the ABSENCE of a self-read
       // passes the moment the phrase is reworded, which proves nothing about what the agent is told.
       if (!/carries the slice of the project's code-of-conduct/i.test(md)) missing.push(file);
@@ -86,10 +96,10 @@ describe('every advisor', () => {
       .toEqual([]);
   });
 
-  it('never claims the file it may read outranks the slice it was given', () => {
+  it.each(TREES)('%s never claims the file it may read outranks the slice it was given', (tree) => {
     const offenders: string[] = [];
-    for (const file of advisorFiles()) {
-      for (const para of rulesParagraphs(readFile(`dist/claude-code/agents/${file}`))) {
+    for (const { rel: file, md } of advisorFiles(tree)) {
+      for (const para of rulesParagraphs(md)) {
         if (/override (these|your) defaults/i.test(para) && !/no slice|none is supplied/i.test(para)) {
           offenders.push(file);
         }
@@ -99,9 +109,9 @@ describe('every advisor', () => {
       .toEqual([]);
   });
 
-  it('keeps naming the project rules at all', () => {
-    for (const file of advisorFiles()) {
-      expect(readFile(`dist/claude-code/agents/${file}`).toLowerCase(),
+  it.each(TREES)('%s keeps naming the project rules at all', (tree) => {
+    for (const { rel: file, md } of advisorFiles(tree)) {
+      expect(md.toLowerCase(),
         `${file} stopped mentioning the project rules entirely — the fallback has to survive for a `
         + 'spawn that arrives outside the workflow, with no packet').toContain('code-of-conduct');
     }

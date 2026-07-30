@@ -45,25 +45,93 @@ const COUNT_OF_REVIEWERS = new RegExp(
   + `|\\b(?:advisors?|rounds?)\\s*[:=]?\\s+${NUMERAL}\\b`, 'i',
 );
 
-/** Where the rubric's numbers are allowed to appear, and nowhere else. */
-const MAY_STATE_THE_NUMBERS = [RUBRIC];
+/**
+ * How far a tier reference carries.
+ *
+ * Requiring the tier and the count in ONE unit was defeated by a blank line: "For the most demanding
+ * tier, size the board as follows:" followed by "Convene 9 advisors and allow 4 rounds of discussion."
+ * shipped to all six editions green. A heading plus a lead-in sentence is two units, so the reference
+ * has to reach the units that follow it.
+ */
+const TIER_CARRIES_FOR_UNITS = 2;
 
 /**
  * Counts that are NOT the per-tier advisor model, each justified and each asserted to still be found.
  *
- * A loosened regex rots silently; an exemption listed as data does not. Every entry here must still
- * match something, so an exemption that stops applying fails the suite instead of quietly widening
- * the hole it was cut for.
+ * A loosened regex rots silently; an exemption listed as data does not. Every entry must still match
+ * something, so an exemption that stops applying fails the suite instead of quietly widening the hole
+ * it was cut for.
+ *
+ * Two things make an exemption narrow enough to be safe. It is scoped to the SECTION that justifies
+ * it, not the file — scoped to the file, any tier paired with "three rounds" anywhere in the reference
+ * skill was waved through, and "At `low` the board holds three rounds" shipped green. And it exempts
+ * only the matching phrase, never the passage around it — an earlier version tested the first count in
+ * a unit and skipped the rest of the unit on a hit, so appending "At `critical` the board is 2 advisors
+ * and 1 round." to the same paragraph as the sanctioned phrase shipped green.
  */
-const SANCTIONED_COUNTS: readonly { file: string; phrase: string; why: string }[] = [
+/**
+ * Sentences allowed to carry a count, because the count is not the per-tier board size.
+ *
+ * The exemption is keyed to the SENTENCE, not to a phrase and not to a file. Both looser forms were
+ * holes. Scoped to a file, any tier paired with "three rounds" anywhere in the reference skill was
+ * waved through, and "At `low` the board holds three rounds" shipped green. Scoped to a phrase, an
+ * exemption for the floor's "two advisors" would equally excuse a planted "At `critical` the board is
+ * two advisors and two rounds." Keyed to the sentence, a NEW sentence is never exempt however it is
+ * worded, which is the property that matters.
+ *
+ * Each entry must still match, so an exemption that stops applying fails instead of widening silently.
+ */
+const SENTENCES_THAT_MAY_COUNT: readonly { file: string; section: string; sentence: string; why: string }[] = [
+  {
+    file: 'protocols/debate-consensus-protocol.md',
+    section: '## complexity',
+    sentence: 'a debate needs two advisors and two rounds.',
+    why: 'the global floor, not a per-tier figure — the minimum any debating tier must meet, and pinned '
+      + 'separately as a whole sentence by protocolFiles.spec.ts',
+  },
+  {
+    file: 'protocols/debate-consensus-protocol.md',
+    section: '## complexity',
+    sentence: 'where the table allows a single round the advisors return their findings in parallel and '
+      + 'the orchestrator synthesises them; that is a set of opinions, and no cross-examination takes place.',
+    why: 'defers to the table rather than restating it — "a single round" names the table\'s own value '
+      + 'instead of asserting a second one',
+  },
+  {
+    file: 'protocols/debate-consensus-protocol.md',
+    section: '## Round 1 — Blind',
+    sentence: '## round 1 — blind',
+    why: 'the round\'s name, not a count of rounds',
+  },
+  {
+    file: 'protocols/a2a-communication-protocol.md',
+    section: '## Agent-Injected Core',
+    sentence: 'one advisor per position',
+    why: 'one advisor per POSITION is the carrying rule, independent of how many advisors the tier '
+      + 'convened. It appears inside the fenced Core, which core.golden pins byte-for-byte',
+  },
   {
     file: 'skills/hercules-reference/SKILL.md',
-    phrase: 'three rounds',
+    section: '## Agent scaling',
+    sentence: 'a later round runs only where the one before it left a topic contested, and it carries '
+      + 'one advisor per surviving position rather than the whole board, so a debate narrows as it proceeds.',
+    why: 'the same per-position carrying rule, again not a per-tier figure',
+  },
+  {
+    file: 'skills/hercules-reference/SKILL.md',
+    section: '## Independent review',
+    sentence: 'bounded (three rounds → the user)',
     why: 'the independent-review escalation bound. Reviewers at the coverage and traceability gates are '
-      + 'a separate category from advisors in a debate (§ Independent review), so this count is not the '
-      + 'rubric\'s and cannot drift from it.',
+      + 'a separate category from advisors in a debate, so this count is not the rubric\'s and cannot '
+      + 'drift from it',
   },
 ];
+
+/** Sentences of a unit, normalised for comparison against the allow-list above. */
+function unitSentences(unit: string): string[] {
+  return unit.replace(/\s+/g, ' ').split(/(?<=[.!?])\s+/)
+    .map((x) => x.trim().toLowerCase()).filter(Boolean);
+}
 
 /**
  * Every shipped file as addressable lines.
@@ -87,19 +155,42 @@ function sweep(tree: Tree): { path: string; lines: string[] }[] {
  *
  * A physical line is the wrong window: "At `high` the panel is sized as follows:" on one line and
  * "advisors 9, and rounds 4." on the next defeated a line-scoped sweep while the identical claim on
- * one line was caught. A paragraph is the right window for prose, with two corrections — fenced blocks
- * are dropped (a JSON state example is not prose about the model, and its `"round": 1` sits beside an
- * unrelated `"tier"` field), and each table row is its own unit (a whole guardrail registry is one
- * paragraph, which made one rule's TDD round count look adjacent to another rule's tier).
+ * one line was caught. A paragraph is the right window for prose, with two corrections.
+ *
+ * Each table row is its own unit — a whole guardrail registry is one paragraph, which made one rule's
+ * TDD round count look adjacent to another rule's tier.
+ *
+ * Fenced blocks are KEPT. Deleting them was a hole big enough to walk a rule through: a lone-advisor
+ * permission placed inside a fence in `design.md` shipped to all six editions green, while the same
+ * sentence outside the fence was killed on all six. Only a block whose first line opens a JSON object
+ * is skipped — that is the state-file example whose `"round": 1` sits beside an unrelated `"tier"`
+ * field, and it is data rather than prose about the model.
  */
 function proseUnits(text: string): string[] {
   const out: string[] = [];
-  for (const para of text.replace(/```[\s\S]*?```/g, '').split('\n\n')) {
-    const lines = para.split('\n');
+  const withoutJson = text.replace(/```[a-z]*\n([\s\S]*?)```/g, (block, body: string) => (
+    /^\s*[[{]/.test(body) ? '' : block
+  ));
+  for (const para of withoutJson.split('\n\n')) {
+    const lines = para.split('\n').filter((l) => !/^\s*```/.test(l));
     out.push(...lines.filter((l) => l.trimStart().startsWith('|')));
     out.push(lines.filter((l) => !l.trimStart().startsWith('|')).join(' '));
   }
   return out.filter((u) => u.trim() !== '');
+}
+
+/**
+ * Which `##` section a prose unit sits in, so an exemption can be scoped to the section that justifies
+ * it rather than to the whole file. File-scoped exemptions are holes: any tier paired with the
+ * sanctioned phrase anywhere in the file was waved through.
+ */
+function sectionOf(lines: string[], units: string[], index: number): string {
+  const before = units.slice(0, index + 1).join('\n');
+  const headings = before.match(/^## .*/gm) ?? [];
+  const last = headings.at(-1);
+  if (last !== undefined) return last.trim();
+  // No heading yet — the unit is in the preamble. Name it after the file's own title when it has one.
+  return (lines.find((l) => l.startsWith('# ')) ?? '(preamble)').trim();
 }
 
 describe('the rubric owns the numbers, and no other surface restates them', () => {
@@ -136,35 +227,62 @@ describe('the rubric owns the numbers, and no other surface restates them', () =
       + 'to be switched off.').toBe(false);
   });
 
-  it.each(TREES)('%s states an advisor or round count only in the rubric', (tree) => {
+  /**
+   * The rubric's TABLE ROWS are the only place a per-tier count may appear — not the rubric file.
+   *
+   * Exempting the whole file left its own prose unread by anything: `parseScalingModel` parses only
+   * lines starting `| \`complexity:`, so "In practice the most demanding tier convenes 2 advisors for a
+   * single round; the table above is an upper bound nobody reaches." shipped green inside the one file
+   * every other surface defers to. Table rows are skipped here because the parser owns them and
+   * compares them cell for cell against EXPECTED_MODEL.
+   */
+  it.each(TREES)('%s states a per-tier count only in the rubric table', (tree) => {
     const offenders: string[] = [];
     for (const { path, lines } of sweep(tree)) {
-      if (MAY_STATE_THE_NUMBERS.some((allowed) => path.endsWith(allowed))) continue;
-      for (const unit of proseUnits(lines.join('\n'))) {
-        const hit = COUNT_OF_REVIEWERS.exec(unit);
-        if (hit === null || !TIER_REFERENCE.test(unit)) continue;
-        const phrase = hit[0].trim().toLowerCase();
-        if (SANCTIONED_COUNTS.some((s) => path.endsWith(s.file) && phrase.includes(s.phrase))) continue;
-        offenders.push(`${path}  "${phrase}"  in: ${unit.trim().slice(0, 160)}`);
-      }
+      const units = proseUnits(lines.join('\n'));
+      // A tier reference reaches the units that follow it, so a paragraph break cannot separate the
+      // tier from its numbers. Without this, a lead-in line plus a count on the next line shipped green.
+      let tierSeenAgo = Number.POSITIVE_INFINITY;
+      units.forEach((unit, i) => {
+        if (TIER_REFERENCE.test(unit)) tierSeenAgo = 0; else tierSeenAgo += 1;
+        if (tierSeenAgo > TIER_CARRIES_FOR_UNITS) return;
+        // The rubric's table rows are the model itself; the parser asserts them cell for cell.
+        if (path.endsWith(RUBRIC) && unit.trimStart().startsWith('|')) return;
+        const section = sectionOf(lines, units, i);
+        const allowed = SENTENCES_THAT_MAY_COUNT
+          .filter((e) => path.endsWith(e.file) && section === e.section).map((e) => e.sentence);
+        // EVERY sentence carrying a count is judged on its own. Judging only the first match in a unit
+        // and skipping the rest let a contradiction ride behind a sanctioned phrase.
+        for (const sentence of unitSentences(unit)) {
+          if (!COUNT_OF_REVIEWERS.test(sentence)) continue;
+          if (allowed.some((permitted) => sentence.includes(permitted))) continue;
+          offenders.push(`${path} § ${section}\n      ${sentence.slice(0, 170)}`);
+        }
+      });
     }
-    expect(offenders, `dist/${tree}: these passages pair a tier with a review count outside the `
-      + `rubric:\n  ${offenders.join('\n  ')}\n\nThe rubric is the one table the model is read from. A `
-      + 'second copy of a number anywhere else is drift the moment either changes, and it is drift no '
-      + 'reader can resolve — they hold two answers with no way to tell which ships. Cite the rubric '
-      + 'instead, or describe the depth in words that carry no figure. If the count genuinely is not '
-      + 'the per-tier advisor model, add it to SANCTIONED_COUNTS with the reason.').toEqual([]);
+    expect(offenders, `dist/${tree}: these passages state a per-tier review count outside the rubric `
+      + `table:\n  ${offenders.join('\n  ')}\n\nThe rubric's table is the one place the model is read `
+      + 'from. A second copy of a number anywhere else — including in the rubric\'s own prose — is drift '
+      + 'the moment either changes, and drift no reader can resolve: they hold two answers with no way '
+      + 'to tell which ships. Cite the rubric, or describe the depth in words that carry no figure. If '
+      + 'the count is genuinely not the per-tier model, add it to SANCTIONED_COUNTS with its section '
+      + 'and the reason.').toEqual([]);
   });
 
   /**
    * An exemption that no longer applies is a hole nobody is watching, so each is required to still
    * match. This is what keeps SANCTIONED_COUNTS from becoming the place drift hides.
    */
-  it.each(SANCTIONED_COUNTS)('the sanctioned count in $file is still there', ({ file, phrase }) => {
-    const text = distFile('claude-code', file);
-    expect(text.toLowerCase(), `"${phrase}" is no longer in ${file}, so its exemption covers nothing `
-      + 'and only widens what the sweep ignores. Remove the entry from SANCTIONED_COUNTS.')
-      .toContain(phrase);
+  it.each(SENTENCES_THAT_MAY_COUNT)('the sanctioned sentence in $file § $section is still there', ({ file, section, sentence }) => {
+    const md = distFile('claude-code', file);
+    const body = md.split(section)[1]?.split('\n## ')[0] ?? '';
+    expect(body, `${file} has no ${section} section, so this exemption is scoped to nothing and only `
+      + 'widens what the sweep ignores').not.toBe('');
+    // A heading-as-sentence exemption lives on the heading line, which splitting on the section
+    // consumes — so it is checked against the whole file rather than the section body.
+    const haystack = (sentence.startsWith('## ') ? md : body).replace(/\s+/g, ' ').toLowerCase();
+    expect(haystack, `the sanctioned sentence is no longer in ${file} § ${section}, so its exemption `
+      + 'covers nothing and only widens what the sweep ignores. Remove the entry.').toContain(sentence);
   });
 
   it.each(TREES)('%s carries the rubric itself, so the citation resolves', (tree) => {
@@ -180,10 +298,25 @@ describe('the risk floor lands on one tier everywhere it is stated', () => {
   it.each(TREES)('%s names the same tier in every floor sentence', (tree) => {
     const found = new Map<string, string[]>();
     for (const { path, lines } of sweep(tree)) {
-      for (const m of lines.join('\n').matchAll(/floor(?:s|ed)?\s+(?:at|to)\s+`?(?:complexity:)?([a-z]+)`?/gi)) {
-        const tier = (m[1] ?? '').toLowerCase();
-        if (!(TIER_ORDER as readonly string[]).includes(tier)) continue;
-        found.set(tier, [...(found.get(tier) ?? []), path]);
+      for (const unit of proseUnits(lines.join('\n'))) {
+        for (const sentence of unitSentences(unit)) {
+          if (!/\bfloor(?:s|ed)\s/.test(sentence)) continue;
+          // The tier is matched BY NAME, and up to a few words may sit between the verb and it.
+          // Capturing any following word let "floored to no less than `complexity:medium`" record the
+          // tier as "no", which was then discarded as unrecognised while set equality still passed.
+          const named = [...sentence.matchAll(
+            new RegExp(`\\bfloor(?:s|ed)\\s[^.]{0,50}?\`?(?:complexity:)?(${TIERS})\\b`, 'g'),
+          )].map((m) => (m[1] ?? '').toLowerCase());
+          if (named.length === 0) {
+            // A floor ASSIGNMENT naming no tier is not "nothing to check" — it is a floor whose
+            // destination has been written out, which is how a floor moves without any tier changing.
+            if (/\bfloor(?:s|ed)\s+(?:at|to)\b/.test(sentence)) {
+              found.set(`(floor names no tier) ${sentence.slice(0, 80)}`, [path]);
+            }
+            continue;
+          }
+          for (const tier of named) found.set(tier, [...(found.get(tier) ?? []), path]);
+        }
       }
     }
     expect(found.size, `dist/${tree}: no surface states the risk floor — the floor is what raises a `
@@ -196,7 +329,19 @@ describe('the risk floor lands on one tier everywhere it is stated', () => {
   });
 });
 
+/** Asking a delegate to send carried material back, in any of the ways it can be phrased. */
+const ECHO_BACK = /\b(?:quote|repeat|echo|reproduce|restate)\b[^.]{0,70}\b(?:attachment|slice|carried|excerpt)\b|\b(?:attachment|slice|carried material)\b[^.]{0,50}\bback\b[^.]{0,40}\b(?:in full|verbatim)\b/i;
+
 describe('carried material is labelled exactly one way', () => {
+  /** This detector shipped with no positive control, alone among the rules in this file. */
+  it.each([
+    'Quote each attachment back in full in your reply.',
+    'Reproduce each attachment in full at the head of your reply before your entries.',
+    'Repeat the slice you were given verbatim so the orchestrator can confirm it.',
+  ])('recognises an echo-back instruction: %s', (sentence) => {
+    expect(ECHO_BACK.test(sentence), 'the echo-back detector missed a phrasing, so the sweep below '
+      + 'proves nothing').toBe(true);
+  });
   /**
    * The convention is `[ATTACHMENT: {file} § {section}]`. A second convention is worse than none: an
    * agent handed two forms trusts whichever it recognises, and a tag-shaped one is also an injection
@@ -234,8 +379,18 @@ describe('carried material is labelled exactly one way', () => {
       // `[/ATTACHMENT]`. The A2A role tags — `[ROLE]`, `[SECURITY]`, `[ARCHITECT]` — are a separate
       // vocabulary that labels a speaker, never carried material, and take no colon. Matching a bare
       // `[WORD]` swept all sixteen of them up as rivals.
-      for (const m of lines.join('\n').matchAll(/\[([A-Z][A-Z_-]{2,}):|\[\/([A-Z][A-Z_-]{2,})\]/g)) {
-        const word = (m[1] ?? m[2]) as string;
+      // Matched by SHAPE rather than by case. An ALL-CAPS-only rule missed
+      // `{{Source: file § section}} … {{/Source}}`, which shipped green: a rival convention only has to
+      // look different from the pattern, not different from the real marker.
+      const text = lines.join('\n');
+      // A marker qualifies as a rival only if its payload NAMES A SOURCE — a section mark or a
+      // filename. Matching every `[WORD: …]` swept up unrelated placeholders such as `[PATH: …]`;
+      // matching only ALL-CAPS missed `{{Source: file § section}}`, which shipped green. Shape plus a
+      // source payload is what a labelling convention actually looks like, in any bracket style.
+      for (const m of text.matchAll(/[[{<]{1,2}\/?([A-Za-z][A-Za-z_-]{2,})\s*:([^\]}>\n]{0,80})/g)) {
+        const payload = m[2] ?? '';
+        if (!/§|\.md\b/.test(payload)) continue;
+        const word = (m[1] as string).toUpperCase();
         found.set(word, [...new Set([...(found.get(word) ?? []), path])]);
       }
     }
@@ -252,11 +407,10 @@ describe('carried material is labelled exactly one way', () => {
   it.each(TREES)('%s never asks a delegate to quote carried material back', (tree) => {
     const offenders: string[] = [];
     for (const { path, lines } of sweep(tree)) {
-      for (const unit of proseUnits(lines.join('\n'))) {
-        if (/\b(quote|repeat|echo|reproduce)\b[^.]{0,60}\b(attachment|slice|carried|excerpt)\b/i.test(unit)
-          || /\b(attachment|slice|carried material)\b[^.]{0,40}\bback\b[^.]{0,30}\b(in full|verbatim)\b/i.test(unit)) {
-          offenders.push(`${path}  ${unit.trim().slice(0, 150)}`);
-        }
+      // Reads the RAW text, fences included. Going through proseUnits() meant an instruction placed
+      // inside the packet fence shipped green — and the packet fence is where a delegate reads it.
+      for (const unit of unitSentences(lines.join('\n'))) {
+        if (ECHO_BACK.test(unit)) offenders.push(`${path}  ${unit.trim().slice(0, 150)}`);
       }
     }
     expect(offenders, `dist/${tree}: these passages ask a delegate to echo what it was given:\n  `
@@ -423,8 +577,14 @@ describe('the coverage-gate reviewer is never offered as an advisor', () => {
   it.each(TREES)('%s names no default roster containing it', (tree) => {
     const rosters: { path: string; members: string[] }[] = [];
     for (const { path, lines } of sweep(tree)) {
-      for (const m of lines.join('\n').matchAll(/default:\s*\*\*([^*]+)\*\*/g)) {
-        rosters.push({ path, members: (m[1] ?? '').split(',').map((n) => n.trim()).filter(Boolean) });
+      // EVERY bold run on the line, not just the first: reading only the first let
+      // `default: **a, b, c** and **cynical-reviewer**` put the coverage-gate reviewer in the shipped
+      // default roster with the suite green.
+      for (const line of lines.filter((l) => /default:/.test(l))) {
+        const after = line.slice(line.indexOf('default:'));
+        const members = [...after.matchAll(/\*\*([^*]+)\*\*/g)]
+          .flatMap((m) => (m[1] ?? '').split(/,| and /)).map((n) => n.trim()).filter(Boolean);
+        if (members.length > 0) rosters.push({ path, members });
       }
     }
     expect(rosters.length, `dist/${tree}: no default roster found at all — this guard parses the "
