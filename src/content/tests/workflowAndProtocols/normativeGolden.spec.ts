@@ -5,32 +5,32 @@ import { describe, expect, it } from 'vitest';
 import { filesUnder } from '../../../commons/support/buildTree';
 import { readFile } from '../commands/support';
 import { repoRoot } from '../../../commons/support/repo';
+import { section } from '../../../metrics/scalingModel.mjs';
 import { TREES } from './editions';
 
 /**
- * The normative protocol files, pinned byte-for-byte.
+ * Readable goldens for the most contested normative text.
  *
- * These two files are not documentation *about* behaviour — they **are** the behaviour. An agent
- * reads them and acts; every sentence is an instruction. That makes their content an unbounded
- * assertion surface, and this repo has now proved twice that sampling it cannot work: a review pass
- * over per-rule sentence pins ran 32 semantic mutations and 29 survived a green suite. The survivors
- * were never edits to a pinned sentence — they were a contradiction planted in a section that owned
- * no pin, a rubric row *added* beside the real one, a rule moved into a table cell, a whole section
- * deleted. No finite set of pins closes that, because the attacker chooses where to write.
+ * These files are not documentation *about* behaviour — they **are** the behaviour. An agent reads
+ * them and acts; every sentence is an instruction. Sampling such a surface does not work, and this
+ * repo has three campaigns proving it: mutation passes over per-rule sentence pins lost 11, then 29 of
+ * 32, then 8 of 10 and 16 of 21 to a fully green suite. No survivor edited a pinned sentence — each
+ * was written where no pin was looking. A finite set of pins cannot close that, because whoever writes
+ * the contradiction picks the location.
  *
- * A byte pin closes it by construction. Anything at all — an addition, a deletion, a move, a
- * qualifier, a reordered table — fails here and has to be re-baselined deliberately.
+ * Coverage of *every* shipped file is now the manifest's job
+ * (`docsAndPlugin/shippedContentManifest.spec.ts` hashes all six editions). What these goldens add is
+ * a readable failure: a diff of the actual sentence that changed, rather than a hash that moved. They
+ * are kept for the files where a wrong edit is most costly and the text is worth reading in a failure
+ * message — the two protocol files whole, and the reference skill at section scope, since its other
+ * sections are reference material that changes for reasons carrying no behavioural weight.
  *
- * The cost is a required re-baseline on every intentional edit, which is the point: these files
- * change the behaviour of every future delivery, so an edit to them should be a decision, not a
- * side effect. `core.golden` already buys the same trade for the injected Core
- * (`CODE_OF_CONDUCT.md` § Golden files).
- *
- * A byte pin alone would be blind in one direction: it says the file has not changed, never that it
- * says the right thing, so a careless re-baseline could ship a wrong model quietly. That is why the
- * semantic layer stays — `parseScalingModel` and `parseConvergence` in `protocolFiles.spec.ts`
- * compare the parsed rules against `EXPECTED_MODEL` and `EXPECTED_CONVERGENCE`. Together: the golden
- * makes every change visible, the parsers make a wrong change fail.
+ * A pin says only that the text has not changed, never that it says the right thing, so a careless
+ * re-bless can still ship a wrong rule. The semantic layer is what covers that: `parseScalingModel`
+ * and `parseConvergence` compared against `EXPECTED_MODEL` and `EXPECTED_CONVERGENCE` in
+ * `protocolFiles.spec.ts`, and the cross-surface sweeps in `crossSurfaceConsistency.spec.ts`. Both
+ * layers were verified by re-blessing a golden alongside its mutation and confirming the parsers still
+ * failed. See `CODE_OF_CONDUCT.md` § Golden files.
  */
 
 /** Each normative file and the golden that pins it. */
@@ -54,25 +54,19 @@ const PINNED = [
 const NORMATIVE_SECTIONS = ['## Agent scaling', '## Debate protocol', '## Independent review'] as const;
 
 /**
- * A section's body, ending at the next heading of the same or higher level.
+ * A section's body with its heading, ending at the next heading of the same or higher level.
  *
- * Throws when the heading is absent, and equally when it occurs twice. Reading the first occurrence
- * left a hole big enough to drive the whole mechanism through: appending a second `## Agent scaling`
- * that permitted a lone advisor to hold a full debate passed the entire suite, because the pin only
- * ever looked at the first one.
+ * Delegates to `section()` rather than re-implementing the slice. The first version had its own copy,
+ * which meant its "reject a duplicated heading" branch had no test of its own — deleting that branch
+ * left the whole suite green, so a protection that reads as load-bearing was decoration. `section()`
+ * is unit-tested for the missing heading, the duplicated heading, a nested `###`, a near-miss heading
+ * and a section running to EOF, and it throws on all the cases this needs.
+ *
+ * The duplicate case is not hypothetical: appending a second `## Agent scaling` that permitted a lone
+ * advisor to hold a full debate passed everything, because a first-match read never saw it.
  */
 function sectionBody(md: string, heading: string): string {
-  const occurrences = md.split(`\n${heading}\n`).length - 1;
-  if (occurrences === 0) throw new Error(`the reference skill has no "${heading}" section — it was `
-    + 'renamed or removed, and a renamed normative section is one this pin stops covering');
-  if (occurrences > 1) {
-    throw new Error(`the reference skill states "${heading}" ${occurrences} times — this pin reads the `
-      + 'first, so a second section under the same heading ships unpinned. State it once.');
-  }
-  const at = md.indexOf(`\n${heading}\n`);
-  const rest = md.slice(at + heading.length + 2);
-  const end = rest.search(/\n#{1,2} /);
-  return `${heading}\n${end < 0 ? rest : rest.slice(0, end)}`;
+  return `${heading}${section(md, heading, 'the reference skill')}`;
 }
 
 describe('the normative protocol files are pinned byte-for-byte', () => {

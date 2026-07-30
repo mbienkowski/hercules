@@ -133,6 +133,16 @@ describe('section', () => {
       'an anchored match keeps "## Converging a round quickly" from standing in for the real section')
       .toThrow(/near\.md/);
   });
+
+  it('refuses a heading that appears twice', () => {
+    // Taking the first match is how a whole mechanism gets bypassed: a second `## complexity` carrying
+    // its own rubric row, or a second `## Agent scaling` permitting a lone-advisor debate, is invisible
+    // to every assertion made through this function and passed a full suite.
+    const twice = '## complexity\n\nfirst body\n\n## Other\n\nx\n\n## complexity\n\nsecond body\n';
+    expect(() => section(twice, '## complexity', 'dup.md'), 'a duplicated heading must be reported, not '
+      + 'silently resolved to the first one — the second section ships unpinned and unread')
+      .toThrow(/dup\.md.*appears 2 times/s);
+  });
 });
 
 describe('parseConvergence', () => {
