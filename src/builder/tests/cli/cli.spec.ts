@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { discover, names } from '../../descriptor.mjs';
 import type { ExtrasContext } from '../../genExtras.mjs';
-import { buildTarget, checkTarget, main, targets } from '../../bin/cli.mjs';
+import { buildTarget, checkTarget, classifyDiff, main, targets } from '../../bin/cli.mjs';
 import { buildRegistry } from '../../serialize.mjs';
 import { ECOSYSTEMS } from '../../../commons/support/descriptorFixtures';
 import { repoRoot } from '../../../commons/support/repo';
@@ -226,5 +226,54 @@ describe('the generic build seam', () => {
     // runtime (readonly has no runtime effect), so the assertion below checks the NEW value.
     ctx.outRoot = '/other';
     expect(ctx.outRoot).toBe('/other');
+  });
+});
+
+describe('classifyDiff', () => {
+  /**
+   * The three cases need three different fixes, and the old failure text offered only one: it said
+   * "regenerate it with `make build`", but `make build` never prunes — so a contributor following that
+   * advice on a stray file was left with the file in place, the gate still red, and no idea which path
+   * was at fault.
+   */
+  const scratch: string[] = [];
+  const dir = (files: Record<string, string>): string => {
+    const root = mkdtempSync(join(tmpdir(), 'hercules-classify-'));
+    scratch.push(root);
+    for (const [rel, body] of Object.entries(files)) writeFileSync(join(root, rel), body);
+    return root;
+  };
+  afterEach(() => {
+    for (const d of scratch.splice(0)) rmSync(d, { recursive: true, force: true });
+  });
+
+  it('calls a file present in dist but rendered by nothing a STRAY, and says to delete it', () => {
+    const committed = dir({ 'a.md': 'x', 'STRAY.md': 'x' });
+    const rendered = dir({ 'a.md': 'x' });
+    const [line] = classifyDiff(committed, rendered, ['STRAY.md']);
+    expect(line, 'a stray file is the one case `make build` cannot fix, so the message must say so')
+      .toBe('STRAY.md — STRAY: present in dist/ but declared by no target; delete it');
+  });
+
+  it('calls a rendered file absent from dist MISSING, and points at make build', () => {
+    const committed = dir({ 'a.md': 'x' });
+    const rendered = dir({ 'a.md': 'x', 'b.md': 'x' });
+    expect(classifyDiff(committed, rendered, ['b.md'])[0])
+      .toBe('b.md — MISSING from dist/; `make build` writes it');
+  });
+
+  it('calls a file present in both but differing STALE', () => {
+    const committed = dir({ 'a.md': 'old' });
+    const rendered = dir({ 'a.md': 'new' });
+    expect(classifyDiff(committed, rendered, ['a.md'])[0])
+      .toBe('a.md — STALE content; `make build` refreshes it');
+  });
+
+  it('classifies every path it is handed, in order', () => {
+    const committed = dir({ 'a.md': 'old', 'STRAY.md': 'x' });
+    const rendered = dir({ 'a.md': 'new', 'b.md': 'x' });
+    const lines = classifyDiff(committed, rendered, ['STRAY.md', 'a.md', 'b.md']);
+    expect(lines.map((l) => l.split(' — ')[1]?.split(':')[0]?.split(' ')[0]))
+      .toEqual(['STRAY', 'STALE', 'MISSING']);
   });
 });

@@ -120,19 +120,11 @@ Session object (in the state file): `current_phase` — the phase backbone (`"di
 
 ## Agent scaling
 
-Complexity is classified **once in Discover**, persisted to the session's `tier` in the state file, and **read forward** by Design and Build. **Tier = max(effort-signal, blast-radius-signal)** — never the average. A change touching auth, secrets, money, data migration, deletion, production config, or concurrency is floored at `high` regardless of diff size. Hercules **never re-scores** the tier — no automated escalation or de-escalation in any later phase. The **user may manually override** the tier at any point; that manual override is the only thing that changes it. (Advisor dissent surfaces as input to the user, not an automatic re-score.)
+Complexity is classified **once in Discover**, persisted to the session's `tier` in the state file, and **read forward** by Design and Build. The rubric is one table in one file — `protocols/debate-consensus-protocol.md` § complexity — carrying the effort and blast-radius signals per tier, the advisor count and the round range. Read it there; it ships alongside every command. The floor travels with this section because it decides the tier before any of that is consulted: a change touching auth, secrets, money, data migration, deletion, production config, concurrency or personal data is floored at `high` however small the diff, and those are examples rather than a closed catalogue — a project's `code-of-conduct.md` may add to them, and so may the main agent, whose test is whether a bug here could damage data, money or access that a redeploy cannot undo. Hercules **never re-scores** the tier — no automated escalation or de-escalation in any later phase. The **user may manually override** the tier at any point; that manual override is the only thing that changes it. (Advisor dissent surfaces as input to the user, not an automatic re-score.)
 
-Sub-agent count per tier (main agent decides; user may override) — these counts are **advisors**; independent reviewers at the coverage/traceability gates are a separate category (§ Independent review):
+The tier sizes the first round and caps the rounds after it. A later round runs only where the one before it left a topic contested, and it carries one advisor per surviving position rather than the whole board, so a debate narrows as it proceeds. These counts are **advisors**; independent reviewers at the coverage/traceability gates are a separate category (§ Independent review).
 
-| Tier | Sub-agents |
-|---|---|
-| trivial | 0 — main agent only |
-| low | 1–2 |
-| medium | 1–3 |
-| high | 2–4 |
-| critical | 3–6 |
-
-Agent selection is the main agent's call, driven by the task at hand: the per-phase lists in the commands are a default starting point, not a fixed roster. Add, drop, or swap specialists to fit the feature and its context — e.g. a security-expert for auth, a senior-qa-engineer for solution design or a risky migration, or a source-checker when an article must be checked against its cited sources — choosing deliberately different, even opposing, perspectives (challenger, simplicity-advocate, and cynical-reviewer are strong general picks). Productive disagreement produces better specs than easy consensus.
+Agent selection is the main agent's call, driven by the task at hand: the per-phase lists in the commands are a default starting point, not a fixed roster. Add, drop, or swap specialists to fit the feature and its context — e.g. a security-expert for auth, a senior-qa-engineer for solution design or a risky migration, or a source-checker when an article must be checked against its cited sources. Pick perspectives that pull against each other — challenger against lead-architect (breaks against builds), simplicity-advocate against security-expert (cuts against adds), business-analyst against devops-engineer (value against operability) — because productive disagreement produces better specs than easy consensus. Never pick `cynical-reviewer` as an advisor: it is reserved for the coverage and traceability gates, where its whole value is that it never co-authored the draft it reviews.
 
 ### Sub-agent consent
 
@@ -152,13 +144,18 @@ The main agent never spawns advisors silently. It first asks the user's question
 > - **skip** — draft directly, no advisors
 > - **adjust** — revise the list and re-ask
 
-On **yes**: spawn per the tier counts above. On **yes, but one fewer**: spawn the set minus the named agent. On **yes, plus …**: spawn the set plus the extra advisors, each carrying the agenda the user gave. On **skip**: draft directly. On **adjust**: revise the list and re-ask.
+On **yes**: spawn the roster the rubric sizes. On **yes, but one fewer**: remove the named advisor and spawn the rest. On **yes, plus …**: add the advisors the user names, each carrying the agenda they gave. On **skip**: draft directly. On **adjust**: revise the list and re-ask.
+
+Where the host offers a native selection control, present the roster through it — grouped into several questions where the roster exceeds what one question can show — so the user can accept, remove or add per advisor; where it does not, present the identical choices as a plain numbered list. State the count and round range you read from the rubric — never copy those numbers into this file, or they drift from the one table that owns them. There is **no roster gate** at `trivial`, where nobody is convened: a prompt over an empty roster asks nothing, so the phase proceeds directly.
+
+The user often first sees what the tier costs at this gate, so a raise here is the common case. A tier the user raises **reaches the state write** in the same phase, so Design and Build do not read a superseded value. **Only the user** changes it: the main agent never re-judges a settled tier (G7), though it may surface a reason to and then ask.
 
 ## Debate protocol
 
 Rule 7 in the Agent-Injected Core carries the minimal debate summary to all agents.
-Once the user consents to advisors (§ Sub-agent consent), Discover and Design run those rounds scaled
-to the session tier — running them is not separately optional.
+Once the user consents to advisors (§ Sub-agent consent), Discover and Design convene them — that is
+not separately optional. The tier's round range is a ceiling, never an itinerary: a further round
+runs only where the one before it left a topic contested, so a debate that converges ends there.
 Full orchestrator mechanics: [${PLUGIN_ROOT}/protocols/debate-consensus-protocol.md](${PLUGIN_ROOT}/protocols/debate-consensus-protocol.md).
 For debates involving built-in Explore/Plan/Workflow agents, prepend the full
 `${PLUGIN_ROOT}/protocols/debate-consensus-protocol.md` to the per-call delegation prompt.

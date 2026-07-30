@@ -11,7 +11,7 @@ plugin marketplace.
    delivered in code (during Build). Code is the single source of truth post-delivery. Projects that
    prefer permanent specs say so in their `code-of-conduct.md` (cached as `keep_specs`); kept specs
    are refreshed at delivery to match what shipped.
-4. Every feature runs all phases (Discover → Design → Build → Ship) and produces the same artifacts. Complexity scoring sets the advisor count only (trivial runs no advisors), never which phases run.
+4. Every feature runs all phases (Discover → Design → Build → Ship) and produces the same artifacts. Complexity scoring sets the advisor count plus the debate depth (trivial runs no advisors), never which phases run.
 5. Discovery is the heaviest phase. Accept PRDs, ADRs, Figma links, QA scenarios, and any rich context upfront. The more invested here, the less rework in Build.
 6. Open OpenCode where documents live: monorepo → open in that repo; microservices with cross-repo features → use a dedicated requirements repo.
 7. No rework after delivery is the north star. Preparation quality drives build quality.
@@ -32,7 +32,8 @@ Inject that Core verbatim into every delegation prompt (it is the only channel t
 
 The plugin ships a set of generic specialist agents in `agents/` (auto-registered as `<name>`).
 They carry **no hardcoded stack or personal preferences** — all project variance lives in a
-per-project `code-of-conduct.md` each agent reads. Replies follow the A2A § Agent-Injected Core.
+per-project `code-of-conduct.md`, whose binding slice is carried in the delegation packet; an agent
+reads the file itself only when no slice arrives. Replies follow the A2A § Agent-Injected Core.
 
 - Code / process: `challenger`, `cynical-reviewer`, `lead-architect`, `security-expert`,
   `senior-qa-engineer`, `backend-engineer`, `frontend-engineer`, `devops-engineer`,

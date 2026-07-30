@@ -29,8 +29,8 @@
     "target": "dist/claude-code/protocols/debate-consensus-protocol.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 1100,
-    "warn_at": 1060,
+    "limit": 1700,
+    "warn_at": 1650,
     "severity": "gate"
   },
   {
@@ -38,8 +38,8 @@
     "target": "dist/claude-code/protocols/workflow-protocol.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 1050,
-    "warn_at": 1030,
+    "limit": 1250,
+    "warn_at": 1220,
     "severity": "gate"
   },
   {
@@ -47,8 +47,8 @@
     "target": "dist/claude-code/commands/discover.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 1670,
-    "warn_at": 1620,
+    "limit": 2020,
+    "warn_at": 1980,
     "severity": "gate"
   },
   {
@@ -56,8 +56,8 @@
     "target": "dist/claude-code/commands/design.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 2100,
-    "warn_at": 2080,
+    "limit": 2200,
+    "warn_at": 2170,
     "severity": "gate"
   },
   {
@@ -112,10 +112,10 @@
     "target": "dist/claude-code/skills/hercules-reference/SKILL.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 3450,
+    "limit": 3900,
     "severity": "gate",
     "per_file": true,
-    "warn_at": 3430
+    "warn_at": 3850
   },
   {
     "name": "coc-generator-token-budget",

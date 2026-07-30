@@ -1,84 +1,114 @@
 # Debate Consensus Protocol
 
-When two or more agents evaluate the same topic, they debate and converge before their
-findings are synthesised. Single-agent gates skip this protocol entirely.
+Two or more advisors examining the same work return their findings, and the orchestrator converges
+them before they reach a draft. A single advisor is a review, not a debate, and skips this protocol.
 
-All agent output in every round follows the
-[A2A Communication Protocol § Agent-Injected Core](a2a-communication-protocol.md) —
-format, STATUS values, and Agreement rules are defined there. Built-in Explore/Plan/Workflow
-agents receive debate mechanics via Rule 7 in the Core; this file is the full reference for
-human and custom-agent orchestrators who read files.
+All advisor output follows the
+[A2A Communication Protocol § Agent-Injected Core](a2a-communication-protocol.md) — format, STATUS
+values and the debate reply shape are defined there. Built-in Explore/Plan/Workflow agents receive
+the mechanics via Rule 7 in the Core; this file is the full reference for human and custom-agent
+orchestrators who read files.
 
 ## complexity
 
-Every debate is classified before Round 1 — the orchestrator's responsibility, performed before dispatching Round 1 agents. Inside the delivery workflow the complexity **is** the session tier (scored once in Discover, never re-derived — `workflow-protocol.md` G7); an ad-hoc debate outside a workflow gate is classified on its own.
+Complexity is settled before the first round — the orchestrator's responsibility, performed before
+dispatching Round 1. Inside the delivery workflow the complexity **is** the session tier, scored once
+in Discover and never re-derived (`workflow-protocol.md` G7); an ad-hoc debate outside a workflow
+gate is classified on its own.
 
-| complexity | Definition | Rounds |
-|------------|-----------|--------|
-| `complexity:trivial` | Typo, config value, single-line fix | none — skip debate |
-| `complexity:low` | Simple change, single scope, easily reversible | Round 1 only |
-| `complexity:medium` | Feature, multiple files, requires tests | Round 1 + 2 |
-| `complexity:high` | Architecture, security, cross-cutting, hard to reverse | Round 1 + 2 + 3 |
-| `complexity:critical` | Irreversible, system-wide, or foundational decision | Round 1 + 2 + 3 + fresh-eyes (mandatory) |
+The tier is the higher of two signals scored separately, never their average: how much work the
+change is, and how far a mistake in it would reach.
 
-## Consensus thresholds
+A change touching auth, secrets, money, data migration, deletion, production config, concurrency or
+personal data floors at `complexity:high` however small the diff.
 
-An agent signals its position after each round via `Agreement: N/5` (A2A rule 6):
+Those name examples rather than a closed catalogue. A project's own code-of-conduct may add to them,
+and so may the orchestrator, whose test is whether a bug here could damage data, money or access that
+a redeploy cannot undo. It says so when it applies one.
 
-| N | Meaning | Effect |
-|---|---------|--------|
-| 5 | Full agreement | Resolved — no further action needed |
-| 4 | Agree with minor reservation | Reservation — carried to the user's decision, not resolved |
-| 3 | Neutral / uncertain | Another round triggered (within the complexity cap) |
-| 0–2 | Disagree / strong objection | Another round triggered; if unresolved after cap → open question |
+| complexity | Effort signals | Blast-radius signals | Advisors | Rounds |
+|---|---|---|---|---|
+| `complexity:trivial` | typo, config value, single-line fix | no user-visible change | 0 | 0 |
+| `complexity:low` | simple change, single scope, easily reversible | one bounded flow affected | 2 | 1 |
+| `complexity:medium` | feature, multiple files, requires tests | multiple flows affected | 2–3 | 1–2 |
+| `complexity:high` | architecture, cross-cutting, hard to reverse | data at risk, deletion, production config | 3–5 | 1–2 |
+| `complexity:critical` | irreversible, system-wide, foundational | user data, security primitives, money | 4–6 | 2–3 + fresh eyes |
 
-A debate round closes at full 5/5, or when the tier's round cap is hit.
+Advisors run in parallel inside a round; rounds run one after another. The advisor column sizes the
+first round. The high end of the rounds column is a ceiling, never an itinerary — a further round
+runs only when the one before it left something contested. The low end binds only at
+`complexity:critical`, which runs its second round and its fresh-eyes panel whatever the convergence
+state, because that is the level where a missed problem is least recoverable.
 
-## Hard limits
-
-- Maximum 3 rounds. Synthesis (or escalation) happens after the tier's round cap is hit, regardless of remaining disagreement.
-- All rounds use A2A format throughout. No narrative prose between entry lines.
-- Ad-hoc debates (user-triggered outside a structured gate): same limits apply.
+A debate needs two advisors and two rounds. Where the table allows a single round the advisors return
+their findings in parallel and the orchestrator synthesises them; that is a set of opinions, and no
+cross-examination takes place.
 
 ## Round 1 — Blind
 
-Dispatch all agents in a single message. Each receives only the task prompt — no shared
-context, no peer output. Parallel dispatch is the enforcement mechanism: every agent forms
-its position from first principles before cross-contamination can occur. Collect all
-Round 1 output before proceeding.
+Dispatch every advisor in a single message. Each receives only the task prompt — no shared context,
+no peer output. Parallel dispatch is the enforcement mechanism: every advisor forms its position from
+first principles before cross-contamination can occur. Collect all Round 1 output before proceeding.
 
-## Round 2 — Cross-examination
+## Converging a round
 
-Re-invoke all agents in a single message, each receiving all Round 1 findings. Each agent:
+The orchestrator groups the entries by topic — one entry is one topic, per A2A rule 1 — and reads the
+positions taken on each.
 
-1. States `Agreement: N/5` per A2A rule 6
-2. Challenges any finding they disagree with, with evidence — A2A format
-3. Raises new issues surfaced by peers — A2A format
+A topic is settled — two or more advisors spoke on the topic and state the same position. It is then
+folded into the draft and reported as applied. Every other state is listed below.
 
-**Anti-echo-chamber rule:** Agreement at any level (including `5/5`) requires the agent's
-*own* reasoning — not a restatement or paraphrase of another agent's words. Bare agreement
-(`+1`, `I agree`, reworded copy without original substance) is invalid.
+| The topic | State | What happens |
+|---|---|---|
+| positions differ | contested | carried into the next round |
+| one speaker, Blocker or High | contested | where the range allows a further round it is carried, and that round adds an advisor who has not spoken on it; at the ceiling it goes to the casting vote at `complexity:low` and to the user elsewhere |
+| one speaker, lower severity | folded in | entered with the advisor who raised it named |
+| raised by some, unaddressed by others | not settled | silence is never agreement, so it blocks closure until someone speaks to it |
 
-## Round 3 — Resolution (`complexity:high` and `complexity:critical` only)
+The casting vote is the orchestrator deciding a topic its ceiling left open, with its reason recorded.
+It is available at `complexity:low` alone, and only on a topic the orchestrator can check itself —
+one turning on a fact it cannot verify, or on a trade-off that is the user's, goes to the user.
 
-Skip for `complexity:low` (Round 1 is its only round) and `complexity:medium` (Round 2 is its final round).
+A debate closes when every topic is settled and the level's floor is met. On closing a round the
+orchestrator states in one line, per topic, the topic, its state, which roles spoke on it and who
+carries each position, so a narrowing board is visible rather than silent.
 
-Re-invoke only agents who stated ≤3/5 after Round 2. Synthesise after Round 3 regardless
-of remaining agreement level.
+## Carrying a position
+
+A position is what an advisor concluded — the verdict it gave and the problems it named — never its speciality. Two advisors of different specialities who reached the same conclusion are one position; two of the same speciality who disagreed are two.
+
+A contested topic carries one advisor per position, including the position that found nothing wrong,
+so that view is argued rather than dropped. Two advisors holding the same position count once, and
+the next round's roster is the number of distinct positions rather than a figure from the table
+above, bounded by that level's advisor maximum. A topic one advisor raised is one position with one
+holder, so such a round adds an advisor who has not spoken on it — that is where the two-advisor
+floor comes from, not the table.
+
+Where several advisors hold one position it is carried by the more senior voice, judged by the
+standing the role would hold in an engineering organisation — architect over developer, QA engineer
+over tester — which needs no maintained ranking, so a newly added advisor participates with nothing
+to update and an ad-hoc expert's briefed agenda establishes its standing. Among equal standing it is
+carried by whichever entry states the position most completely, and where that still ties, by the
+first by role name, so the same input yields the same choice.
+
+Each carried advisor receives the contested topics and every position taken on them, and either
+revises its own position with reasons or holds it with evidence. Agreement with another position
+requires the advisor's own reasoning — a restatement or paraphrase of a peer is invalid, as is bare
+agreement.
 
 ## Fresh-eyes panel
 
-- `complexity:critical` — **mandatory**. Spawn after Round 3.
-- `complexity:high` — optional, orchestrator's call.
-- All other levels — skip.
-
-Spawn new agents with no Round 1/2 history. Their findings are independent — no prior
-context, no convergence bias. Agreements with the debate panel strengthen a finding;
-contradictions surface as open questions.
+`complexity:critical` convenes a panel after its final round whatever the convergence state, drawn inside its advisor maximum and carrying no history of the rounds before it. Its findings are independent — no prior context, no
+convergence bias. Agreement with the debate panel strengthens a finding; contradiction surfaces as an
+open question. Every other level skips it.
 
 ## Synthesis
 
-Compile findings from all rounds into a single consolidated list. A debate resolves only at full 5/5
-consensus; anything less that survives the round cap — a 4/5 reservation or residual ≤3/5 dissent — is
-put to the user as a decision (accept as-is / another angle / override), never auto-applied. Any
+The orchestrator compiles the settled topics into the draft and reports them as applied. A debate
+resolves only when every raised topic is settled.
+
+Anything short of that which survives the level's ceiling is put to the user as a decision.
+The choices are accept as-is, another angle, or override; a surviving finding is never auto-applied.
+
+A reservation is carried to the user's decision, never resolved by the orchestrator, and any
 contested finding is presented to the user verbatim as an open question.

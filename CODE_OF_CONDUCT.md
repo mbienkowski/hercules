@@ -311,6 +311,17 @@ make test             # CI gate: >= 90% branch coverage, BOTH runtimes independe
 make test-mutation    # CI gate: >= 90% mutation kill rate, BOTH runtimes independently
 ```
 
+**A change to test or CI infrastructure is verified by running the pipeline, not the suite.** When you
+touch `vitest.config.mts`, a `make` target, or anything under `src/release/ci/`, run the workflows' own
+entry points — `make ci-build validate test test-smoke smoke-matrix bless-content` — and simulate a
+release (`make release-version && make build && npx vitest run`). Two of the worst defects in one
+delivery were invisible to `npx vitest run`: excluding the flaky live-CLI specs from the default config
+left `run_smoke.sh` invoking them under a config that no longer found them, taking all six CI smoke
+legs red; and the shipped-content manifest hashed the version-bearing plugin manifests, so the release
+— which bumps a version, rebuilds and commits `dist/` with no human step — wedged every release after
+the first behind a `[skip ci]` commit. A config-level `exclude` also beats an explicit file path on the
+command line, so every caller of an excluded path needs the `--config` flag, CI scripts included.
+
 `test`/`test-mutation` are each a thin wrapper over `test-py` + `test-ts` / `mutation-py` +
 `mutation-ts` — the split is real, not cosmetic: CI runs each pair as **separate, parallel jobs**,
 one per runtime, each provisioning only the toolchain it needs. The `-py`/`-ts` suffix is the same
@@ -373,9 +384,46 @@ Dependabot-proposed PR, never an invisible transitive update.
 
 ### Golden files
 
-The injected A2A Core is pinned byte-for-byte in `src/content/tests/core.golden`. After an intentional edit,
-re-bless it from the failing test's expected value. All methodology checks are gates, not warnings — a
-failing gate means the change broke a contract; fix the contract, not the test.
+**Everything that ships is pinned by hash.** `src/content/tests/shipped-content.manifest` records a
+sha256 for every file under `dist/`, all six editions. Any content change fails until re-blessed with
+`make bless-content`, in the same commit as the edit, with the message saying what behaviour changed.
+Almost everything this plugin ships is prompt text an agent reads and obeys, so a reworded rule *is* a
+behaviour change and should cost one deliberate step.
+
+Four surfaces additionally carry a readable golden, so their failures show the text rather than a hash:
+the injected A2A Core (`core.golden`), both normative protocol files
+(`debate-consensus-protocol.golden`, `workflow-protocol.golden`), and the reference skill's normative
+sections — `hercules-reference-normative.golden`, covering **§ Agent scaling** (including
+§ Sub-agent consent), **§ Debate protocol** and **§ Independent review**, and nothing else.
+
+Why pin so widely: sampling a normative surface does not work, and this repo has three campaigns
+proving it. Mutation passes over per-rule sentence pins lost 11, then 29 of 32, then 8 of 10 and 16 of
+21 semantic mutations to a fully green suite. Not one survivor edited a pinned sentence — each was
+written on a surface that owned no pin, because the person writing a contradiction chooses where to
+write it.
+
+**A golden covers only what it reads, and a hash covers only what changed.** Neither says the content
+is *right*, so a careless re-bless can still ship a wrong rule. Two habits close that:
+
+- Keep a semantic guard beside every pin, and **know exactly how far it reaches**. Under a re-bless the
+  semantic layer covers what it parses or forbids by shape: the rubric table and the convergence table
+  (`parseScalingModel` / `parseConvergence` against `EXPECTED_MODEL` / `EXPECTED_CONVERGENCE`), the
+  whole-sentence rule pins, and the specific claims `crossSurfaceConsistency.spec.ts` forbids. **Prose
+  rules outside those shapes are covered by the manifest alone — that is, by the human who re-blesses
+  it.** An audit that re-blessed every pin still landed seven prose survivors; the sweeps grew from
+  those, and the next phrasing nobody anticipated will survive too. So a re-bless is a review, not a
+  formality: say in the commit message what behaviour changed, and do not claim a guard is automatic
+  when what stands behind it is a hash plus your own reading.
+- Section-scoped reads must reject a **duplicated** heading, not take the first match. `section()` and
+  `sectionBody()` throw on a repeat because appending a second `## Agent scaling` — or a second
+  `## complexity` carrying its own rubric row — passed the entire suite while changing behaviour. A
+  first-match read silently un-pins whatever follows it.
+
+Give every regex or absence-based guard a companion test that proves it fires on a real violation. A
+detector that quietly matches nothing reports success, and several here did.
+
+All methodology checks are gates, not warnings — a failing gate means the change broke a contract; fix
+the contract, not the test.
 
 ### Complexity
 

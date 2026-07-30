@@ -1,7 +1,7 @@
 .PHONY: test test-mutation test-smoke install install-py install-ts build build-check \
         typecheck compile test-py test-ts mutation-py mutation-ts mutation-py-annotate mutation-ts-annotate \
         complexity-scan complexity-scan-ts complexity-scan-py vulnerability-scan \
-        ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate \
+        ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate bless-content \
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
 
 # ── Which runtime owns what ──────────────────────────────────────────────────
@@ -99,7 +99,20 @@ vulnerability-scan:
 # Live CLI smoke checks: do the built plugins install and load in the real binaries? Each leg skips
 # silently when its CLI is not installed locally.
 test-smoke: build-check
-	npx vitest run src/builder/tests/smoke/claudeCodeSmoke.spec.ts src/builder/tests/smoke/opencodeSmoke.spec.ts src/builder/tests/smoke/cursorSmoke.spec.ts src/builder/tests/smoke/grokBuildSmoke.spec.ts src/builder/tests/smoke/geminiCliSmoke.spec.ts src/builder/tests/smoke/copilotCliSmoke.spec.ts
+	npx vitest run --config vitest.smoke.config.mts
+
+# Re-baseline the shipped-content hash manifest after an INTENTIONAL content edit. Commit the manifest
+# with the edit that caused it and say in the message what behaviour changed — the pin exists to make
+# that one deliberate step.
+#
+# Depends on build-check, not just build: `make build` writes what the source declares but does not
+# prune, so a stray file dropped into dist/ survives a rebuild and would be hashed straight into the
+# manifest. build-check byte-compares the whole tree and is what actually catches that.
+bless-content: build-check
+	BLESS_CONTENT=1 npx vitest run src/content/tests/workflowAndProtocols/protocolFiles.spec.ts \
+	  src/content/tests/workflowAndProtocols/normativeGolden.spec.ts
+	BLESS_CONTENT=1 npx vitest run src/content/tests/docsAndPlugin/shippedContentManifest.spec.ts
+	@echo "re-blessed: 4 goldens + the shipped-content manifest. Commit them with the edit that caused them."
 
 # ── CI entry points ──────────────────────────────────────────────────────────
 # The GitHub Actions workflows call only `make <target>`, so every step is testable and runnable

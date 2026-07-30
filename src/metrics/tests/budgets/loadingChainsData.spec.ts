@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { CHAIN_TEMPLATES, resolveChains, WAIVERS } from '../../loadingChains.mjs';
+import { CHAIN_TEMPLATES, resolveChains, type Waiver, WAIVERS } from '../../loadingChains.mjs';
 import { tmpWorkspace } from '../support';
 
 // A SEPARATE file from instructionBudget.spec.ts, deliberately: that file resolves its chains at
@@ -173,11 +173,38 @@ describe('CHAIN_TEMPLATES: pinned data shape', () => {
 });
 
 describe('WAIVERS: pinned data content', () => {
-  it('the build.md waiver records its exact reason and follow-up', () => {
-    const waiver = WAIVERS.find((w) => w.chain === 'orchestrator (per command): commands/build.md');
-    expect(waiver?.reason).toBe("ceiling 150, over by 10 — trim build.md's own instruction load");
-    expect(waiver?.followUp).toBe(
-      'migration spec § What this sets up: "Trimming build.md to retire the orchestrator waiver"',
-    );
+  it('records no waiver, because every chain measures under the ceiling', () => {
+    expect(WAIVERS, 'a waived chain is a breach kept visible — an empty list means none is over')
+      .toEqual([]);
+  });
+
+  /**
+   * The shape rule is exercised against a fixture, not against `WAIVERS`.
+   *
+   * Iterating the real list runs zero assertions while it is empty — the test passes by doing nothing,
+   * which is precisely the "a guard that reads nothing reports success" pattern this delivery set out
+   * to remove. A fixture keeps the rule live, so the next waiver added has to satisfy it.
+   */
+  it('gives every waiver a chain, a measured value, a reason and a follow-up', () => {
+    const complete: Waiver = {
+      chain: 'commands/build.md',
+      measuredAt: 160,
+      reason: 'accepted while the rewrite was in flight',
+      followUp: 'retire once the chain measures under the ceiling',
+    };
+    const wellFormed = (w: Waiver): boolean => Boolean(w.chain) && w.measuredAt > 0
+      && Boolean(w.reason) && Boolean(w.followUp);
+
+    expect(wellFormed(complete), 'a fully specified waiver must satisfy the rule, or the rule rejects '
+      + 'every waiver and can never be met').toBe(true);
+    for (const missing of ['chain', 'measuredAt', 'reason', 'followUp'] as const) {
+      const partial = { ...complete, [missing]: missing === 'measuredAt' ? 0 : '' } as Waiver;
+      expect(wellFormed(partial), `a waiver missing "${missing}" must be rejected — an unexplained `
+        + 'waiver is an invisible breach, which is the whole reason waivers are data and not a comment')
+        .toBe(false);
+    }
+    for (const w of WAIVERS) {
+      expect(wellFormed(w), `the shipped waiver for ${w.chain} is incomplete`).toBe(true);
+    }
   });
 });

@@ -234,4 +234,30 @@ describe('the release pipeline', () => {
     expect(installIdx).toBeLessThan(compileIdx);
     expect(compileIdx).toBeLessThan(verIdx);
   });
+
+  /**
+   * The smoke matrix must be runnable by the script CI actually invokes.
+   *
+   * These two drifted apart once and took every smoke leg red: the everyday vitest config gained an
+   * exclusion for `src/builder/tests/smoke/**` so the default suite would stop flaking, and that
+   * exclusion beats an explicit file path on the command line — so `run_smoke.sh`, which passed the
+   * matrix path with no `--config`, exited 1 with "No test files found" on all six legs. Nothing failed
+   * locally, because `make test-smoke` had been given the new config and the CI script had not.
+   */
+  it('runs the smoke matrix under a config that can actually discover it', () => {
+    const script = readRepoFile('src', 'release', 'ci', 'run_smoke.sh');
+    const defaultExcludesSmoke = readRepoFile('vitest.config.mts').includes('src/builder/tests/smoke/**');
+    expect(defaultExcludesSmoke, 'if the default config no longer excludes the smoke specs this guard '
+      + 'is measuring a condition that has gone away — re-read it rather than deleting it').toBe(true);
+    expect(script, 'run_smoke.sh must pass --config vitest.smoke.config.mts. The default config excludes '
+      + 'the smoke specs, and that exclusion wins over the explicit $TEST path, so without the flag '
+      + 'every CI leg exits 1 with "No test files found" while every local target stays green.')
+      .toContain('--config vitest.smoke.config.mts');
+
+    const smokeConfig = readRepoFile('vitest.smoke.config.mts');
+    expect(smokeConfig, 'the smoke config must include the directory the matrix paths live in')
+      .toContain('src/builder/tests/smoke/**');
+    expect(smokeConfig, 'the smoke config must not inherit the exclusion it exists to lift')
+      .not.toContain("exclude: ['node_modules/**', 'dist/**', '.ts-out/**', 'src/builder/tests/smoke/**']");
+  });
 });

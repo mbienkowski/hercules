@@ -63,6 +63,21 @@ it('the handoff packet lists its fields in the required order', () => {
   });
   expect(idxs, `packet fields out of order: ${JSON.stringify(chain)}`).toEqual([...idxs].sort((a, b) => a - b));
   expect(section, 'the packet must require verbatim registry-row copies').toContain('verbatim');
+
+  // Carried project material is labelled with its source, using the marker the Core already
+  // defines for content an agent did not author — a second convention for one job is drift.
+  const wrappers = [...section.matchAll(/\[([A-Z][A-Z-]+):[^\]]*§/g)].map((m) => m[1]);
+  expect(wrappers.length, 'the packet must wrap each carried payload with its file and section')
+    .toBeGreaterThanOrEqual(2);
+  expect([...new Set(wrappers)], 'one labelling convention, not two — a second marker name gives a '
+    + 'delegate two valid wrappers with no rule saying which applies')
+    .toEqual(['ATTACHMENT']);
+  expect(section.toLowerCase(), 'the same marker governs outbound relay, so inbound has to say it is '
+    + 'material to act on — otherwise a delegate may echo its own input back')
+    .toContain('carried in is material to act on');
+  expect(section.toLowerCase(), 'the outcome is the rule, not the noun: material that would end its '
+    + 'own wrapper has to travel by reference, or the remainder reads as instruction')
+    .toContain('closing marker is carried by reference, never inline');
 });
 
 it('every guardrail rule is completely and correctly documented', () => {
@@ -121,7 +136,20 @@ const DRIFT_ANCHORS: ReadonlyArray<readonly [string, string, string]> = [
   ['G5', 'high-risk', 'dist/claude-code/commands/build.md'],
   ['G6', 'build_complete', 'dist/claude-code/commands/ship.md'],
   ['G7', 'scored once', 'dist/claude-code/skills/hercules-reference/SKILL.md'],
+  ['G8', 'roster gate', 'dist/claude-code/skills/hercules-reference/SKILL.md'],
 ];
+
+/**
+ * A hand-kept anchor list can silently omit the row that was just added — G8 shipped without one, so
+ * the registry claimed a rule with nothing checking the command carried it. Deriving the expected set
+ * from the registry itself makes the omission impossible rather than merely unlikely.
+ */
+it('every registry row has a drift anchor, so no documented rule goes unchecked', () => {
+  const ids = registryRows(protocolSection(readFile(PROTOCOL), 'registry')).map((r) => r[0]);
+  expect(ids, 'the registry and the anchor list have diverged — a row with no anchor is a guardrail '
+    + 'the protocol promises and no test verifies, and an anchor with no row is a check on a rule that '
+    + 'no longer ships').toEqual(DRIFT_ANCHORS.map((a) => a[0]));
+});
 
 it.each(DRIFT_ANCHORS)('documented rule %s stays in sync with the command that carries it', (gid, token, command) => {
   const rows = registryRows(protocolSection(readFile(PROTOCOL), 'registry'));

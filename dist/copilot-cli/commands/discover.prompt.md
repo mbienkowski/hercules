@@ -43,17 +43,24 @@ Ask 2–3 follow-ups within a group if the answer is thin. Move on only when the
 
 ## Step 3 — Paraphrase, classify complexity & confirm
 
-Paraphrase what you heard in 2–3 sentences so the user can correct any misunderstanding before scoring. Then state:
-> "I'm classifying this as **{tier} complexity** because [one sentence rationale]."  
-> "Do you agree, or would you like to override?"
+Paraphrase what you heard in 2–3 sentences so the user can correct any misunderstanding before scoring. Score against `${PLUGIN_ROOT}/protocols/debate-consensus-protocol.md` § complexity — both signal columns, then the higher of the two — and never restate its numbers here. Then show the judgement together with the choices open to the user:
+> "I'm classifying this as **{tier} complexity** because [one sentence rationale]."
+> "That convenes {n} advisors and allows {r}. Your call:"
+> **keep it** at {tier} (recommended) · **lower it** to {next-lower} · **raise it** to {next-higher} · **answer freely**
+
+At `trivial` there is nothing lower and at `critical` nothing higher, so offer the direction that exists and say the other does not.
+
+This is shown **at every level**, trivial included, so the user always knows what is about to happen; it is never skipped to save a turn. Where the host offers a native selection control the four choices are presented through it, and everywhere else as a plain numbered list carrying the same four.
 
 Wait for the user to confirm or override. On confirmation, record `tier` and `tier_rationale` — Step 7's session-init write persists them (plan mode allows no writes, and the session slug doesn't exist yet). Complexity is scored **once, here**, and read forward by Design and Build.
 
-Every tier continues through Steps 4–7; the tier sets how many advisors run, never which steps.
+Neither this gate nor the roster gate writes state — the session-init write is Step 7. A session that ends between them leaves nothing half-written: say so and restart the phase rather than reconstructing an answer.
+
+Every tier continues through Steps 4–7; the tier sets how many advisors run plus how far they debate, never which steps.
 
 ## Step 4 — Advisor debate
 
-The advisor count scales with the tier (`hercules-reference § Agent scaling`): `trivial` runs none — skip to Step 5; `low` runs a reduced set; `medium` and up run the fuller set. When advisors apply, follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **business-analyst, challenger, simplicity-advocate**; at `low`, 1–2) — choose deliberately different, even opposing, perspectives so they argue, not echo. Productive disagreement beats easy consensus. On the user's go-ahead, run the debate per `${PLUGIN_ROOT}/protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`${PLUGIN_ROOT}/protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
+Advisors and debate depth both scale with the tier — the rubric is `protocols/debate-consensus-protocol.md` § complexity: `trivial` runs none, so skip to Step 5; `low` runs a reduced set that returns findings without cross-examining them; `medium` and up run the fuller set, with a later round only where the one before it left a topic contested. Read every count from the rubric; none is restated here. When advisors apply, follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **business-analyst, challenger, simplicity-advocate**) — choose deliberately different, even opposing, perspectives so they argue, not echo. Productive disagreement beats easy consensus. On the user's go-ahead, run the debate per `${PLUGIN_ROOT}/protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`${PLUGIN_ROOT}/protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
 
 ## Step 5 — Draft & feedback loop
 
@@ -112,7 +119,8 @@ Write the session-init state under `~/.hercules/` (see `hercules-reference § Ma
 repo, atomically (temp + rename): create the registry entry if missing (`directory`, `docs_root`,
 `state_file`) — on an existing entry update only those keys, preserving `repositories`,
 `frozen_hook`, `keep_specs`, and anything else — and write the state file's session
-(`active_session`, `current_phase` `"discover"`, the `tier` + `tier_rationale` from Step 3,
+(`active_session`, `current_phase` `"discover"`, the `tier` + `tier_rationale` as the user last
+set them — Step 3's judgement, or a raise they made at the roster gate, whichever came later —
 `last_updated`). Preserve other entries/sessions.
 
 Append a new row to `docs/INDEX.md` (create if absent) with `tier`, `discover` status,

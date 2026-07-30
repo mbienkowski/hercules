@@ -131,6 +131,23 @@ function dirDiff(a: string, b: string): string[] {
   return [...diffs].sort();
 }
 
+/**
+ * Classify how a committed `dist/` file differs from a fresh render, so the failure names the remedy.
+ *
+ * "stale" and "stray" need different fixes and the old message only offered one: it said "regenerate it
+ * with `make build`", but `make build` does not prune, so following that advice on a stray file leaves
+ * the file in place and the gate still red with no hint which file is at fault.
+ */
+export function classifyDiff(committed: string, rendered: string, paths: readonly string[]): string[] {
+  const inRendered = relFiles(rendered);
+  const inCommitted = relFiles(committed);
+  return paths.map((rel) => {
+    if (!inRendered.has(rel)) return `${rel} — STRAY: present in dist/ but declared by no target; delete it`;
+    if (!inCommitted.has(rel)) return `${rel} — MISSING from dist/; \`make build\` writes it`;
+    return `${rel} — STALE content; \`make build\` refreshes it`;
+  });
+}
+
 /** Render `target` to a temp dir and diff vs committed `dist/<target>`; 0 == in sync. */
 export function checkTarget(target: string, tmpRoot: string, distRoot: string = DIST): number {
   const out = join(tmpRoot, target);
@@ -141,7 +158,12 @@ export function checkTarget(target: string, tmpRoot: string, distRoot: string = 
   } catch {
     return relFiles(out).size === 0 ? 0 : 1;
   }
-  return dirDiff(committed, out).length > 0 ? 1 : 0;
+  const diffs = dirDiff(committed, out);
+  if (diffs.length === 0) return 0;
+  for (const line of classifyDiff(committed, out, diffs)) {
+    process.stderr.write(`  ${target}/${line}\n`);
+  }
+  return 1;
 }
 
 /**
@@ -193,7 +215,9 @@ export function main(argv: readonly string[], distRoot: string = DIST): number {
     }
   }
   if (check && anyStale) {
-    process.stderr.write('dist/ is stale — regenerate it with `make build` and commit the result.\n');
+    process.stderr.write('dist/ does not match a fresh render. Each path above says which fix applies '
+      + '— `make build` refreshes stale and missing files but never prunes, so a STRAY file has to be '
+      + 'deleted by hand. Commit the result.\n');
   }
   return anyStale ? 1 : 0;
 }

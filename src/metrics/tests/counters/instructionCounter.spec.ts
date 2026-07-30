@@ -131,8 +131,8 @@ describe('reference chain measurements against real shipped content', () => {
     expect(countAtomicInstructions(claudeMd)).toBe(39);
   });
 
-  it('the A2A Agent-Injected Core measures 13', () => {
-    expect(countAtomicInstructions(core)).toBe(13);
+  it('the A2A Agent-Injected Core measures 12', () => {
+    expect(countAtomicInstructions(core)).toBe(12);
   });
 
   it('build.md (the heaviest command) measures 83', () => {

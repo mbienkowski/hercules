@@ -136,11 +136,6 @@ export interface Waiver {
   readonly followUp: string;
 }
 
-export const WAIVERS: readonly Waiver[] = [
-  {
-    chain: 'orchestrator (per command): commands/build.md',
-    measuredAt: 160,
-    reason: "ceiling 150, over by 10 — trim build.md's own instruction load",
-    followUp: 'migration spec § What this sets up: "Trimming build.md to retire the orchestrator waiver"',
-  },
-];
+// Every chain measures under HARD_GATE, so nothing is waived. A chain that goes over earns an
+// entry here carrying its measured value, and the entry goes once the chain comes back under.
+export const WAIVERS: readonly Waiver[] = [];

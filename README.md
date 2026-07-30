@@ -300,8 +300,9 @@ A reset link works once, expires after 30 minutes, and never reveals whether an 
 
 ## How it works
 
-Every feature runs the **same four phases** — what scales is the **number of advisors**: a typo runs
-none; a payment migration convenes the full council. Effort is sized to the change.
+Every feature runs the **same four phases**. What scales is the **review**: how many advisors are
+convened, and how far they argue. A typo runs none; a payment migration convenes the full council and
+lets it disagree. Effort is sized to the change.
 
 1. **Discover — WHAT** (the heaviest phase) — pins the real need, who benefits, scope, and what "done"
    means. Output: a permanent `*-business-requirements.md`, in plain business language.
@@ -322,16 +323,18 @@ none; a payment migration convenes the full council. Effort is sized to the chan
 **Complexity scoring (so depth isn't guesswork).** Discover scores the feature on *effort* and
 *blast-radius* (how many users or systems a bug could harm) and takes the higher:
 
-| Tier | Effort signals | Blast-radius signals | Advisors |
-|---|---|---|---|
-| trivial | typo, config tweak | no user-visible change | 0 |
-| low | single-service change | one bounded flow affected | 1–2 |
-| medium | cross-service or new API | multiple flows affected | 1–3 |
-| high | auth, payments, migration | data at risk, deletion, prod config | 2–4 |
-| critical | multi-service migration | user data, security primitives, money | 3–6 |
+| Tier | Effort signals | Blast-radius signals | Advisors | Rounds |
+|---|---|---|---|---|
+| trivial | typo, config tweak | no user-visible change | 0 | 0 |
+| low | single-service change | one bounded flow affected | 2 | 1 |
+| medium | cross-service or new API | multiple flows affected | 2–3 | 1–2 |
+| high | auth, payments, migration | data at risk, deletion, prod config | 3–5 | 1–2 |
+| critical | multi-service migration | user data, security primitives, money | 4–6 | 2–3 + fresh eyes |
 
-- **Only `trivial` skips the board** — every other tier recommends it (you consent or skip), scaled to the advisor count above.
-- **High-risk surfaces are floored at `high`** — auth, secrets, money, data migration, deletion, production config, or concurrency, however small the diff.
+- **Only `trivial` skips the board** — every other tier proposes one, sized by the table above, and you decide it
+  advisor by advisor: accept the proposal, drop any of them, or name someone else. Nothing spawns before you answer.
+- **The rounds column is a ceiling, not a schedule** — a second round runs only where the first left advisors disagreeing. A debate that converges ends there. `critical` is the exception: it always runs its second round and a fresh-eyes panel, because that is where a missed problem is least recoverable.
+- **High-risk surfaces are floored at `high`** — auth, secrets, money, data migration, deletion, production config, concurrency, or personal data, however small the diff. Those are examples, not a closed list: your `code-of-conduct.md` can add to them, and Hercules floors anything else it judges equally consequential — and says so when it does.
 - **You stay in control** — you see the score and can override it; advisor dissent is input you weigh, never an automatic re-score.
 
 **Quality has numbers, not adjectives:**
@@ -361,8 +364,8 @@ later.
   execute against a spec the human approved — not against a guess. The structure is what makes
   the speed reliable.
 - **All four phases, every time — depth scales, not the phases.** Every feature runs Discover →
-  Design → Build → Ship and produces the same artifacts; what changes with complexity is the
-  number of advisors (a trivial task runs none). Not because ceremony is the goal, but because
+  Design → Build → Ship and produces the same artifacts; what changes with complexity is
+  the number of advisors and how far they debate (a trivial task runs neither). Not because ceremony is the goal, but because
   even a one-line change in production code has a business reason. That reason belongs in
   `business-requirements.md` so six months from now anyone reading the history knows *why*
   something changed, not just what. The trivial path is fast: fewer advisors (the independent reviewer is offered — your call), same traceability.
@@ -537,15 +540,16 @@ You can audit exactly what runs on your machine in `dist/<your-ecosystem>/` (e.g
 ## Why sub-agents?
 
 A single model in a single pass has predictable failure modes. Specialist advisors counter each — and
-Hercules always **asks before running them** (they cost tokens and time, so it scales them to
-complexity and adds none for trivial work).
+Hercules always **asks before running them** (they cost tokens and time, so it scales both their
+number and their rounds to complexity, and adds none for trivial work).
 
 - **Agents echo each other, and models are sycophantic.** Research shows AI models affirm users'
   actions about 50% more often than humans do — even for actions human consensus disapproves of
   ([Cheng et al., Science 2026](https://www.science.org/doi/10.1126/science.aec8352)). The *structural* counter
-  is a **blind round**: each advisor forms its position independently, before seeing the others — then a
-  consensus round, so agreement has to be earned, not echoed. Advisors are briefed with deliberately
-  opposing agendas (e.g. a Cynical Reviewer vs. a Simplicity Advocate), because good decisions come
+  is a **blind round**: each advisor forms its position independently, before seeing the others. Where
+  they disagree, a further round makes them argue it out, so agreement has to be earned, not echoed —
+  and where they already agree, there is nothing to argue and the debate ends. Advisors are briefed with deliberately
+  opposing agendas (e.g. a Challenger vs. a Lead Architect), because good decisions come
   from tension.
 - **One agent can only follow so many instructions.** At 150 instructions the best model followed ~96%;
   at 500, ~68.9% — the drop is non-linear and invisible (no error, no warning)
