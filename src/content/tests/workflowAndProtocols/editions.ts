@@ -1,4 +1,5 @@
 import { existsSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { expect } from 'vitest';
 
@@ -18,6 +19,19 @@ import { repoRoot } from '../../../commons/support/repo';
 export const TREES = ['claude-code', 'opencode', 'cursor', 'copilot-cli', 'gemini-cli', 'grok-build'] as const;
 
 export type Tree = (typeof TREES)[number];
+
+/**
+ * The editions actually present under `dist/`.
+ *
+ * `TREES` is a hand-written literal, and a hand-written literal can lose an entry: deleting
+ * `gemini-cli` from it left typecheck, lint and the whole suite green while sixteen per-edition guards
+ * simply stopped running. Nothing failed, because every guard iterated the list rather than the
+ * product. `editions.spec.ts` reconciles the two so an omission fails instead of shrinking the run.
+ */
+export function editionsOnDisk(): string[] {
+  return readdirSync(join(repoRoot, 'dist'), { withFileTypes: true })
+    .filter((e) => e.isDirectory()).map((e) => e.name).sort();
+}
 
 /** The always-loaded persona, named differently per host. */
 export const PERSONA_PER_TREE: Record<Tree, string> = {

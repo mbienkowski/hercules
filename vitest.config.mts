@@ -6,7 +6,13 @@ export default defineConfig({
   test: {
     include: ['src/{builder,release,metrics,content}/tests/**/*.spec.ts'],
     // dist/ is committed build output and node_modules/ is vendored; neither holds our specs.
-    exclude: ['node_modules/**', 'dist/**', '.ts-out/**'],
+    //
+    // The smoke specs launch the real host CLIs, so their runtime tracks network, npm cache and
+    // machine load rather than the code under test — one was measured timing out at 48s on this
+    // machine. A flaky spec in the default run makes every single-run result untrustworthy, and it
+    // already produced a false "the guard caught it" verdict during a mutation audit of this repo.
+    // They keep their own gate: `make test-smoke` names all six explicitly and rebuilds first.
+    exclude: ['node_modules/**', 'dist/**', '.ts-out/**', 'src/builder/tests/smoke/**'],
     // Scopes spec discovery to this directory without changing the process working directory —
     // specs resolve repo paths from cwd via src/commons/support/repo.ts.
     root: import.meta.dirname,

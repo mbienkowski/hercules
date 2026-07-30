@@ -25,32 +25,59 @@ function consentSection(): string {
   return end < 0 ? rest : rest.slice(0, end);
 }
 
+/**
+ * Gate 1 is read on EVERY edition, not on the gated one.
+ *
+ * Reading only `dist/claude-code` left a whole class open: a `${target:claude}` / `${target:default}`
+ * split that keeps claude-code correct and gives the other five "At `medium` and above this is shown;
+ * below it the tier is recorded and the phase proceeds without asking" shipped with the suite green and
+ * a verified six-file dist diff. The gate is a promise to the user of whichever host they run.
+ */
+const discoverOn = (tree: (typeof TREES)[number]): string => readFile(`dist/${tree}/${commandPath(tree, 'discover')}`).toLowerCase();
+
 describe('gate 1 — how demanding the work is', () => {
-  it('offers keep, lower, raise and a free answer', () => {
-    const lower = readFile(DISCOVER).toLowerCase();
+  it.each(TREES)('%s offers keep, lower, raise and a free answer', (tree) => {
+    const lower = discoverOn(tree);
     for (const choice of ['keep it', 'lower it', 'raise it']) {
-      expect(lower, `the judgement gate must offer "${choice}" — a score shown without its choices `
-        + 'is a notification, not a decision').toContain(choice);
+      expect(lower, `dist/${tree}: the judgement gate must offer "${choice}" — a score shown without `
+        + 'its choices is a notification, not a decision').toContain(choice);
     }
-    expect(lower, 'the user must be able to answer outside the offered choices').toContain('answer freely');
+    expect(lower, `dist/${tree}: the user must be able to answer outside the offered choices`)
+      .toContain('answer freely');
   });
 
-  it('is shown at every level, trivial included', () => {
-    const lower = readFile(DISCOVER).toLowerCase();
-    expect(lower, 'skipping the gate on simple work is the optimisation that makes it invisible')
-      .toMatch(/at every level\W{0,6}trivial included/);
-    expect(lower, 'a qualifier after "at every level" turns the universal gate into a conditional one '
-      + 'while keeping the words that promise it is universal')
+  it.each(TREES)('%s shows it at every level, trivial included', (tree) => {
+    const lower = discoverOn(tree);
+    expect(lower, `dist/${tree}: skipping the gate on simple work is the optimisation that makes it `
+      + 'invisible').toMatch(/at every level\W{0,6}trivial included/);
+    expect(lower, `dist/${tree}: a qualifier after "at every level" turns the universal gate into a `
+      + 'conditional one while keeping the words that promise it is universal')
       .not.toMatch(/at every level\s+(above|from|for|except)/);
   });
 
-  it('waits for the answer instead of proceeding past it', () => {
-    const lower = readFile(DISCOVER).toLowerCase();
-    expect(lower, 'the wait is the gate — stating the choices and continuing satisfies every phrase '
-      + 'while removing the decision').toContain('wait for the user to confirm or override');
-    for (const bypass of ['without pausing', 'without waiting', 'then continue', 'proceed to step 4 without']) {
-      expect(lower, `"${bypass}" turns the gate into a notification`).not.toContain(bypass);
-    }
+  /**
+   * The wait is asserted as a whole sentence and then defended against a tier-conditioned exemption.
+   *
+   * A list of banned phrases is defeated by synonym, and was: "If no answer arrives in the same turn,
+   * keep the recommended tier and move on to Step 4." and "at `trivial` and `low`, state the judgement
+   * and move straight on to Step 4" both survived a four-phrase blocklist.
+   */
+  it.each(TREES)('%s waits for the answer instead of proceeding past it', (tree) => {
+    const lower = discoverOn(tree);
+    expect(lower, `dist/${tree}: the wait is the gate — stating the choices and continuing satisfies `
+      + 'every phrase while removing the decision').toContain('wait for the user to confirm or override');
+
+    const bypass = [
+      { re: /\b(?:move|carry|proceed|continue|go)\b[^.]{0,40}\bon(?:ward)?\b[^.]{0,30}\bstep 4\b/, label: 'moving on to Step 4 regardless' },
+      { re: /\bno answer\b[^.]{0,60}\b(?:keep|assume|default|proceed|continue)\b/, label: 'treating no answer as an answer' },
+      { re: /\b(?:at|below|above|from)\s+`?(?:trivial|low|medium|high|critical)`?[^.]{0,60}\b(?:proceed|silently|without asking|move straight)\b/, label: 'a tier-conditioned exemption' },
+      { re: /\bwithout (?:pausing|waiting|asking)\b/, label: 'an explicit no-wait' },
+      { re: /\brecorded silently\b/, label: 'recording the judgement silently' },
+    ];
+    const offenders = bypass.filter(({ re }) => re.test(lower)).map(({ label }) => label);
+    expect(offenders, `dist/${tree}: the wait is qualified away by ${offenders.join('; ')}. The gate is `
+      + 'the pause, not the sentence describing it — every one of these keeps the pinned wording above '
+      + 'and removes the decision it promises.').toEqual([]);
   });
 
   it('keeps its confirm-or-override wording in Discover and nowhere else', () => {
@@ -132,11 +159,20 @@ describe('a raised tier reaches the state write', () => {
       .toMatch(/as the user last\s+set them/);
     expect(lower, `dist/${tree}: "from step 3" pins the write to the first judgement and drops a `
       + 'later raise').not.toContain('from step 3');
-    for (const denial of ['the roster gate never alters', 'never altered by the roster gate',
-      'the roster gate cannot change']) {
-      expect(lower, `dist/${tree}: "${denial}" re-opens the exact defect the write clause closed`)
-        .not.toContain(denial);
-    }
+
+    // A blocklist of three phrasings was defeated by a fourth: "A tier shown at the roster gate is
+    // informational only and does not alter what Step 7 writes." So the CLAIM is matched, not its
+    // wording — anything saying the roster gate does not reach the write.
+    const denials = [
+      /\broster gate\b[^.]{0,80}?\b(?:never|not|cannot|does not|doesn't)\b[^.]{0,40}?\b(?:alter|change|affect|reach|update|write)/,
+      /\b(?:never|not)\b[^.]{0,40}?\b(?:altered|changed|affected)\b[^.]{0,30}?\bby the roster gate\b/,
+      /\broster gate\b[^.]{0,40}?\b(?:informational|advisory|display only)\b/,
+    ];
+    const found = denials.filter((re) => re.test(lower)).map((re) => re.source.slice(0, 40));
+    expect(found, `dist/${tree}: a sentence denies that the roster gate reaches the state write `
+      + `(${found.join('; ')}). A tier the user raises there would then be silently discarded, and `
+      + 'Design and Build would read the superseded value — the exact defect the write clause closed.')
+      .toEqual([]);
   });
 });
 

@@ -285,6 +285,40 @@ describe('the scaling model', () => {
       .toEqual(rubric.map((m) => ({ tier: m.tier, advisors: m.advisors, rounds: m.rounds })));
   });
 
+  /**
+   * The README's four explanatory bullets, pinned as whole sentences.
+   *
+   * Only the README table was guarded, so the prose that actually explains the model to a newcomer was
+   * free: inverting "The rounds column is a ceiling, not a schedule" to "The rounds column is a
+   * schedule — every round in the range runs" left the whole suite green. The README is named in the
+   * requirements as a surface that must agree, and it is the only one a user reads before installing.
+   */
+  it.each([
+    ['only trivial skips the board', '**only `trivial` skips the board** — every other tier proposes '
+      + 'one, sized by the table above, and you decide it advisor by advisor: accept the proposal, drop '
+      + 'any of them, or name someone else. nothing spawns before you answer.'],
+    ['rounds are a ceiling', '**the rounds column is a ceiling, not a schedule** — a second round runs '
+      + 'only where the first left advisors disagreeing. a debate that converges ends there. `critical` '
+      + 'is the exception: it always runs its second round and a fresh-eyes panel, because that is '
+      + 'where a missed problem is least recoverable.'],
+    ['the floor lands at high', '**high-risk surfaces are floored at `high`** — auth, secrets, money, '
+      + 'data migration, deletion, production config, concurrency, or personal data, however small the '
+      + 'diff. those are examples, not a closed list: your `code-of-conduct.md` can add to them, and '
+      + 'hercules floors anything else it judges equally consequential — and says so when it does.'],
+    ['the user stays in control', '**you stay in control** — you see the score and can override it; '
+      + 'advisor dissent is input you weigh, never an automatic re-score.'],
+  ])('states the published promise about %s exactly', (_topic, promise) => {
+    const bullets = readFile('README.md').split('\n\n')
+      .flatMap((para) => para.split(/\n(?=- \*\*)/))
+      .filter((b) => b.trimStart().startsWith('- **'))
+      .map((b) => b.replace(/^\s*-\s*/, '').replace(/\s+/g, ' ').trim().toLowerCase());
+    expect(bullets.length, 'no README bullets parsed — a guard that reads nothing reports success')
+      .toBeGreaterThan(3);
+    expect(bullets, 'the README explains the model to someone deciding whether to trust it, so it may '
+      + 'not contradict the rubric. This bullet must read exactly as the promise — a reworded or '
+      + 'inverted one ships a different product than the code runs.').toContain(promise);
+  });
+
   it('orders the carrier tie-break: standing, then completeness, then role name', () => {
     const carrying = section(readFile(DEBATE_PROTOCOL), '## Carrying a position', DEBATE_PROTOCOL)
       .toLowerCase();

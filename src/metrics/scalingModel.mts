@@ -38,13 +38,25 @@ function isTier(value: string): value is Tier {
 }
 
 /**
- * A named section, ending at the next heading of the same or higher level. Throws rather than
- * returning empty: a guard that silently reads nothing reports success while the surface drifts.
+ * A named section, ending at the next heading of the same or higher level.
+ *
+ * Throws when the heading is missing — a guard that silently reads nothing reports success while the
+ * surface it polices drifts — and throws when it appears more than once. Returning the first match is
+ * not a harmless simplification: a second section under the same heading, carrying a contradicting
+ * rule or a rubric row of its own, is invisible to every assertion made through this function, and a
+ * mutation doing exactly that survived a full suite. The duplicate is the defect, so it is reported.
  */
 export function section(md: string, heading: string, source: string): string {
-  const at = md.search(new RegExp(`^${heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'm'));
-  if (at < 0) throw new Error(`${source}: no "${heading}" section — it was renamed or removed`);
-  const rest = md.slice(at + heading.length);
+  const anchored = new RegExp(`^${heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'gm');
+  const hits = [...md.matchAll(anchored)];
+  const first = hits[0];
+  if (first?.index === undefined) throw new Error(`${source}: no "${heading}" section — it was renamed or removed`);
+  if (hits.length > 1) {
+    throw new Error(`${source}: "${heading}" appears ${hits.length} times — a rule is read from the `
+      + 'first occurrence, so a second section under the same heading changes behaviour while every '
+      + 'assertion against it keeps passing. State the section once.');
+  }
+  const rest = md.slice(first.index + heading.length);
   const end = rest.search(/\n#{1,2} /);
   return end < 0 ? rest : rest.slice(0, end);
 }

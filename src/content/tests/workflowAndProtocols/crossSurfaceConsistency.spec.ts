@@ -26,12 +26,44 @@ import {
 
 const TIERS = TIER_ORDER.join('|');
 
-/** A tier named on the same line as a count of advisors or rounds. */
-const TIER_TOKEN = new RegExp(`\\b(?:${TIERS})\\b`, 'i');
-const COUNT_OF_REVIEWERS = /\b\d+\s*(?:[–—-]\s*\d+\s*)?(?:advisors?|rounds?)\b|\b(?:advisors?|rounds?)\b[^.\n]{0,12}?\b\d/i;
+/**
+ * A tier referred to by name OR obliquely. Requiring the literal token let "The most demanding tier
+ * runs 2 advisors across 1 round." ship to all six editions with the suite green.
+ */
+const TIER_REFERENCE = new RegExp(
+  `\\b(?:${TIERS})\\b|\\b(?:most|least) demanding\\b|\\b(?:highest|lowest|lightest|simplest) tier\\b`, 'i',
+);
+
+/**
+ * A count of advisors or rounds, in digits or in words. Requiring a digit let "convenes two advisors
+ * for one round" ship green — prose spells small numbers out, which is exactly how a restatement gets
+ * written by hand.
+ */
+const NUMERAL = '(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|single)';
+const COUNT_OF_REVIEWERS = new RegExp(
+  `\\b${NUMERAL}(?:\\s*(?:[–—-]|to)\\s*${NUMERAL})?\\s+(?:advisors?|rounds?)\\b`
+  + `|\\b(?:advisors?|rounds?)\\s*[:=]?\\s+${NUMERAL}\\b`, 'i',
+);
 
 /** Where the rubric's numbers are allowed to appear, and nowhere else. */
-const MAY_STATE_THE_NUMBERS = [RUBRIC, 'README.md'];
+const MAY_STATE_THE_NUMBERS = [RUBRIC];
+
+/**
+ * Counts that are NOT the per-tier advisor model, each justified and each asserted to still be found.
+ *
+ * A loosened regex rots silently; an exemption listed as data does not. Every entry here must still
+ * match something, so an exemption that stops applying fails the suite instead of quietly widening
+ * the hole it was cut for.
+ */
+const SANCTIONED_COUNTS: readonly { file: string; phrase: string; why: string }[] = [
+  {
+    file: 'skills/hercules-reference/SKILL.md',
+    phrase: 'three rounds',
+    why: 'the independent-review escalation bound. Reviewers at the coverage and traceability gates are '
+      + 'a separate category from advisors in a debate (§ Independent review), so this count is not the '
+      + 'rubric\'s and cannot drift from it.',
+  },
+];
 
 /**
  * Every shipped file as addressable lines.
@@ -50,34 +82,89 @@ function sweep(tree: Tree): { path: string; lines: string[] }[] {
   });
 }
 
+/**
+ * Prose units for claims that span a sentence rather than a line.
+ *
+ * A physical line is the wrong window: "At `high` the panel is sized as follows:" on one line and
+ * "advisors 9, and rounds 4." on the next defeated a line-scoped sweep while the identical claim on
+ * one line was caught. A paragraph is the right window for prose, with two corrections — fenced blocks
+ * are dropped (a JSON state example is not prose about the model, and its `"round": 1` sits beside an
+ * unrelated `"tier"` field), and each table row is its own unit (a whole guardrail registry is one
+ * paragraph, which made one rule's TDD round count look adjacent to another rule's tier).
+ */
+function proseUnits(text: string): string[] {
+  const out: string[] = [];
+  for (const para of text.replace(/```[\s\S]*?```/g, '').split('\n\n')) {
+    const lines = para.split('\n');
+    out.push(...lines.filter((l) => l.trimStart().startsWith('|')));
+    out.push(lines.filter((l) => !l.trimStart().startsWith('|')).join(' '));
+  }
+  return out.filter((u) => u.trim() !== '');
+}
+
 describe('the rubric owns the numbers, and no other surface restates them', () => {
   /**
    * A detector that matches nothing reports success, which is the failure this whole spec exists to
-   * remove — so the rule is proved against a synthetic restatement before it is trusted on real files.
+   * remove — so every branch is proved against a synthetic restatement before it is trusted.
+   *
+   * One fixture is not enough: an earlier version had a single case that exercised only the
+   * digits-plus-advisors branch, so deleting `rounds?` from the pattern left this test green while the
+   * sweep went blind to every round-count restatement.
    */
-  it('recognises a restatement when it sees one', () => {
-    const restatement = 'At `high` the orchestrator convenes 2 advisors for a single round.';
-    expect(TIER_TOKEN.test(restatement) && COUNT_OF_REVIEWERS.test(restatement),
-      'the detector no longer fires on a line that pairs a tier with an advisor count, so the sweep '
-      + 'below passes over every edition while proving nothing').toBe(true);
-    const prose = 'At `trivial` nobody is convened, so the phase proceeds directly.';
-    expect(COUNT_OF_REVIEWERS.test(prose), 'the detector must not fire on tier prose that carries no '
-      + 'figure — describing depth in words stays allowed everywhere').toBe(false);
+  it.each([
+    ['literal tier, digits', 'At `high` the orchestrator convenes 2 advisors for a single round.'],
+    ['literal tier, words', 'At `critical` the orchestrator convenes two advisors for one round.'],
+    ['oblique tier, digits', 'The most demanding tier runs 2 advisors across 1 round.'],
+    ['range form', 'The `medium` tier convenes 2–3 advisors.'],
+    ['round count alone', 'At `low` the debate is bounded to 1 round.'],
+    ['trailing figure', 'For `high` work: advisors 4, rounds 2.'],
+  ])('recognises a restatement written as %s', (_shape, restatement) => {
+    expect(TIER_REFERENCE.test(restatement), 'the tier half of the detector missed this phrasing, so '
+      + 'the sweep below passes over every edition while proving nothing').toBe(true);
+    expect(COUNT_OF_REVIEWERS.test(restatement), 'the count half of the detector missed this phrasing')
+      .toBe(true);
+  });
+
+  it.each([
+    'At `trivial` nobody is convened, so the phase proceeds directly.',
+    'At most 3 implementation rounds per spec, persisted; after round 3 the user decides.',
+    'A contested topic carries one advisor per position, including the position that found nothing.',
+  ])('does not fire on %s', (allowed) => {
+    expect(TIER_REFERENCE.test(allowed) && COUNT_OF_REVIEWERS.test(allowed),
+      'this is legitimate prose — depth described without a figure, the TDD round limit, or a rule '
+      + 'about positions rather than tiers. Flagging it would make the sweep unusable and invite it '
+      + 'to be switched off.').toBe(false);
   });
 
   it.each(TREES)('%s states an advisor or round count only in the rubric', (tree) => {
     const offenders: string[] = [];
     for (const { path, lines } of sweep(tree)) {
       if (MAY_STATE_THE_NUMBERS.some((allowed) => path.endsWith(allowed))) continue;
-      lines.forEach((line, i) => {
-        if (TIER_TOKEN.test(line) && COUNT_OF_REVIEWERS.test(line)) offenders.push(`${path}:${i + 1}  ${line.trim()}`);
-      });
+      for (const unit of proseUnits(lines.join('\n'))) {
+        const hit = COUNT_OF_REVIEWERS.exec(unit);
+        if (hit === null || !TIER_REFERENCE.test(unit)) continue;
+        const phrase = hit[0].trim().toLowerCase();
+        if (SANCTIONED_COUNTS.some((s) => path.endsWith(s.file) && phrase.includes(s.phrase))) continue;
+        offenders.push(`${path}  "${phrase}"  in: ${unit.trim().slice(0, 160)}`);
+      }
     }
-    expect(offenders, `dist/${tree}: these lines pair a tier with a review count outside the rubric:\n`
-      + `  ${offenders.join('\n  ')}\n\nThe rubric is the one table the model is read from. A second `
-      + 'copy of a number anywhere else is drift the moment either changes, and it is drift no reader '
-      + 'can resolve — they have two answers and no way to tell which ships. Cite the rubric instead, '
-      + 'or describe the depth in words that carry no figure.').toEqual([]);
+    expect(offenders, `dist/${tree}: these passages pair a tier with a review count outside the `
+      + `rubric:\n  ${offenders.join('\n  ')}\n\nThe rubric is the one table the model is read from. A `
+      + 'second copy of a number anywhere else is drift the moment either changes, and it is drift no '
+      + 'reader can resolve — they hold two answers with no way to tell which ships. Cite the rubric '
+      + 'instead, or describe the depth in words that carry no figure. If the count genuinely is not '
+      + 'the per-tier advisor model, add it to SANCTIONED_COUNTS with the reason.').toEqual([]);
+  });
+
+  /**
+   * An exemption that no longer applies is a hole nobody is watching, so each is required to still
+   * match. This is what keeps SANCTIONED_COUNTS from becoming the place drift hides.
+   */
+  it.each(SANCTIONED_COUNTS)('the sanctioned count in $file is still there', ({ file, phrase }) => {
+    const text = distFile('claude-code', file);
+    expect(text.toLowerCase(), `"${phrase}" is no longer in ${file}, so its exemption covers nothing `
+      + 'and only widens what the sweep ignores. Remove the entry from SANCTIONED_COUNTS.')
+      .toContain(phrase);
   });
 
   it.each(TREES)('%s carries the rubric itself, so the citation resolves', (tree) => {
@@ -132,14 +219,64 @@ describe('carried material is labelled exactly one way', () => {
       + "form can be closed early by bracket characters in the project's own files.").toEqual([]);
   });
 
+  /**
+   * The dangerous rival is not the exotic shape, it is the SAME shape.
+   *
+   * The sweep above forbids angle brackets, so `[SOURCE: file § section] … [/SOURCE]` — a bracket
+   * marker indistinguishable in form from the real convention — shipped to all six editions green. A
+   * delegate then holds two valid wrappers and no rule saying which applies. So the marker vocabulary
+   * itself is closed: every bracket marker naming a source must be ATTACHMENT.
+   */
+  it.each(TREES)('%s uses one marker word for carried material, not two', (tree) => {
+    const found = new Map<string, string[]>();
+    for (const { path, lines } of sweep(tree)) {
+      // A content label carries a colon and a value: `[ATTACHMENT: file § section]`, closed by
+      // `[/ATTACHMENT]`. The A2A role tags — `[ROLE]`, `[SECURITY]`, `[ARCHITECT]` — are a separate
+      // vocabulary that labels a speaker, never carried material, and take no colon. Matching a bare
+      // `[WORD]` swept all sixteen of them up as rivals.
+      for (const m of lines.join('\n').matchAll(/\[([A-Z][A-Z_-]{2,}):|\[\/([A-Z][A-Z_-]{2,})\]/g)) {
+        const word = (m[1] ?? m[2]) as string;
+        found.set(word, [...new Set([...(found.get(word) ?? []), path])]);
+      }
+    }
+    expect(found.has('ATTACHMENT'), `dist/${tree}: the ATTACHMENT marker is gone — carried material `
+      + 'would arrive with nothing distinguishing it from the orchestrator\'s own instructions').toBe(true);
+    const rivals = [...found].filter(([w]) => w !== 'ATTACHMENT')
+      .map(([w, paths]) => `[${w}: …] in ${paths.join(', ')}`);
+    expect(rivals, `dist/${tree}: these bracket markers rival ATTACHMENT:\n  ${rivals.join('\n  ')}\n\n`
+      + 'One convention is the requirement. Two means a delegate recognises whichever it happens to '
+      + 'know and treats the other as literal text, and the orchestrator cannot tell which happened.')
+      .toEqual([]);
+  });
+
+  it.each(TREES)('%s never asks a delegate to quote carried material back', (tree) => {
+    const offenders: string[] = [];
+    for (const { path, lines } of sweep(tree)) {
+      for (const unit of proseUnits(lines.join('\n'))) {
+        if (/\b(quote|repeat|echo|reproduce)\b[^.]{0,60}\b(attachment|slice|carried|excerpt)\b/i.test(unit)
+          || /\b(attachment|slice|carried material)\b[^.]{0,40}\bback\b[^.]{0,30}\b(in full|verbatim)\b/i.test(unit)) {
+          offenders.push(`${path}  ${unit.trim().slice(0, 150)}`);
+        }
+      }
+    }
+    expect(offenders, `dist/${tree}: these passages ask a delegate to echo what it was given:\n  `
+      + `${offenders.join('\n  ')}\n\nCarried material is input to act on, not output to return. Quoting `
+      + 'it back doubles the token cost the slice exists to avoid and buries the delegate\'s own finding.')
+      .toEqual([]);
+  });
+
   it.each(TREES)('%s names the file a slice came from', (tree) => {
     const packet = distFile(tree, 'protocols/workflow-protocol.md');
     const labels = [...packet.matchAll(/\[ATTACHMENT:([^\]]*)\]/g)].map((m) => (m[1] ?? '').trim());
     expect(labels.length, `dist/${tree}: the packet carries no ATTACHMENT label — unlabelled material `
       + 'is indistinguishable from the orchestrator\'s own instructions').toBeGreaterThan(0);
-    const unnamed = labels.filter((l) => !/\.md|\{artifact\}|\{file\}|label/.test(l));
-    expect(unnamed, `dist/${tree}: these labels name no source file: ${unnamed.join(' | ')} — an agent `
-      + 'told a rule binds it cannot tell which document to reread when the slice runs out').toEqual([]);
+    // A label must name a file AND the section within it. Accepting the literal word "label" let
+    // `[ATTACHMENT: label]` — the Core's own placeholder — count as naming a source, which it does not.
+    const unnamed = labels.filter((l) => !(/\.md\b|\{artifact\}|\{file\}/.test(l) && l.includes('§')));
+    expect(unnamed, `dist/${tree}: these labels do not name a source file and section: `
+      + `${unnamed.map((l) => `[ATTACHMENT:${l}]`).join(' | ')} — an agent told that a rule binds it `
+      + 'cannot tell which document to reread when the slice runs out, and cannot tell the '
+      + "orchestrator's own words from carried material").toEqual([]);
   });
 });
 
@@ -167,26 +304,139 @@ describe('every command that convenes advisors also asks the user first', () => 
   });
 });
 
+/**
+ * Claims no shipped surface may make, swept over everything rather than over one file's sections.
+ *
+ * The debate protocol's own no-sentence-may checks only read the debate protocol, so the recorded
+ * survivor from an earlier pass was reproduced simply by relocating it one file: a lone-advisor
+ * permission in `design.md` shipped to all six editions with the suite green. The same applies to the
+ * rules-delivery rule — reversing it from the persona or from an unpinned skill section survived,
+ * because each guard read only the surface it was written for. A claim that is forbidden is forbidden
+ * everywhere, so it is checked everywhere.
+ */
+const NO_SURFACE_MAY: readonly { claim: RegExp; label: string; why: string }[] = [
+  {
+    label: 'let one advisor hold a debate',
+    // A PERMISSIVE marker is required, not merely the words together: the correct rule states the
+    // same nouns negatively ("A single advisor is a review, not a debate"), and a rule about carrying
+    // "one advisor per position" is unrelated. Both matched an earlier, looser version of this.
+    claim: /\b(?:lone|single|one)\s+advisor\b[^.]{0,90}?\b(?:may|can|counts? as|is acceptable|is permitted|is enough|suffices|runs? both|alone is)\b/i,
+    why: 'a debate needs two advisors and two rounds. One advisor reviewing is a review, and calling '
+      + 'it a debate buys the appearance of scrutiny without the substance',
+  },
+  {
+    label: 'tell an advisor to read the project rules in full',
+    claim: /\badvisor\b[^.]{0,90}?\b(?:reads?|opens?|consults?)\b[^.]{0,50}?\b(?:in full|whole document|entire (?:file|document))\b|\b(?:reads?|opens?|consults?)\b[^.]{0,40}?\b(?:in full|whole document|entire (?:file|document))\b[^.]{0,60}?\b(?:besides|as well|anyway|in addition)\b/i,
+    why: 'the binding slice travels in the delegation packet precisely so no advisor spends its budget '
+      + 'on the whole document. A sentence restoring the full read undoes the change outright',
+  },
+  {
+    label: 'make every agent read the project rules for itself',
+    claim: /\bevery\s+(?:agent|advisor)\b[^.]{0,60}?\breads?\b[^.]{0,60}?\b(?:in full|for itself|itself)\b|\beach\s+agent\s+reads\b/i,
+    why: 'the persona ships on every turn of every edition, so a sentence there outranks the corrected '
+      + 'wording everywhere else — and an advisor was measured acting on exactly this belief',
+  },
+  {
+    label: 'give the file precedence over the slice it was handed',
+    claim: /\b(?:file|document)\b[^.]{0,60}\b(?:outranks|takes precedence over|overrides)\b[^.]{0,40}\bslice\b/i,
+    why: 'the slice is what binds. A file that outranks it sends the agent to read the document anyway, '
+      + 'and two sources of truth means the agent picks one',
+  },
+  {
+    label: 'spawn advisors before the user has answered',
+    claim: /\bspawn\b[^.]{0,70}?\b(?:directly|immediately|alongside this|without waiting|without asking)\b|\broster is fixed\b|\bspawn\b[^.]{0,40}?\band (?:then )?(?:report|tell)\b/i,
+    why: 'the roster gate is a pause, and a command that spawns then reports has already spent the '
+      + "user's review. This is the one thing the gate exists to prevent",
+  },
+  {
+    label: 'make the risk floor optional',
+    claim: /\bfloor\b[^.]{0,40}\b(?:is\s+)?(?:advisory|optional|a suggestion|discretionary)\b/i,
+    why: 'the floor is what raises a one-line change touching auth, money or deletion. Advisory, it '
+      + 'stops protecting the case it exists for',
+  },
+];
+
+describe('no shipped surface makes a forbidden claim', () => {
+  /** Each pattern is proved to fire before it is trusted, so none can go quietly vacuous. */
+  it.each([
+    ['let one advisor hold a debate', 'Where the consent flow leaves a single advisor, that advisor runs both rounds on its own.'],
+    ['let one advisor hold a debate', "A lone advisor's review counts as a full debate."],
+    ['let one advisor hold a debate', 'Where a single advisor is convened its round counts as a full debate.'],
+    ['tell an advisor to read the project rules in full', 'Every advisor reads this file in full for itself before acting.'],
+    ['tell an advisor to read the project rules in full', 'Read the slice, and read the whole document besides to confirm it left nothing out.'],
+    ['make every agent read the project rules for itself', 'All project variance lives in a per-project code-of-conduct.md each agent reads.'],
+    ['give the file precedence over the slice it was handed', 'Where both exist the file outranks the slice you were given.'],
+    ['make the risk floor optional', 'The risk floor in the rubric is advisory: apply it only when the change is also large.'],
+    ['spawn advisors before the user has answered', '(at `low` the roster is fixed, so spawn it directly and report the roster afterwards)'],
+    ['spawn advisors before the user has answered', '(skipped at `low`, where the roster is fixed: spawn it and tell the user who ran)'],
+  ])('recognises an attempt to %s', (label, sentence) => {
+    const rule = NO_SURFACE_MAY.find((r) => r.label === label);
+    expect(rule, `no rule labelled "${label}" — the fixture and the rule set have diverged`).toBeTruthy();
+    expect((rule as { claim: RegExp }).claim.test(sentence), 'the pattern no longer fires on the '
+      + `sentence it was written for, so the sweep below proves nothing:\n  ${sentence}`).toBe(true);
+  });
+
+  /** The correct rules state the same nouns, so the patterns must not fire on them. */
+  it.each([
+    'A single advisor is a review, not a debate, and skips this protocol.',
+    'A later round carries one advisor per surviving position rather than the whole board, so a debate narrows.',
+    'Your prompt carries the slice of the project rules that binds this work.',
+    'A change touching auth, secrets or money floors at `complexity:high` however small the diff.',
+    'On **yes**: spawn the roster the rubric sizes.',
+    'It first asks the user\'s questions to pin down gaps and intent; when it has no more questions, it recommends advisors and waits.',
+  ])('does not fire on the correct rule: %s', (correct) => {
+    const fired = NO_SURFACE_MAY.filter((r) => r.claim.test(correct)).map((r) => r.label);
+    expect(fired, 'this is the rule stated correctly. A guard that flags it will be switched off, and '
+      + 'then it guards nothing at all.').toEqual([]);
+  });
+
+  it.each(TREES)('%s makes none of them', (tree) => {
+    const offenders: string[] = [];
+    for (const { path, lines } of sweep(tree)) {
+      for (const unit of proseUnits(lines.join('\n'))) {
+        for (const { claim, label, why } of NO_SURFACE_MAY) {
+          if (claim.test(unit)) offenders.push(`${path}\n      would ${label} — ${why}\n      in: ${unit.trim().slice(0, 170)}`);
+        }
+      }
+    }
+    expect(offenders, `dist/${tree}: forbidden claims found:\n    ${offenders.join('\n    ')}\n\n`
+      + 'These rules hold wherever they are written, so they are checked on every shipped file rather '
+      + 'than on the one file each was first written for — relocating a claim to another surface was '
+      + 'how the previous version of these guards was defeated.').toEqual([]);
+  });
+});
+
 describe('the coverage-gate reviewer is never offered as an advisor', () => {
   /**
    * The reviewer that decides the coverage and traceability gates cannot also have co-authored the
    * draft it reviews — that is what makes the review independent. Naming it in an example roster is
    * how a reader picks it anyway, and the example is what a reader copies.
    */
-  it.each(TREES)('%s names no example roster containing it', (tree) => {
-    const offenders: string[] = [];
+  /**
+   * The roster list itself is parsed, rather than the line scanned for a negation.
+   *
+   * The previous version exempted any line containing "not", "never", "exclude" or "separate" — and
+   * every real methodology sentence carries one of those, so it protected only lines nobody writes.
+   * Putting the reviewer into the shipped Discover default roster survived it, because the same line
+   * happens to say "not echo".
+   */
+  it.each(TREES)('%s names no default roster containing it', (tree) => {
+    const rosters: { path: string; members: string[] }[] = [];
     for (const { path, lines } of sweep(tree)) {
-      lines.forEach((line, i) => {
-        const looksLikeARoster = /\b(advisors?|roster|panel|debate)\b/i.test(line)
-          && /\bcynical-reviewer\b/.test(line);
-        const forbidsIt = /\bnever\b|\bnot\b|\bexclud|\bseparate\b|\breviewer\b\s*(?:,|\)|\.)/i.test(line);
-        if (looksLikeARoster && !forbidsIt) offenders.push(`${path}:${i + 1}  ${line.trim()}`);
-      });
+      for (const m of lines.join('\n').matchAll(/default:\s*\*\*([^*]+)\*\*/g)) {
+        rosters.push({ path, members: (m[1] ?? '').split(',').map((n) => n.trim()).filter(Boolean) });
+      }
     }
-    expect(offenders, `dist/${tree}: these lines offer the coverage-gate reviewer as an advisor:\n  `
-      + `${offenders.join('\n  ')}\n\nAn advisor helps author the draft; the reviewer then judges `
-      + 'whether the draft covers its requirements. One agent doing both is the self-review the '
-      + 'independent-review gate exists to prevent.').toEqual([]);
+    expect(rosters.length, `dist/${tree}: no default roster found at all — this guard parses the "
+      + "default: **a, b, c**" run, so a change to that shape leaves it reading nothing and passing`)
+      .toBeGreaterThan(0);
+    const offenders = rosters.filter((r) => r.members.includes('cynical-reviewer'))
+      .map((r) => `${r.path}  [${r.members.join(', ')}]`);
+    expect(offenders, `dist/${tree}: these default rosters offer the coverage-gate reviewer as an `
+      + `advisor:\n  ${offenders.join('\n  ')}\n\nAn advisor helps author the draft; the reviewer then `
+      + 'judges whether that draft covers its requirements. One agent doing both is the self-review '
+      + 'the independent-review gate exists to prevent, and a default roster is what a reader copies.')
+      .toEqual([]);
   });
 
   it.each(TREES)('%s says outright that it must not be picked', (tree) => {

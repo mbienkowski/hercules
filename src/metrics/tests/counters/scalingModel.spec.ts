@@ -61,6 +61,17 @@ describe('parseScalingModel', () => {
     expect(() => parseScalingModel(short, 'short.md')).toThrow(/short\.md.*4.*5/s);
   });
 
+  it('refuses a table that GAINED a row', () => {
+    // Only an exact row count is safe. Relaxing the check to `<` leaves an extra row parsed and
+    // compared positionally, so a duplicate tier row appended inside the section shifts the whole
+    // model — and that relaxation survived the full suite while both branch sides read as covered.
+    const extra = WELL_FORMED.replace('\nTrailing prose.',
+      '\n| `complexity:critical` | any | any | 1 | 1 |\n\nTrailing prose.');
+    expect(() => parseScalingModel(extra, 'extra.md'), 'an appended tier row must be refused — a second '
+      + 'row for a tier is two answers with nothing saying which one ships')
+      .toThrow(/extra\.md.*6.*5/s);
+  });
+
   it('refuses a tier token it does not recognise', () => {
     const typo = WELL_FORMED.replace('complexity:medium', 'complexity:moderate');
     expect(() => parseScalingModel(typo, 'typo.md')).toThrow(/moderate/);

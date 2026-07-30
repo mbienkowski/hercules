@@ -373,23 +373,37 @@ Dependabot-proposed PR, never an invisible transitive update.
 
 ### Golden files
 
-Three surfaces are pinned byte-for-byte in `src/content/tests/`: the injected A2A Core
-(`core.golden`), and both normative protocol files (`debate-consensus-protocol.golden`,
-`workflow-protocol.golden`). After an intentional edit, re-bless from the failing test's expected value
-**in the same commit**, and say in the message what behaviour changed.
+**Everything that ships is pinned by hash.** `src/content/tests/shipped-content.manifest` records a
+sha256 for every file under `dist/`, all six editions. Any content change fails until re-blessed with
+`make bless-content`, in the same commit as the edit, with the message saying what behaviour changed.
+Almost everything this plugin ships is prompt text an agent reads and obeys, so a reworded rule *is* a
+behaviour change and should cost one deliberate step.
 
-Whole-file pinning is reserved for content that **is** the behaviour rather than describing it — every
-line of those two protocols is an instruction an agent obeys, which makes their content an unbounded
-assertion surface. Sampling one does not work: a review pass over per-rule sentence pins ran 32
-semantic mutations against them and 29 survived a green suite, every survivor written where no pin was
-looking (a contradiction in an unpinned section, a table row added beside the real one, a rule deleted
-outright). Prefer a targeted assertion everywhere else; reach for a golden when the file's whole text
-is normative.
+Four surfaces additionally carry a readable golden, so their failures show the text rather than a hash:
+the injected A2A Core (`core.golden`), both normative protocol files
+(`debate-consensus-protocol.golden`, `workflow-protocol.golden`), and the reference skill's normative
+sections — `hercules-reference-normative.golden`, covering **§ Agent scaling** (including
+§ Sub-agent consent), **§ Debate protocol** and **§ Independent review**, and nothing else.
 
-A golden says only that the text has not changed, never that it says the right thing — so a careless
-re-bless could ship a wrong rule quietly. Each pinned surface therefore keeps a semantic guard beside
-it (`parseScalingModel` / `parseConvergence` against `EXPECTED_MODEL` / `EXPECTED_CONVERGENCE`): the
-golden makes every change visible, the parser makes a wrong change fail.
+Why pin so widely: sampling a normative surface does not work, and this repo has three campaigns
+proving it. Mutation passes over per-rule sentence pins lost 11, then 29 of 32, then 8 of 10 and 16 of
+21 semantic mutations to a fully green suite. Not one survivor edited a pinned sentence — each was
+written on a surface that owned no pin, because the person writing a contradiction chooses where to
+write it.
+
+**A golden covers only what it reads, and a hash covers only what changed.** Neither says the content
+is *right*, so a careless re-bless can still ship a wrong rule. Two habits close that:
+
+- Keep a semantic guard beside every pin (`parseScalingModel` / `parseConvergence` against
+  `EXPECTED_MODEL` / `EXPECTED_CONVERGENCE`; the cross-surface sweeps in
+  `crossSurfaceConsistency.spec.ts`). A re-bless that ships a wrong model then fails on meaning.
+- Section-scoped reads must reject a **duplicated** heading, not take the first match. `section()` and
+  `sectionBody()` throw on a repeat because appending a second `## Agent scaling` — or a second
+  `## complexity` carrying its own rubric row — passed the entire suite while changing behaviour. A
+  first-match read silently un-pins whatever follows it.
+
+Give every regex or absence-based guard a companion test that proves it fires on a real violation. A
+detector that quietly matches nothing reports success, and several here did.
 
 All methodology checks are gates, not warnings — a failing gate means the change broke a contract; fix
 the contract, not the test.
