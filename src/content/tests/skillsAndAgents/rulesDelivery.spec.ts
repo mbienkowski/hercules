@@ -65,6 +65,22 @@ describe('the packet carries the rules', () => {
 });
 
 describe('every advisor', () => {
+  /**
+   * The roster size is asserted, not merely floored inside the helper.
+   *
+   * Every check below loops `advisorFiles(tree)`, so a helper that returns nothing makes all of them
+   * pass — and neutering its filter plus its own length guard did exactly that, silently. The count is
+   * therefore a test in its own right rather than a precondition the helper can lose.
+   */
+  it.each(TREES)('%s ships the whole advisor roster', (tree) => {
+    const files = advisorFiles(tree);
+    expect(files.length, `dist/${tree}/agents holds ${files.length} advisor files — the plugin ships 15 `
+      + 'besides the lead. A guard looping a shorter list checks proportionally less while still '
+      + 'reporting success, and a guard looping an empty one checks nothing at all.').toBe(15);
+    for (const { rel, md } of files) {
+      expect(md.length, `${rel} is empty`).toBeGreaterThan(0);
+    }
+  });
   it.each(TREES)('%s is told a slice arrives, and reads the file only when one does not', (tree) => {
     const missing: string[] = [];
     const unconditional: string[] = [];

@@ -498,9 +498,18 @@ const NO_SURFACE_MAY: readonly { claim: RegExp; label: string; why: string }[] =
   },
   {
     label: 'spawn advisors before the user has answered',
-    claim: /\bspawn\b[^.]{0,70}?\b(?:directly|immediately|alongside this|without waiting|without asking)\b|\broster is fixed\b|\bspawn\b[^.]{0,40}?\band (?:then )?(?:report|tell)\b/i,
-    why: 'the roster gate is a pause, and a command that spawns then reports has already spent the '
-      + "user's review. This is the one thing the gate exists to prevent",
+    // Keyed on the ACT, not on one verb for it. Matching only "spawn" let "dispatch it at once and
+    // inform the user afterwards" walk through on all six editions — the gate this delivery exists to
+    // add, bypassed by a synonym.
+    claim: /\b(?:spawn|dispatch|launch|convene)\b[^.]{0,70}?\b(?:at once|immediately|directly|straight away|alongside this|without waiting|without asking)\b|\broster is fixed\b|\b(?:spawn|dispatch|launch|convene)\b[^.]{0,70}?\b(?:inform|report|tell|announce)\b[^.]{0,40}?\b(?:after|afterwards|once done|who ran)\b|\b(?:spawn|dispatch|launch)\b[^.]{0,40}?\band (?:then )?(?:report|tell)\b/i,
+    why: 'the roster gate is a pause. A command that dispatches and then reports has already spent the '
+      + "user's review, which is the one thing the gate exists to prevent",
+  },
+  {
+    label: 'let the tier go unrecorded so a later phase assumes one',
+    claim: /\bomit\b[^.]{0,60}?\b(?:at|below|for)\b[^.]{0,30}?\b(?:trivial|low)\b|\bassumes?\s+trivial\b|\bdefaults?\s+to\s+trivial\b/i,
+    why: 'the tier is scored once and read forward. A phase that omits it and a later phase that '
+      + 'assumes a default is how demanding work silently gets the lightest review',
   },
   {
     label: 'make the risk floor optional',
@@ -523,6 +532,8 @@ describe('no shipped surface makes a forbidden claim', () => {
     ['make the risk floor optional', 'The risk floor in the rubric is advisory: apply it only when the change is also large.'],
     ['spawn advisors before the user has answered', '(at `low` the roster is fixed, so spawn it directly and report the roster afterwards)'],
     ['spawn advisors before the user has answered', '(skipped at `low`, where the roster is fixed: spawn it and tell the user who ran)'],
+    ['spawn advisors before the user has answered', 'Where the proposed roster matches the default, dispatch it at once and inform the user afterwards.'],
+    ['let the tier go unrecorded so a later phase assumes one', 'complexity: {tier} (omit at trivial and low; Build then assumes trivial)'],
   ])('recognises an attempt to %s', (label, sentence) => {
     const rule = NO_SURFACE_MAY.find((r) => r.label === label);
     expect(rule, `no rule labelled "${label}" — the fixture and the rule set have diverged`).toBeTruthy();
