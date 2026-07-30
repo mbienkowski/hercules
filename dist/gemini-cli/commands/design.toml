@@ -44,7 +44,7 @@ Ask only what is needed — only what the Step 3 scan and `*-business-requiremen
 
 ## Step 5 — Advisor debate
 
-Follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **lead-architect, security-expert, senior-qa-engineer**; see `hercules-reference § Agent scaling`). On the user's go-ahead, run the debate per `${extensionPath}/protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`${extensionPath}/protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
+Advisor count and debate depth both come from the tier read forward from Discover, scored against § complexity of the debate protocol cited below; its numbers are never restated here. Follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **lead-architect, security-expert, senior-qa-engineer**). On the user's go-ahead, run the debate per `${extensionPath}/protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`${extensionPath}/protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
 
 ## Step 6 — Draft & feedback loop
 

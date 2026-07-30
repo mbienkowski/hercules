@@ -136,7 +136,20 @@ const DRIFT_ANCHORS: ReadonlyArray<readonly [string, string, string]> = [
   ['G5', 'high-risk', 'dist/claude-code/commands/build.md'],
   ['G6', 'build_complete', 'dist/claude-code/commands/ship.md'],
   ['G7', 'scored once', 'dist/claude-code/skills/hercules-reference/SKILL.md'],
+  ['G8', 'roster gate', 'dist/claude-code/skills/hercules-reference/SKILL.md'],
 ];
+
+/**
+ * A hand-kept anchor list can silently omit the row that was just added — G8 shipped without one, so
+ * the registry claimed a rule with nothing checking the command carried it. Deriving the expected set
+ * from the registry itself makes the omission impossible rather than merely unlikely.
+ */
+it('every registry row has a drift anchor, so no documented rule goes unchecked', () => {
+  const ids = registryRows(protocolSection(readFile(PROTOCOL), 'registry')).map((r) => r[0]);
+  expect(ids, 'the registry and the anchor list have diverged — a row with no anchor is a guardrail '
+    + 'the protocol promises and no test verifies, and an anchor with no row is a check on a rule that '
+    + 'no longer ships').toEqual(DRIFT_ANCHORS.map((a) => a[0]));
+});
 
 it.each(DRIFT_ANCHORS)('documented rule %s stays in sync with the command that carries it', (gid, token, command) => {
   const rows = registryRows(protocolSection(readFile(PROTOCOL), 'registry'));

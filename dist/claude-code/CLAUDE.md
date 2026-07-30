@@ -32,7 +32,8 @@ Inject that Core verbatim into every delegation prompt (it is the only channel t
 
 The plugin ships a set of generic specialist agents in `agents/` (auto-registered as `hercules:<name>`).
 They carry **no hardcoded stack or personal preferences** — all project variance lives in a
-per-project `code-of-conduct.md` each agent reads. Replies follow the A2A § Agent-Injected Core.
+per-project `code-of-conduct.md`, whose binding slice is carried in the delegation packet; an agent
+reads the file itself only when no slice arrives. Replies follow the A2A § Agent-Injected Core.
 
 - Code / process: `challenger`, `cynical-reviewer`, `lead-architect`, `security-expert`,
   `senior-qa-engineer`, `backend-engineer`, `frontend-engineer`, `devops-engineer`,

@@ -1,10 +1,13 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
 import { EXPECTED_MODEL, parseScalingModel, TIER_ORDER } from '../../../metrics/scalingModel.mjs';
 import { readFile } from '../commands/support';
-import { readRepoFile, repoRoot } from '../../../commons/support/repo';
+import { readRepoFile } from '../../../commons/support/repo';
+import {
+  distFile, PERSONA_PER_TREE, REFERENCE, RUBRIC, shippedFiles, TREES,
+} from './editions';
 
 /**
  * One model, stated on several surfaces, asserted equal on each — the numbers are compared, never
@@ -15,48 +18,10 @@ import { readRepoFile, repoRoot } from '../../../commons/support/repo';
  * which is the exact defect this guard exists to prevent.
  */
 
-const TREES = ['claude-code', 'opencode', 'cursor', 'copilot-cli', 'gemini-cli', 'grok-build'] as const;
-
-/** Where each edition keeps the artifacts this guard reads. */
-const PERSONA_PER_TREE: Record<(typeof TREES)[number], string> = {
-  'claude-code': 'CLAUDE.md',
-  'grok-build': 'CLAUDE.md',
-  opencode: 'instructions.md',
-  cursor: 'rules/hercules-persona.mdc',
-  'copilot-cli': 'AGENTS.md',
-  'gemini-cli': 'GEMINI.md',
-};
-
-const RUBRIC = 'protocols/debate-consensus-protocol.md';
-const REFERENCE = 'skills/hercules-reference/SKILL.md';
 const DIAGRAMS = ['workflow-diagram-detailed.html', 'workflow-diagram-simplified.svg'];
 
 /** The spellings the numeric-agreement model used. None may survive on a shipped surface. */
 const RETIRED = ['Agreement: N/5', '≤3/5', '5/5', 'Round 1 + 2 + 3', 'fresh-eyes(mandatory)'];
-
-/** Every shipped text file in an edition — a four-entry literal skips the other ~30. */
-function shippedFiles(tree: string): string[] {
-  const root = `${repoRoot}/dist/${tree}`;
-  const out: string[] = [];
-  const walk = (dir: string): void => {
-    for (const name of readdirSync(dir)) {
-      const abs = `${dir}/${name}`;
-      if (statSync(abs).isDirectory()) walk(abs);
-      else if (/\.(md|toml|mdc|json|js)$/.test(name)) out.push(abs);
-    }
-  };
-  walk(root);
-  expect(out.length, `dist/${tree} yielded ${out.length} files — a sweep that opens almost nothing `
-    + 'reports success').toBeGreaterThan(10);
-  return out;
-}
-
-function distFile(tree: string, rel: string): string {
-  const abs = `${repoRoot}/dist/${tree}/${rel}`;
-  expect(existsSync(abs), `dist/${tree}/${rel} does not exist — this edition would be skipped `
-    + 'silently, and a guard that opens nothing reports success').toBe(true);
-  return readFile(`dist/${tree}/${rel}`);
-}
 
 describe('the model is identical on every edition', () => {
   it.each(TREES)('%s states the rubric exactly', (tree) => {

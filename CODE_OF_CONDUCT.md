@@ -373,9 +373,26 @@ Dependabot-proposed PR, never an invisible transitive update.
 
 ### Golden files
 
-The injected A2A Core is pinned byte-for-byte in `src/content/tests/core.golden`. After an intentional edit,
-re-bless it from the failing test's expected value. All methodology checks are gates, not warnings — a
-failing gate means the change broke a contract; fix the contract, not the test.
+Three surfaces are pinned byte-for-byte in `src/content/tests/`: the injected A2A Core
+(`core.golden`), and both normative protocol files (`debate-consensus-protocol.golden`,
+`workflow-protocol.golden`). After an intentional edit, re-bless from the failing test's expected value
+**in the same commit**, and say in the message what behaviour changed.
+
+Whole-file pinning is reserved for content that **is** the behaviour rather than describing it — every
+line of those two protocols is an instruction an agent obeys, which makes their content an unbounded
+assertion surface. Sampling one does not work: a review pass over per-rule sentence pins ran 32
+semantic mutations against them and 29 survived a green suite, every survivor written where no pin was
+looking (a contradiction in an unpinned section, a table row added beside the real one, a rule deleted
+outright). Prefer a targeted assertion everywhere else; reach for a golden when the file's whole text
+is normative.
+
+A golden says only that the text has not changed, never that it says the right thing — so a careless
+re-bless could ship a wrong rule quietly. Each pinned surface therefore keeps a semantic guard beside
+it (`parseScalingModel` / `parseConvergence` against `EXPECTED_MODEL` / `EXPECTED_CONVERGENCE`): the
+golden makes every change visible, the parser makes a wrong change fail.
+
+All methodology checks are gates, not warnings — a failing gate means the change broke a contract; fix
+the contract, not the test.
 
 ### Complexity
 

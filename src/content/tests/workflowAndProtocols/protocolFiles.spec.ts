@@ -7,7 +7,8 @@ import { countStatusTableRows } from '../../../metrics/markdownMetrics.mjs';
 import { readFile } from '../commands/support';
 import { readRepoFile } from '../../../commons/support/repo';
 import {
-  EXPECTED_MODEL, parseConvergence, parseScalingModel, section, sentences,
+  type ConvergenceRow, EXPECTED_CONVERGENCE, EXPECTED_MODEL, parseConvergence, parseScalingModel,
+  section, sentences,
 } from '../../../metrics/scalingModel.mjs';
 
 // The A2A (agent-to-agent) and debate protocol files follow the methodology.
@@ -197,29 +198,30 @@ describe('the convergence table, asserted by its own cells', () => {
       .toBe('a topic is settled — two or more advisors spoke on the topic and state the same position.');
   });
 
-  it('leaves a topic with differing positions contested', () => {
-    const row = rows().find((r) => r.topic.includes('positions differ'));
-    expect(row, 'no row for differing positions — the case a debate exists for').toBeTruthy();
-    expect(row?.state, 'disagreement that does not read as contested is disagreement that is dropped')
-      .toBe('contested');
-  });
+  /**
+   * The whole table, not a lookup per row.
+   *
+   * A `.find()` per case reads the first row whose topic matches and never looks at the rest, so a
+   * contradicting row appended below the real one satisfies every assertion — a confirmed survivor of
+   * the last review pass. Comparing the row set whole makes an appended row a length failure and a
+   * reordered one a positional failure.
+   */
+  it('states exactly the four outcomes the model requires, in order', () => {
+    const actual = rows();
+    expect(actual.map((r) => r.topic), 'the convergence table must carry exactly these cases in this '
+      + 'order — an added row is how a contradicting outcome hides below a correct one, and a dropped '
+      + 'row silently removes a state a topic can reach')
+      .toEqual(EXPECTED_CONVERGENCE.map((r) => r.topic));
 
-  it('contests a lone Blocker or High, and routes it to a person at the ceiling', () => {
-    const row = rows().find((r) => /one speaker.*(blocker|high)/.test(r.topic));
-    expect(row, 'no row for a lone serious finding — the case that would otherwise enter the draft '
-      + 'unexamined').toBeTruthy();
-    expect(row?.state, 'settling a lone Blocker folds a serious finding in with nothing checking it')
-      .toBe('contested');
-    expect(row?.outcome, 'at the ceiling the finding has nowhere to go but a person — the outcome must '
-      + 'name the low-tier casting vote').toContain('casting vote');
-    expect(row?.outcome, 'and must name the user for every other level').toContain('user');
-  });
-
-  it('never treats an unaddressed topic as agreement', () => {
-    const row = rows().find((r) => r.topic.includes('unaddressed'));
-    expect(row, 'no row for a topic others did not answer').toBeTruthy();
-    expect(row?.state, 'silence recorded as settled is consent nobody gave').toBe('not settled');
-    expect(row?.outcome, 'the rule has to say what silence is worth').toContain('silence is never agreement');
+    EXPECTED_CONVERGENCE.forEach((want, i) => {
+      const got = actual[i] as ConvergenceRow;
+      expect(got.state, `"${want.topic}" must resolve to "${want.state}" — its state is what decides `
+        + 'whether the topic is carried, folded in, or blocks closure').toBe(want.state);
+      for (const fragment of want.outcomeIncludes) {
+        expect(got.outcome, `"${want.topic}" must say what happens: its outcome is missing `
+          + `"${fragment}", so the row states a state without a consequence`).toContain(fragment);
+      }
+    });
   });
 
   it('closes on settlement rather than on an exhausted round budget', () => {
@@ -261,17 +263,26 @@ describe('the scaling model', () => {
       .toEqual(['critical']);
   });
 
-  it('keeps the README table stating the same numbers as the rubric', () => {
-    const readme = readFile('README.md');
-    for (const m of parseScalingModel(readFile(DEBATE_PROTOCOL), DEBATE_PROTOCOL)) {
-      const row = readme.split('\n').find((l) => l.startsWith(`| ${m.tier} |`));
-      expect(row, `README has no tier row for ${m.tier} — a user reads the promise from this table`).toBeTruthy();
-      const cells = (row as string).split('|').map((x) => x.trim());
-      const [readmeAdvisors = '', readmeRounds = ''] = [cells[4], cells[5]];
-      expect(`${readmeAdvisors}|${readmeRounds}`, `README promises ${m.tier} = ${readmeAdvisors} advisors / ${readmeRounds} rounds `
-        + `while the rubric runs ${m.advisors} / ${m.rounds} — the shipped behaviour and the published promise disagree`)
-        .toBe(`${m.advisors}|${m.rounds}`);
-    }
+  /**
+   * Every README tier row, as a set — not one lookup per tier.
+   *
+   * `.find()` stops at the first row for a tier, so a second row promising different numbers sits
+   * below it unread. That was a confirmed survivor: the published promise and the shipped behaviour
+   * could disagree with the suite green. Collecting all rows and comparing the whole list means a
+   * duplicate row fails on length.
+   */
+  it('keeps the README table stating the same numbers as the rubric, and only once each', () => {
+    const rubric = parseScalingModel(readFile(DEBATE_PROTOCOL), DEBATE_PROTOCOL);
+    const tiers = new Set<string>(rubric.map((m) => m.tier));
+    const rows = readFile('README.md').split('\n')
+      .filter((l) => tiers.has((l.split('|')[1] ?? '').trim()))
+      .map((l) => {
+        const cells = l.split('|').map((x) => x.trim());
+        return { tier: cells[1] ?? '', advisors: cells[4] ?? '', rounds: cells[5] ?? '' };
+      });
+    expect(rows, 'the README table must carry one row per tier and no more — a second row for a tier '
+      + 'is how the published promise drifts from the rubric while every per-tier lookup still passes')
+      .toEqual(rubric.map((m) => ({ tier: m.tier, advisors: m.advisors, rounds: m.rounds })));
   });
 
   it('orders the carrier tie-break: standing, then completeness, then role name', () => {

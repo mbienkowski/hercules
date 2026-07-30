@@ -65,6 +65,10 @@ folded into the draft and reported as applied. Every other state is listed below
 | one speaker, lower severity | folded in | entered with the advisor who raised it named |
 | raised by some, unaddressed by others | not settled | silence is never agreement, so it blocks closure until someone speaks to it |
 
+The casting vote is the orchestrator deciding a topic its ceiling left open, with its reason recorded.
+It is available at `complexity:low` alone, and only on a topic the orchestrator can check itself —
+one turning on a fact it cannot verify, or on a trade-off that is the user's, goes to the user.
+
 A debate closes when every topic is settled and the level's floor is met. On closing a round the
 orchestrator states in one line, per topic, the topic, its state, which roles spoke on it and who
 carries each position, so a narrowing board is visible rather than silent.
@@ -76,7 +80,9 @@ A position is what an advisor concluded — the verdict it gave and the problems
 A contested topic carries one advisor per position, including the position that found nothing wrong,
 so that view is argued rather than dropped. Two advisors holding the same position count once, and
 the next round's roster is the number of distinct positions rather than a figure from the table
-above, bounded by that level's advisor maximum.
+above, bounded by that level's advisor maximum. A topic one advisor raised is one position with one
+holder, so such a round adds an advisor who has not spoken on it — that is where the two-advisor
+floor comes from, not the table.
 
 Where several advisors hold one position it is carried by the more senior voice, judged by the
 standing the role would hold in an engineering organisation — architect over developer, QA engineer

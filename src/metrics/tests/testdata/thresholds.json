@@ -20,8 +20,8 @@
     "target": "dist/claude-code/protocols/a2a-communication-protocol.md",
     "metric": "core_token_count",
     "op": "<=",
-    "limit": 1150,
-    "warn_at": 1100,
+    "limit": 1050,
+    "warn_at": 1000,
     "severity": "gate"
   },
   {
@@ -29,8 +29,8 @@
     "target": "dist/claude-code/protocols/debate-consensus-protocol.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 1600,
-    "warn_at": 1550,
+    "limit": 1700,
+    "warn_at": 1650,
     "severity": "gate"
   },
   {
@@ -56,8 +56,8 @@
     "target": "dist/claude-code/commands/design.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 2100,
-    "warn_at": 2080,
+    "limit": 2200,
+    "warn_at": 2170,
     "severity": "gate"
   },
   {

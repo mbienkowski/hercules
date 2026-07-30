@@ -57,6 +57,33 @@ export interface ConvergenceRow {
 }
 
 /**
+ * The convergence outcomes the model requires, as an exact set.
+ *
+ * Matching a row by `.find()` reads the first row whose topic looks right and ignores the rest, so a
+ * contradicting row *added after* the real one is never seen. The row set is therefore compared whole:
+ * an added row is a length mismatch, and a reordered one is a positional mismatch.
+ *
+ * `outcome` is matched by the substrings that carry the consequence rather than by the full cell,
+ * because the cell also carries wording the golden pin already fixes.
+ */
+export const EXPECTED_CONVERGENCE: readonly {
+  readonly topic: string; readonly state: string; readonly outcomeIncludes: readonly string[];
+}[] = [
+  { topic: 'positions differ', state: 'contested', outcomeIncludes: ['carried into the next round'] },
+  {
+    topic: 'one speaker, blocker or high',
+    state: 'contested',
+    outcomeIncludes: ['has not spoken on it', 'casting vote', 'user'],
+  },
+  { topic: 'one speaker, lower severity', state: 'folded in', outcomeIncludes: ['named'] },
+  {
+    topic: 'raised by some, unaddressed by others',
+    state: 'not settled',
+    outcomeIncludes: ['silence is never agreement'],
+  },
+];
+
+/**
  * The convergence table, parsed by content rather than matched by phrase. Asserting a row's own
  * cells is what makes an inversion fail: a sentence fragment survives an added qualifier, a parsed
  * cell does not.
@@ -67,9 +94,9 @@ export function parseConvergence(md: string, source: string): ConvergenceRow[] {
   const body = section(md, '## Converging a round', source);
   const rows = body.split('\n').filter((l) => l.startsWith('|') && !/^\|\s*-+/.test(l));
   const data = rows.slice(1); // the header row is not data
-  if (data.length < 3) {
-    throw new Error(`${source}: § Converging a round has ${data.length} table rows, expected at least `
-      + 'the differing, lone-speaker and unaddressed cases');
+  if (data.length < EXPECTED_CONVERGENCE.length) {
+    throw new Error(`${source}: § Converging a round has ${data.length} table rows, expected `
+      + `${EXPECTED_CONVERGENCE.length} — a dropped row removes an outcome the model requires`);
   }
   return data.map((line) => {
     const [, topic, state, outcome] = line.split('|').map((c) => c.trim().toLowerCase());

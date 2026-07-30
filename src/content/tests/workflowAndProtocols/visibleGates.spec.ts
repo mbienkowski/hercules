@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { BUILD, DESIGN, DISCOVER, readFile } from '../commands/support';
+import { commandPath, TREES } from './editions';
 import { readRepoFile } from '../../../commons/support/repo';
 
 /**
@@ -10,20 +11,9 @@ import { readRepoFile } from '../../../commons/support/repo';
  * edition without one shows the identical choices as a plain numbered list.
  */
 
-const ALL_TREES = ['claude-code', 'opencode', 'cursor', 'copilot-cli', 'gemini-cli', 'grok-build'] as const;
 const RUBRIC = 'dist/claude-code/protocols/debate-consensus-protocol.md';
 const REFERENCE = 'dist/claude-code/skills/hercules-reference/SKILL.md';
 const WORKFLOW_PROTOCOL = 'dist/claude-code/protocols/workflow-protocol.md';
-
-/** Editions name and wrap the same command differently, so a path is resolved, never assumed. */
-const DISCOVER_PER_TREE: Record<string, string> = {
-  'claude-code': 'commands/discover.md',
-  opencode: 'commands/discover.md',
-  cursor: 'commands/discover.md',
-  'grok-build': 'commands/discover.md',
-  'copilot-cli': 'commands/discover.prompt.md',
-  'gemini-cli': 'commands/discover.toml',
-};
 
 /** The consent block only — a claim satisfied by prose elsewhere in the skill proves nothing. */
 function consentSection(): string {
@@ -134,9 +124,8 @@ describe('gate 2 — who reviews', () => {
 });
 
 describe('a raised tier reaches the state write', () => {
-  it.each(ALL_TREES)('%s writes the tier the user last set, not the one first scored', (tree) => {
-    const rel = DISCOVER_PER_TREE[tree];
-    expect(rel, `no Discover path known for ${tree}`).toBeTruthy();
+  it.each(TREES)('%s writes the tier the user last set, not the one first scored', (tree) => {
+    const rel = commandPath(tree, 'discover');
     const lower = readFile(`dist/${tree}/${rel}`).toLowerCase();
     expect(lower, `dist/${tree}: the write must take the user's latest tier, or a raise made at the `
       + 'roster gate is silently discarded and Design and Build read the superseded value')
@@ -153,15 +142,13 @@ describe('a raised tier reaches the state write', () => {
 
 describe('both gates, on every edition', () => {
   it('offers the same choices where no native selection control exists', () => {
-    for (const tree of ALL_TREES) {
+    for (const tree of TREES) {
       const md = readFile(`dist/${tree}/skills/hercules-reference/SKILL.md`);
       expect(md, `${tree}: the fallback must carry the same choices, not a reduced yes/skip prompt`)
         .toMatch(/identical choices as a plain numbered list/);
     }
-    for (const tree of ALL_TREES) {
-      const rel = DISCOVER_PER_TREE[tree];
-      expect(rel, `no Discover path known for ${tree} — a guard that opens nothing passes silently`).toBeTruthy();
-      const lower = readFile(`dist/${tree}/${rel}`).toLowerCase();
+    for (const tree of TREES) {
+      const lower = readFile(`dist/${tree}/${commandPath(tree, 'discover')}`).toLowerCase();
       for (const choice of ['keep it', 'lower it', 'raise it', 'answer freely']) {
         expect(lower, `${tree}: the judgement gate lost "${choice}" — the editions stop agreeing`)
           .toContain(choice);
@@ -170,7 +157,7 @@ describe('both gates, on every edition', () => {
   });
 
   it('describes the control generically, so no edition is told to use one it lacks', () => {
-    const wording = ALL_TREES.map((t) => {
+    const wording = TREES.map((t) => {
       const md = readFile(`dist/${t}/skills/hercules-reference/SKILL.md`);
       return /native selection control[^.]*/.exec(md)?.[0] ?? '';
     });

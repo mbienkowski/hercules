@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { CHAIN_TEMPLATES, resolveChains, WAIVERS } from '../../loadingChains.mjs';
+import { CHAIN_TEMPLATES, resolveChains, type Waiver, WAIVERS } from '../../loadingChains.mjs';
 import { tmpWorkspace } from '../support';
 
 // A SEPARATE file from instructionBudget.spec.ts, deliberately: that file resolves its chains at
@@ -178,12 +178,33 @@ describe('WAIVERS: pinned data content', () => {
       .toEqual([]);
   });
 
+  /**
+   * The shape rule is exercised against a fixture, not against `WAIVERS`.
+   *
+   * Iterating the real list runs zero assertions while it is empty — the test passes by doing nothing,
+   * which is precisely the "a guard that reads nothing reports success" pattern this delivery set out
+   * to remove. A fixture keeps the rule live, so the next waiver added has to satisfy it.
+   */
   it('gives every waiver a chain, a measured value, a reason and a follow-up', () => {
+    const complete: Waiver = {
+      chain: 'commands/build.md',
+      measuredAt: 160,
+      reason: 'accepted while the rewrite was in flight',
+      followUp: 'retire once the chain measures under the ceiling',
+    };
+    const wellFormed = (w: Waiver): boolean => Boolean(w.chain) && w.measuredAt > 0
+      && Boolean(w.reason) && Boolean(w.followUp);
+
+    expect(wellFormed(complete), 'a fully specified waiver must satisfy the rule, or the rule rejects '
+      + 'every waiver and can never be met').toBe(true);
+    for (const missing of ['chain', 'measuredAt', 'reason', 'followUp'] as const) {
+      const partial = { ...complete, [missing]: missing === 'measuredAt' ? 0 : '' } as Waiver;
+      expect(wellFormed(partial), `a waiver missing "${missing}" must be rejected — an unexplained `
+        + 'waiver is an invisible breach, which is the whole reason waivers are data and not a comment')
+        .toBe(false);
+    }
     for (const w of WAIVERS) {
-      expect(w.chain, 'a waiver names the chain it covers').toBeTruthy();
-      expect(w.measuredAt, 'a waiver pins the value it was accepted at').toBeGreaterThan(0);
-      expect(w.reason, 'a waiver states why the breach is accepted').toBeTruthy();
-      expect(w.followUp, 'a waiver names the work that retires it').toBeTruthy();
+      expect(wellFormed(w), `the shipped waiver for ${w.chain} is incomplete`).toBe(true);
     }
   });
 });
