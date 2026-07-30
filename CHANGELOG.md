@@ -1,3 +1,7 @@
+## v1.14.0 (2026-07-30)
+
+* feat(workflow): Lighter advisor scoring & dynamic debates (#34)
+
 ## v1.13.0 (2026-07-28)
 
 * feat(badges): Add badges to readme (#33)
