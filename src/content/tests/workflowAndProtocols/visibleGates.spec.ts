@@ -54,6 +54,15 @@ describe('gate 1 — how demanding the work is', () => {
       .not.toMatch(/at every level\s+(above|from|for|except)/);
   });
 
+  it('waits for the answer instead of proceeding past it', () => {
+    const lower = readFile(DISCOVER).toLowerCase();
+    expect(lower, 'the wait is the gate — stating the choices and continuing satisfies every phrase '
+      + 'while removing the decision').toContain('wait for the user to confirm or override');
+    for (const bypass of ['without pausing', 'without waiting', 'then continue', 'proceed to step 4 without']) {
+      expect(lower, `"${bypass}" turns the gate into a notification`).not.toContain(bypass);
+    }
+  });
+
   it('keeps its confirm-or-override wording in Discover and nowhere else', () => {
     expect(readFile(DISCOVER), 'the tier is confirmed where it is scored').toContain('confirm or override');
     for (const cmd of [DESIGN, BUILD]) {
@@ -81,6 +90,15 @@ describe('gate 2 — who reviews', () => {
       .toMatch(/no roster gate\*{0,2}\s+at\s+`?trivial/);
     expect(lower, '"no roster gate exemption" keeps the pinned words and reverses the rule')
       .not.toContain('no roster gate exemption');
+  });
+
+  it('lets no sentence authorise a dispatch that skips the answer', () => {
+    const consent = consentSection().toLowerCase();
+    for (const bypass of ['dispatch it alongside', 'spawns it immediately', 'without waiting',
+      'alongside this message', 'then proceeds']) {
+      expect(consent, `"${bypass}" authorises the spawn the gate exists to hold back`)
+        .not.toContain(bypass);
+    }
   });
 
   it('never spawns an advisor before the user has answered', () => {
@@ -125,6 +143,11 @@ describe('a raised tier reaches the state write', () => {
       .toMatch(/as the user last\s+set them/);
     expect(lower, `dist/${tree}: "from step 3" pins the write to the first judgement and drops a `
       + 'later raise').not.toContain('from step 3');
+    for (const denial of ['the roster gate never alters', 'never altered by the roster gate',
+      'the roster gate cannot change']) {
+      expect(lower, `dist/${tree}: "${denial}" re-opens the exact defect the write clause closed`)
+        .not.toContain(denial);
+    }
   });
 });
 

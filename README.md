@@ -538,7 +538,7 @@ number and their rounds to complexity, and adds none for trivial work).
   is a **blind round**: each advisor forms its position independently, before seeing the others. Where
   they disagree, a further round makes them argue it out, so agreement has to be earned, not echoed —
   and where they already agree, there is nothing to argue and the debate ends. Advisors are briefed with deliberately
-  opposing agendas (e.g. a Cynical Reviewer vs. a Simplicity Advocate), because good decisions come
+  opposing agendas (e.g. a Challenger vs. a Lead Architect), because good decisions come
   from tension.
 - **One agent can only follow so many instructions.** At 150 instructions the best model followed ~96%;
   at 500, ~68.9% — the drop is non-linear and invisible (no error, no warning)

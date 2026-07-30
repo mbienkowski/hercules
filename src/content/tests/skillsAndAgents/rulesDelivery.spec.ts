@@ -72,6 +72,12 @@ describe('every advisor', () => {
           && !/no slice|none is supplied/i.test(para)) {
           unconditional.push(`${file}: an override claim with no slice condition beside it`);
         }
+        // A fetch imperative, or any precedence claim over the slice, defeats the carry outright.
+        if (/\b(open|consult|load)\b[^.]{0,40}\b(whole|entire|full)\b[^.]{0,20}file/i.test(para)
+          || /\btake(s)? precedence over\b[^.]{0,30}slice/i.test(para)
+          || /\bin every case\b/i.test(para)) {
+          unconditional.push(`${file}: a fetch imperative or a precedence claim over the carried slice`);
+        }
       }
     }
     expect(missing, `these are never told a slice is carried to them: ${missing.join(', ')}`).toEqual([]);

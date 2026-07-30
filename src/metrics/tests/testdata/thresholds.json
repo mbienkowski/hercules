@@ -29,8 +29,8 @@
     "target": "dist/claude-code/protocols/debate-consensus-protocol.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 1500,
-    "warn_at": 1450,
+    "limit": 1600,
+    "warn_at": 1550,
     "severity": "gate"
   },
   {

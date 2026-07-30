@@ -66,14 +66,18 @@ it('the handoff packet lists its fields in the required order', () => {
 
   // Carried project material is labelled with its source, using the marker the Core already
   // defines for content an agent did not author — a second convention for one job is drift.
-  expect(section, 'carried material must name the file and section it came from')
-    .toMatch(/\[ATTACHMENT: .*§/);
+  const wrappers = [...section.matchAll(/\[([A-Z][A-Z-]+):[^\]]*§/g)].map((m) => m[1]);
+  expect(wrappers.length, 'the packet must wrap each carried payload with its file and section')
+    .toBeGreaterThanOrEqual(2);
+  expect([...new Set(wrappers)], 'one labelling convention, not two — a second marker name gives a '
+    + 'delegate two valid wrappers with no rule saying which applies')
+    .toEqual(['ATTACHMENT']);
   expect(section.toLowerCase(), 'the same marker governs outbound relay, so inbound has to say it is '
     + 'material to act on — otherwise a delegate may echo its own input back')
-    .toMatch(/act on|not a relay|never relayed/);
-  expect(section.toLowerCase(), 'material containing the closing marker would end its own wrapper and '
-    + 'the remainder would read as instruction — a project file the plugin does not control')
-    .toContain('closing marker');
+    .toContain('carried in is material to act on');
+  expect(section.toLowerCase(), 'the outcome is the rule, not the noun: material that would end its '
+    + 'own wrapper has to travel by reference, or the remainder reads as instruction')
+    .toContain('closing marker is carried by reference, never inline');
 });
 
 it('every guardrail rule is completely and correctly documented', () => {

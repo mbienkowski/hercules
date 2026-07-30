@@ -153,6 +153,35 @@ describe('the floored risk list', () => {
   });
 });
 
+describe('the delegation packet, on every edition', () => {
+  it.each(TREES)('%s labels carried material with one convention', (tree) => {
+    const md = distFile(tree, 'protocols/workflow-protocol.md');
+    const packet = md.slice(md.indexOf('{#packet}'), md.indexOf('{#role-expectations}'));
+    const wrappers = [...new Set([...packet.matchAll(/\[([A-Z][A-Z-]+):[^\]]*§/g)].map((m) => m[1]))];
+    expect(wrappers, `dist/${tree}: the editions must use the one marker the core defines, or a `
+      + 'delegate on this edition gets a vocabulary the others do not have').toEqual(['ATTACHMENT']);
+    expect(packet.toLowerCase(), `dist/${tree}: the collision outcome must ship here too`)
+      .toContain('closing marker is carried by reference, never inline');
+  });
+});
+
+describe('advisors are chosen for the work in front of them', () => {
+  it('keeps the Discover and Design default rosters distinct', () => {
+    const names = (rel: string): string[] => {
+      const line = readFile(rel).split('\n').find((l) => l.includes('default:')) ?? '';
+      return [...line.matchAll(/\*\*([a-z-]+(?:, [a-z-]+)*)\*\*/g)].flatMap((m) => (m[1] ?? '').split(', '));
+    };
+    const discover = names('dist/claude-code/commands/discover.md');
+    const design = names('dist/claude-code/commands/design.md');
+    expect(discover.length, 'Discover states no default roster').toBeGreaterThan(1);
+    expect(design.length, 'Design states no default roster').toBeGreaterThan(1);
+    const shared = discover.filter((n) => design.includes(n));
+    expect(shared, `the phases must convene different specialities — shared: ${shared.join(', ')} — or `
+      + 'the requirement that advisors suit the work in front of them stops being true')
+      .toEqual([]);
+  });
+});
+
 describe('the retired agreement notation', () => {
   it.each(TREES)('is gone from every shipped file in %s', (tree) => {
     const offenders: string[] = [];

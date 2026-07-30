@@ -6,7 +6,9 @@ import {
 import { countStatusTableRows } from '../../../metrics/markdownMetrics.mjs';
 import { readFile } from '../commands/support';
 import { readRepoFile } from '../../../commons/support/repo';
-import { EXPECTED_MODEL, parseScalingModel } from '../../../metrics/scalingModel.mjs';
+import {
+  EXPECTED_MODEL, parseConvergence, parseScalingModel, section, sentences,
+} from '../../../metrics/scalingModel.mjs';
 
 // The A2A (agent-to-agent) and debate protocol files follow the methodology.
 
@@ -44,126 +46,237 @@ it('the shared agent instructions block matches the approved reference copy', ()
 });
 
 /**
- * A section of the debate protocol, lowercased. Scoping matters: a rule satisfied by prose in a
- * different section proves nothing about the section that governs the behaviour.
+ * The rules of the debate, pinned as WHOLE SENTENCES rather than as fragments.
+ *
+ * A fragment survives the one mutation that matters: keep the pinned words, add a qualifier beside
+ * them that reverses the rule. Four separate review passes over this delivery each found green
+ * assertions sitting on inverted content that way. A whole-sentence pin cannot be hedged — any
+ * qualifier added anywhere in the sentence changes it, so the assertion fails.
+ *
+ * Each entry is `anchor → the sentence that must be exactly this`. The anchor only locates the
+ * sentence, so reordering the file is free; the equality is what holds the meaning.
  */
-function debateSection(heading: string): string {
-  const md = readFile(DEBATE_PROTOCOL);
-  const start = md.indexOf(heading);
-  if (start < 0) throw new Error(`no "${heading}" section in the debate protocol — it was renamed or removed`);
-  const rest = md.slice(start + heading.length);
-  const end = rest.search(/\n## /);
-  return (end < 0 ? rest : rest.slice(0, end)).toLowerCase();
-}
+const DEBATE_RULES: Record<string, { anchor: string; sentence: string; why: string }[]> = {
+  opening: [{
+    anchor: 'a single advisor is a review',
+    sentence: 'a single advisor is a review, not a debate, and skips this protocol.',
+    why: 'promoting one advisor to a full debate removes the two-advisor floor outright',
+  }],
+  '## complexity': [{
+    anchor: 'ceiling, never an itinerary',
+    sentence: 'the high end of the rounds column is a ceiling, never an itinerary — a further round '
+      + 'runs only when the one before it left something contested.',
+    why: 'without the trigger clause the ceiling becomes a schedule and every round always runs, '
+      + 'which is the ritual the requirements forbid',
+  }, {
+    anchor: 'the low end binds only at',
+    sentence: 'the low end binds only at `complexity:critical`, which runs its second round and its '
+      + 'fresh-eyes panel whatever the convergence state, because that is the level where a missed '
+      + 'problem is least recoverable.',
+    why: 'softening "binds" to "is advisory" loses the one place depth is bought unconditionally',
+  }, {
+    anchor: 'a debate needs two advisors',
+    sentence: 'a debate needs two advisors and two rounds.',
+    why: 'the floor a success criterion marks automatic; a hedge beside it concedes it away',
+  }],
+  '## Carrying a position': [{
+    anchor: 'a position is what an advisor concluded',
+    sentence: 'a position is what an advisor concluded — the verdict it gave and the problems it '
+      + 'named — never its speciality.',
+    why: 'grouping by speciality miscounts positions, so the next round is sized wrongly',
+  }, {
+    anchor: 'same conclusion are one position',
+    sentence: 'two advisors of different specialities who reached the same conclusion are one '
+      + 'position; two of the same speciality who disagreed are two.',
+    why: 'the hard case is what the rule exists for; without it the reader guesses',
+  }, {
+    anchor: 'carries one advisor per position',
+    sentence: 'a contested topic carries one advisor per position, including the position that found '
+      + 'nothing wrong, so that view is argued rather than dropped.',
+    why: 'a threshold added here ("where three or more positions survive") re-invokes the whole board',
+  }, {
+    anchor: 'more senior voice',
+    sentence: 'where several advisors hold one position it is carried by the more senior voice, '
+      + 'judged by the standing the role would hold in an engineering organisation — architect over '
+      + 'developer, qa engineer over tester — which needs no maintained ranking, so a newly added '
+      + 'advisor participates with nothing to update and an ad-hoc expert\'s briefed agenda '
+      + 'establishes its standing.',
+    why: 'the requirements name seniority as the carrier rule; a substituted criterion silently changes who speaks',
+  }],
+  '## Fresh-eyes panel': [{
+    anchor: 'convenes a panel after its final round',
+    sentence: '`complexity:critical` convenes a panel after its final round whatever the convergence '
+      + 'state, drawn inside its advisor maximum and carrying no history of the rounds before it.',
+    why: '"may convene" makes the one mandatory independent look discretionary',
+  }],
+  '## Synthesis': [{
+    anchor: 'resolves only when every raised topic',
+    sentence: 'a debate resolves only when every raised topic is settled.',
+    why: 'closure on anything less lets an open finding reach the draft unexamined',
+  }, {
+    anchor: 'never auto-applied',
+    sentence: 'the choices are accept as-is, another angle, or override; a surviving finding is never '
+      + 'auto-applied.',
+    why: 'an exception added here lets the orchestrator apply its own contested finding',
+  }, {
+    anchor: 'never resolved by the orchestrator',
+    sentence: 'a reservation is carried to the user\'s decision, never resolved by the orchestrator, '
+      + 'and any contested finding is presented to the user verbatim as an open question.',
+    why: 'the orchestrator closing its own reservation is the self-judgment the gates exist to stop',
+  }],
+};
 
 /**
- * Every pinned rule below carries a negative pin beside it, declared at the call site so it names the
- * inversion that would defeat *that* rule. A positive substring survives the one mutation that
- * matters — keep the pinned words, add a qualifier that reverses them — which is how three separate
- * review gates each found green assertions sitting on inverted content.
+ * A whole-sentence pin catches an edit to the sentence it pins. It cannot catch a *new* sentence
+ * added beside it that permits the opposite — so each rule that an addition could undo also declares
+ * what no sentence in its section may say.
  */
-function assertNoInversion(section: string, rule: string, inversions: RegExp[]): void {
-  const hit = inversions.find((re) => re.test(section));
-  expect(hit, `${rule}: the section hedges with ${hit} — a qualifier here leaves every pinned phrase `
-    + 'intact while reversing what the rule requires, which is the drift these pins exist to stop')
-    .toBeUndefined();
-}
+const NO_SENTENCE_MAY: Record<string, { claim: RegExp; why: string }[]> = {
+  '## complexity': [{
+    claim: /\b(lone|single|one)\b[^.]{0,40}advisor[^.]{0,40}\b(may|can)\b[^.]{0,30}\bdebate\b/,
+    why: 'a sentence permitting one advisor to debate reinstates what the floor forbids',
+  }, {
+    claim: /\ba further round\b[^.]{0,40}\b(always|regardless|whenever the level)\b/,
+    why: 'a sentence making a later round unconditional turns the ceiling back into a schedule',
+  }],
+  '## Carrying a position': [{
+    claim: /\b(whole|entire|full)\s+board\b[^.]{0,30}\bre-?invoked\b/,
+    why: 're-invoking the whole board undoes one-voice-per-position',
+  }],
+  '## Fresh-eyes panel': [{
+    claim: /\bpanel\b[^.]{0,40}\b(optional|may be skipped|at the orchestrator's discretion)\b/,
+    why: 'the panel is the one mandatory independent look at the highest level',
+  }],
+  '## Synthesis': [{
+    claim: /\bthe orchestrator\b[^.]{0,40}\bmay\b[^.]{0,30}\b(apply|resolve|close)\b/,
+    why: 'letting the orchestrator resolve its own finding is the self-judgment the gates prevent',
+  }],
+};
 
-describe('debate resolution', () => {
-  it('settles a topic only when two or more advisors agree on it', () => {
-    const converging = debateSection('## Converging a round');
-    expect(converging, 'a topic settles on two or more speakers agreeing, never on one speaker unopposed')
-      .toContain('settled — two or more advisors spoke on the topic and state the same position');
-    expect(converging, 'an unraised topic is not agreement').toContain('silence is never agreement');
-    assertNoInversion(converging, 'convergence', [
-      /settled?[^.]{0,60}\bone speaker\b/, // a lone speaker settling a topic
-      /silence[^.]{0,40}\bis agreement\b/, // silence promoted to consent
-    ]);
-  });
+describe('the debate rules, pinned as whole sentences', () => {
+  const md = readFile(DEBATE_PROTOCOL);
+  const bodyOf = (heading: string): string => (heading === 'opening'
+    ? md.slice(0, md.indexOf('## complexity'))
+    : section(md, heading, DEBATE_PROTOCOL));
 
-  it('closes on settlement, and escalates whatever survives the ceiling', () => {
-    const converging = debateSection('## Converging a round');
-    const synthesis = debateSection('## Synthesis');
-    expect(converging, 'closure is settlement, not an exhausted round budget')
-      .toContain('closes when every topic is settled');
-    expect(synthesis, 'synthesis must state the settlement-only resolve rule')
-      .toContain('resolves only when every raised topic is settled');
-    expect(synthesis, 'a reservation is the user\'s to decide, never the orchestrator\'s to close')
-      .toContain("carried to the user's decision, never resolved by the orchestrator");
-    for (const choice of ['accept as-is', 'another angle', 'override']) {
-      expect(synthesis, `the user's decision must offer "${choice}"`).toContain(choice);
+  for (const [heading, rules] of Object.entries(DEBATE_RULES)) {
+    const found = sentences(bodyOf(heading));
+
+    for (const { anchor, sentence, why } of rules) {
+      it(`${heading} — ${anchor}`, () => {
+        const hit = found.filter((s) => s.includes(anchor));
+        expect(hit.length, `"${anchor}" appears ${hit.length} times in ${heading} — the rule must be `
+          + 'stated once, in the section that owns it').toBe(1);
+        expect(hit[0], `${why}\n\nthe sentence must read exactly as the rule, so a qualifier added `
+          + 'anywhere in it fails this assertion instead of surviving a fragment match')
+          .toBe(sentence);
+      });
     }
-    expect(synthesis, 'a contested finding is never auto-applied').toContain('never auto-applied');
-    assertNoInversion(synthesis, 'escalation', [
-      /auto-applied\s+(unless|when|if)\b/, // an exception that lets the orchestrator apply it anyway
-      /resolved by the orchestrator\s+(unless|when|if)\b/,
-      /never resolved by the orchestrator[^.]{0,30}\bexcept\b/,
-    ]);
+  }
+
+  for (const [heading, forbidden] of Object.entries(NO_SENTENCE_MAY)) {
+    for (const { claim, why } of forbidden) {
+      it(`${heading} — no sentence may ${claim.source.slice(0, 34)}…`, () => {
+        const offending = sentences(bodyOf(heading)).filter((s) => claim.test(s));
+        expect(offending, `${why}\n\noffending sentence(s):\n  ${offending.join('\n  ')}\n`
+          + 'a rule can be undone by a sentence added beside it, which no whole-sentence pin sees')
+          .toEqual([]);
+      });
+    }
+  }
+});
+
+describe('the convergence table, asserted by its own cells', () => {
+  const rows = () => parseConvergence(readFile(DEBATE_PROTOCOL), DEBATE_PROTOCOL);
+
+  it('settles a topic only when two or more advisors agree on it', () => {
+    const converging = section(readFile(DEBATE_PROTOCOL), '## Converging a round', DEBATE_PROTOCOL);
+    const said = sentences(converging);
+    expect(said.filter((s) => s.includes('a topic is settled'))[0],
+      'one unopposed speaker must not settle a topic — that is the naive rule this model replaced')
+      .toBe('a topic is settled — two or more advisors spoke on the topic and state the same position.');
   });
 
-  it('states the round range as a ceiling, not a schedule', () => {
-    const complexity = debateSection('## complexity');
-    expect(complexity, 'a round runs on contest, not because the level permits one')
-      .toContain('ceiling, never an itinerary');
-    assertNoInversion(complexity, 'the ceiling', [
-      /every round[^.]{0,30}\balways runs\b/, // the ceiling turned back into a quota
-      /ceiling, never an itinerary[^.]{0,40}\b(but|though|unless)\b/,
-      /a further\s+round\s+runs\s+(always|regardless)/,
-    ]);
+  it('leaves a topic with differing positions contested', () => {
+    const row = rows().find((r) => r.topic.includes('positions differ'));
+    expect(row, 'no row for differing positions — the case a debate exists for').toBeTruthy();
+    expect(row?.state, 'disagreement that does not read as contested is disagreement that is dropped')
+      .toBe('contested');
   });
 
-  it('carries one voice per position, and forms a position from the conclusion', () => {
-    const carrying = debateSection('## Carrying a position');
-    expect(carrying, 'duplicated voices are not carried forward').toContain('one advisor per position');
-    expect(carrying, 'grouping by speciality makes two advisors who agree look like two positions, and '
-      + 'two who disagree look like one — the count that sizes the next round would be wrong')
-      .toContain('never its speciality');
-    expect(carrying, 'both halves of the rule have to ship, or the reader guesses the harder case')
-      .toMatch(/same conclusion are one position[^.]*same speciality who disagreed are two/);
-    assertNoInversion(carrying, 'position carrying', [
-      /\bnever\b[^.]{0,20}one advisor per position/, // the rule negated in place
-      /one advisor per position\s+(unless|except)/,
-      /carries\s+(every|all)\s+advisors?\b/, // the whole board carried instead of one voice
-      /\bby its speciality\b/, // speciality reinstated as the grouping key
-    ]);
+  it('contests a lone Blocker or High, and routes it to a person at the ceiling', () => {
+    const row = rows().find((r) => /one speaker.*(blocker|high)/.test(r.topic));
+    expect(row, 'no row for a lone serious finding — the case that would otherwise enter the draft '
+      + 'unexamined').toBeTruthy();
+    expect(row?.state, 'settling a lone Blocker folds a serious finding in with nothing checking it')
+      .toBe('contested');
+    expect(row?.outcome, 'at the ceiling the finding has nowhere to go but a person — the outcome must '
+      + 'name the low-tier casting vote').toContain('casting vote');
+    expect(row?.outcome, 'and must name the user for every other level').toContain('user');
   });
 
-  it('keeps the two-advisor floor stated in prose, not only in the table', () => {
-    const complexity = debateSection('## complexity');
-    const opening = readFile(DEBATE_PROTOCOL).slice(0, readFile(DEBATE_PROTOCOL).indexOf('## complexity')).toLowerCase();
-    expect(complexity, 'the table is numbers; this sentence is what an orchestrator actually reads')
-      .toContain('a debate needs two advisors and two rounds');
-    expect(opening, 'a single advisor is a review — saying otherwise licenses a one-advisor debate')
-      .toMatch(/a single advisor is a review, not a debate/);
-    assertNoInversion(complexity, 'the two-advisor floor', [
-      /needs\s+(one|a single)\s+advisor/, // the floor lowered outright
-      /two advisors and two rounds[^.]{0,60}\b(though|but|unless)\b/, // the floor conceded away
-    ]);
-    assertNoInversion(opening, 'the single-advisor rule', [
-      /a single advisor is a (full|complete) debate/,
-      /a single advisor[^.]{0,30}\bfollows this protocol\b/,
-    ]);
+  it('never treats an unaddressed topic as agreement', () => {
+    const row = rows().find((r) => r.topic.includes('unaddressed'));
+    expect(row, 'no row for a topic others did not answer').toBeTruthy();
+    expect(row?.state, 'silence recorded as settled is consent nobody gave').toBe('not settled');
+    expect(row?.outcome, 'the rule has to say what silence is worth').toContain('silence is never agreement');
   });
 
-  it('makes the most demanding level buy its second round and panel unconditionally', () => {
-    const complexity = debateSection('## complexity');
-    const panel = debateSection('## Fresh-eyes panel');
-    expect(complexity, 'without this the floor is a ceiling and critical can close after one round')
-      .toMatch(/`complexity:critical`, which runs its second round and its fresh-eyes panel whatever the convergence\s+state/);
-    expect(panel, 'the panel itself must not become discretionary')
-      .toContain('convenes a panel after its final round whatever the convergence state');
-    assertNoInversion(complexity, "critical's floor", [
-      /low end (never binds|does not bind)/,
-      /every round after the first is optional/,
-    ]);
-    assertNoInversion(panel, 'the panel', [
-      /\bmay convene a panel\b/, // mandatory turned discretionary
-      /panel[^.]{0,40}\b(optional|at the orchestrator's|discretion)\b/,
-    ]);
+  it('closes on settlement rather than on an exhausted round budget', () => {
+    const converging = section(readFile(DEBATE_PROTOCOL), '## Converging a round', DEBATE_PROTOCOL);
+    expect(sentences(converging).filter((s) => s.includes('closes when every topic is settled'))[0],
+      'closure driven by the round count rather than by settlement is the ritual the requirements forbid')
+      .toBe("a debate closes when every topic is settled and the level's floor is met.");
+  });
+});
+
+describe('the scaling model', () => {
+  it('states every tier’s advisor count and round range in the rubric', () => {
+    const parsed = parseScalingModel(readFile(DEBATE_PROTOCOL), DEBATE_PROTOCOL);
+    expect(parsed, 'the rubric is the one place the tier is scored from — a wrong cell '
+      + 'silently changes how much review every future feature gets').toEqual([...EXPECTED_MODEL]);
+  });
+
+  it('scores the tier on both axes, so max(effort, blast radius) is computable', () => {
+    const md = readFile(DEBATE_PROTOCOL);
+    expect(md, 'without the effort column an agent cannot score the axis it is told to take the higher of')
+      .toContain('Effort signals');
+    expect(md, 'without the blast-radius column the floor is the only risk signal an agent has')
+      .toContain('Blast-radius signals');
+  });
+
+  it('never lets a debating tier run on fewer than two advisors', () => {
+    for (const m of parseScalingModel(readFile(DEBATE_PROTOCOL), DEBATE_PROTOCOL)) {
+      if (m.rounds === '0') continue;
+      const low = Number(m.advisors.split('–')[0]);
+      expect(low, `${m.tier} may convene ${m.advisors} advisors — one advisor is a review, not a debate`)
+        .toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('reserves the third round for the most demanding work alone', () => {
+    const three = parseScalingModel(readFile(DEBATE_PROTOCOL), DEBATE_PROTOCOL)
+      .filter((m) => m.rounds.includes('3'));
+    expect(three.map((m) => m.tier), 'a third round anywhere below critical spends depth where it was not earned')
+      .toEqual(['critical']);
+  });
+
+  it('keeps the README table stating the same numbers as the rubric', () => {
+    const readme = readFile('README.md');
+    for (const m of parseScalingModel(readFile(DEBATE_PROTOCOL), DEBATE_PROTOCOL)) {
+      const row = readme.split('\n').find((l) => l.startsWith(`| ${m.tier} |`));
+      expect(row, `README has no tier row for ${m.tier} — a user reads the promise from this table`).toBeTruthy();
+      const cells = (row as string).split('|').map((x) => x.trim());
+      const [readmeAdvisors = '', readmeRounds = ''] = [cells[4], cells[5]];
+      expect(`${readmeAdvisors}|${readmeRounds}`, `README promises ${m.tier} = ${readmeAdvisors} advisors / ${readmeRounds} rounds `
+        + `while the rubric runs ${m.advisors} / ${m.rounds} — the shipped behaviour and the published promise disagree`)
+        .toBe(`${m.advisors}|${m.rounds}`);
+    }
   });
 
   it('orders the carrier tie-break: standing, then completeness, then role name', () => {
-    const carrying = debateSection('## Carrying a position');
+    const carrying = section(readFile(DEBATE_PROTOCOL), '## Carrying a position', DEBATE_PROTOCOL)
+      .toLowerCase();
     const chain = ['standing the role would hold', 'states the position most completely', 'first by role name'];
     const at = chain.map((t) => carrying.indexOf(t));
     const missing = chain.filter((_, i) => (at[i] ?? -1) < 0);

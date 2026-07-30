@@ -37,16 +37,65 @@ function isTier(value: string): value is Tier {
   return (TIER_ORDER as readonly string[]).includes(value);
 }
 
-/** The `## complexity` section, ending at the next heading of the same or higher level. */
-function section(md: string, source: string): string {
-  const start = md.search(new RegExp(`^${SECTION_HEADING}\\s*$`, 'm'));
-  if (start < 0) {
-    throw new Error(`${source}: no "${SECTION_HEADING}" section — the rubric heading was renamed or removed, `
-      + 'so nothing states how a tier is scored');
-  }
-  const rest = md.slice(start + SECTION_HEADING.length);
+/**
+ * A named section, ending at the next heading of the same or higher level. Throws rather than
+ * returning empty: a guard that silently reads nothing reports success while the surface drifts.
+ */
+export function section(md: string, heading: string, source: string): string {
+  const at = md.search(new RegExp(`^${heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'm'));
+  if (at < 0) throw new Error(`${source}: no "${heading}" section — it was renamed or removed`);
+  const rest = md.slice(at + heading.length);
   const end = rest.search(/\n#{1,2} /);
   return end < 0 ? rest : rest.slice(0, end);
+}
+
+/** One row of the convergence table: the state a topic reaches, and what follows from it. */
+export interface ConvergenceRow {
+  readonly topic: string;
+  readonly state: string;
+  readonly outcome: string;
+}
+
+/**
+ * The convergence table, parsed by content rather than matched by phrase. Asserting a row's own
+ * cells is what makes an inversion fail: a sentence fragment survives an added qualifier, a parsed
+ * cell does not.
+ *
+ * @throws if the section or its table is absent, or a row is missing a cell.
+ */
+export function parseConvergence(md: string, source: string): ConvergenceRow[] {
+  const body = section(md, '## Converging a round', source);
+  const rows = body.split('\n').filter((l) => l.startsWith('|') && !/^\|\s*-+/.test(l));
+  const data = rows.slice(1); // the header row is not data
+  if (data.length < 3) {
+    throw new Error(`${source}: § Converging a round has ${data.length} table rows, expected at least `
+      + 'the differing, lone-speaker and unaddressed cases');
+  }
+  return data.map((line) => {
+    const [, topic, state, outcome] = line.split('|').map((c) => c.trim().toLowerCase());
+    if (topic === undefined || state === undefined || outcome === undefined) {
+      throw new Error(`${source}: a convergence row is missing a cell — row was: ${line.trim()}`);
+    }
+    return { topic, state, outcome };
+  });
+}
+
+/**
+ * Whole sentences of a section, normalised. Pinning a whole sentence is what defeats the inversion
+ * that beat every fragment pin in this repo's history: a qualifier added anywhere in the sentence
+ * changes it, so the assertion fails, where a fragment of it would still have matched.
+ */
+export function sentences(sectionText: string): string[] {
+  return sectionText
+    .split('\n')
+    // Table rows carry no terminator, so leaving them in glues the whole table onto the sentence
+    // beside it and every pin against that sentence matches the table instead of the rule.
+    .filter((line) => !line.trimStart().startsWith('|'))
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
 }
 
 /**
@@ -56,7 +105,7 @@ function section(md: string, source: string): string {
  * each names `source` so a failure points at the file rather than at the guard.
  */
 export function parseScalingModel(md: string, source: string): TierRow[] {
-  const lines = section(md, source).split('\n').filter((l) => l.startsWith(ROW_PREFIX));
+  const lines = section(md, SECTION_HEADING, source).split('\n').filter((l) => l.startsWith(ROW_PREFIX));
   if (lines.length !== TIER_ORDER.length) {
     throw new Error(`${source}: parsed ${lines.length} tier rows, expected ${TIER_ORDER.length} — `
       + 'a row was dropped or its shape changed, and a partial model is not a model');

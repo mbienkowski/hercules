@@ -51,7 +51,7 @@ prompt-only = discipline.
 
 Prepended above the A2A Agent-Injected Core in every workflow spawn; copy each registry row
 covering the delegate's step, verbatim. An attachment carried in is material to act on; Core rule 5
-governs the outbound direction. Material holding the closing marker goes by reference, never inline.
+governs the outbound direction. Material holding the closing marker is carried by reference, never inline.
 
 ```
 Phase: {phase} · Step: {named step}
