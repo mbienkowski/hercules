@@ -394,9 +394,15 @@ write it.
 **A golden covers only what it reads, and a hash covers only what changed.** Neither says the content
 is *right*, so a careless re-bless can still ship a wrong rule. Two habits close that:
 
-- Keep a semantic guard beside every pin (`parseScalingModel` / `parseConvergence` against
-  `EXPECTED_MODEL` / `EXPECTED_CONVERGENCE`; the cross-surface sweeps in
-  `crossSurfaceConsistency.spec.ts`). A re-bless that ships a wrong model then fails on meaning.
+- Keep a semantic guard beside every pin, and **know exactly how far it reaches**. Under a re-bless the
+  semantic layer covers what it parses or forbids by shape: the rubric table and the convergence table
+  (`parseScalingModel` / `parseConvergence` against `EXPECTED_MODEL` / `EXPECTED_CONVERGENCE`), the
+  whole-sentence rule pins, and the specific claims `crossSurfaceConsistency.spec.ts` forbids. **Prose
+  rules outside those shapes are covered by the manifest alone — that is, by the human who re-blesses
+  it.** An audit that re-blessed every pin still landed seven prose survivors; the sweeps grew from
+  those, and the next phrasing nobody anticipated will survive too. So a re-bless is a review, not a
+  formality: say in the commit message what behaviour changed, and do not claim a guard is automatic
+  when what stands behind it is a hash plus your own reading.
 - Section-scoped reads must reject a **duplicated** heading, not take the first match. `section()` and
   `sectionBody()` throw on a repeat because appending a second `## Agent scaling` — or a second
   `## complexity` carrying its own rubric row — passed the entire suite while changing behaviour. A

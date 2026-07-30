@@ -109,7 +109,10 @@ test-smoke: build-check
 # prune, so a stray file dropped into dist/ survives a rebuild and would be hashed straight into the
 # manifest. build-check byte-compares the whole tree and is what actually catches that.
 bless-content: build-check
+	BLESS_CONTENT=1 npx vitest run src/content/tests/workflowAndProtocols/protocolFiles.spec.ts \
+	  src/content/tests/workflowAndProtocols/normativeGolden.spec.ts
 	BLESS_CONTENT=1 npx vitest run src/content/tests/docsAndPlugin/shippedContentManifest.spec.ts
+	@echo "re-blessed: 4 goldens + the shipped-content manifest. Commit them with the edit that caused them."
 
 # ── CI entry points ──────────────────────────────────────────────────────────
 # The GitHub Actions workflows call only `make <target>`, so every step is testable and runnable

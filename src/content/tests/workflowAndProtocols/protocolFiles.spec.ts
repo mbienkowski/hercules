@@ -1,3 +1,6 @@
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -5,7 +8,7 @@ import {
 } from '../../../metrics/a2aGrammar.mjs';
 import { countStatusTableRows } from '../../../metrics/markdownMetrics.mjs';
 import { readFile } from '../commands/support';
-import { readRepoFile } from '../../../commons/support/repo';
+import { readRepoFile, repoRoot } from '../../../commons/support/repo';
 import {
   type ConvergenceRow, EXPECTED_CONVERGENCE, EXPECTED_MODEL, parseConvergence, parseScalingModel,
   section, sentences,
@@ -43,6 +46,11 @@ it('the shared agent instructions block matches the approved reference copy', ()
   const want = readRepoFile('src', 'content', 'tests', 'core.golden');
   const { text: core, found } = extractA2aCore(md);
   expect(found, 'No fenced Core block found in the A2A protocol').toBe(true);
+  if (process.env['BLESS_CONTENT'] === '1') {
+    // `make bless-content` regenerates every pin, not only the hash manifest.
+    writeFileSync(join(repoRoot, 'src', 'content', 'tests', 'core.golden'), core);
+    return;
+  }
   expect(core, 'Injected Core changed vs golden. If intentional, update content/tests/core.golden.').toBe(want);
 });
 

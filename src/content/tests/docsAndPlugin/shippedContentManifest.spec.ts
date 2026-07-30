@@ -40,6 +40,25 @@ function isShipped(relPath: string): boolean {
   return !relPath.includes('__pycache__');
 }
 
+/**
+ * The release version, normalised away before hashing.
+ *
+ * The plugin manifests carry the version, and the release pipeline bumps it, rebuilds and commits
+ * `dist/` with no human in the loop. Hashing the raw bytes therefore wedges the pipeline: the first
+ * release passes, its commit carries `[skip ci]` so nothing goes red immediately, and the next feature
+ * merge fails `make test` on five changed hashes — with `release.yml` firing only on CI success, every
+ * release after the first is dead until someone runs `make bless-content` by hand. Reproduced with
+ * `NEW_VERSION=1.12.0 make release-version && make build`.
+ *
+ * Normalising the value keeps every other byte of those manifests pinned while letting a machine bump
+ * pass. The version itself is not unguarded: `make validate` asserts it in each manifest, which is the
+ * check that actually belongs to it.
+ */
+function withoutReleaseVersion(relPath: string, bytes: Buffer): Buffer | string {
+  if (!relPath.endsWith('.json')) return bytes;
+  return bytes.toString('utf-8').replace(/("version"\s*:\s*")\d+\.\d+\.\d+(")/g, '$1{release}$2');
+}
+
 /** Every shipped file under `dist/`, as `posix/relative/path` → sha256, sorted by path. */
 function shippedHashes(): Map<string, string> {
   const root = join(repoRoot, 'dist');
@@ -50,7 +69,10 @@ function shippedHashes(): Map<string, string> {
       if (statSync(abs).isDirectory()) walk(abs);
       else {
         const rel = relative(root, abs).split(sep).join('/');
-        if (isShipped(rel)) out.set(rel, createHash('sha256').update(readFileSync(abs)).digest('hex'));
+        if (isShipped(rel)) {
+          const content = withoutReleaseVersion(rel, readFileSync(abs));
+          out.set(rel, createHash('sha256').update(content).digest('hex'));
+        }
       }
     }
   };
@@ -83,6 +105,32 @@ describe('shipped content is pinned by hash', () => {
     expect([...trees].sort(), 'all six editions must be hashed; an edition absent here is an edition '
       + 'no guard in this repo is reading')
       .toEqual(['claude-code', 'copilot-cli', 'cursor', 'gemini-cli', 'grok-build', 'opencode']);
+  });
+
+  /**
+   * The property the release pipeline depends on, asserted directly rather than by running a release.
+   *
+   * A machine version bump must not change a hash. Without this, the manifest introduced here silently
+   * disables every release after the first.
+   */
+  it('survives a release version bump', () => {
+    const manifests = [...actual.keys()].filter((p) => /plugin\.json$|gemini-extension\.json$/.test(p));
+    expect(manifests.length, 'no version-bearing manifest found under dist/ — this guard is measuring '
+      + 'nothing, and the wedge it exists to prevent would return unnoticed').toBeGreaterThanOrEqual(4);
+    for (const rel of manifests) {
+      const raw = readFileSync(join(repoRoot, 'dist', rel));
+      expect(raw.toString('utf-8'), `${rel} carries no release version — if the manifests stopped `
+        + 'carrying one, drop this guard deliberately rather than letting it pass vacuously')
+        .toMatch(/"version"\s*:\s*"\d+\.\d+\.\d+"/);
+      const bumped = Buffer.from(raw.toString('utf-8')
+        .replace(/("version"\s*:\s*")\d+\.\d+\.\d+(")/g, '$19.9.9$2'));
+      const before = createHash('sha256').update(withoutReleaseVersion(rel, raw)).digest('hex');
+      const after = createHash('sha256').update(withoutReleaseVersion(rel, bumped)).digest('hex');
+      expect(after, `${rel}: a version bump changes this file's hash, so the release pipeline — which `
+        + 'bumps the version, rebuilds and commits dist/ with no human step — leaves the manifest '
+        + 'failing. The next feature merge then goes red, and release.yml never fires again.')
+        .toBe(before);
+    }
   });
 
   it('matches the manifest, file for file', () => {

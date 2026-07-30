@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -74,9 +75,26 @@ function sectionBody(md: string, heading: string): string {
   return `${heading}${section(md, heading, 'the reference skill')}`;
 }
 
+/**
+ * `make bless-content` regenerates these too.
+ *
+ * They had no bless path at all: a contributor who edited a protocol, followed CODE_OF_CONDUCT.md and
+ * ran `make bless-content` was left with a red suite and no documented remedy, because the target only
+ * rewrote the hash manifest. The documented "one deliberate step" was five, four of them undocumented.
+ */
+const BLESS = process.env['BLESS_CONTENT'] === '1';
+
+function bless(golden: string, text: string): void {
+  writeFileSync(join(repoRoot, 'src', 'content', 'tests', golden), text);
+}
+
 describe('the normative protocol files are pinned byte-for-byte', () => {
   it.each(PINNED)('$file matches its golden', ({ file, golden }) => {
     const shipped = readFile(`dist/claude-code/protocols/${file}`);
+    if (BLESS) {
+      bless(golden, shipped);
+      return;
+    }
     const want = readFile(`src/content/tests/${golden}`);
     expect(shipped, `${file} differs from src/content/tests/${golden}.\n\n`
       + 'Every line of this file is an instruction an agent follows, so any change to it changes how '
@@ -144,6 +162,10 @@ describe('the normative protocol files are pinned byte-for-byte', () => {
   it('pins the reference skill’s normative sections', () => {
     const skill = readFile('dist/claude-code/skills/hercules-reference/SKILL.md');
     const shipped = NORMATIVE_SECTIONS.map((h) => sectionBody(skill, h)).join('\n');
+    if (BLESS) {
+      bless('hercules-reference-normative.golden', shipped);
+      return;
+    }
     expect(shipped, 'the reference skill\'s normative sections differ from '
       + 'src/content/tests/hercules-reference-normative.golden.\n\nThese sections tell an orchestrator '
       + 'how many advisors to convene, when to ask the user, how a debate runs and who may judge a '

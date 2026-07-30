@@ -127,6 +127,21 @@ const SENTENCES_THAT_MAY_COUNT: readonly { file: string; section: string; senten
   },
 ];
 
+/**
+ * Does a marker's payload name a source? A labelling convention names a document or a section of one;
+ * an unrelated placeholder such as `[PATH: …]` does not. Extracted so it can be tested directly —
+ * tightened to `§` alone it re-opens the rival-convention hole with nothing failing.
+ */
+export function namesASource(payload: string): boolean {
+  return /§|\.md\b|\bsection\b/.test(payload);
+}
+
+/** Every agent this plugin ships, so a roster can be checked by membership rather than by phrasing. */
+const KNOWN_AGENTS = new Set(['challenger', 'cynical-reviewer', 'lead-architect', 'security-expert',
+  'senior-qa-engineer', 'backend-engineer', 'frontend-engineer', 'devops-engineer', 'ux-ui-designer',
+  'source-checker', 'maintainer', 'business-analyst', 'copywriter', 'document-specialist',
+  'simplicity-advocate']);
+
 /** Sentences of a unit, normalised for comparison against the allow-list above. */
 function unitSentences(unit: string): string[] {
   return unit.replace(/\s+/g, ' ').split(/(?<=[.!?])\s+/)
@@ -192,6 +207,28 @@ function sectionOf(lines: string[], units: string[], index: number): string {
   // No heading yet — the unit is in the preamble. Name it after the file's own title when it has one.
   return (lines.find((l) => l.startsWith('# ')) ?? '(preamble)').trim();
 }
+
+describe('the sweep knobs are reviewed values, not silent dials', () => {
+  /**
+   * `HARD_GATE`/`WARN_AT` were pinned as literals after raising them to 400/380 left the suite green.
+   * These two are the same class of dial and were not pinned: narrowing the carry window to 0, or
+   * tightening the marker payload filter, weakens a sweep with nothing failing.
+   */
+  it('carries a tier reference far enough to survive a paragraph break', () => {
+    expect(TIER_CARRIES_FOR_UNITS, 'a heading plus a lead-in sentence is two units, so a smaller window '
+      + 'lets a tier and its numbers be separated by a blank line — the exact bypass this closed')
+      .toBeGreaterThanOrEqual(2);
+  });
+
+  it('treats a marker naming only a file as a source label', () => {
+    expect(namesASource(' project rules, testing section §'), 'a payload with a section mark labels a source')
+      .toBe(true);
+    expect(namesASource(' code-of-conduct.md'), 'a payload naming a file labels a source even with no '
+      + 'section mark — tightening this to require § alone re-opens the rival-convention hole')
+      .toBe(true);
+    expect(namesASource(' n'), 'a bare placeholder is not a source label').toBe(false);
+  });
+});
 
 describe('the rubric owns the numbers, and no other surface restates them', () => {
   /**
@@ -265,7 +302,7 @@ describe('the rubric owns the numbers, and no other surface restates them', () =
       + 'from. A second copy of a number anywhere else — including in the rubric\'s own prose — is drift '
       + 'the moment either changes, and drift no reader can resolve: they hold two answers with no way '
       + 'to tell which ships. Cite the rubric, or describe the depth in words that carry no figure. If '
-      + 'the count is genuinely not the per-tier model, add it to SANCTIONED_COUNTS with its section '
+      + 'the count is genuinely not the per-tier model, add it to SENTENCES_THAT_MAY_COUNT with its section '
       + 'and the reason.').toEqual([]);
   });
 
@@ -388,8 +425,7 @@ describe('carried material is labelled exactly one way', () => {
       // matching only ALL-CAPS missed `{{Source: file § section}}`, which shipped green. Shape plus a
       // source payload is what a labelling convention actually looks like, in any bracket style.
       for (const m of text.matchAll(/[[{<]{1,2}\/?([A-Za-z][A-Za-z_-]{2,})\s*:([^\]}>\n]{0,80})/g)) {
-        const payload = m[2] ?? '';
-        if (!/§|\.md\b/.test(payload)) continue;
+        if (!namesASource(m[2] ?? '')) continue;
         const word = (m[1] as string).toUpperCase();
         found.set(word, [...new Set([...(found.get(word) ?? []), path])]);
       }
@@ -501,7 +537,7 @@ const NO_SURFACE_MAY: readonly { claim: RegExp; label: string; why: string }[] =
     // Keyed on the ACT, not on one verb for it. Matching only "spawn" let "dispatch it at once and
     // inform the user afterwards" walk through on all six editions — the gate this delivery exists to
     // add, bypassed by a synonym.
-    claim: /\b(?:spawn|dispatch|launch|convene)\b[^.]{0,70}?\b(?:at once|immediately|directly|straight away|alongside this|without waiting|without asking)\b|\broster is fixed\b|\b(?:spawn|dispatch|launch|convene)\b[^.]{0,70}?\b(?:inform|report|tell|announce)\b[^.]{0,40}?\b(?:after|afterwards|once done|who ran)\b|\b(?:spawn|dispatch|launch)\b[^.]{0,40}?\band (?:then )?(?:report|tell)\b/i,
+    claim: /\b(?:spawn|dispatch|launch|convene|begin|start|proceed with)\b[^.]{0,70}?\b(?:at once|immediately|directly|straight away|alongside this|without waiting|without asking)\b|\broster is (?:fixed|settled|already decided)\b|\b(?:spawn|dispatch|launch|convene)\b[^.]{0,70}?\b(?:inform|report|tell|announce)\b[^.]{0,40}?\b(?:after|afterwards|once done|who ran)\b|\b(?:spawn|dispatch|launch)\b[^.]{0,40}?\band (?:then )?(?:report|tell)\b/i,
     why: 'the roster gate is a pause. A command that dispatches and then reports has already spent the '
       + "user's review, which is the one thing the gate exists to prevent",
   },
@@ -513,7 +549,7 @@ const NO_SURFACE_MAY: readonly { claim: RegExp; label: string; why: string }[] =
   },
   {
     label: 'make the risk floor optional',
-    claim: /\bfloor\b[^.]{0,40}\b(?:is\s+)?(?:advisory|optional|a suggestion|discretionary)\b/i,
+    claim: /\bfloor\b[^.]{0,70}?\b(?:advisory|optional|a suggestion|discretion(?:ary)?|set aside|may be ignored)\b|\b(?:raise|floor)\b[^.]{0,70}?\bleft to the orchestrator's own discretion\b/i,
     why: 'the floor is what raises a one-line change touching auth, money or deletion. Advisory, it '
       + 'stops protecting the case it exists for',
   },
@@ -586,16 +622,15 @@ describe('the coverage-gate reviewer is never offered as an advisor', () => {
    * happens to say "not echo".
    */
   it.each(TREES)('%s names no default roster containing it', (tree) => {
+    // WHITELIST by equality, not a blacklist. Every narrower form was bypassed: reading only the first
+    // bold run missed `**a, b, c** and **cynical-reviewer**`, and scanning only lines containing
+    // `default:` missed a roster written on a line without it. The shipped rosters are known and few, so
+    // the safe rule is that any advisor-name run must BE one of them.
     const rosters: { path: string; members: string[] }[] = [];
     for (const { path, lines } of sweep(tree)) {
-      // EVERY bold run on the line, not just the first: reading only the first let
-      // `default: **a, b, c** and **cynical-reviewer**` put the coverage-gate reviewer in the shipped
-      // default roster with the suite green.
-      for (const line of lines.filter((l) => /default:/.test(l))) {
-        const after = line.slice(line.indexOf('default:'));
-        const members = [...after.matchAll(/\*\*([^*]+)\*\*/g)]
-          .flatMap((m) => (m[1] ?? '').split(/,| and /)).map((n) => n.trim()).filter(Boolean);
-        if (members.length > 0) rosters.push({ path, members });
+      for (const m of lines.join('\n').matchAll(/\*\*([a-z-]+(?:,\s*[a-z-]+){1,5})\*\*/g)) {
+        const members = (m[1] ?? '').split(/,| and /).map((n) => n.trim()).filter(Boolean);
+        if (members.every((n) => KNOWN_AGENTS.has(n))) rosters.push({ path, members });
       }
     }
     expect(rosters.length, `dist/${tree}: no default roster found at all — this guard parses the "
