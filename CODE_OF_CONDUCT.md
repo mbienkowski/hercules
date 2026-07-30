@@ -311,6 +311,17 @@ make test             # CI gate: >= 90% branch coverage, BOTH runtimes independe
 make test-mutation    # CI gate: >= 90% mutation kill rate, BOTH runtimes independently
 ```
 
+**A change to test or CI infrastructure is verified by running the pipeline, not the suite.** When you
+touch `vitest.config.mts`, a `make` target, or anything under `src/release/ci/`, run the workflows' own
+entry points — `make ci-build validate test test-smoke smoke-matrix bless-content` — and simulate a
+release (`make release-version && make build && npx vitest run`). Two of the worst defects in one
+delivery were invisible to `npx vitest run`: excluding the flaky live-CLI specs from the default config
+left `run_smoke.sh` invoking them under a config that no longer found them, taking all six CI smoke
+legs red; and the shipped-content manifest hashed the version-bearing plugin manifests, so the release
+— which bumps a version, rebuilds and commits `dist/` with no human step — wedged every release after
+the first behind a `[skip ci]` commit. A config-level `exclude` also beats an explicit file path on the
+command line, so every caller of an excluded path needs the `--config` flag, CI scripts included.
+
 `test`/`test-mutation` are each a thin wrapper over `test-py` + `test-ts` / `mutation-py` +
 `mutation-ts` — the split is real, not cosmetic: CI runs each pair as **separate, parallel jobs**,
 one per runtime, each provisioning only the toolchain it needs. The `-py`/`-ts` suffix is the same
