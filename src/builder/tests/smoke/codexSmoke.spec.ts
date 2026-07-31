@@ -1,17 +1,25 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { expect, it, describe } from 'vitest';
+import { afterEach, expect, it, describe } from 'vitest';
 
+import { buildTarget } from '../../bin/cli.mjs';
 import { srcStems } from '../../../commons/support/buildTree';
 import { repoRoot } from '../../../commons/support/repo';
 import { which } from '../../../commons/support/which';
 
-// Codex smoke: structural checks always run; the live version check runs when the Codex CLI is
-// available. The app's plugin review/trust flow remains a manual release checklist item.
+// Codex smoke: structural checks always run; the live marketplace install runs when the Codex CLI
+// is available. The app's plugin review/trust flow remains a manual release checklist item.
 
 const SRC_CONTENT = join(repoRoot, 'src', 'content');
+const TIMEOUT_MS = 60_000;
+const scratchDirs: string[] = [];
+
+afterEach(() => {
+  while (scratchDirs.length > 0) rmSync(scratchDirs.pop() as string, { recursive: true, force: true });
+});
 
 function isFile(root: string, ...parts: string[]): boolean {
   try {
@@ -69,7 +77,45 @@ it('ships every authored command and advisor as a named Codex skill', () => {
 
 describe.skipIf(which('codex') === null)('live Codex CLI', () => {
   it('the real codex binary runs', () => {
-    const res = spawnSync('codex', ['--version'], { encoding: 'utf-8', timeout: 60_000 });
+    const res = spawnSync('codex', ['--version'], { encoding: 'utf-8', timeout: TIMEOUT_MS });
     expect(res.status, `${res.stdout}\n${res.stderr}`).toBe(0);
-  }, 65_000);
+  }, TIMEOUT_MS + 5_000);
+
+  it('installs the local marketplace bundle and lists Hercules', () => {
+    const root = mkdtempSync(join(tmpdir(), 'hercules-codex-smoke-'));
+    scratchDirs.push(root);
+    // Codex documents CODEX_HOME as its state root. A fresh one makes this a real installation
+    // test without seeing, trusting, or mutating a developer's configured marketplaces/plugins.
+    const codexState = join(root, 'codex-state');
+    mkdirSync(codexState);
+    const env = { ...process.env, CODEX_HOME: codexState };
+    const marketplacePath = join(root, '.agents', 'plugins', 'marketplace.json');
+    mkdirSync(join(root, '.agents', 'plugins'), { recursive: true });
+    writeFileSync(marketplacePath, readFileSync(join(repoRoot, '.agents', 'plugins', 'marketplace.json')));
+    buildTarget('codex', join(root, 'dist', 'codex'));
+
+    const addMarketplace = spawnSync('codex', ['plugin', 'marketplace', 'add', root], {
+      cwd: root, env, encoding: 'utf-8', timeout: TIMEOUT_MS,
+    });
+    expect(addMarketplace.status, `${addMarketplace.stdout}\n${addMarketplace.stderr}`).toBe(0);
+
+    const install = spawnSync('codex', ['plugin', 'add', 'hercules@mbienkowski'], {
+      cwd: repoRoot, env, encoding: 'utf-8', timeout: TIMEOUT_MS,
+    });
+    expect(install.status, `${install.stdout}\n${install.stderr}`).toBe(0);
+
+    const listed = spawnSync('codex', ['plugin', 'list', '--marketplace', 'mbienkowski', '--json'], {
+      cwd: repoRoot, env, encoding: 'utf-8', timeout: TIMEOUT_MS,
+    });
+    expect(listed.status, `${listed.stdout}\n${listed.stderr}`).toBe(0);
+    const plugins = JSON.parse(listed.stdout) as {
+      installed: Array<{ pluginId: string; enabled: boolean; source: { source: string; path: string } }>;
+    };
+    const hercules = plugins.installed.find((plugin) => plugin.pluginId === 'hercules@mbienkowski');
+    expect(hercules).toBeDefined();
+    expect(hercules?.enabled).toBe(true);
+    expect(hercules?.source.source).toBe('local');
+    // macOS resolves the tmp directory through `/private`, while Node starts with `/var`.
+    expect(hercules?.source.path).toMatch(/\/dist\/codex$/);
+  }, (TIMEOUT_MS * 3) + 5_000);
 });

@@ -25,7 +25,9 @@ afterEach(() => {
 /**
  * A scratch OpenCode project with a freshly-built plugin.js in the project-level `plugins` folder
  * OpenCode's load-order convention expects (it has no flag to load an arbitrary path), plus an
- * isolated config/cache home so this can never touch a real developer's OpenCode setup.
+ * isolated config/cache home so this can never touch a real developer's OpenCode setup. OpenCode
+ * otherwise fetches its models.dev catalog during this cold start; that network dependency is
+ * unrelated to loading a local plugin and can leave the CLI with no agent output on a slow runner.
  */
 function opencodeProjectWithPluginInstalled(): { project: string; env: NodeJS.ProcessEnv } {
   const root = mkdtempSync(join(tmpdir(), 'hercules-opencode-smoke-'));
@@ -46,6 +48,10 @@ function opencodeProjectWithPluginInstalled(): { project: string; env: NodeJS.Pr
     HOME: home,
     XDG_CONFIG_HOME: join(home, '.config'),
     XDG_CACHE_HOME: join(home, '.cache'),
+    OPENCODE_DISABLE_MODELS_FETCH: 'true',
+    OPENCODE_DISABLE_AUTOUPDATE: 'true',
+    OPENCODE_DISABLE_DEFAULT_PLUGINS: 'true',
+    OPENCODE_DISABLE_LSP_DOWNLOAD: 'true',
   };
   return { project, env };
 }

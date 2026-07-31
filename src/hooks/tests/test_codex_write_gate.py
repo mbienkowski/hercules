@@ -8,7 +8,12 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
+
+import pytest
 
 from hercules_gate import main
 
@@ -22,6 +27,9 @@ CONFIG = {
     "deny": {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny"}},
     "reason_key": "permissionDecisionReason",
 }
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_PACKAGED_GATE = _REPO_ROOT / "dist" / "codex" / "hooks" / "hercules_gate.py"
 
 
 def _setup(tmp_path: Path) -> tuple[Path, Path]:
@@ -82,3 +90,23 @@ def test_non_frozen_patch_is_allowed(tmp_path: Path):
         "hookEventName": "PreToolUse",
         "permissionDecision": "allow",
     }
+
+
+@pytest.mark.parametrize("operation", ("Add", "Delete"))
+def test_packaged_hook_denies_a_frozen_patch_file(tmp_path: Path, operation: str):
+    """The emitted command must load its co-shipped config and honour an active Build freeze."""
+    home, project = _setup(tmp_path)
+    payload = {
+        "tool_name": "apply_patch",
+        "tool_input": {"command": f"*** Begin Patch\n*** {operation} File: tests/test_login.py\n"},
+        "cwd": str(project),
+    }
+    result = subprocess.run(
+        [sys.executable, str(_PACKAGED_GATE), "codex_pre_tool"],
+        input=json.dumps(payload), capture_output=True, text=True, cwd=project,
+        env={**os.environ, "HOME": str(home)}, timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
+    decision = json.loads(result.stdout)["hookSpecificOutput"]
+    assert decision["permissionDecision"] == "deny"
+    assert "frozen test" in decision["permissionDecisionReason"]

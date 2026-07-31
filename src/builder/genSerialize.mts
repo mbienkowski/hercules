@@ -139,43 +139,50 @@ export function computeFields(
 ): Map<string, string> {
   const out = new Map<string, string>();
   for (const spec of fields) {
-    // Exhaustive over FieldSource (descriptor.mts): a sixth generator added to FieldSchema without
-    // a matching case here fails `tsc`, not just the runtime DescriptorError a widened `string`
-    // type would have deferred to. See FieldSource's own doc comment for why the type stays narrow.
-    switch (spec.source) {
-      case 'frontmatter': {
-        const value = requireField(meta, spec.field as string);
-        out.set(spec.key, spec.render ? renderBody(value, target, tokens) : value);
-        break;
-      }
-      case 'stem': {
-        if (stem === null) {
-          throw new SerializeError(`field ${show(spec.key)} needs the source file stem, but none was provided`);
-        }
-        out.set(spec.key, stem);
-        break;
-      }
-      case 'stem_prefix': {
-        if (stem === null) {
-          throw new SerializeError(`field ${show(spec.key)} needs the source file stem, but none was provided`);
-        }
-        out.set(spec.key, `${spec.prefix as string}${stem}`);
-        break;
-      }
-      case 'literal':
-        out.set(spec.key, spec.value as string);
-        break;
-      case 'primary_mode':
-        out.set(spec.key, meta.get('name') === spec.primary ? 'primary' : 'subagent');
-        break;
-      case 'flag_if_name_in':
-        if (spec.names.includes(meta.get('name') ?? '')) out.set(spec.key, spec.value as string);
-        break;
-      default:
-        spec.source satisfies never;
-    }
+    const value = fieldValue(spec, meta, target, tokens, stem);
+    if (value !== undefined) out.set(spec.key, value);
   }
   return out;
+}
+
+/** Evaluate one closed-vocabulary field generator; `undefined` means the field is omitted. */
+function fieldValue(
+  spec: FieldSpec,
+  meta: ReadonlyMap<string, string>,
+  target: string,
+  tokens: ReadonlyMap<string, string>,
+  stem: string | null,
+): string | undefined {
+  // Exhaustive over FieldSource (descriptor.mts): a sixth generator added to FieldSchema without
+  // a matching case here fails `tsc`, not just the runtime DescriptorError a widened `string`
+  // type would have deferred to. See FieldSource's own doc comment for why the type stays narrow.
+  switch (spec.source) {
+    case 'frontmatter': {
+      const value = requireField(meta, spec.field as string);
+      return spec.render ? renderBody(value, target, tokens) : value;
+    }
+    case 'stem':
+      return requireStem(spec.key, stem);
+    case 'stem_prefix':
+      return `${spec.prefix as string}${requireStem(spec.key, stem)}`;
+    case 'literal':
+      return spec.value as string;
+    case 'primary_mode':
+      return meta.get('name') === spec.primary ? 'primary' : 'subagent';
+    case 'flag_if_name_in':
+      return spec.names.includes(meta.get('name') ?? '') ? spec.value as string : undefined;
+    default:
+      spec.source satisfies never;
+      return undefined;
+  }
+}
+
+/** Return the source stem or throw the generator's existing actionable error. */
+function requireStem(key: string, stem: string | null): string {
+  if (stem === null) {
+    throw new SerializeError(`field ${show(key)} needs the source file stem, but none was provided`);
+  }
+  return stem;
 }
 
 /** One serializer instance per ecosystem, wholly driven by its descriptor. */
