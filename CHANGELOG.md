@@ -1,3 +1,11 @@
+## v1.15.0 (2026-07-31)
+
+* fix(ci): drop the mutation jobs that silently blocked every release
+* opencode plus subagents (#36)
+* fix for opencode smoke test
+* hercules in codex
+* feat(maintenance): project-reset — clear a project's Hercules record (#35)
+
 ## v1.14.0 (2026-07-30)
 
 * feat(workflow): Lighter advisor scoring & dynamic debates (#34)
