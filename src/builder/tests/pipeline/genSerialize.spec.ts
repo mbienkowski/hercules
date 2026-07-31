@@ -75,6 +75,20 @@ describe('preserve mode', () => {
     expect(() => ser('claude-code').serializeFile(src, tokens({}), null, 'agents/anon.md')).toThrow(SerializeError);
     expect(() => ser('claude-code').serializeFile(src, tokens({}), null, 'agents/anon.md')).toThrow(/"name"/);
   });
+
+  it('inject appends preserve frontmatter only for the named agent (flag_if_name_in)', () => {
+    // claude-code's agent role injects `disallowedTools` for hercules only: the primary's edits are
+    // denied, advisors stay untouched. The inject appends after the in-slot model_tier→model swap.
+    const s = ser('claude-code');
+    const lead = s.serializeFile(
+      AGENT_SRC.replace('backend-engineer', 'hercules'), tokens({ product: 'Claude Code' }), null, 'agents/hercules.md',
+    );
+    const advisor = s.serializeFile(AGENT_SRC, tokens({ product: 'Claude Code' }), null, 'agents/backend-engineer.md');
+    expect(lead).toContain('\nmodel: opus\n');
+    expect(lead).toContain('\ndisallowedTools: Edit, Write, MultiEdit, NotebookEdit\n');
+    expect(advisor).toContain('\nmodel: opus\n');
+    expect(advisor).not.toContain('disallowedTools');
+  });
 });
 
 describe('fields mode', () => {

@@ -22,6 +22,9 @@ const ADVISOR_AGENTS = [
   'business-analyst', 'copywriter', 'document-specialist', 'simplicity-advocate',
 ];
 const DEFAULT_AGENT = 'hercules'; // the plugin's default agent / orchestrator persona — not an advisor
+// The Build execution subagent — a delegated editor, not a debate advisor, so it is neither in the
+// advisor roster nor subject to the advisor-only rules below.
+const BUILDER_AGENT = 'builder';
 
 const AGENT_NAME_RE = /^name:\s*(\S+)\s*$/m;
 
@@ -54,9 +57,9 @@ const HERCULES_MD = 'dist/claude-code/agents/hercules.md';
 it('all specialist agents are present', () => {
   const existing = AGENT_PATHS.map(agentName);
   const missing = ADVISOR_AGENTS.filter((n) => !existing.includes(n));
-  const extra = existing.filter((n) => !ADVISOR_AGENTS.includes(n) && n !== DEFAULT_AGENT);
+  const extra = existing.filter((n) => !ADVISOR_AGENTS.includes(n) && n !== DEFAULT_AGENT && n !== BUILDER_AGENT);
   expect(missing, `Specialist advisors missing from agents/: ${missing}`).toEqual([]);
-  expect(extra, `agents/ has files that are neither an advisor nor the default agent: ${extra}`).toEqual([]);
+  expect(extra, `agents/ has files that are neither an advisor, the default agent, nor the builder: ${extra}`).toEqual([]);
   expect(AGENT_PATHS).toContain(HERCULES_MD);
 });
 

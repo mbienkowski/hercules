@@ -15,6 +15,9 @@ import { TREES, type Tree } from '../workflowAndProtocols/editions';
  */
 
 const LEAD = 'hercules';
+// The Build execution subagent is a delegated editor, not a debate advisor — it receives a spec,
+// not a code-of-conduct slice — so it is excluded from the advisor checks below.
+const BUILDER = 'builder';
 const PACKET = 'dist/claude-code/protocols/workflow-protocol.md';
 
 /**
@@ -40,7 +43,9 @@ function advisorFiles(tree: Tree): { rel: string; md: string }[] {
     }));
   }
   const dir = `${repoRoot}/dist/${tree}/agents`;
-  const files = readdirSync(dir).filter((f) => /\.(?:md|agent\.md)$/.test(f) && !f.startsWith(`${LEAD}.`));
+  const files = readdirSync(dir).filter(
+    (f) => /\.(?:md|agent\.md)$/.test(f) && !f.startsWith(`${LEAD}.`) && !f.startsWith(`${BUILDER}.`),
+  );
   if (files.length < 10) {
     throw new Error(`dist/${tree}/agents yielded only ${files.length} advisor files — the roster is not `
       + 'being read, and a guard over an almost-empty list reports success');
@@ -88,8 +93,9 @@ describe('every advisor', () => {
   it.each(TREES)('%s ships the whole advisor roster', (tree) => {
     const files = advisorFiles(tree);
     expect(files.length, `dist/${tree}/agents holds ${files.length} advisor files — the plugin ships 15 `
-      + 'besides the lead. A guard looping a shorter list checks proportionally less while still '
-      + 'reporting success, and a guard looping an empty one checks nothing at all.').toBe(15);
+      + 'advisors besides the lead (and the builder executor). A guard looping a shorter list checks '
+      + 'proportionally less while still reporting success, and a guard looping an empty one checks '
+      + 'nothing at all.').toBe(15);
     for (const { rel, md } of files) {
       expect(md.length, `${rel} is empty`).toBeGreaterThan(0);
     }

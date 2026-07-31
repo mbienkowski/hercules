@@ -66,6 +66,21 @@
       "resolve_model_tier": true,
       "required": [
         "name"
+      ],
+      "inject": [
+        {
+          "key": "denied",
+          "from": "literal",
+          "value": "Edit, Write"
+        },
+        {
+          "key": "flagged",
+          "from": "flag_if_name_in",
+          "names": [
+            "hercules"
+          ],
+          "value": "yes"
+        }
       ]
     }
   },

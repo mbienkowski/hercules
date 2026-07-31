@@ -36,6 +36,16 @@
       "required": [
         "name",
         "description"
+      ],
+      "inject": [
+        {
+          "key": "disallowedTools",
+          "from": "flag_if_name_in",
+          "names": [
+            "hercules"
+          ],
+          "value": "Edit, Write, MultiEdit, NotebookEdit"
+        }
       ]
     },
     "command": {
@@ -86,6 +96,7 @@
         ],
         "skills": [
           "code-of-conduct-generator",
+          "fusion-setup",
           "hercules-reference",
           "learnings",
           "write-test-scenarios"

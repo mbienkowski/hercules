@@ -1,0 +1,23 @@
+---
+name: fusion-setup
+description: Configure per-role models for the Build delegation split — an expensive primary that plans and reviews, a cheaper builder that executes. Use on OpenCode (and to review the Claude Code tier defaults) to set which model each role runs on; on other hosts it reports that per-role routing is unavailable there.
+---
+
+# Fusion setup
+
+Hercules splits Build into two roles: the **primary** (you, `hercules`) plans the delivery and reviews each diff, and the **builder** subagent applies the mechanical edits and runs verification. Routing them onto different models is what makes the split worth the overhead — the expensive model spends its tokens on judgment, the cheap one on mechanics.
+
+This skill configures that routing. It writes nothing to the repository; it only adjusts the host's own agent configuration.
+
+## OpenCode — set a model per role
+
+On OpenCode each agent's model is `provider/model-id` in the user `opencode.json` under `agent.<name>.model`. The plugin preserves a model you set here: its `config` hook deep-merges per agent, so your `agent.hercules.model` and `agent.builder.model` win while the plugin's `description`, `mode`, `prompt`, and `permission` still apply.
+
+Interview the user for two models, then write them:
+
+1. **Primary (`agent.hercules.model`)** — the judgment model. Ask which provider and model the user wants for planning and review (the expensive one). Confirm it is one their OpenCode install is authenticated for (`opencode auth login` / `/connect`).
+2. **Builder (`agent.builder.model`)** — the execution model. Ask for a cheaper, faster model from any provider. Cross-vendor (a different family than the primary) gives you an independent second read on every diff for free.
+
+Write both into the `opencode.json` the user points you at (project `.opencode/opencode.json`, or global `~/.config/opencode/opencode.json` if they prefer it follow them across repos). Merge into the existing `agent` block; never overwrite the file. Tell the user to restart OpenCode (config loads once at startup), then verify with `/models`.
+
+The builder should stay cheaper and faster than the primary. If the user has one subscription (OpenCode Go/Zen, ChatGPT, or GitHub Copilot), pick the primary and builder from the models that subscription covers — there is no key to paste, the provider is already connected. The verification command the builder runs comes from the project's code-of-conduct, so whatever stack the repo uses, builder runs that stack's test command — the model choice is independent of the stack.

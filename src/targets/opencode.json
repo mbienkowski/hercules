@@ -94,6 +94,7 @@
       "content": {
         "$schema": "https://opencode.ai/config.json",
         "default_agent": "hercules",
+        "subagent_depth": 2,
         "instructions": [
           "instructions.md"
         ],
