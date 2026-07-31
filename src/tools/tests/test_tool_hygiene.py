@@ -13,6 +13,7 @@ the tree with no entry fails — nothing acquires a capability by being added qu
 from __future__ import annotations
 
 import ast
+import importlib.util
 import re
 import sys
 from pathlib import Path
@@ -61,14 +62,42 @@ def test_at_least_one_tool_ships():
     assert _TOOL_SCRIPTS
 
 
+def _needs_installing(root: str) -> bool:
+    """Whether importing `root` would pull in an installed package rather than the standard library.
+
+    Answered by where the module actually lives, not by a name list. `sys.stdlib_module_names` exists
+    only from Python 3.10, while this project supports 3.9 (`requires-python = ">=3.9"`) and CI runs
+    that floor — so a name-list check silently becomes a no-op on exactly the version that matters.
+    """
+    if root in sys.builtin_module_names:
+        return False
+    try:
+        spec = importlib.util.find_spec(root)
+    except (ImportError, ValueError):
+        return True
+    if spec is None:
+        return True
+    origin = spec.origin or ""
+    return "site-packages" in origin or "dist-packages" in origin
+
+
 @pytest.mark.parametrize("script", _TOOL_SCRIPTS, ids=lambda p: p.name)
 def test_a_shipped_tool_needs_no_installed_package(script: Path):
     """A consumer installs the plugin, not a dependency tree. Every import resolves against the
     standard library or a sibling in this same directory."""
     local = {p.stem for p in _TOOL_SCRIPTS}
     roots = set(_imported_roots(ast.parse(script.read_text())))
-    outside = {r for r in roots if r not in local and r not in sys.stdlib_module_names}
+    outside = {r for r in roots if r not in local and _needs_installing(r)}
     assert not outside, f"{script.name} imports {sorted(outside)}, which a consumer would have to install"
+
+
+def test_the_installed_package_check_can_actually_fail():
+    """The guard's own precondition. On Python 3.9 the house pattern for this check
+    (`getattr(sys, "stdlib_module_names", None)` and skip when absent) degrades to a no-op, so the
+    version CI runs is the one where it proves nothing. This asserts the replacement still says no
+    to something — `pytest` is installed, and is exactly what a consumer must not need."""
+    assert _needs_installing("pytest") is True
+    assert _needs_installing("json") is False
 
 
 @pytest.mark.parametrize("script", _TOOL_SCRIPTS, ids=lambda p: p.name)
