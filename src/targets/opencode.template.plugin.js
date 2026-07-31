@@ -67,6 +67,10 @@ module.exports = {
     return {
       config: (cfg) => {
         cfg.default_agent = __DEFAULT_AGENT__;
+        // Fusion delegation needs the primary to spawn builder, and builder to spawn a read-only
+        // helper (explore) for lookups — a depth-2 chain. Preserve a user's larger value; only raise
+        // the floor. OpenCode 1.18.2+ defaults to 1, which would block that nested helper call.
+        cfg.subagent_depth = Math.max(cfg.subagent_depth ?? 1, 2);
         // Persona + protocols are always-loaded so their `§`/path references resolve
         // (OpenCode has no ${CLAUDE_PLUGIN_ROOT}; the plugin injects absolute paths here).
         cfg.instructions = [
@@ -78,7 +82,39 @@ module.exports = {
           ...(cfg.skills.paths || []),
           path.join(PLUGIN_ROOT, __SKILLS_PATH__),
         ];
-        cfg.agent = { ...(cfg.agent || {}), ...__AGENT_ENTRIES__ };
+        // Per-agent merge: the plugin's description/mode/prompt win, and the Fusion `permission`
+        // (edit denial + verification-only bash + bounded task graph on the primary; edit/bash allow
+        // on the builder) is injected by name. A user-set per-agent `model` (written by the
+        // fusion-setup skill) survives because the plugin entry carries no `model` key — the spread
+        // keeps the existing `model` while the plugin's other fields override it.
+        cfg.agent = cfg.agent || {};
+        const taskAllow = { "*": "deny" };
+        for (const name of Object.keys(__AGENT_ENTRIES__)) {
+          if (name !== __DEFAULT_AGENT__) taskAllow[name] = "allow";
+        }
+        const FUSION_PERMISSIONS = {
+          // Primary plans and reviews; edits are denied so delegation to builder is the only path to
+          // a changed file. Bash stays, narrowed to read-only verification (last-match-wins, so the
+          // catch-all `ask` prompts for anything unlisted — a non-JS stack's `pytest` prompts rather
+          // than bricks, while JS verification commands run automatically).
+          [__DEFAULT_AGENT__]: {
+            edit: "deny",
+            bash: {
+              "*": "ask",
+              "git diff*": "allow", "git status*": "allow", "git log*": "allow", "git show*": "allow",
+              "npm test*": "allow", "npm run lint*": "allow", "npm run build*": "allow",
+              "npx vitest run*": "allow", "npx tsc --noEmit*": "allow",
+            },
+            task: taskAllow,
+          },
+          // Builder executes edits and commands; it may spawn only the read-only explore helper.
+          builder: { edit: "allow", bash: "allow", task: { "*": "deny", explore: "allow" } },
+        };
+        for (const [name, entry] of Object.entries(__AGENT_ENTRIES__)) {
+          const existing = cfg.agent[name] || {};
+          const permission = FUSION_PERMISSIONS[name];
+          cfg.agent[name] = { ...existing, ...entry, ...(permission ? { permission } : {}) };
+        }
         cfg.command = { ...(cfg.command || {}), ...__COMMAND_ENTRIES__ };
       },
       "tool.execute.before": makeWriteGate(projectDir),

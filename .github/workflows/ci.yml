@@ -1,10 +1,10 @@
 name: CI
 
-# A push run tests the branch tip; a pull_request run tests the merge preview. Both cover every
-# branch, because stacked PRs need the merge-preview check as much as main-based ones do.
+# Pull requests test the merge preview; pushes test main after a merge. Keeping feature-branch
+# pushes out of this trigger avoids running the same CI twice when a pull request is updated.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
 
 # Cancel in-progress runs for the same branch/PR.

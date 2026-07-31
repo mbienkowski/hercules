@@ -20,6 +20,9 @@ const SKILL_LIST = [
   // Reference skill: carries the operational sections that plugin-root CLAUDE.md cannot load
   // (per Claude Code plugins-reference); auto-loads during any phase. Not an active procedure.
   'hercules-reference',
+  // Fusion per-role model setup: configures the primary/builder model split on OpenCode and
+  // reports it unavailable on hosts without per-agent model routing. Not an active procedure.
+  'fusion-setup',
 ];
 
 const ACTIVE_SKILLS = new Set(['code-of-conduct-generator', 'learnings', 'write-test-scenarios']);

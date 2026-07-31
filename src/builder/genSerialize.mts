@@ -114,6 +114,15 @@ function applyBodyPolicy(body: string, policy: string): string {
   return body;
 }
 
+/**
+ * The `preserve` byte-passthrough: the raw frontmatter block (both fences, trailing newline) joined
+ * directly to the rendered body. Used when neither a `model_tier` swap nor `inject` literals require
+ * a rebuild — never round-trip frontmatter that needs no change.
+ */
+function blockPassthrough(fmBlock: string, body: string, target: string, tokens: ReadonlyMap<string, string>): string {
+  return fmBlock + renderBody(body, target, tokens);
+}
+
 /** The source file stem (`commands/build.md` -> `build`) for the `stem` field generator. */
 function stemOf(rel: string | null): string | null {
   if (rel === null) return null;
@@ -255,28 +264,28 @@ export class DescriptorSerializer {
 
   /**
    * Raw frontmatter bytes pass through; the block is rebuilt ONLY when `model_tier` is present
-   * (in-slot swap — key order preserved, the line vanishing entirely on a null tier). Never
-   * round-trip frontmatter that needs no change: that would silently normalise it.
+   * (in-slot swap — key order preserved, the line vanishing entirely on a null tier) OR when the
+   * role carries `inject` literals (appended after the in-slot swap). Never round-trip frontmatter
+   * that needs no change: that would silently normalise it.
    */
   private preserve(
     spec: RoleSpec, fmBlock: string, meta: ReadonlyMap<string, string>, body: string,
     tokens: ReadonlyMap<string, string>, models: ModelsMap | null,
   ): string {
     for (const key of spec.required) requireField(meta, key);
-    let block = fmBlock;
-    if (spec.resolveModelTier && meta.has('model_tier')) {
-      const out = new Map<string, string>();
-      for (const [key, value] of meta) {
-        if (key === 'model_tier') {
-          const model = resolveModel(this.models(models), this.target, value);
-          if (model !== null) out.set('model', model);
-        } else {
-          out.set(key, value);
-        }
+    const swapModel = spec.resolveModelTier && meta.has('model_tier');
+    if (!swapModel && spec.inject.length === 0) return blockPassthrough(fmBlock, body, this.target, tokens);
+    const out = new Map<string, string>();
+    for (const [key, value] of meta) {
+      if (key === 'model_tier' && swapModel) {
+        const model = resolveModel(this.models(models), this.target, value);
+        if (model !== null) out.set('model', model);
+      } else {
+        out.set(key, value);
       }
-      block = `${renderFrontmatter(out)}\n`;
     }
-    return block + renderBody(body, this.target, tokens);
+    for (const [key, value] of computeFields(spec.inject, meta, this.target, tokens)) out.set(key, value);
+    return `${renderFrontmatter(out)}\n${renderBody(body, this.target, tokens)}`;
   }
 
   private fields(
@@ -331,19 +340,27 @@ export class DescriptorSerializer {
   ): string {
     const spec = this.descriptor.roles[role] as RoleSpec;
     if (spec.mode === 'toml_command') return this.toml(spec, meta, body, tokens);
-    if (spec.mode === 'preserve') {
-      for (const key of spec.required) requireField(meta, key);
-      const out = new Map<string, string>();
-      for (const [key, value] of meta) {
-        if (key === 'model_tier' && spec.resolveModelTier) {
-          const model = resolveModel(this.models(models), this.target, value);
-          if (model !== null) out.set('model', model);
-        } else {
-          out.set(key, value);
-        }
-      }
-      return `${renderFrontmatter(out)}\n\n${renderBody(body, this.target, tokens)}`;
-    }
+    if (spec.mode === 'preserve') return this.preserveDirect(spec, meta, body, tokens, models);
     return this.fields(spec, meta, body, tokens, stem);
+  }
+
+  /** Rebuild a preserve-role frontmatter block when the caller supplied metadata instead of raw bytes. */
+  private preserveDirect(
+    spec: RoleSpec, meta: ReadonlyMap<string, string>, body: string,
+    tokens: ReadonlyMap<string, string>, models: ModelsMap | null,
+  ): string {
+    for (const key of spec.required) requireField(meta, key);
+    const out = new Map<string, string>();
+    for (const [key, value] of meta) {
+      if (key === 'model_tier' && spec.resolveModelTier) {
+        const model = resolveModel(this.models(models), this.target, value);
+        if (model !== null) out.set('model', model);
+      } else {
+        out.set(key, value);
+      }
+    }
+    // The sugar has no raw bytes to preserve, so it always re-renders and appends injected literals.
+    for (const [key, value] of computeFields(spec.inject, meta, this.target, tokens)) out.set(key, value);
+    return `${renderFrontmatter(out)}\n\n${renderBody(body, this.target, tokens)}`;
   }
 }

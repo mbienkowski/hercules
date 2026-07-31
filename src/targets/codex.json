@@ -119,6 +119,11 @@
     },
     {
       "kind": "exact",
+      "src": "agents/builder.md",
+      "dest": "skills/hercules-advisor-builder/SKILL.md"
+    },
+    {
+      "kind": "exact",
       "src": "agents/business-analyst.md",
       "dest": "skills/hercules-advisor-business-analyst/SKILL.md"
     },

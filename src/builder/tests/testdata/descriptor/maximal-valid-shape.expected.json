@@ -72,7 +72,8 @@
       ],
       "body": "lstrip_newlines",
       "resolveModelTier": false,
-      "required": []
+      "required": [],
+      "inject": []
     },
     "command": {
       "mode": "toml_command",
@@ -90,7 +91,8 @@
       ],
       "body": "keep",
       "resolveModelTier": false,
-      "required": []
+      "required": [],
+      "inject": []
     },
     "persona": {
       "mode": "wrap",
@@ -108,7 +110,8 @@
       ],
       "body": "keep",
       "resolveModelTier": false,
-      "required": []
+      "required": [],
+      "inject": []
     },
     "default": {
       "mode": "preserve",
@@ -117,6 +120,30 @@
       "resolveModelTier": true,
       "required": [
         "name"
+      ],
+      "inject": [
+        {
+          "field": null,
+          "prefix": null,
+          "render": false,
+          "value": "Edit, Write",
+          "primary": null,
+          "names": [],
+          "key": "denied",
+          "source": "literal"
+        },
+        {
+          "field": null,
+          "prefix": null,
+          "render": false,
+          "value": "yes",
+          "primary": null,
+          "names": [
+            "hercules"
+          ],
+          "key": "flagged",
+          "source": "flag_if_name_in"
+        }
       ]
     }
   },

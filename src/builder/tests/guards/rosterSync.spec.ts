@@ -23,10 +23,11 @@ function settings(): Record<string, unknown> {
 describe('registered agent roster matches the agents that actually exist', () => {
   it('the default agent plus every advisor exactly matches content/agents/', () => {
     // Catches a new agent added but never registered, or a removed agent whose registration was
-    // left behind, before either ships to users.
+    // left behind, before either ships to users. The builder is a registered subagent (an executor,
+    // not a debate advisor), so it is counted alongside the default agent and the advisors.
     const s = settings();
     const roster = new Set(readdirSync(AGENTS).filter((n) => n.endsWith('.md')).map((n) => n.slice(0, -3)));
-    const listed = new Set([s['agent'] as string, ...(s['advisors'] as string[])]);
+    const listed = new Set([s['agent'] as string, ...(s['advisors'] as string[]), 'builder']);
     expect(listed).toEqual(roster);
   });
 });

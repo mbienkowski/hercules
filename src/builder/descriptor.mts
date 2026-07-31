@@ -217,17 +217,39 @@ export interface RoleSpec {
   readonly body: string;
   readonly resolveModelTier: boolean;
   readonly required: readonly string[];
+  /**
+   * `preserve`-mode only: literal frontmatter keys appended to the rebuilt block (after the
+   * `model_tier`→`model` in-slot swap), so a target can inject host-specific frontmatter — e.g.
+   * Claude Code's `disallowedTools` on the primary — into a byte-passthrough role without switching
+   * to `fields` (which would drop the source's own `tools:` and other free-form keys). Restricted to
+   * `literal` field sources: `inject` adds statics, not computed values.
+   */
+  readonly inject: readonly FieldSpec[];
 }
 
 const BODY = oneOf(['keep', 'lstrip_newlines', 'strip_newlines']);
 const nonEmptyFields = z.array(FieldSchema).min(1, { error: () => "requires a non-empty 'fields' list" });
+// `inject` is a list of LITERAL field specs only — a closed, static subset. Reusing FieldSchema keeps
+// one shape for "a field to emit"; the `.check` below narrows it to `from: 'literal'` so a non-static
+// generator in `inject` is a descriptor error, not a silent surprise at emit time.
+const injectFields = z.array(FieldSchema, { error: () => "'inject' must be a list" }).default([]);
 
 const RoleSchema = z.discriminatedUnion('mode', [
   z.strictObject({
     mode: z.literal('preserve'),
     resolve_model_tier: z.boolean({ error: () => 'must be a boolean' }).default(false),
     required: z.array(nonEmptyStr(), { error: () => 'must be a list' }).default([]),
-  }, { error: objectError('role (mode=preserve)') }),
+    inject: injectFields,
+  }, { error: objectError('role (mode=preserve)') })
+    .check((ctx) => {
+      const bad = ctx.value.inject.filter((f) => f.source !== 'literal' && f.source !== 'flag_if_name_in').map((f) => f.key);
+      if (bad.length > 0) {
+        ctx.issues.push({
+          code: 'custom', input: ctx.value,
+          message: `role (mode=preserve) 'inject' allows only literal or flag_if_name_in fields, got other key(s) ${show(bad)}`,
+        });
+      }
+    }),
   z.strictObject({
     mode: z.literal('fields'), fields: nonEmptyFields, body: BODY.default('keep'),
   }, { error: objectError('role (mode=fields)') }),
@@ -243,6 +265,7 @@ const RoleSchema = z.discriminatedUnion('mode', [
     body: 'body' in r ? r.body : 'keep',
     resolveModelTier: 'resolve_model_tier' in r ? r.resolve_model_tier : false,
     required: 'required' in r ? r.required : [],
+    inject: 'inject' in r ? r.inject : [],
   }))
   .check((ctx) => {
     const role = ctx.value;
