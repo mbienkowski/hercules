@@ -8,8 +8,9 @@ const DESIGN = 'dist/claude-code/commands/design.md';
 const BUILD = 'dist/claude-code/commands/build.md';
 const WORKFLOW = 'dist/claude-code/commands/workflow.md';
 const SHIP = 'dist/claude-code/commands/ship.md';
+const PROJECT_RESET = 'dist/claude-code/commands/project-reset.md';
 
-export const ALL_COMMANDS: readonly string[] = [DISCOVER, DESIGN, BUILD, WORKFLOW, SHIP];
+export const ALL_COMMANDS: readonly string[] = [DISCOVER, DESIGN, BUILD, WORKFLOW, SHIP, PROJECT_RESET];
 
 /**
  * Slice `text` from `start` up to `stop` (or the end), failing LOUDLY.

@@ -479,10 +479,31 @@ Hercules makes it easier to do that well.
 </details>
 
 **Common cleanup (any ecosystem).** Your delivery state survives in `~/.hercules/` — delete that folder
-for a full removal. In repos where you ran onboarding, two files are yours to keep or remove:
+for a full removal, or clear just one project with `/hercules:project-reset` (see § Maintenance). In repos where you ran onboarding, two files are yours to keep or remove:
 `code-of-conduct.md` and the `@./code-of-conduct.md` line it added to your instructions file (`CLAUDE.md`
 on Claude Code, `AGENTS.md`/`GEMINI.md` elsewhere) — both keep steering plain sessions until removed.
 Everything under `docs/` (requirements, INDEX, learnings) is your content and stays.
+
+---
+
+## Maintenance
+
+<details>
+<summary><b>Clear what Hercules remembers about one project</b></summary>
+
+- **Start** — `/hercules:project-reset` (Claude Code, OpenCode, Grok Build) or `/project-reset`
+  (Cursor, Gemini CLI, GitHub Copilot CLI).
+- **What it clears** — any combination of four things, each chosen on its own: one feature's record,
+  every feature's record for the project, the project's settings, and the documents folder.
+- **What it never touches** — your code, your repository, its history, its branches, or any file you
+  wrote. The documents folder is the one exception, and only when you explicitly select it; where
+  that folder sits inside your code repository, the command says so before you choose.
+- **It cannot be undone.** There is no backup, no undo, no restore — by design. The command shows
+  everything it is about to remove, by name, and waits for your yes.
+- **It runs a program on your machine** — `tools/project_reset.py`, standard-library Python, the same
+  interpreter the hooks use. Without a working `python3` the command stops and changes nothing.
+
+</details>
 
 ---
 
@@ -509,15 +530,16 @@ contributor workflow (build, test locally, open a PR, test a branch before relea
 ## Plugin permissions
 
 Hercules is mostly Markdown — commands, agents, and skills — interpreted by Claude Code, plus a small
-set of local enforcement **hooks** (`src/hooks/*.py`, dependency-free standard-library Python). What
-it can do is exactly what Claude Code can do in your session:
+set of local programs (`src/hooks/*.py` and `src/tools/*.py`, dependency-free standard-library
+Python). What it can do is exactly what Claude Code can do in your session:
 
 - **Project files** — reads your project files to understand context; writes to `docs/` (or wherever
   `code-of-conduct.md` points). Nothing is written outside directories Claude Code already has access to.
 - **`~/.hercules/`** — full read/write/create access to this directory. It holds a registry
   (`config.json`) and per-project delivery-state files (`state/*.json`): local filesystem paths and
   delivery progress only (no credentials, no tokens, no telemetry, no code snippets). The enforcement
-  hooks only **read** this directory.
+  hooks are **read-only** over it. One program writes here — `tools/project_reset.py`, which clears a
+  project's record, and only ever on a confirmation you give (see § Maintenance).
 - **Hooks** — Hercules ships local `PreToolUse` hooks that Claude Code runs on your machine before an
   edit. Today one guard blocks edits to a spec's frozen test files during Build (so acceptance criteria
   can't be silently weakened). You stay in charge: just ask and a named test is unblocked in the same
@@ -526,14 +548,15 @@ it can do is exactly what Claude Code can do in your session:
   caught by Build's pre-advance `git diff` backstop instead. Hooks are read-only over `~/.hercules/`,
   make no network calls, and fail **open** (they never block an edit when no active Hercules build is
   in progress).
-- **Shell** — during Build, when tests need to run (Claude Code executes the command; Hercules issues no
-  shell commands independently), and the hooks above, which Claude Code invokes as `python3` on edits.
+- **Shell** — during Build, when tests need to run (Claude Code executes the command); the hooks above,
+  which Claude Code invokes as `python3` on edits; and `/hercules:project-reset`, the one command that
+  asks Claude Code to run a shipped program (`python3 tools/project_reset.py`) on your behalf.
 - **Models** — the Hercules persona defaults to `opus`; switch anytime with `/model`. Some advisor
   agents pin smaller models (`sonnet`, `haiku`) to keep debates cheap.
 - **Network** — none. All model calls go through your existing Claude Code session and API key.
   Hercules makes no direct API calls and opens no separate network channel — hooks included.
 
-You can audit exactly what runs on your machine in `dist/<your-ecosystem>/` (e.g. `dist/claude-code/`) — the installed plugin tree, generated from the authored source in `src/content/`, `src/targets/`, and `src/hooks/` (all committed to this repository).
+You can audit exactly what runs on your machine in `dist/<your-ecosystem>/` (e.g. `dist/claude-code/`) — the installed plugin tree, generated from the authored source in `src/content/`, `src/targets/`, `src/hooks/`, and `src/tools/` (all committed to this repository).
 
 ---
 

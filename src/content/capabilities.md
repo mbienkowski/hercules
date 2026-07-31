@@ -156,6 +156,13 @@ ${target:copilot}
       by Copilot's design, so a slow guard never blocks work.
 ${target:end}
 
+- **`project-reset` runs a program, and stops without one.** The maintenance command clears a
+  project's record through a shipped program (`tools/project_reset.py`) rather than editing the
+  record from prose, so its safety rules are code rather than instructions. It needs `python3` on
+  PATH like the enforcement hooks do. Unlike them it does **not** fail open: with no interpreter the
+  command stops with a message and changes nothing, because doing nothing is the safe default for a
+  deletion. This is identical on every edition.
+
 - **No per-agent model tier.** Every Hercules agent **inherits the model you select in ${product}** —
   the build omits a per-agent `model:` on purpose (this ecosystem's descriptor `models` are
   all-`null`). Claude Code assigns a heavier model to the orchestrator and lighter models to routine

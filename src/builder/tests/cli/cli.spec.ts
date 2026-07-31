@@ -220,7 +220,8 @@ describe('the generic build seam', () => {
     // (checked by `npx tsc -p tsconfig.tests.json --noEmit`) rather than a throw-assertion. Every
     // interface here (EcosystemDescriptor, RoleSpec, ...) carries the same compile-time-only guarantee.
     const ctx: ExtrasContext = {
-      outRoot: '/tmp', sharedHooksSrc: '/tmp', srcContent: '/tmp', tokens: new Map(), version: '0.0.0',
+      outRoot: '/tmp', sharedHooksSrc: '/tmp', sharedToolsSrc: '/tmp', srcContent: '/tmp',
+      tokens: new Map(), version: '0.0.0',
     };
     // @ts-expect-error — readonly rejects this assignment at compile time; it still executes at
     // runtime (readonly has no runtime effect), so the assertion below checks the NEW value.

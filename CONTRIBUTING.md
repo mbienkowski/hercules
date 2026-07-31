@@ -1,6 +1,6 @@
 # Contributing to Hercules
 
-Hercules is authored once (in `src/content/`, `src/targets/`, and `src/hooks/`) and compiled to per-ecosystem
+Hercules is authored once (in `src/content/`, `src/targets/`, `src/hooks/`, and `src/tools/`) and compiled to per-ecosystem
 trees under `dist/` (`claude-code`, `opencode`, `cursor`) by the build pipeline in `src/builder/`. CI
 regenerates and drift-checks `dist/` on every push, so `main` always carries an in-sync build.
 
@@ -21,7 +21,7 @@ make test-mutation  # mutation testing (slower; gates on a 90% kill rate, both r
 > produces a red CI conclusion and **blocks the release**. So a mutation regression you don't catch
 > locally won't surface on your PR — it will stop the next release *after* merge. Catch it here first.
 
-After editing anything under `src/content/`, `src/targets/`, or `src/hooks/`, rebuild and commit `dist/`
+After editing anything under `src/content/`, `src/targets/`, `src/hooks/`, or `src/tools/`, rebuild and commit `dist/`
 alongside the source change. An optional pre-commit hook regenerates `dist/` automatically:
 
 ```bash
@@ -52,6 +52,11 @@ Every top-level directory is a domain, not a language or category — nothing is
   the canonical frozen-test guard + the ONE generic write-gate adapter (`hercules_gate.py`). This is
   the one domain that stays Python permanently — it ships to and runs on the end user's machine, so
   it can't carry a Node runtime dependency. `src/hooks/tests/` is its own island (see § Testing below).
+- `src/tools/` — the shared programs a COMMAND invokes deliberately, as opposed to `src/hooks/`,
+  which the HOST fires on an event. Same stdlib-only Python, byte-copied the same way; the difference
+  is the failure posture — a hook fails open, a tool that deletes fails closed. Each tool declares its
+  capabilities in `src/tools/tests/test_tool_hygiene.py`, and a file with no entry fails the suite.
+  `src/tools/tests/` is its own island too, packaged per feature.
 - `src/builder/` — the generic compiler: `parse` → `render` → `genSerialize` (descriptor-driven)
   → `genExtras` → the `bin/cli` entry point (filesystem write). `descriptor.mts` validates the closed
   vocabulary. `src/builder/tests/` covers the compiler itself.

@@ -88,12 +88,22 @@
     "severity": "gate"
   },
   {
+    "name": "project-reset-command-token-budget",
+    "target": "dist/claude-code/commands/project-reset.md",
+    "metric": "token_count",
+    "op": "<=",
+    "limit": 1620,
+    "warn_at": 1580,
+    "severity": "gate"
+  },
+  {
+    "_note": "Raised 800->1000 on the maintainer's explicit instruction when hercules.md measured 809 against the old ceiling; warn_at moved with it so it still warns before the gate.",
     "name": "agent-token-budget",
     "target": "dist/claude-code/agents/*.md",
     "metric": "token_count",
     "op": "<=",
-    "limit": 800,
-    "warn_at": 650,
+    "limit": 1000,
+    "warn_at": 900,
     "severity": "gate",
     "per_file": true
   },

@@ -27,6 +27,7 @@
     "build",
     "design",
     "discover",
+    "project-reset",
     "ship",
     "workflow"
   ]

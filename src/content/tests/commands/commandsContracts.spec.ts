@@ -10,6 +10,7 @@ import {
   DISCOVER,
   ISO_DATE_RE,
   LETTER_STEP_RE,
+  PROJECT_RESET,
   SHIP,
   WORKFLOW,
   pluginMarkdownFiles,
@@ -59,6 +60,7 @@ describe('command naming, date, and documentation contracts', () => {
       [BUILD]: '/hercules:build',
       [WORKFLOW]: '/hercules:workflow',
       [SHIP]: '/hercules:ship',
+      [PROJECT_RESET]: '/hercules:project-reset',
     };
     for (const [file, trigger] of Object.entries(triggers)) {
       expect(readFile(file), `${file} must contain its own trigger phrase ${trigger}`).toContain(trigger);

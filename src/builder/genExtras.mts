@@ -16,6 +16,9 @@
  *   descriptor role fields the standalone files use, so an inlined entry (e.g. OpenCode's
  *   `plugin.js` agent map) and its standalone mirror cannot drift by construction.
  *
+ * `guard` copies into `hooks/` and `tools` into `tools/` — the same byte-copy, kept apart because
+ * the host fires the first on an event while a command invokes the second deliberately.
+ *
  * Emitted key order follows V8: `Object.entries()` and plain `JSON.stringify` — the paths
  * `jsObjectLiteral`'s plain-object branch and `dumpJson` take — walk integer-like string keys FIRST,
  * ascending, ahead of every other key, whatever the source order. Pinned by `genExtras.spec.ts`'s
@@ -47,6 +50,8 @@ export interface ExtrasContext {
   readonly outRoot: string;
   /** `hooks/` — canonical guard + generic gate adapter, byte-copied everywhere. */
   readonly sharedHooksSrc: string;
+  /** `tools/` — command-invoked programs, byte-copied everywhere. */
+  readonly sharedToolsSrc: string;
   /** `content/`. */
   readonly srcContent: string;
   /** The target's token vars. */
@@ -243,6 +248,13 @@ export function emitExtras(ctx: ExtrasContext, descriptor: EcosystemDescriptor):
   if (descriptor.guard.length > 0) {
     const mapping = new Map(descriptor.guard.map((name) => [name, `hooks/${name}`]));
     written.push(...copyMap(ctx.sharedHooksSrc, ctx.outRoot, mapping));
+  }
+  // Same equivalence class as the guard block above — an empty tools array makes copyMap's loop a
+  // no-op regardless of this guard.
+  // Stryker disable next-line all: an empty tools array already makes copyMap's loop a no-op regardless of this guard — see comment above
+  if (descriptor.tools.length > 0) {
+    const mapping = new Map(descriptor.tools.map((name) => [name, `tools/${name}`]));
+    written.push(...copyMap(ctx.sharedToolsSrc, ctx.outRoot, mapping));
   }
   if (descriptor.gate !== null) {
     write(join(ctx.outRoot, 'hooks', 'gate.json'), dumpJson(descriptor.gate));

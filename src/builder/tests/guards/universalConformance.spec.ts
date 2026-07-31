@@ -53,7 +53,7 @@ const CONFORMANCE_EXPECTATIONS: Record<string, Expectation> = {
     neutralityPattern: null,
     neutralityExempt: [],
     planIdiomsBanned: false,
-    topLevel: new Set(['.claude-plugin', 'CLAUDE.md', 'agents', 'commands', 'hooks', 'protocols', 'settings.json', 'skills']),
+    topLevel: new Set(['.claude-plugin', 'CLAUDE.md', 'agents', 'commands', 'hooks', 'protocols', 'settings.json', 'skills', 'tools']),
     pins: [
       ['agents/hercules.md', '\nmodel: opus\n'],
       ['hooks/hooks.json', '${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py'],
@@ -72,7 +72,7 @@ const CONFORMANCE_EXPECTATIONS: Record<string, Expectation> = {
     neutralityPattern: CLAUDE_ISM,
     neutralityExempt: ['plugin.js', 'CAPABILITIES.md', 'hooks/'],
     planIdiomsBanned: true,
-    topLevel: new Set(['CAPABILITIES.md', 'agents', 'commands', 'hooks', 'instructions.md', 'opencode.json', 'plugin.js', 'protocols', 'skills']),
+    topLevel: new Set(['CAPABILITIES.md', 'agents', 'commands', 'hooks', 'instructions.md', 'opencode.json', 'plugin.js', 'protocols', 'skills', 'tools']),
     pins: [
       ['agents/hercules.md', '\nmode: primary\n'],
       ['agents/challenger.md', '\nmode: subagent\n'],
@@ -92,7 +92,7 @@ const CONFORMANCE_EXPECTATIONS: Record<string, Expectation> = {
     neutralityPattern: CLAUDE_ISM,
     neutralityExempt: ['CAPABILITIES.md', 'hooks/'],
     planIdiomsBanned: true,
-    topLevel: new Set(['.cursor-plugin', 'CAPABILITIES.md', 'README.md', 'agents', 'commands', 'hooks', 'logo.svg', 'protocols', 'rules', 'skills']),
+    topLevel: new Set(['.cursor-plugin', 'CAPABILITIES.md', 'README.md', 'agents', 'commands', 'hooks', 'logo.svg', 'protocols', 'rules', 'skills', 'tools']),
     pins: [
       ['agents/cynical-reviewer.md', '\nreadonly: true\n'],
       ['rules/hercules-persona.mdc', 'alwaysApply: true'],
@@ -119,7 +119,7 @@ const CONFORMANCE_EXPECTATIONS: Record<string, Expectation> = {
     neutralityPattern: null,
     neutralityExempt: [],
     planIdiomsBanned: true,
-    topLevel: new Set(['.grok-plugin', 'CAPABILITIES.md', 'CLAUDE.md', 'agents', 'commands', 'hooks', 'protocols', 'settings.json', 'skills']),
+    topLevel: new Set(['.grok-plugin', 'CAPABILITIES.md', 'CLAUDE.md', 'agents', 'commands', 'hooks', 'protocols', 'settings.json', 'skills', 'tools']),
     pins: [['hooks/hooks.json', '${GROK_PLUGIN_ROOT}/hooks/frozen_tests.py']],
     antiPins: [
       ['hooks/hooks.json', 'CLAUDE_PLUGIN_ROOT'],
@@ -138,7 +138,7 @@ const CONFORMANCE_EXPECTATIONS: Record<string, Expectation> = {
     neutralityPattern: CLAUDE_ISM,
     neutralityExempt: ['CAPABILITIES.md', 'hooks/'],
     planIdiomsBanned: true,
-    topLevel: new Set(['CAPABILITIES.md', 'GEMINI.md', 'agents', 'commands', 'gemini-extension.json', 'hooks', 'protocols', 'skills']),
+    topLevel: new Set(['CAPABILITIES.md', 'GEMINI.md', 'agents', 'commands', 'gemini-extension.json', 'hooks', 'protocols', 'skills', 'tools']),
     pins: [
       ['hooks/hooks.json', '${extensionPath}/hooks/hercules_gate.py'],
       ['gemini-extension.json', '"contextFileName": "GEMINI.md"'],
@@ -158,7 +158,7 @@ const CONFORMANCE_EXPECTATIONS: Record<string, Expectation> = {
     neutralityPattern: CLAUDE_ISM,
     neutralityExempt: ['CAPABILITIES.md', 'hooks/'],
     planIdiomsBanned: true,
-    topLevel: new Set(['.github', 'AGENTS.md', 'CAPABILITIES.md', 'agents', 'commands', 'hooks', 'plugin.json', 'protocols', 'skills']),
+    topLevel: new Set(['.github', 'AGENTS.md', 'CAPABILITIES.md', 'agents', 'commands', 'hooks', 'plugin.json', 'protocols', 'skills', 'tools']),
     pins: [
       ['hooks/hooks.json', '"matcher": "create|edit|str_replace_editor|apply_patch|write|Write|Edit|MultiEdit|NotebookEdit"'],
       ['hooks/hooks.json', 'python3 \\"$PLUGIN_ROOT/hooks/hercules_gate.py\\" preToolUse || exit 0'],

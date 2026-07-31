@@ -14,7 +14,8 @@ export const DESIGN = 'dist/claude-code/commands/design.md';
 export const BUILD = 'dist/claude-code/commands/build.md';
 export const WORKFLOW = 'dist/claude-code/commands/workflow.md';
 export const SHIP = 'dist/claude-code/commands/ship.md';
-export const ALL_COMMANDS = [DISCOVER, DESIGN, BUILD, WORKFLOW, SHIP];
+export const PROJECT_RESET = 'dist/claude-code/commands/project-reset.md';
+export const ALL_COMMANDS = [DISCOVER, DESIGN, BUILD, WORKFLOW, SHIP, PROJECT_RESET];
 
 const CLAUDE_MD = 'dist/claude-code/CLAUDE.md';
 const REFERENCE_SKILL = 'dist/claude-code/skills/hercules-reference/SKILL.md';

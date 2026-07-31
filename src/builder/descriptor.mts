@@ -419,6 +419,10 @@ export interface EcosystemDescriptor {
   readonly routes: readonly Route[];
   readonly artifacts: readonly Artifact[];
   readonly guard: readonly string[];
+  /** `tools/` — programs a COMMAND invokes deliberately, unlike `guard`, which the host fires on an
+   * event. Separate because the two carry opposite failure postures: a guard fails open, a tool
+   * that deletes fails closed. */
+  readonly tools: readonly string[];
   readonly gate: z.infer<typeof GateSchema> | null;
   readonly templates: readonly Template[];
 }
@@ -462,7 +466,7 @@ const SmokeSchema = z.strictObject({
   }, { error: objectError("smoke 'expect'") }).optional(),
 }, { error: objectError("'smoke'") });
 
-const GUARD_ENTRY = nonEmptyStr().check((ctx) => {
+const MODULE_ENTRY = nonEmptyStr().check((ctx) => {
   if (ctx.value.includes('/')) {
     ctx.issues.push({ code: 'custom', input: ctx.value, message: `entries are module filenames (no '/'), got ${show(ctx.value)}` });
   }
@@ -487,7 +491,8 @@ const DescriptorSchema = z.strictObject({
   // through to an empty list.
   routes: z.array(RouteSchema, { error: () => "'routes' must be a list" }),
   artifacts: z.array(ArtifactSchema, { error: () => "'artifacts' must be a list" }).default([]),
-  guard: z.array(GUARD_ENTRY, { error: () => "'guard' must be a list" }).default([]),
+  guard: z.array(MODULE_ENTRY, { error: () => "'guard' must be a list" }).default([]),
+  tools: z.array(MODULE_ENTRY, { error: () => "'tools' must be a list" }).default([]),
   // `.optional()`, never `.nullable()` — unlike the OUTPUT type (`gate: … | null`, coalesced below):
   // only an ABSENT key means "no gate". An explicit `"gate": null` is a malformed descriptor and must
   // be rejected, not silently treated as omission.
@@ -527,6 +532,7 @@ export function parseDescriptor(descriptorName: string, raw: unknown): Ecosystem
     routes: result.data.routes,
     artifacts: result.data.artifacts,
     guard: result.data.guard,
+    tools: result.data.tools,
     gate: result.data.gate ?? null,
     templates: result.data.templates,
   };
