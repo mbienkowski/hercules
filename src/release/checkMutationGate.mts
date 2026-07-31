@@ -1,7 +1,10 @@
 /**
- * Mutation kill-rate gate for TypeScript (Stryker), symmetric with the Python gate
- * (src/release/check_mutation_gate.py, mutmut over src/hooks/): same thresholds
+ * Mutation kill-rate report for TypeScript (Stryker), symmetric with the Python one
+ * (src/release/check_mutation_gate.py, mutmut over the Python islands): same thresholds
  * (src/release/mutation-gate.json), same failure modes, same wording.
+ *
+ * The gate threshold is 0, so no score fails: what still exits non-zero is a run that produced no
+ * answer — a missing report, no mutants, all timeouts, or untested/unreliable results.
  *
  * Usage: node .ts-out/bin/mutationGate.mjs
  */

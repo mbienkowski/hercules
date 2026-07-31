@@ -44,7 +44,7 @@ generated, and CI's drift gate fails when it is hand-edited or left stale.
 - **[`src/builder/`](src/builder/)** — the generic compiler that turns `src/content/` + `src/targets/` into
   `dist/`. `src/builder/tests/` covers it.
 - **[`src/release/`](src/release/)** — ships the builder's output: versioning, changelog, npm packaging, CI
-  smoke/validate checks, the mutation-kill-rate gate, and the bash glue the GitHub workflows call
+  smoke/validate checks, the mutation kill-rate report, and the bash glue the GitHub workflows call
   through `make` (`src/release/ci/`). `src/release/tests/` covers it.
 - **[`src/metrics/`](src/metrics/)** — instruction/token budgets, A2A (agent-to-agent) grammar checks, loading-chain gates.
   `src/metrics/tests/` covers it.
@@ -322,7 +322,7 @@ budgets (`src/metrics/`) — each domain carrying its own `tests/`.
 ```bash
 make install         # once: pip install -e ".[dev]" + npm ci
 make test             # CI gate: >= 90% branch coverage, BOTH runtimes independently
-make test-mutation    # CI gate: >= 90% mutation kill rate, BOTH runtimes independently
+make test-mutation    # developer tool: reports a kill rate, BOTH runtimes; gates nothing
 ```
 
 **A change to test or CI infrastructure is verified by running the pipeline, not the suite.** When you
@@ -337,16 +337,22 @@ the first behind a `[skip ci]` commit. A config-level `exclude` also beats an ex
 command line, so every caller of an excluded path needs the `--config` flag, CI scripts included.
 
 `test`/`test-mutation` are each a thin wrapper over `test-py` + `test-ts` / `mutation-py` +
-`mutation-ts` — the split is real, not cosmetic: CI runs each pair as **separate, parallel jobs**,
-one per runtime, each provisioning only the toolchain it needs. The `-py`/`-ts` suffix is the same
-string in the make target, the CI job id, and the CI display name — a red check can be reproduced by
-copying its name straight into a terminal.
+`mutation-ts` — the split is real, not cosmetic: CI runs `test-py`/`test-ts` inside one `test` job
+per runtime's toolchain, and the `-py`/`-ts` suffix is the same string in the make target and the CI
+job id, so a red check can be reproduced by copying its name straight into a terminal.
 
 Hercules holds itself to the bar it enforces on its users: **>= 90% branch coverage**, gated on every
-PR, and a **>= 90% mutation kill rate**, gated on every push to `main` (every merge ships a release —
-see RELEASE.md — so mutation gates the release, not the PR), for **each** runtime independently — a
-strong TypeScript suite does not excuse a weak Python one, or vice versa. A red or timed-out mutation
-job silently skips the next release; see RELEASE.md § If a release didn't happen.
+PR, for **each** runtime independently — a strong TypeScript suite does not excuse a weak Python one,
+or vice versa.
+
+**Mutation testing is a tool here, not a gate.** `make test-mutation` reports a kill rate and the
+mutants that survived; the threshold in `src/release/mutation-gate.json` is 0, no CI job runs it, and
+no score blocks a merge or a release. It used to run as two main-only jobs that gated the release,
+and that shape did more harm than the score was worth: a campaign that outgrew its `timeout-minutes`
+ceiling reported `cancelled`, and because `release.yml` fires only on CI's overall success, releases
+silently stopped being cut with no red check anywhere (RELEASE.md § If a release didn't happen). A
+gate a pull request never runs is not a gate — it is a trap that springs after merge, on `main`,
+where it blocks shipping rather than the change that caused it. **Nothing in `ci.yml` is main-only.**
 
 - **Mutate the engine, never the output.** Stryker's `mutate` globs cover `src/builder/` and
   `src/release/` only — never `dist/` (generated; proven by the drift + determinism gate, not
@@ -365,8 +371,9 @@ job silently skips the next release; see RELEASE.md § If a release didn't happe
   those can know — a host-specific rendering contract (Gemini's TOML escaping, OpenCode's `plugin.js`
   entrypoint shape) — never a restatement of something the generic suite already proves for every target.
 - **A surviving mutant is a verdict** — a missing test (write it) or a better behaviour than the code
-  (adopt it). Never a `# pragma: no mutate` to silence it; that pragma is allowed only on static strings
-  whose mutants are all behaviourally equivalent, never on a branch, comparison, or return value.
+  (adopt it) — but a verdict a human reads and rules on, not one CI enforces. Never a
+  `# pragma: no mutate` to silence it; that pragma is allowed only on static strings whose mutants are
+  all behaviourally equivalent, never on a branch, comparison, or return value.
 - **One target per test.** Each test asserts one behaviour; split any test longer than 20 lines, and
   any test file longer than 500 lines.
 - **Pin the product, not this guide.** Tests pin commands, agents, protocols, and hooks — the enforced
@@ -467,8 +474,7 @@ code moves to fit it.
 
 CI runs `make complexity-scan` as its own `complexity-scan` job on **every commit**, in the same fast
 tier as `test`/`validate`/`smoke` — it `needs: [build]` only (it lints source, not the compiled
-output), so it runs **in parallel** with the correctness jobs, never gated behind them. Mutation is the
-only job that waits (it `needs:` all five fast checks) and the only one that is main-only. So a
+output), so it runs **in parallel** with the correctness jobs, never gated behind them. So a
 complexity regression is caught on the commit that introduces it, right alongside the tests.
 
 ### Dependencies

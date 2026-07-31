@@ -1,5 +1,5 @@
 .PHONY: test test-mutation test-smoke install install-py install-ts build build-check \
-        typecheck compile test-py test-ts mutation-py mutation-ts mutation-py-annotate mutation-ts-annotate \
+        typecheck compile test-py test-ts mutation-py mutation-ts \
         complexity-scan complexity-scan-ts complexity-scan-py vulnerability-scan \
         ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate bless-content \
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
@@ -53,6 +53,10 @@ compile:
 		exit 1; \
 	fi
 
+# ── Mutation testing — a developer tool, not a gate ──────────────────────────
+# Run by hand, on the change you are working on; no CI job runs these and no threshold blocks a merge
+# or a release (src/release/mutation-gate.json). Both report the kill rate and the surviving mutants,
+# which is what a campaign is actually read for; what to do about a survivor stays a human call.
 test-mutation: mutation-py mutation-ts
 
 mutation-py:
@@ -60,19 +64,11 @@ mutation-py:
 	mutmut results | tee mutmut-results.txt
 	python src/release/check_mutation_gate.py
 
-# The gate script reads Stryker's JSON report and applies the same thresholds as the Python gate
+# The report script reads Stryker's JSON report and applies the same thresholds as the Python one
 # (src/release/mutation-gate.json), so the two runtimes cannot drift to two answers.
 mutation-ts: compile
 	npx stryker run || true
 	node .ts-out/release/bin/mutationGate.mjs
-
-# A red gate silently skips the next release (release.yml only fires on this workflow's overall
-# success), so CI names that consequence on failure rather than leaving a bare red check.
-mutation-py-annotate:
-	RUNTIME=mutation-py bash src/release/ci/annotate_mutation_failure.sh
-
-mutation-ts-annotate:
-	RUNTIME=mutation-ts bash src/release/ci/annotate_mutation_failure.sh
 
 # ── Complexity gate ───────────────────────────────────────────────────────────
 # Every first-party function stays under 15 on both cyclomatic and cognitive complexity, the same

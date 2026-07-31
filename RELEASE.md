@@ -27,13 +27,19 @@ one — so a release can never ship a split or an un-injected (`${version}`) ver
 
 ## If a release didn't happen
 
-`release.yml` only fires when CI's whole run for that commit succeeded — including `mutation-py` and
-`mutation-ts`, which run only on `main`. A red or timed-out mutation job therefore blocks the release
-silently: nothing pages you, the commit just sits unreleased. Each mutation job's last step names this
-consequence directly in the CI log on failure. Check `mutation-py`/`mutation-ts` on the missing commit
-first; a job that hit its `timeout-minutes` ceiling shows as cancelled with no gate verdict at all — the
-fix is almost always a slow mutant or an environment hiccup, not a real kill-rate regression. Re-run the
-job (or push a fix) and the next green run releases normally; nothing needs a manual unblock.
+`release.yml` only fires when CI's whole run for that commit succeeded, so a commit sits unreleased
+whenever **any** CI job did not end green — and "not green" includes `cancelled`, which is what a job
+that hits its `timeout-minutes` ceiling reports. Open the commit's CI run and read the job list: a
+failed job names its own cause, and a cancelled one is either a slow job against its ceiling or a run
+superseded by a later push (that later commit's own run then carries the release).
+
+This is exactly how the release after 1.14.0 stalled: `mutation-py` ran only on `main`, grew past its 15-minute
+ceiling when `src/tools/` joined the mutated surface, and reported `cancelled` — no red check, no
+release, nothing to page anyone. The mutation jobs are gone from CI for that reason (mutation testing
+is `make test-mutation` now, a developer tool), and no job in `ci.yml` is main-only any more: every
+gate that can block a release runs first on the pull request that introduces the change.
+
+Push a fix and the next green run releases normally; nothing needs a manual unblock.
 
 ## Manual smoke checklist (release-gating, once per release)
 

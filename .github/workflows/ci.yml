@@ -21,8 +21,10 @@ defaults:
   run:
     shell: bash
 
-# Job graph: build -> {test, validate, smoke, complexity-scan, vulnerability-scan}, all parallel ->
-# {mutation-py, mutation-ts}, main-only. Success gating is `needs:` throughout.
+# Job graph: build -> {test, validate, smoke, complexity-scan, vulnerability-scan}, all parallel.
+# Success gating is `needs:` throughout, and this workflow's overall result is what release.yml fires
+# on — so every job here is release-gating and nothing here may be slow, flaky, or advisory.
+# Mutation testing is deliberately NOT part of it: see the note at the bottom of this file.
 jobs:
   # ── Build gate — regenerate dist/ and prove it matches what's committed ──────
   # Runs first, so a src/content/ edit pushed without a rebuild fails before any test burns minutes.
@@ -256,86 +258,11 @@ jobs:
       - name: Scan dependencies for high/critical CVEs
         run: make vulnerability-scan
 
-  # ── Mutation testing — main only, the sole job at the end ─────────────────────
-  # The one tier that waits: it `needs:` every fast check, so the slow run starts only on a green
-  # tier. One job per runtime — mutmut over the Python island, Stryker over the TypeScript toolchain —
-  # so the two mutate concurrently, and both gate release.yml. Their `if:` carries no status-check
-  # function, so GitHub keeps the implicit needs-success requirement and the `if:` adds only the
-  # main-push restriction. Job id and make target are the same string in each; the display name
-  # is now a readable label instead (see the `name:` fields below).
-  mutation-py:
-    name: Hooks mutation tests
-    needs: [test, validate, smoke, complexity-scan, vulnerability-scan]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    # Measured locally: 491 mutants, ~3 minutes. 15 keeps 5x headroom while capping a genuine hang's cost.
-    timeout-minutes: 15
-
-    steps:
-      - uses: actions/checkout@v7
-
-      # Python only — mutmut has no use for Node, and src/hooks/ is stdlib-only.
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.9"
-          cache: "pip"
-          cache-dependency-path: "pyproject.toml"
-
-      - name: Install dependencies
-        run: make install-py
-
-      - name: Run mutation tests
-        run: make mutation-py
-
-      - name: Upload mutation results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mutation-py-results
-          path: mutmut-results.txt
-
-      # release.yml only fires on this workflow's overall success — a red gate here silently skips
-      # the next release until someone checks CI, so name that consequence where it is actually seen.
-      - name: Report a gate failure's release impact
-        if: failure()
-        run: make mutation-py-annotate
-
-  mutation-ts:
-    name: Plugin builder mutation tests
-    needs: [test, validate, smoke, complexity-scan, vulnerability-scan]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    # Measured locally: 1594 mutants (src/metrics/ excluded — see stryker.conf.json), ~10 minutes at
-    # concurrency 8 on a 10-core machine. CI's actual core count is unverified from here, so 30 keeps
-    # real headroom without paying for a full 60-minute hang on a genuine failure.
-    timeout-minutes: 30
-
-    steps:
-      - uses: actions/checkout@v7
-
-      # Node only — Stryker mutates src/{builder,release}/, and has no use for Python.
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: "package-lock.json"
-
-      - name: Install dependencies
-        run: make install-ts
-
-      - name: Run mutation tests
-        run: make mutation-ts
-
-      - name: Upload mutation results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mutation-ts-results
-          path: reports/mutation/mutation.json
-
-      # A job-level timeout skips every remaining step (this one included), so this only fires on a
-      # gate FAILURE (below-threshold kill rate, malformed report) — but that case is otherwise just
-      # as silent, so name the consequence here too. See RELEASE.md for the timeout case and recovery.
-      - name: Report a gate failure's release impact
-        if: failure()
-        run: make mutation-ts-annotate
+  # ── Mutation testing — deliberately not a CI job ─────────────────────────────
+  # mutmut (Python islands) and Stryker (the TypeScript toolchain) stay developer tools, run by hand
+  # through `make test-mutation`. They used to run here as two main-only jobs and gate the release,
+  # and that coupling is exactly what made them a liability: release.yml fires only on this
+  # workflow's overall `success`, a job that hits `timeout-minutes` reports `cancelled`, and a
+  # mutation run that outgrows its ceiling therefore stops every release with no red check anywhere
+  # to explain why (see RELEASE.md § If a release didn't happen). A mutation campaign is worth
+  # running; it is not worth standing between a green merge and the version it should ship.

@@ -43,17 +43,22 @@ consider_namespace_packages = true
 testpaths = ["src/commons/repo", "src/hooks/tests", "src/tools/tests"]
 
 [tool.mutmut]
-# src/hooks/ — the shared enforcement hooks (the ONE gate adapter every ecosystem ships) — is the
-# only mutated surface now that the Python compiler is gone; TypeScript's own Stryker mutation gate
-# (`make mutation-ts`) covers everything that used to live in the retired Python compiler.
+# The two shipped-Python islands are the whole mutated surface: src/hooks/ (the ONE gate adapter
+# every ecosystem ships) and src/tools/ (the programs a command invokes). Stryker covers the
+# TypeScript side (`make mutation-ts`). Neither run gates anything — see CODE_OF_CONDUCT.md § Testing.
+#
+# The islands share no imports, so only src/hooks/tests/ can kill a src/hooks/ mutant and only
+# src/tools/tests/ can kill a src/tools/ one. Mutating both at once therefore pays for the other
+# island's suite on every mutant: `--paths-to-mutate src/tools/ --runner "python -m pytest
+# src/tools/tests/ -x -q --tb=no --no-header"` is both faster and no weaker when you are hardening
+# one island.
 paths_to_mutate = "src/hooks/,src/tools/"
 # Each island's tests/ nests INSIDE its own mutated tree, so both must be excluded explicitly or
 # mutmut would mutate the tests themselves alongside the source they are supposed to be judging.
 paths_to_exclude = "test_*.py,__init__.py,conftest.py,src/hooks/tests/*,src/tools/tests/*"
 backup = false
-# src/hooks/tests/ is the hooks island's own tree (see CODE_OF_CONDUCT.md § Testing); src/commons/repo/
-# carries nothing that exercises src/hooks/ mutation behavior, so narrowing the runner to
-# src/hooks/tests/ alone is both correct and considerably faster than the pre-split full-suite run.
+# src/commons/repo/ carries nothing that exercises either island's mutation behavior, so the runner
+# is each island's own tests and nothing else.
 runner = "python -m pytest src/hooks/tests/ src/tools/tests/ -x -q --tb=no --no-header"
 tests_dir = "src/hooks/tests/,src/tools/tests/"
 

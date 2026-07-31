@@ -133,7 +133,7 @@ def test_test_coverage_exemptions_cannot_be_used_to_hide_untested_logic():
     """A line of hook code can be marked exempt from the mutation check that verifies tests actually
     catch bugs. That exemption is legitimate only on a line that is fixed text, a type declaration, or a
     documented equivalent-behavior case — never on a line that makes a real decision. Scoped to
-    `hooks/`, the one Python mutation gate in the repo."""
+    `hooks/`, the shipped enforcement code a mutation campaign reads hardest."""
     for path in _SHARED_HOOKS.glob("*.py"):
         if path.name.startswith("test_"):
             continue

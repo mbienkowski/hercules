@@ -2,8 +2,9 @@
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "_comment": [
     "Mutates the builder/release engine only — never src/metrics/ (a measuring tool, not shipped",
-    "logic) or dist/ (generated output; proven by the drift gate, not mutation). mutmut covers",
-    "src/hooks/ in the parallel mutation-py job; both read the one gate at src/release/mutation-gate.json."
+    "logic) or dist/ (generated output; proven by the drift gate, not mutation). mutmut covers the",
+    "Python islands via `make mutation-py`; both read src/release/mutation-gate.json, whose threshold",
+    "is 0 — these runs report a kill rate, they gate nothing and no CI job runs them."
   ],
   "packageManager": "npm",
   "testRunner": "vitest",

@@ -1,4 +1,7 @@
-"""Mutation kill-rate gate. Queries mutmut result-ids and exits 1 if below threshold.
+"""Mutation kill-rate report. Queries mutmut result-ids and prints the score.
+
+The gate threshold is 0 (src/release/mutation-gate.json), so no score fails: what still exits 1 is a
+run that produced no answer — no mutants, all timeouts, or untested/unreliable results.
 
 Usage: python src/release/check_mutation_gate.py
 """

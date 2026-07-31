@@ -13,13 +13,13 @@ live in [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md); the release process is in [`
 make install        # editable pip install + npm ci — both runtimes' dev toolchains
 make build          # regenerate dist/ for every target
 make test           # drift-check dist/ + run the suite with coverage (both runtimes)
-make test-mutation  # mutation testing (slower; gates on a 90% kill rate, both runtimes)
+make test-mutation  # mutation testing (slower; reports a kill rate, gates nothing)
 ```
 
-> **Run `make test-mutation` locally before opening a PR.** Mutation is **not** run on PRs (to keep PR
-> feedback fast) — it runs as the **release gate on `main`**: a merge whose kill rate drops below 90%
-> produces a red CI conclusion and **blocks the release**. So a mutation regression you don't catch
-> locally won't surface on your PR — it will stop the next release *after* merge. Catch it here first.
+> **`make test-mutation` is a tool, not a gate.** No CI job runs it and no kill rate blocks a merge or
+> a release — it prints the score and the surviving mutants, and you decide what a survivor is worth
+> (a missing test, a better behaviour, or nothing). Worth running on code you are hardening; never
+> something that stands between a green merge and the version it ships.
 
 After editing anything under `src/content/`, `src/targets/`, `src/hooks/`, or `src/tools/`, rebuild and commit `dist/`
 alongside the source change. An optional pre-commit hook regenerates `dist/` automatically:
@@ -61,8 +61,9 @@ Every top-level directory is a domain, not a language or category — nothing is
   → `genExtras` → the `bin/cli` entry point (filesystem write). `descriptor.mts` validates the closed
   vocabulary. `src/builder/tests/` covers the compiler itself.
 - `src/release/` — ships the builder's output: versioning, changelog, npm packaging, CI smoke/validate
-  checks, and the mutation-kill-rate gate (both its TypeScript and Python halves — see
-  `src/release/mutation-gate.json`). `src/release/ci/` holds the bash glue the GitHub workflows call through
+  checks, and the mutation kill-rate report (both its TypeScript and Python halves — see
+  `src/release/mutation-gate.json`, whose threshold is 0: it reports, it does not gate).
+  `src/release/ci/` holds the bash glue the GitHub workflows call through
   `make`. `src/release/tests/` covers all of it.
 - `src/metrics/` — instruction/token budgets, A2A (agent-to-agent) grammar checks, loading-chain gates. `src/metrics/tests/`
   covers it.

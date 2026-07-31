@@ -103,44 +103,32 @@ describe('the CI job graph', () => {
     expect(smokeIf).not.toContain('pull_request');
   });
 
-  // mutation-py and mutation-ts run as two PARALLEL jobs, each provisioning only the toolchain it
-  // needs — both must carry identical gating so neither is the weak link.
-  it.each(['mutation-py', 'mutation-ts'])(
-    "'%s' waits for ALL five fast checks via needs (it is the sole job at the end)",
-    (jobName) => {
-      expect(new Set(jobNeeds(CI_JOBS[jobName]))).toEqual(
-        new Set(['test', 'validate', 'smoke', 'complexity-scan', 'vulnerability-scan']),
-      );
-      // The success gate is `needs` itself: the if carries NO status-check function, so GitHub keeps
-      // the implicit needs-success requirement rather than re-spelling it with `.result` checks —
-      // the same gating dialect every job uses, differing only in the branch restriction below.
-      const mutationIf = CI_JOBS[jobName]?.if ?? '';
-      expect(mutationIf).not.toContain('cancelled()');
-      expect(mutationIf).not.toContain('.result');
-    },
-  );
+  it('CI is exactly the six release-gating jobs — mutation testing is not one of them', () => {
+    // The positive half first: these six ARE the pipeline, and every one of them is fast, decisive,
+    // and reproducible by `make <job id>`.
+    expect(Object.keys(CI_JOBS).sort()).toEqual([
+      'build',
+      'complexity-scan',
+      'smoke',
+      'test',
+      'validate',
+      'vulnerability-scan',
+    ]);
+    // The absence this pins: mutmut and Stryker ran here as two main-only jobs, and because
+    // release.yml fires only on this workflow's overall success, a mutation run that outgrew its
+    // `timeout-minutes` reported `cancelled` and stopped every release with no red check to explain
+    // it. They are `make test-mutation` now — developer tools, off the release path.
+    const jobText = JSON.stringify(CI_JOBS);
+    expect(jobText).not.toContain('mutation');
+    expect(jobText).not.toContain('mutmut');
+    expect(jobText).not.toContain('stryker');
+  });
 
-  it.each(['mutation-py', 'mutation-ts'])(
-    "'%s' runs only on a push to main — the release gate",
-    (jobName) => {
-      const mutationIf = CI_JOBS[jobName]?.if ?? '';
-      expect(mutationIf).toContain("github.event_name == 'push'");
-      expect(mutationIf).toContain("github.ref == 'refs/heads/main'");
-      expect(mutationIf).not.toContain('pull_request');
-    },
-  );
-
-  it("the mutation job id and make target are the same string (mutation-py / mutation-ts); the display name is a separate readable label", () => {
-    // The id (used by `needs:` and `make`) still reproduces a red check via `make {id}`; the display
-    // name in the GitHub UI is a human-readable label instead of the raw id (see ci-check-name-unification).
-    const readableName: Record<string, string> = {
-      'mutation-py': 'Hooks mutation tests',
-      'mutation-ts': 'Plugin builder mutation tests',
-    };
-    for (const jobName of ['mutation-py', 'mutation-ts']) {
-      expect(CI_JOBS[jobName]?.['name']).toBe(readableName[jobName]);
-      const runSteps = (CI_JOBS[jobName]?.steps ?? []).map((s) => s.run).filter(Boolean) as string[];
-      expect(runSteps.some((run) => run.trim() === `make ${jobName}`)).toBe(true);
+  it('no CI job is main-only any more — every job runs on the pull request that introduces it', () => {
+    // The mutation jobs were the only `github.ref == refs/heads/main` jobs, and that is what let a
+    // change land green and break the gate that no PR had run. Nothing here may be main-only again.
+    for (const [jobName, job] of Object.entries(CI_JOBS)) {
+      expect(job.if ?? '', `job '${jobName}' is gated to main`).not.toContain('refs/heads/main');
     }
   });
 

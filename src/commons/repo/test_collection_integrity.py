@@ -1,5 +1,5 @@
 """Guard: every test directory is actually collected by ``pytest`` (testpaths = src/commons/repo,
-src/hooks/tests).
+src/hooks/tests, src/tools/tests).
 
 pytest's default ``norecursedirs`` includes ``build`` and ``dist``, so a directory with either name
 is skipped during recursion and its tests run only when the path is named explicitly -- an entire
@@ -13,8 +13,10 @@ from pathlib import Path
 
 TESTS_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = TESTS_ROOT.parent.parent
-# The two roots pyproject.toml's [tool.pytest.ini_options] testpaths actually collects.
-_COLLECTED_ROOTS = [TESTS_ROOT, REPO_ROOT / "hooks" / "tests"]
+# The roots pyproject.toml's [tool.pytest.ini_options] testpaths actually collects — one per Python
+# island plus this meta-guard's own tree. A new island that lands without being added here is a whole
+# suite this guard silently stops covering.
+_COLLECTED_ROOTS = [TESTS_ROOT, REPO_ROOT / "hooks" / "tests", REPO_ROOT / "tools" / "tests"]
 
 
 def _test_dirs() -> list[Path]:

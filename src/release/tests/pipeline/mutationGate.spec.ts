@@ -218,27 +218,44 @@ describe('running the gate against a report on disk', () => {
     expect(c.err.join('\n')).toContain('make mutation-ts');
   });
 
-  it('writes passing output to stdout and failures to stderr', () => {
-    // An on-call engineer greps one stream or redirects the other; a gate that mixes them makes a
-    // red run indistinguishable from a noisy green one.
+  it('writes the score to stdout and an unusable run to stderr', () => {
+    // An on-call engineer greps one stream or redirects the other; a script that mixes them makes a
+    // broken run indistinguishable from a noisy complete one. A score never fails now, so the
+    // stderr half is the failure that remains: a run that produced no answer at all.
     const stdout = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
     const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
 
-    const path = reportFile({ files: { 'a.ts': { mutants: [{ status: 'Survived' }] } } });
-    expect(main(repoRoot, path)).toBe(1);
-
+    const scored = reportFile({ files: { 'a.ts': { mutants: [{ status: 'Survived' }] } } });
+    expect(main(repoRoot, scored)).toBe(0);
     expect(stdout.mock.calls.flat().join('')).toContain('Kill rate: 0.0%');
-    expect(stderr.mock.calls.flat().join('')).toContain('FAILED');
+    expect(stderr.mock.calls.flat().join('')).toBe('');
+
+    const unusable = reportFile({ files: { 'a.ts': { mutants: [{ status: 'CompileError' }] } } });
+    expect(main(repoRoot, unusable)).toBe(1);
+    expect(stderr.mock.calls.flat().join('')).toContain('ERROR: run incomplete');
   });
 });
 
 describe('the shared kill-rate thresholds', () => {
-  it('holds this project to a 90% kill rate, warning from 95%', () => {
+  it('requires nothing of the kill rate, and warns from 95%', () => {
     // The LIVE pin on the numbers themselves. Every behavioural test above feeds `evaluate` a local
     // 90/95 literal, exercising the scoring logic at fixed, readable values — so those tests stay
     // green if the real thresholds move. This one does not: change mutation-gate.json and it fails.
-    expect(readThresholds(repoRoot)).toEqual({ gate: 90, warn: 95 });
-    expect(thresholds).toEqual(readThresholds(repoRoot));
+    //
+    // gate 0 is the deliberate state: mutation testing is `make test-mutation`, a developer tool
+    // that reports a score, not a CI job and not a release gate. Raising this above 0 re-arms both
+    // scripts as gates — which is a decision, and this assertion is where it gets made.
+    expect(readThresholds(repoRoot)).toEqual({ gate: 0, warn: 95 });
+  });
+
+  it('a run below the old 90% bar now reports rather than fails', () => {
+    // The consequence of gate 0, asserted on the real file rather than a literal: an 80% campaign
+    // still prints its score and still warns, and still exits 0.
+    const c = capture();
+    expect(evaluate(counts({ killed: 80, survived: 20 }), readThresholds(repoRoot), c.io)).toBe(0);
+    expect(c.out.join('\n')).toContain('Kill rate: 80.0%');
+    expect(c.out.join('\n')).toContain('WARNING');
+    expect(c.err).toEqual([]);
   });
 
   it('resolves and parses the shared file rather than carrying its own copy', () => {
