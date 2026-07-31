@@ -38,7 +38,7 @@ describe('a descriptor with MULTIPLE simultaneous problems reports every one, no
     }
     expect(message).toBe(
       "ecosystem descriptor \"eco\": artifacts[0]: an artifact must be an object, got \"not-an-object\"; " +
-        "gate.protocol: 'protocol' must be one of [\"event_guards\",\"pre_tool\"], got \"magic\"",
+        "gate.protocol: 'protocol' must be one of [\"codex_pre_tool\",\"event_guards\",\"pre_tool\"], got \"magic\"",
     );
   });
 
@@ -54,7 +54,7 @@ describe('a descriptor with MULTIPLE simultaneous problems reports every one, no
       message = (error as Error).message;
     }
     expect(message).toBe(
-      "ecosystem descriptor \"eco\": gate.protocol: 'protocol' must be one of [\"event_guards\",\"pre_tool\"], got \"magic\"; " +
+      "ecosystem descriptor \"eco\": gate.protocol: 'protocol' must be one of [\"codex_pre_tool\",\"event_guards\",\"pre_tool\"], got \"magic\"; " +
         "templates[0].src: 'src' must be a flat '<eco>.template.<dest>' sibling, got \"not-a-sibling.js\"",
     );
   });
@@ -188,7 +188,7 @@ describe('rejecting every shape the closed vocabulary forbids', () => {
       "a field is not an object",
       () => withAgentRole({ mode: 'fields', fields: ['k'] }),
       "ecosystem descriptor \"eco\": roles.agent.fields[0]: 'from' must be one of " +
-        "[\"flag_if_name_in\",\"frontmatter\",\"literal\",\"primary_mode\",\"stem\"], got \"k\"",
+        "[\"flag_if_name_in\",\"frontmatter\",\"literal\",\"primary_mode\",\"stem\",\"stem_prefix\"], got \"k\"",
     ],
     [
       "field render is not a boolean",
@@ -207,12 +207,12 @@ describe('rejecting every shape the closed vocabulary forbids', () => {
     [
       "gate is not an object",
       () => minimal({ gate: 'x' }),
-      "ecosystem descriptor \"eco\": gate: 'protocol' must be one of [\"event_guards\",\"pre_tool\"], got \"x\"",
+      "ecosystem descriptor \"eco\": gate: 'protocol' must be one of [\"codex_pre_tool\",\"event_guards\",\"pre_tool\"], got \"x\"",
     ],
     [
       "gate protocol is unknown",
       () => minimal({ gate: { protocol: 'magic' } }),
-      "ecosystem descriptor \"eco\": gate.protocol: 'protocol' must be one of [\"event_guards\",\"pre_tool\"], got \"magic\"",
+      "ecosystem descriptor \"eco\": gate.protocol: 'protocol' must be one of [\"codex_pre_tool\",\"event_guards\",\"pre_tool\"], got \"magic\"",
     ],
     [
       "gate tools is not an object at all",
@@ -258,4 +258,3 @@ describe('rejecting every shape the closed vocabulary forbids', () => {
     expect(message).toBe(expected);
   });
 });
-

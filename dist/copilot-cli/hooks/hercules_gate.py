@@ -6,7 +6,7 @@ build time from ``src/targets/<name>.json`` → ``gate``. Verdicts always delega
 guard shipped alongside (``frozen_tests`` + ``hercules_state``), so the frozen set, the block
 message, and the user-granted ``frozen_override`` escape hatch are identical on every host.
 
-Two named protocols, a closed set — a new host behavior is a new named protocol in THIS file, with
+Three named protocols, a closed set — a new host behavior is a new named protocol in THIS file, with
 tests, never logic in the JSON. ``pre_tool`` is a real pre-write veto. ``event_guards`` covers the
 shell / MCP (Model Context Protocol) / after-edit surfaces, selected via argv, where after-edit is
 advisory in an interactive IDE (integrated development environment) and restores via ``git
@@ -109,6 +109,61 @@ def _pre_tool_reason(cfg, evt, home=None):
         if code == 2:
             return reason
     return None
+
+
+# ── protocol: codex_pre_tool (Codex PreToolUse — hookSpecificOutput decision envelope) ─────────
+
+_CODEX_PATCH_FILE = re.compile(r"^\*\*\* (?:Update|Add|Delete) File:\s*(.+?)\s*$", re.M)
+
+
+def _codex_patch_paths(command):
+    """Extract file paths from Codex's apply_patch payload.
+
+    Codex sends the patch itself in ``tool_input.command`` rather than a separate path argument.
+    The patch markers are deliberately parsed instead of searching for basenames: a frozen filename
+    mentioned in a hunk's prose must not be mistaken for a target file.
+    """
+    if not isinstance(command, str):
+        return []
+    return list(dict.fromkeys(m.group(1).strip() for m in _CODEX_PATCH_FILE.finditer(command)))
+
+
+def _codex_pre_tool_reason(cfg, evt, home=None):
+    """Return the canonical block reason for a Codex ``PreToolUse`` event, or ``None`` to allow."""
+    if not isinstance(evt, dict):
+        return None
+    tool = evt.get("tool_name") or evt.get("toolName") or ""
+    if tool not in cfg.get("tools", {}):
+        return None
+    cwd = evt.get("cwd") or os.getcwd()
+    args = evt.get("tool_input") if evt.get("tool_input") is not None else evt.get("toolArgs")
+    if tool == "Bash":
+        command = args.get("command", "") if isinstance(args, dict) else args
+        hit = _writes_frozen(command, frozen_map(cwd, home=home))
+        if hit is not None:
+            frozen = frozen_map(cwd, home=home)
+            return _reason(hit, frozen[hit])
+        return None
+    command = args.get("command", "") if isinstance(args, dict) else args
+    for path in _codex_patch_paths(command):
+        payload = {"tool_name": "Edit", "tool_input": {"file_path": path}, "cwd": cwd}
+        code, reason = decide(payload, home=home)
+        if code == 2:
+            return reason
+    return None
+
+
+def _emit_codex_pre_tool(cfg, reason) -> None:
+    """Emit Codex's nested ``hookSpecificOutput`` envelope."""
+    if reason is None:
+        allow = cfg.get("allow")
+        if allow is not None:
+            print(json.dumps(allow))
+        return
+    denial = json.loads(json.dumps(cfg["deny"]))
+    output = denial.setdefault("hookSpecificOutput", {})
+    output[cfg.get("reason_key", "permissionDecisionReason")] = reason
+    print(json.dumps(denial))
 
 
 # ── protocol: event_guards (shell / mcp write-guards + runtime-aware after-edit) ────────────────
@@ -382,6 +437,8 @@ def _dispatch(cfg, protocol, mode: str, evt, home=None) -> None:
     """Route a parsed event to its protocol handler (the happy path)."""
     if protocol == "pre_tool":
         _emit_pre_tool(cfg, _pre_tool_reason(cfg, evt, home=home))
+    elif protocol == "codex_pre_tool":
+        _emit_codex_pre_tool(cfg, _codex_pre_tool_reason(cfg, evt, home=home))
     elif protocol == "event_guards":
         _event_guards_decide(cfg, mode, evt if isinstance(evt, dict) else {}, home=home)
 
@@ -391,6 +448,8 @@ def _fail_open(cfg, protocol, mode: str) -> None:
     hosts (Gemini) get silence — never a block, so a gate bug can't brick an unrelated edit."""
     if protocol == "pre_tool":
         _emit_pre_tool(cfg, None)
+    elif protocol == "codex_pre_tool":
+        _emit_codex_pre_tool(cfg, None)
     elif protocol == "event_guards" and mode in ("shell", "mcp"):
         _guards_allow(cfg)
 

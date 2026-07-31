@@ -26,6 +26,10 @@ ${target:copilot}
 Hercules ships the full Discover → Design → Build → Ship methodology on GitHub Copilot CLI as an
 installable plugin (`plugin.json` manifest; agents, commands, skills, and a write-gate hook), with the
 capability gaps disclosed here (the "disclose gaps, never hide" principle):
+${target:codex}
+Hercules ships the full Discover → Design → Build → Ship methodology on Codex as a native plugin
+(`.codex-plugin/plugin.json`) whose reusable phase and advisor components are Codex skills. The plugin
+also ships a Codex `PreToolUse` hook; the host asks you to review/trust plugin hooks before they run.
 ${target:end}
 
 ${target:opencode}
@@ -180,6 +184,15 @@ ${target:copilot}
   Cursor — Hercules requires an explicit reviewer **handshake** (the reviewer attests it read the
   requirements source and returns a coverage/traceability matrix) and **halts and asks you** if that
   handshake is missing, converting a silent self-review into a loud stop.
+${target:codex}
+- **Frozen-test write-gate: enforced for Codex tool events (needs `python3`).** The plugin's
+  `PreToolUse` hook matches `apply_patch` and `Bash`, reuses the canonical frozen-test state and
+  override policy, and returns Codex's nested `hookSpecificOutput` decision envelope. `apply_patch`
+  targets are extracted from its patch markers; shell writes use the shared coarse command guard.
+  The hook fails open on malformed input, missing Python, or no active Build session. It is a guardrail,
+  not a sandbox: command quoting, heredocs, pathspecs, and tools outside these matchers can still evade it;
+  the acceptance-time frozen baseline remains the backstop. Hooks do not run until Codex's plugin review
+  and trust step is completed.
 ${target:gemini}
 
 - **Independent review relies on subagent delegation.** The Design coverage and Build traceability gates
@@ -208,4 +221,10 @@ ${target:cursor}
   plugin — the IDE is unaffected. Likewise the read-only reviewer lock depends on Cursor honouring
   `readonly` subagents server-side, which has regressed before. These are disclosed as accepted external
   risks; the release checklist re-verifies them on a real install rather than trusting CI alone.
+${target:codex}
+- **Skills-first integration.** Codex loads Hercules' phase and advisor material as reusable skills;
+  the generated `AGENTS.md` is a companion project-instructions file and must be copied into a project
+  when always-on persona guidance is wanted. Codex's plugin surface does not automatically register
+  Hercules' original host-specific agent Markdown as named subagents, so delegation is skill-mediated
+  unless a project separately provisions Codex custom-agent TOML files.
 ${target:end}

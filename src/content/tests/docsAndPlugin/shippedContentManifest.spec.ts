@@ -102,9 +102,9 @@ describe('shipped content is pinned by hash', () => {
     expect(actual.size, 'the walk found almost nothing — a sweep that opens nothing reports success, '
       + 'and that is the failure mode this pin exists to remove').toBeGreaterThan(150);
     const trees = new Set([...actual.keys()].map((p) => p.split('/')[0]));
-    expect([...trees].sort(), 'all six editions must be hashed; an edition absent here is an edition '
+    expect([...trees].sort(), 'all seven editions must be hashed; an edition absent here is an edition '
       + 'no guard in this repo is reading')
-      .toEqual(['claude-code', 'copilot-cli', 'cursor', 'gemini-cli', 'grok-build', 'opencode']);
+      .toEqual(['claude-code', 'codex', 'copilot-cli', 'cursor', 'gemini-cli', 'grok-build', 'opencode']);
   });
 
   /**

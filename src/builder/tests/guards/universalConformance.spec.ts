@@ -167,6 +167,27 @@ const CONFORMANCE_EXPECTATIONS: Record<string, Expectation> = {
     ],
     antiPins: [['agents/hercules.agent.md', '\nmodel:']],
   },
+  codex: {
+    commandMarkerBanned: true,
+    personaDest: 'AGENTS.md',
+    agentDest: (s) => `skills/hercules-advisor-${s}/SKILL.md`,
+    commandDest: (s) => `skills/hercules-${s}/SKILL.md`,
+    commandFormat: 'frontmatter',
+    agentKeysRequired: ['name', 'description'],
+    agentKeysForbidden: ['model', 'model_tier', 'tools'],
+    orchestratorPrefix: '---\nname: hercules-advisor-hercules\ndescription: ',
+    neutralityPattern: CLAUDE_ISM,
+    neutralityExempt: ['CAPABILITIES.md', 'hooks/'],
+    planIdiomsBanned: true,
+    topLevel: new Set(['.codex-plugin', 'AGENTS.md', 'CAPABILITIES.md', 'hooks', 'protocols', 'skills', 'tools']),
+    pins: [
+      ['.codex-plugin/plugin.json', '"skills": "./skills/"'],
+      ['hooks/hooks.json', '"matcher": "apply_patch|Bash"'],
+      ['hooks/hooks.json', 'codex_pre_tool'],
+      ['skills/hercules-workflow/SKILL.md', '$hercules-discover'],
+    ],
+    antiPins: [['skills/hercules-advisor-hercules/SKILL.md', '\nmodel:']],
+  },
 };
 
 const dirs: string[] = [];

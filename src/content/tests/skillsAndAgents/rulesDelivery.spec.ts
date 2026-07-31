@@ -26,6 +26,19 @@ const PACKET = 'dist/claude-code/protocols/workflow-protocol.md';
  * green. The manifest catches the change; it does not catch the wrong rule that ships with a re-bless.
  */
 function advisorFiles(tree: Tree): { rel: string; md: string }[] {
+  if (tree === 'codex') {
+    const dir = `${repoRoot}/dist/${tree}/skills`;
+    const files = readdirSync(dir).filter((f) => f.startsWith('hercules-advisor-')
+      && f !== 'hercules-advisor-hercules');
+    if (files.length < 10) {
+      throw new Error(`dist/${tree}/skills yielded only ${files.length} advisor skills — the roster is not `
+        + 'being read, and a guard over an almost-empty list reports success');
+    }
+    return files.map((f) => ({
+      rel: `dist/${tree}/skills/${f}/SKILL.md`,
+      md: readFile(`dist/${tree}/skills/${f}/SKILL.md`),
+    }));
+  }
   const dir = `${repoRoot}/dist/${tree}/agents`;
   const files = readdirSync(dir).filter((f) => /\.(?:md|agent\.md)$/.test(f) && !f.startsWith(`${LEAD}.`));
   if (files.length < 10) {

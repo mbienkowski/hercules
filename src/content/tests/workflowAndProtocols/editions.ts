@@ -7,7 +7,7 @@ import { readFile } from '../commands/support';
 import { repoRoot } from '../../../commons/support/repo';
 
 /**
- * The six shipped editions and where each keeps the artifacts these guards read.
+ * The seven shipped editions and where each keeps the artifacts these guards read.
  *
  * One source tree compiles into six, and a change applied to some and not the others is a defect the
  * requirements name outright — so every guard reads all six rather than the gated one. The editions
@@ -16,7 +16,7 @@ import { repoRoot } from '../../../commons/support/repo';
  * defect these guards exist to catch.
  */
 
-export const TREES = ['claude-code', 'opencode', 'cursor', 'copilot-cli', 'gemini-cli', 'grok-build'] as const;
+export const TREES = ['claude-code', 'opencode', 'cursor', 'copilot-cli', 'gemini-cli', 'grok-build', 'codex'] as const;
 
 export type Tree = (typeof TREES)[number];
 
@@ -41,12 +41,14 @@ export const PERSONA_PER_TREE: Record<Tree, string> = {
   cursor: 'rules/hercules-persona.mdc',
   'copilot-cli': 'AGENTS.md',
   'gemini-cli': 'GEMINI.md',
+  codex: 'AGENTS.md',
 };
 
 /** Commands, whose extension differs per host (Copilot prompts, Gemini TOML). */
 export function commandPath(tree: Tree, name: string): string {
   if (tree === 'copilot-cli') return `commands/${name}.prompt.md`;
   if (tree === 'gemini-cli') return `commands/${name}.toml`;
+  if (tree === 'codex') return `skills/hercules-${name}/SKILL.md`;
   return `commands/${name}.md`;
 }
 

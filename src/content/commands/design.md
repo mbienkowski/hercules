@@ -69,7 +69,11 @@ Iterate: apply every change, show the updated draft, ask again, until the user i
 
 Implementability check — every file named in a spec's `## Affected code` must already exist or be explicitly marked new; every `satisfies:` header must resolve to a real `*-business-requirements.md` section. Block on any mismatch — do not paper over it.
 
+${target:codex}
+Requirements coverage is an **independent review** (`hercules-reference § Independent review`), never a self-check: invoke the `$hercules-advisor-cynical-reviewer` skill with the delegation packet (`${plugin_root}protocols/workflow-protocol.md#packet`). It reads `*-business-requirements.md` and the spec drafts **directly** (never a slice you pre-select) and, for every requirement item, cites the specific spec sentence that addresses it — no coverage by assumption or paraphrase. It returns the coverage matrix:
+${target:default}
 Requirements coverage is an **independent review** (`hercules-reference § Independent review`), never a self-check: spawn `${agent_ns}cynical-reviewer` with the delegation packet (`${plugin_root}protocols/workflow-protocol.md#packet`). It reads `*-business-requirements.md` and the spec drafts **directly** (never a slice you pre-select) and, for every requirement item, cites the specific spec sentence that addresses it — no coverage by assumption or paraphrase. It returns the coverage matrix:
+${target:end}
 ```
 Requirements coverage:
   ✓ [requirement text]

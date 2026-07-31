@@ -121,7 +121,8 @@ describe('fix 6: no target renders a plan-mode/CoC triad empty', () => {
     for (const tgt of names(ECOSYSTEMS)) {
       const out = build(tgt);
       const files = filesUnder(out);
-      const commandFiles = Object.keys(files).filter((rel) => rel.startsWith('commands/'));
+      const commandFiles = Object.keys(files).filter((rel) => rel.startsWith('commands/')
+        || (tgt === 'codex' && /^skills\/hercules-(?:build|design|discover|project-reset|ship|workflow)\/SKILL\.md$/.test(rel)));
       expect(commandFiles.length, `${tgt}: no command files built`).toBeGreaterThan(0);
       for (const rel of commandFiles) {
         expect(files[rel], `${tgt}: ${rel} plan-mode switch rendered empty`).toContain('Plan mode — required');

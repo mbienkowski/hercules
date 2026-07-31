@@ -4,7 +4,7 @@ import { DescriptorError, discover, names, parseDescriptor } from '../../descrip
 import { ECOSYSTEMS, expectMessage, minimal } from '../../../commons/support/descriptorFixtures';
 import { readRepoJson } from '../../../commons/support/repo';
 
-// The smoke-level contract: the error class's shape, the six shipped ecosystems loading cleanly,
+// The smoke-level contract: the error class's shape, the seven shipped ecosystems loading cleanly,
 // two deliberate strictness choices, and one deep LOCK of every construction branch. Rejection
 // messages are asserted in the sibling descriptor.*.spec.ts files.
 
@@ -16,11 +16,11 @@ describe('DescriptorError', () => {
   });
 });
 
-describe('the six real, shipped ecosystem descriptors', () => {
-  it('all six load and the registry keys them by filename stem', () => {
+describe('the seven real, shipped ecosystem descriptors', () => {
+  it('all seven load and the registry keys them by filename stem', () => {
     const found = discover(ECOSYSTEMS);
     expect(Object.keys(found).sort()).toEqual([
-      'claude-code', 'copilot-cli', 'cursor', 'gemini-cli', 'grok-build', 'opencode',
+      'claude-code', 'codex', 'copilot-cli', 'cursor', 'gemini-cli', 'grok-build', 'opencode',
     ]);
     for (const [name, desc] of Object.entries(found)) expect(desc.name).toBe(name);
   });
@@ -28,7 +28,7 @@ describe('the six real, shipped ecosystem descriptors', () => {
   it('pins the model tier map: claude-code carries real models, the rest inherit', () => {
     const found = discover(ECOSYSTEMS);
     expect(found['claude-code']?.models).toEqual({ high: 'opus', medium: 'sonnet', low: 'haiku' });
-    for (const name of ['opencode', 'cursor', 'grok-build', 'gemini-cli', 'copilot-cli']) {
+    for (const name of ['opencode', 'cursor', 'grok-build', 'gemini-cli', 'copilot-cli', 'codex']) {
       expect(found[name]?.models).toEqual({ high: null, medium: null, low: null });
     }
   });
@@ -42,7 +42,7 @@ describe('the six real, shipped ecosystem descriptors', () => {
 
   it('names is the sorted list discover() produces, deriving the CLI target set', () => {
     expect(names(ECOSYSTEMS)).toEqual([
-      'claude-code', 'copilot-cli', 'cursor', 'gemini-cli', 'grok-build', 'opencode',
+      'claude-code', 'codex', 'copilot-cli', 'cursor', 'gemini-cli', 'grok-build', 'opencode',
     ]);
   });
 });

@@ -1,7 +1,7 @@
 # Contributing to Hercules
 
 Hercules is authored once (in `src/content/`, `src/targets/`, `src/hooks/`, and `src/tools/`) and compiled to per-ecosystem
-trees under `dist/` (`claude-code`, `opencode`, `cursor`) by the build pipeline in `src/builder/`. CI
+trees under `dist/` (`claude-code`, `opencode`, `cursor`, `codex`, and the other supported hosts) by the build pipeline in `src/builder/`. CI
 regenerates and drift-checks `dist/` on every push, so `main` always carries an in-sync build.
 
 The deep rules for *extending the methodology itself* (commands, agents, skills, hooks, invariants)
@@ -87,13 +87,15 @@ late CI failure. The procedure:
    - `smoke` — the CLI, install method, and smoke-test path (feeds the CI smoke matrix directly;
      schema-required, so a target can't exist without it).
    - `dispatch` + `roles` — how sources map to roles and how each role serializes (named modes:
-     `preserve`, `fields`, `wrap`, `plain`, `toml_command`; named field generators).
+     `preserve`, `fields`, `wrap`, `plain`, `toml_command`; named field generators including
+     `stem_prefix` for host skill names).
    - `routes` — src→dest relocations (`exact`, `suffix_swap`) for load-bearing renames like
-     Gemini's `.toml` commands or Copilot's `.agent.md`.
+     Codex's command-to-skill paths, Gemini's `.toml` commands, or Copilot's `.agent.md`.
    - `artifacts` — host manifests/settings/hook wiring as inline JSON, emitted canonically;
      `"versioned": true` injects the canonical version into a `${version}` token (fail-loud).
    - `guard` + `gate` — which `src/hooks/` modules ship, and the write-gate parameters the ONE
-     generic adapter reads (`pre_tool` tool maps + decision shapes, or `event_guards`).
+     generic adapter reads (`pre_tool`, `codex_pre_tool`, or `event_guards`). Codex's protocol
+     parses `apply_patch` payloads and emits the nested `hookSpecificOutput` decision envelope.
    - `templates` — for genuinely generated text (e.g. OpenCode's `plugin.js`): a
      `<name>.template.<dest>` sibling whose `__PLACEHOLDER__`s are filled from closed, named
      computed-value kinds (`js_string`, `js_string_list`, `js_root_joins`, `role_entries_js` — the
@@ -148,6 +150,18 @@ local checkout, add a *temporary* marketplace entry in `~/.claude-priv/settings.
 `ref` accepts a branch, tag, or commit SHA (omit it for the default branch). `hercules-dev` is a
 throwaway local name — **remove the entry and restart Claude Code when you're done** to return to the
 released version. Restart after any change; settings are read at startup.
+
+To test the Codex package from a checkout, add that checkout as a local marketplace and install the
+Codex-native bundle:
+
+```bash
+codex plugin marketplace add /path/to/your/checkout
+codex plugin add hercules@mbienkowski
+```
+
+The repository's `.agents/plugins/marketplace.json` points Codex at `dist/codex`. Remove an existing
+`mbienkowski` marketplace first if Codex resolves the public and local sources ambiguously. For the
+released package, use `codex plugin marketplace add mbienkowski/hercules` instead of a local path.
 
 ## Conventions
 

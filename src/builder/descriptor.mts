@@ -168,7 +168,7 @@ function discriminantError(field: string, values: readonly string[]) {
  * without a matching case there is then a compile error in the CONSUMER too, not just a runtime
  * surprise discovered by running the build.
  */
-export type FieldSource = 'flag_if_name_in' | 'frontmatter' | 'literal' | 'primary_mode' | 'stem';
+export type FieldSource = 'flag_if_name_in' | 'frontmatter' | 'literal' | 'primary_mode' | 'stem' | 'stem_prefix';
 
 /** One emitted frontmatter field: its output `key` and the named generator producing it. */
 export interface FieldSpec {
@@ -178,10 +178,11 @@ export interface FieldSpec {
   readonly render: boolean;
   readonly value: string | null;
   readonly primary: string | null;
+  readonly prefix: string | null;
   readonly names: readonly string[];
 }
 
-const emptyField = { field: null, render: false, value: null, primary: null, names: [] } as const;
+const emptyField = { field: null, render: false, value: null, primary: null, prefix: null, names: [] } as const;
 
 const FieldSchema = z.discriminatedUnion('from', [
   z.strictObject({
@@ -191,6 +192,8 @@ const FieldSchema = z.discriminatedUnion('from', [
     .transform((f): FieldSpec => ({ key: f.key, source: f.from, ...emptyField, field: f.field, render: f.render })),
   z.strictObject({ key: nonEmptyStr(), from: z.literal('stem') }, { error: objectError('field (from=stem)') })
     .transform((f): FieldSpec => ({ key: f.key, source: f.from, ...emptyField })),
+  z.strictObject({ key: nonEmptyStr(), from: z.literal('stem_prefix'), prefix: nonEmptyStr() }, { error: objectError('field (from=stem_prefix)') })
+    .transform((f): FieldSpec => ({ key: f.key, source: f.from, ...emptyField, prefix: f.prefix })),
   z.strictObject(
     { key: nonEmptyStr(), from: z.literal('literal'), value: nonEmptyStr() },
     { error: objectError('field (from=literal)') },
@@ -205,7 +208,7 @@ const FieldSchema = z.discriminatedUnion('from', [
     value: nonEmptyStr(),
   }, { error: objectError('field (from=flag_if_name_in)') })
     .transform((f): FieldSpec => ({ key: f.key, source: f.from, ...emptyField, value: f.value, names: f.names })),
-], { error: discriminantError('from', ['flag_if_name_in', 'frontmatter', 'literal', 'primary_mode', 'stem']) });
+], { error: discriminantError('from', ['flag_if_name_in', 'frontmatter', 'literal', 'primary_mode', 'stem', 'stem_prefix']) });
 
 /** How one role (agent/command/persona/default) serializes for this ecosystem. */
 export interface RoleSpec {
@@ -399,7 +402,17 @@ const GateSchema = z.discriminatedUnion('protocol', [
     user_key: nonEmptyStr(),
     agent_key: nonEmptyStr(),
   }, { error: objectError('gate (protocol=event_guards)') }),
-], { error: discriminantError('protocol', ['event_guards', 'pre_tool']) });
+  z.strictObject({
+    protocol: z.literal('codex_pre_tool'),
+    tools: z.record(z.string(), nonEmptyStr(), { error: () => "'tools' must be a non-empty object mapping host tool → canonical tool" })
+      .refine((t) => Object.keys(t).length > 0, { error: () => "'tools' must be a non-empty object mapping host tool → canonical tool" }),
+    path_keys: z.array(z.unknown()).min(1, { error: () => "'path_keys' must be a non-empty list" }),
+    nested_keys: z.array(z.unknown(), { error: () => "'nested_keys' must be a list" }).optional(),
+    allow: z.record(z.string(), z.unknown(), { error: () => "'allow' must be an object when present" }).optional(),
+    deny: z.record(z.string(), z.unknown(), { error: () => "'deny' must be an object" }),
+    reason_key: nonEmptyStr(),
+  }, { error: objectError('gate (protocol=codex_pre_tool)') }),
+], { error: discriminantError('protocol', ['codex_pre_tool', 'event_guards', 'pre_tool']) });
 
 /** How a source file's role is determined — the same closed set the schema validates. */
 const DISPATCH_MODES = ['frontmatter', 'path'] as const;

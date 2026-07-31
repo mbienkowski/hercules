@@ -16,6 +16,15 @@ describe('README install/uninstall/update guidance', () => {
     const content = readRepoFile('README.md');
     expect(content).toContain('/plugin marketplace add');
     expect(content).toContain('/plugin install');
+    expect(content).toContain('codex plugin marketplace add mbienkowski/hercules');
+    expect(content).toContain('codex plugin add hercules@mbienkowski');
+  });
+
+  it('documents remote Codex updates and removal', () => {
+    const content = readRepoFile('README.md');
+    expect(content).toContain('codex plugin marketplace upgrade mbienkowski');
+    expect(content).toContain('codex plugin marketplace remove mbienkowski');
+    expect(content).not.toContain('replace the local `dist/codex/` plugin');
   });
 
   it('never mentions the removed auto-sync CLI', () => {

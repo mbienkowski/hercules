@@ -1,0 +1,21 @@
+{
+  "name": "mbienkowski",
+  "interface": {
+    "displayName": "mbienkowski"
+  },
+  "plugins": [
+    {
+      "name": "hercules",
+      "source": {
+        "source": "local",
+        "path": "./dist/codex"
+      },
+      "description": "Methodology & workflow system for software delivery with AI",
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Development"
+    }
+  ]
+}

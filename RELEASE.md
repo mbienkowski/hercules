@@ -12,7 +12,7 @@ On every merge to `main`, `release.yml` runs after CI succeeds:
 2. `src/release/setVersion.mts` stamps that version into the two files that MUST carry a literal
    (`src/builder/versionTargets.mts::VERSION_TARGETS`): `package.json` (the canonical source, read
    by npm/OpenCode) and `pyproject.toml` (read by setuptools). Every plugin manifest
-   (`dist/*/…/plugin.json`, all six ecosystems) is **not** stamped — their source carries a
+   (`dist/*/…/plugin.json`, all seven ecosystems) is **not** stamped — their source carries a
    `${version}` token that the build injects from `package.json` (step below), so there is one
    version of record and nothing to hand-bump under `src/targets/`.
 3. `make build` regenerates `dist/`, injecting the canonical version into each plugin manifest.
@@ -163,6 +163,23 @@ opt-in — it needs a `CURSOR_API_KEY` secret and skips without it) — confirm 
 | 4b | Write-gate fires (`${CURSOR_PLUGIN_ROOT}` resolves; frozen shell/MCP write denied; IDE edit advisory-not-reverted; headless restores; acceptance backstop HALTs) | manual (load-bearing) |
 | 5 | Independent-review handshake returns (or HALTs) | manual |
 | 6 | `CAPABILITIES.md` gaps read true | manual |
+
+### Codex
+
+**Install:** The repository exposes the native bundle through `.agents/plugins/marketplace.json`. Verify the
+remote flow with `codex plugin marketplace add mbienkowski/hercules` followed by `codex plugin add
+hercules@mbienkowski`; in the app, enable Hercules and review/trust its hooks before beginning a new
+conversation. A local build remains available with `make build`.
+
+- [ ] The marketplace-installed plugin is recognized and the `hercules-*` skills appear in the skill list.
+- [ ] `$hercules-workflow` drives Discover → Design → Build → Ship; each phase skill can also be invoked directly.
+- [ ] The generated `AGENTS.md` works when copied into a project and does not override unrelated repository guidance.
+- [ ] A fresh advisor skill can be invoked and the delegation instructions preserve the A2A packet.
+- [ ] During an active Build, a Codex `apply_patch` targeting a frozen test is denied with a
+      `hookSpecificOutput.permissionDecision` response; a non-frozen patch is allowed.
+- [ ] A Codex `Bash` write/delete targeting a frozen test is denied; malformed or unrelated events fail open.
+- [ ] Hook review/trust is completed, since Codex does not run unreviewed plugin hooks.
+- [ ] The plugin manifest version matches the release and the capability limitations are documented.
 
 ### Grok Build · Gemini CLI · Copilot CLI
 

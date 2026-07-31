@@ -88,6 +88,17 @@ GATE_EXPECTATIONS: dict[str, dict] = {
             "guard": "hercules_gate.py",
         },
     },
+    # Codex: native PreToolUse hook with the hookSpecificOutput decision envelope.
+    "codex": {
+        "files": [".codex-plugin/plugin.json", "hooks/hooks.json", "hooks/hercules_gate.py",
+                  "hooks/frozen_tests.py", _STATE],
+        "codex_hooks": {
+            "path": "hooks/hooks.json",
+            "event": "PreToolUse",
+            "matcher_tokens": ["apply_patch", "Bash"],
+            "guard": "hercules_gate.py",
+        },
+    },
 }
 
 
@@ -151,6 +162,18 @@ def test_target_ships_its_write_gate(target, built):
     # Copilot CLI: the preToolUse hook matches the edit tools and invokes the guard adapter.
     if "copilot_hooks" in spec:
         ch = spec["copilot_hooks"]
+        data = json.loads((out / ch["path"]).read_text(encoding="utf-8"))
+        entries = data.get("hooks", {}).get(ch["event"], [])
+        assert entries, f"{target}: no {ch['event']} hook wired"
+        matchers = " ".join(e.get("matcher", "") for e in entries)
+        for tok in ch["matcher_tokens"]:
+            assert tok in matchers, f"{target}: {ch['event']} matcher must cover {tok}"
+        wired = json.dumps(entries)
+        assert ch["guard"] in wired, f"{target}: {ch['event']} must invoke {ch['guard']}"
+
+    # Codex: PreToolUse hook invokes the adapter with Codex's nested decision envelope.
+    if "codex_hooks" in spec:
+        ch = spec["codex_hooks"]
         data = json.loads((out / ch["path"]).read_text(encoding="utf-8"))
         entries = data.get("hooks", {}).get(ch["event"], [])
         assert entries, f"{target}: no {ch['event']} hook wired"

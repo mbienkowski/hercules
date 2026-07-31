@@ -10,6 +10,7 @@
 [![Grok Build](https://img.shields.io/badge/Grok%20Build-%E2%9C%85-gray?style=flat-square)](#install-grok-build)
 [![Gemini CLI](https://img.shields.io/badge/Gemini%20CLI-%E2%9C%85-gray?style=flat-square)](#install-gemini-cli)
 [![GitHub Copilot CLI](https://img.shields.io/badge/GitHub%20Copilot%20CLI-%E2%9C%85-gray?style=flat-square)](#install-github-copilot-cli)
+[![Codex](https://img.shields.io/badge/Codex-%E2%9C%85-gray?style=flat-square)](#install-codex)
 
 Half god, half man — strong enough to wrestle a lion, patient enough to sit through your kickoff meeting.
 
@@ -166,6 +167,25 @@ Gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
 
 </details>
 
+<details id="install-codex">
+<summary><b>Codex app</b></summary>
+
+- **Requires** the Codex app or Codex CLI with plugin support, plus `python3` for the frozen-test hook.
+- **Install from GitHub** — Codex can consume the repository's marketplace directly; no clone or local build is needed:
+
+```bash
+codex plugin marketplace add mbienkowski/hercules
+codex plugin add hercules@mbienkowski
+```
+
+  In the Codex app, restart it, open **Plugins**, choose the `mbienkowski` marketplace, and enable Hercules. Review/trust its hooks when prompted.
+- **Build locally** — from this repository run `npm install` and `make build`; the native plugin is emitted at `dist/codex/` and is also exposed through `.agents/plugins/marketplace.json` for local testing.
+- **Start** — invoke `$hercules-workflow` (or `$hercules-discover`, `$hercules-design`, `$hercules-build`, `$hercules-ship`).
+- **Project guidance** — Codex reads the generated `AGENTS.md` when it is copied into the project; the plugin itself provides the reusable skills and hooks.
+- **Enforcement** — the hook covers Codex `apply_patch` and `Bash` events and fails open when no active Hercules Build owns frozen tests. It is a guardrail, not a sandbox.
+
+</details>
+
 ---
 
 ## Quickstart
@@ -173,7 +193,7 @@ Gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
 Once installed, in any ecosystem:
 
 - **It's your default delivery partner** — just say *"Hercules, where do I start?"*, or run the workflow command; it steers only the sessions where the plugin is enabled.
-- **Invoke it** with `/hercules:workflow` (Claude Code, OpenCode, Grok Build) or `/workflow` (Gemini CLI, Copilot CLI, Cursor) — and the per-phase commands the same way.
+- **Invoke it** with `/hercules:workflow` (Claude Code, OpenCode, Grok Build), `/workflow` (Gemini CLI, Copilot CLI, Cursor), or `$hercules-workflow` (Codex) — and the per-phase commands the same way.
 - **New repo?** Hercules detects it and walks you through the one-time setup first.
 
 The fastest way to start is the guided workflow — Hercules walks you through every phase:
@@ -429,6 +449,14 @@ Hercules makes it easier to do that well.
 
 </details>
 
+<details>
+<summary><b>Codex</b></summary>
+
+- Refresh the Git marketplace with `codex plugin marketplace upgrade mbienkowski`, then restart Codex. If the installed copy does not refresh, run `codex plugin remove hercules` followed by `codex plugin add hercules@mbienkowski`.
+- For a pinned release, add the marketplace with `--ref vX.Y.Z` and use that marketplace snapshot for reproducible installs.
+
+</details>
+
 ---
 
 ## Uninstalling
@@ -475,6 +503,13 @@ Hercules makes it easier to do that well.
 <summary><b>GitHub Copilot CLI</b></summary>
 
 - `copilot plugin uninstall hercules`, then `copilot plugin marketplace remove hercules` (add `--force` to also remove every plugin from that marketplace).
+
+</details>
+
+<details>
+<summary><b>Codex</b></summary>
+
+- Run `codex plugin remove hercules`, then `codex plugin marketplace remove mbienkowski` if no other plugin uses that marketplace. Remove any copied `AGENTS.md` line or file separately if you enabled the always-on project guidance.
 
 </details>
 
@@ -529,7 +564,7 @@ contributor workflow (build, test locally, open a PR, test a branch before relea
 
 ## Plugin permissions
 
-Hercules is mostly Markdown — commands, agents, and skills — interpreted by Claude Code, plus a small
+Hercules is mostly Markdown — commands, agents, and skills — interpreted by your coding host, plus a small
 set of local programs (`src/hooks/*.py` and `src/tools/*.py`, dependency-free standard-library
 Python). What it can do is exactly what Claude Code can do in your session:
 
@@ -540,11 +575,11 @@ Python). What it can do is exactly what Claude Code can do in your session:
   delivery progress only (no credentials, no tokens, no telemetry, no code snippets). The enforcement
   hooks are **read-only** over it. One program writes here — `tools/project_reset.py`, which clears a
   project's record, and only ever on a confirmation you give (see § Maintenance).
-- **Hooks** — Hercules ships local `PreToolUse` hooks that Claude Code runs on your machine before an
+- **Hooks** — Hercules ships local pre-tool hooks that the supported host runs on your machine before an
   edit. Today one guard blocks edits to a spec's frozen test files during Build (so acceptance criteria
   can't be silently weakened). You stay in charge: just ask and a named test is unblocked in the same
   turn (a round-bound, user-granted override), and a per-project opt-out (`frozen_hook: "off"`) switches
-  to prompt-only discipline entirely. The hook watches Claude Code's editing tools; shell-side edits are
+  to prompt-only discipline entirely. The Codex edition watches `apply_patch` and `Bash`; shell-side edits are
   caught by Build's pre-advance `git diff` backstop instead. Hooks are read-only over `~/.hercules/`,
   make no network calls, and fail **open** (they never block an edit when no active Hercules build is
   in progress).

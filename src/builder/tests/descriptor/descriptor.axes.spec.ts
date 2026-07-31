@@ -112,7 +112,7 @@ describe('one rejection per closed-vocabulary axis, with a message naming the al
     expectMessage(
       () => withAgentRole({ mode: 'fields', fields: [{ key: 'x', from: 'conditional' }] }),
       "ecosystem descriptor \"eco\": roles.agent.fields[0].from: 'from' must be one of " +
-        "[\"flag_if_name_in\",\"frontmatter\",\"literal\",\"primary_mode\",\"stem\"], got \"conditional\"",
+        "[\"flag_if_name_in\",\"frontmatter\",\"literal\",\"primary_mode\",\"stem\",\"stem_prefix\"], got \"conditional\"",
     );
   });
 

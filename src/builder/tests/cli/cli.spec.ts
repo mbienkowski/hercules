@@ -31,14 +31,14 @@ describe('targets', () => {
   it('derives the accepted --target values from the descriptor files themselves', () => {
     expect(targets()).toEqual(names());
     expect(targets()).toEqual([
-      'claude-code', 'copilot-cli', 'cursor', 'gemini-cli', 'grok-build', 'opencode',
+      'claude-code', 'codex', 'copilot-cli', 'cursor', 'gemini-cli', 'grok-build', 'opencode',
     ]);
   });
 });
 
 describe('buildTarget', () => {
   it('has no per-ecosystem branches: every real target renders without throwing', () => {
-    // A full build of all 6 real targets — same central-processing-unit (CPU) contention reasoning
+    // A full build of all 7 real targets — same central-processing-unit (CPU) contention reasoning
     // as checkTarget's and main's own explicit timeouts elsewhere in this file.
     for (const t of targets()) {
       const out = tmpDir(`hercules-cli-build-${t}-`);

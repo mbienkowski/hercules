@@ -28,6 +28,7 @@ Read [${plugin_root}protocols/a2a-communication-protocol.md](${plugin_root}proto
 All agent-to-agent output must follow § Agent-Injected Core defined there.
 Inject that Core verbatim into every delegation prompt (it is the only channel that reaches built-in Explore/Plan agents).
 
+${target:default}
 ## Agents
 
 The plugin ships a set of generic specialist agents in `agents/` (auto-registered as `${agent_ns}<name>`).
@@ -43,6 +44,16 @@ reads the file itself only when no slice arrives. Replies follow the A2A § Agen
 
 Domain experts beyond this list are spawned ad hoc per the debate protocol — not shipped as files.
 The list is pinned by `tests/` (drift, no-stack-literals, required clauses).
+${target:codex}
+## Specialist guidance
+
+Codex exposes Hercules' specialist guidance as reusable skills under `skills/hercules-advisor-*`.
+They are not automatically registered as named subagents by the plugin manifest. When an independent
+review is required, invoke the matching advisor skill with the complete delegation packet and require
+its A2A-formatted response; do not claim that Codex created a named isolated subagent unless the
+project has separately provisioned a Codex custom-agent TOML file. They carry no hardcoded stack or
+personal preferences — all project variance lives in a per-project `code-of-conduct.md`, whose binding slice is carried in the delegation packet; an agent reads the file itself only when no slice arrives.
+${target:end}
 
 ## Skills
 

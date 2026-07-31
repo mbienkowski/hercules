@@ -127,7 +127,7 @@ function stemOf(rel: string | null): string | null {
  *
  * Each generator is single-purpose with data operands only (the descriptor vocabulary is closed):
  * `frontmatter` requires its source key and optionally token-renders the value; `stem` emits the
- * source file stem; `literal` a static; `primary_mode` the primary/subagent split;
+ * source file stem; `stem_prefix` emits a descriptor-supplied prefix plus the source stem; `literal` a static; `primary_mode` the primary/subagent split;
  * `flag_if_name_in` emits its value for the named roles and OMITS the key otherwise.
  */
 export function computeFields(
@@ -153,6 +153,13 @@ export function computeFields(
           throw new SerializeError(`field ${show(spec.key)} needs the source file stem, but none was provided`);
         }
         out.set(spec.key, stem);
+        break;
+      }
+      case 'stem_prefix': {
+        if (stem === null) {
+          throw new SerializeError(`field ${show(spec.key)} needs the source file stem, but none was provided`);
+        }
+        out.set(spec.key, `${spec.prefix as string}${stem}`);
         break;
       }
       case 'literal':
