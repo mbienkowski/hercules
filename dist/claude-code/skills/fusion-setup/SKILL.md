@@ -1,6 +1,6 @@
 ---
 name: fusion-setup
-description: Configure per-role models for the Build delegation split — an expensive primary that plans and reviews, a cheaper builder that executes. Use on OpenCode (and to review the Claude Code tier defaults) to set which model each role runs on; on other hosts it reports that per-role routing is unavailable there.
+description: Configure per-role models for the Build delegation split — an expensive primary that plans and reviews, a cheaper builder that executes. Use to set which model each role runs on where the host supports per-agent routing; on hosts without it, reports that per-role routing is unavailable and one model serves the whole flow.
 ---
 
 # Fusion setup
