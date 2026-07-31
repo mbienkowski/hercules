@@ -340,22 +340,27 @@ export class DescriptorSerializer {
   ): string {
     const spec = this.descriptor.roles[role] as RoleSpec;
     if (spec.mode === 'toml_command') return this.toml(spec, meta, body, tokens);
-    if (spec.mode === 'preserve') {
-      for (const key of spec.required) requireField(meta, key);
-      const out = new Map<string, string>();
-      for (const [key, value] of meta) {
-        if (key === 'model_tier' && spec.resolveModelTier) {
-          const model = resolveModel(this.models(models), this.target, value);
-          if (model !== null) out.set('model', model);
-        } else {
-          out.set(key, value);
-        }
-      }
-      // `roleDirect` rebuilds from the meta map (the sugar has no raw bytes to preserve), so unlike
-      // `preserve()` there is no passthrough path — it always re-renders, appending `inject` literals.
-      for (const [key, value] of computeFields(spec.inject, meta, this.target, tokens)) out.set(key, value);
-      return `${renderFrontmatter(out)}\n\n${renderBody(body, this.target, tokens)}`;
-    }
+    if (spec.mode === 'preserve') return this.preserveDirect(spec, meta, body, tokens, models);
     return this.fields(spec, meta, body, tokens, stem);
+  }
+
+  /** Rebuild a preserve-role frontmatter block when the caller supplied metadata instead of raw bytes. */
+  private preserveDirect(
+    spec: RoleSpec, meta: ReadonlyMap<string, string>, body: string,
+    tokens: ReadonlyMap<string, string>, models: ModelsMap | null,
+  ): string {
+    for (const key of spec.required) requireField(meta, key);
+    const out = new Map<string, string>();
+    for (const [key, value] of meta) {
+      if (key === 'model_tier' && spec.resolveModelTier) {
+        const model = resolveModel(this.models(models), this.target, value);
+        if (model !== null) out.set('model', model);
+      } else {
+        out.set(key, value);
+      }
+    }
+    // The sugar has no raw bytes to preserve, so it always re-renders and appends injected literals.
+    for (const [key, value] of computeFields(spec.inject, meta, this.target, tokens)) out.set(key, value);
+    return `${renderFrontmatter(out)}\n\n${renderBody(body, this.target, tokens)}`;
   }
 }
