@@ -32,7 +32,8 @@ function advisorFiles(tree: Tree): { rel: string; md: string }[] {
   if (tree === 'codex') {
     const dir = `${repoRoot}/dist/${tree}/skills`;
     const files = readdirSync(dir).filter((f) => f.startsWith('hercules-advisor-')
-      && f !== 'hercules-advisor-hercules');
+      && f !== 'hercules-advisor-hercules'
+      && f !== `hercules-advisor-${BUILDER}`);
     if (files.length < 10) {
       throw new Error(`dist/${tree}/skills yielded only ${files.length} advisor skills — the roster is not `
         + 'being read, and a guard over an almost-empty list reports success');

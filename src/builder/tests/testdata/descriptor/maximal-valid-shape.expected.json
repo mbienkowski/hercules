@@ -124,6 +124,7 @@
       "inject": [
         {
           "field": null,
+          "prefix": null,
           "render": false,
           "value": "Edit, Write",
           "primary": null,
@@ -133,6 +134,7 @@
         },
         {
           "field": null,
+          "prefix": null,
           "render": false,
           "value": "yes",
           "primary": null,
