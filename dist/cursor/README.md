@@ -6,7 +6,7 @@ specs, then implemented-and-tested code — with specialist advisors and require
 ## What it gives you
 
 - **An always-on persona** (`rules/hercules-persona.mdc`) — Hercules leads the four-phase workflow.
-- **Commands** — `/discover`, `/design`, `/build`, `/ship`, `/workflow`.
+- **Commands** — `/discover`, `/design`, `/build`, `/ship`, `/workflow`, `/project-reset`.
 - **Specialist subagents** — architect, QA, security, and more, isolated per review.
 - **Frozen-test enforcement (best-effort on Cursor)** — during Build, Hercules resists silent weakening
   of acceptance tests: `beforeShellExecution`/`beforeMCPExecution` deny the common frozen-test

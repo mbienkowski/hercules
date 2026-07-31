@@ -109,6 +109,9 @@
     "frozen_tests.py",
     "hercules_state.py"
   ],
+  "tools": [
+    "project_reset.py"
+  ],
   "templates": [
     {
       "src": "opencode.template.plugin.js",

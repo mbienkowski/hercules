@@ -5,7 +5,7 @@
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
 
 # ── Which runtime owns what ──────────────────────────────────────────────────
-# Python owns src/hooks/ (shipped to users) and TypeScript owns src/{builder,release,metrics}/. The
+# Python owns src/hooks/ and src/tools/ (both shipped to users); TypeScript owns src/{builder,release,metrics}/. The
 # -py/-ts suffix is the same string in the make target, the CI job id and the CI display name, so a
 # red check reproduces by copying its name into a terminal. Keep it that way.
 
@@ -25,10 +25,10 @@ build-check: compile
 
 test: test-py test-ts
 
-# The Python suite: src/hooks/ (the island, see CODE_OF_CONDUCT.md § Testing) plus the repo-wide
-# meta-guards under src/commons/repo/.
+# The Python suite: src/hooks/ and src/tools/ (the two islands, see CODE_OF_CONDUCT.md § Testing)
+# plus the repo-wide meta-guards under src/commons/repo/.
 test-py: build-check
-	python -m pytest src/commons/repo/ src/hooks/tests/ -v --cov=src/hooks --cov-branch --cov-report=term-missing --cov-fail-under=90
+	python -m pytest src/commons/repo/ src/hooks/tests/ src/tools/tests/ -v --cov=src/hooks --cov=src/tools --cov-branch --cov-report=term-missing --cov-fail-under=90
 
 test-ts:
 	npm run typecheck
@@ -84,10 +84,10 @@ complexity-scan: complexity-scan-ts complexity-scan-py
 complexity-scan-ts:
 	npx eslint --max-warnings=0 .
 
-# Shipped Python hooks. --select restricts flake8 to the two complexity checks (C901 = mccabe
-# cyclomatic, CCR001 = cognitive); --extend-exclude drops the hooks' own tests.
+# Shipped Python, both islands. --select restricts flake8 to the two complexity checks (C901 =
+# mccabe cyclomatic, CCR001 = cognitive); --extend-exclude drops each island's own tests.
 complexity-scan-py:
-	flake8 --select=C901,CCR001 --max-complexity=15 --max-cognitive-complexity=15 --extend-exclude=tests src/hooks
+	flake8 --select=C901,CCR001 --max-complexity=15 --max-cognitive-complexity=15 --extend-exclude=tests src/hooks src/tools
 
 # ── Dependency vulnerability scan ─────────────────────────────────────────────
 # Fail on any high or critical CVE. npm carries the entire dependency surface: the shipped plugin is

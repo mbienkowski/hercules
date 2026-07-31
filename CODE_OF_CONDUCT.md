@@ -14,7 +14,7 @@ auto-loaded `hercules-reference` skill, authored in [`src/content/`](src/content
 Every top-level directory is a **domain**, not a language or a category — nothing is named `ts`,
 `py`, `scripts`, or similar. A domain that has tests owns them directly, in its own `tests/`.
 
-Hercules is authored once (in `src/content/`, `src/targets/`, and `src/hooks/`) and compiled to per-ecosystem
+Hercules is authored once (in `src/content/`, `src/targets/`, `src/hooks/`, and `src/tools/`) and compiled to per-ecosystem
 plugins under **`dist/`** (`make build`). **Edit the source domains, never `dist/`** — `dist/` is
 generated, and CI's drift gate fails when it is hand-edited or left stale.
 
@@ -34,6 +34,13 @@ generated, and CI's drift gate fails when it is hand-edited or left stale.
   every ecosystem): the canonical frozen-test guard and the one generic write-gate adapter. This
   domain holds no code the compiler executes — the compiler only copies these for the host to run.
   `src/hooks/tests/` is its own island (see § Testing).
+- **[`src/tools/`](src/tools/)** — the SHARED programs a COMMAND invokes deliberately (stdlib Python,
+  authored once, byte-copied to every ecosystem), as opposed to `src/hooks/`, which the HOST fires on
+  an event. The distinction is the failure posture: a hook fails OPEN, because allowing an edit is its
+  safe default; a tool that deletes fails CLOSED, because doing nothing is. Keeping them in separate
+  domains is what lets `src/hooks/`'s blanket write-ban stay exactly as strict as it is. Each tool
+  declares its own capabilities in `src/tools/tests/test_tool_hygiene.py`, and a file with no entry
+  fails the suite. `src/tools/tests/` is its own island (see § Testing).
 - **[`src/builder/`](src/builder/)** — the generic compiler that turns `src/content/` + `src/targets/` into
   `dist/`. `src/builder/tests/` covers it.
 - **[`src/release/`](src/release/)** — ships the builder's output: versioning, changelog, npm packaging, CI
@@ -67,6 +74,11 @@ Commands are `src/content/commands/{name}.md` (lowercase — macOS is case-insen
   read-only or utility skills may omit plan mode.
 - Points forward to the next phase at close-out and updates the workflow table in `src/content/persona.md`.
 - Adds a token-budget row to `src/metrics/tests/testdata/thresholds.json`. Step numbers are integers — no `4a`/`1b`.
+
+A **maintenance command** — invoked deliberately, standing outside the four phases, never a side effect
+of one — carries none of the phase-only obligations above: no forward pointer and no workflow-table row,
+because there is no next phase and it is not a step. It still opens in plan mode, still ends at one Plan
+approval gate, and still carries its trigger phrase and its budget row like any other command.
 
 ### Changing the workflow
 
@@ -162,14 +174,15 @@ Shared rules for every hook, on every ecosystem:
   is the host's, e.g. `${CLAUDE_PLUGIN_ROOT}` / `${CURSOR_PLUGIN_ROOT}`.
 - **Read-only over `~/.hercules`, fail-open** — a hook never writes state (it would race the model's
   atomic writes) and allows the action whenever no active build resolves — or no `python3` is found. It
-  must never crash a user's edit. The **one** sanctioned working-tree mutation is Cursor's disclosed
+  must never crash a user's edit. Among hooks, the **one** sanctioned working-tree mutation is Cursor's disclosed
   after-edit `git checkout` restore in **headless** runs (`afterFileEdit` is notification-only, so it
   cannot block the landed edit — Cursor's generic `preToolUse` deny hook is unverified for the Composer
   path and not relied on; no human is present headless to act on a notice); it goes through git, never a
   direct write, is bounded to restoring the frozen path,
   and reports success **only when git actually restored it** — never a false "reverted" claim on an
   untracked file or non-git tree. In the interactive IDE the after-edit path is **advisory only** (no
-  mutation).
+  mutation). A tool in `src/tools/` is the other sanctioned mutation, and a different kind: invoked by
+a command rather than fired by the host, write-capable by declaration, and fail-closed.
 - **Honest scope.** A hook reads model-authored state, so it is **runtime-mediated, not tamper-proof** —
   say so, never "unbypassable"; disclose the per-ecosystem limits in the compiled `CAPABILITIES.md`
   (authored in `src/content/capabilities.md`: fail-open without `python3`; Cursor's revert-only
@@ -299,9 +312,10 @@ generated `CHANGELOG.md`. Explain what the code does and *why it is this way*, n
 
 ## Testing
 
-Two runtimes, two runners, one bar. **Python** is the island: `src/hooks/` — the enforcement code
-shipped to users, stdlib-only, no runtime dependency to impose on a consumer (see § Hooks) — and
-nothing else. **TypeScript** is everything else executable: the compiler (`src/builder/`), the
+Two runtimes, two runners, one bar. **Python** is for code SHIPPED TO USERS and run unmodified on
+their machine, stdlib-only so a consumer carries no runtime dependency: `src/hooks/` (the host fires
+these on an event, see § Hooks) and `src/tools/` (a command invokes these deliberately) — and nothing
+else. Each is its own island with its own `tests/`. **TypeScript** is everything else executable: the compiler (`src/builder/`), the
 CI/release scripts (`src/release/`), the plugin-content lint (`src/content/tests/`), and the A2A/metric
 budgets (`src/metrics/`) — each domain carrying its own `tests/`.
 

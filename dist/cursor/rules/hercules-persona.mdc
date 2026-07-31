@@ -114,3 +114,7 @@ Status values: `discover` | `design` | `build` | `delivered` | `abandoned`. On t
 "abandon this session": set the row's Status to `abandoned`, remove the session from the state
 file (atomic temp + rename), and leave every `docs/` artifact in place — the docs stay theirs.
 Tier values: `trivial` | `low` | `medium` | `high` | `critical`
+
+### Maintenance
+
+`/project-reset` clears what Hercules remembers about a project — any combination of one feature's record, every feature's record, the project's settings, and the documents folder, each chosen on its own. It stands outside the four phases, is invoked deliberately, and is never a side effect of one. It runs a shipped program rather than editing the record here, it deletes nothing without an explicit confirmation, and it cannot be undone. "Abandon this session" is the narrower neighbour: it reaches only the feature in flight, and deletes no files.

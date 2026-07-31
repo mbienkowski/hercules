@@ -56,6 +56,7 @@ needs a live, paid session and stays a manual, release-gating check.
 | 2 | `hercules` is the default agent, answers in character | manual |
 | 3 | `/hercules:workflow` drives Discover → Design → Build → Ship | manual |
 | 4 | Write-gate hook blocks/allows | manual |
+| 4b | `project-reset` lists a project, refuses a dangerous documents path, and clears only what was confirmed | manual |
 | 5 | A specialist advisor spawns, replies in A2A (agent-to-agent) format | manual |
 | 6 | `hercules-reference` skill loads, `§` sections available | manual (component *presence* is automated via the same file's "the installed plugin declares its full component inventory"; loading behavior is not) |
 | 7 | A fresh `cynical-reviewer` spawns at the coverage gate | manual |

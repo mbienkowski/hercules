@@ -34,27 +34,32 @@ py-modules = []
 # `src` is on the path (not just ".") so the hook tests' `from hooks.tests.conftest import …` resolves
 # `hooks` as a top-level package now that it lives at src/hooks/.
 pythonpath = [".", "src"]
-# src/hooks/tests/ is a SEPARATE tree from src/commons/repo/ (see CODE_OF_CONDUCT.md § Testing) — the
-# Python hooks island — so both must be listed explicitly.
-testpaths = ["src/commons/repo", "src/hooks/tests"]
+# Both islands carry a `tests/` package, so without namespace-package awareness pytest names
+# each one just `tests` and the second collides with the first. This makes it use the full
+# dotted path (`hooks.tests…`, `tools.tests…`), which is also how the test modules import.
+consider_namespace_packages = true
+# src/hooks/tests/ and src/tools/tests/ are SEPARATE trees from src/commons/repo/ (see
+# CODE_OF_CONDUCT.md § Testing) — the two Python islands — so each must be listed explicitly.
+testpaths = ["src/commons/repo", "src/hooks/tests", "src/tools/tests"]
 
 [tool.mutmut]
 # src/hooks/ — the shared enforcement hooks (the ONE gate adapter every ecosystem ships) — is the
 # only mutated surface now that the Python compiler is gone; TypeScript's own Stryker mutation gate
 # (`make mutation-ts`) covers everything that used to live in the retired Python compiler.
-paths_to_mutate = "src/hooks/"
-# src/hooks/tests/ nests INSIDE the mutated tree, so it must be excluded explicitly or mutmut would
-# mutate the tests themselves alongside the hook source they're supposed to be judging.
-paths_to_exclude = "test_*.py,__init__.py,conftest.py,src/hooks/tests/*"
+paths_to_mutate = "src/hooks/,src/tools/"
+# Each island's tests/ nests INSIDE its own mutated tree, so both must be excluded explicitly or
+# mutmut would mutate the tests themselves alongside the source they are supposed to be judging.
+paths_to_exclude = "test_*.py,__init__.py,conftest.py,src/hooks/tests/*,src/tools/tests/*"
 backup = false
 # src/hooks/tests/ is the hooks island's own tree (see CODE_OF_CONDUCT.md § Testing); src/commons/repo/
 # carries nothing that exercises src/hooks/ mutation behavior, so narrowing the runner to
 # src/hooks/tests/ alone is both correct and considerably faster than the pre-split full-suite run.
-runner = "python -m pytest src/hooks/tests/ -x -q --tb=no --no-header"
-tests_dir = "src/hooks/tests/"
+runner = "python -m pytest src/hooks/tests/ src/tools/tests/ -x -q --tb=no --no-header"
+tests_dir = "src/hooks/tests/,src/tools/tests/"
 
 [tool.coverage.run]
 omit = [
     "src/commons/**/test_*.py", "src/commons/**/__init__.py", "src/commons/**/conftest.py",
     "src/hooks/tests/**/test_*.py", "src/hooks/tests/**/__init__.py", "src/hooks/tests/**/conftest.py",
+    "src/tools/tests/**/test_*.py", "src/tools/tests/**/__init__.py", "src/tools/tests/**/conftest.py",
 ]

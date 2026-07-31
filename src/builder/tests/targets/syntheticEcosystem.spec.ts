@@ -117,6 +117,7 @@ beforeAll(() => {
   const registry = buildRegistry([descriptor]);
   const srcContent = join(repoRoot, 'src', 'content');
   const sharedHooksSrc = join(repoRoot, 'src', 'hooks');
+  const sharedToolsSrc = join(repoRoot, 'src', 'tools');
   outRoot = mkdtempSync(join(tmpdir(), 'hercules-synthetic-'));
   dirs.push(outRoot);
   const tokens = new Map(Object.entries(descriptor.vars));
@@ -131,7 +132,7 @@ beforeAll(() => {
     write(join(outRoot, d), registry.serializeFile('synthetic-ci', text, tokens, models, rel));
     written.push(d);
   }
-  const ctx: ExtrasContext = { outRoot, sharedHooksSrc, srcContent, tokens, version: '9.9.9' };
+  const ctx: ExtrasContext = { outRoot, sharedHooksSrc, sharedToolsSrc, srcContent, tokens, version: '9.9.9' };
   written.push(...emitExtras(ctx, descriptor));
 });
 

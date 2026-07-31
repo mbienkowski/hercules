@@ -82,10 +82,11 @@ it('the cursor marketplace listing points to a plugin that actually exists', () 
   ).toBe(true);
 });
 
-it('mutation testing targets the current hooks location, not the retired one', () => {
-  // Mutation testing must scan the hooks code where it actually lives; pointed anywhere else it
-  // exercises the wrong files and gives false confidence in how well the hooks are covered.
+it('mutation testing targets every shipped-Python island, not the retired location', () => {
+  // Mutation testing must scan the shipped code where it actually lives; pointed anywhere else it
+  // exercises the wrong files and gives false confidence in how well that code is covered. Both
+  // islands count: src/hooks/ (host-fired guards) and src/tools/ (command-invoked programs).
   const pyproject = readRepoFile('pyproject.toml');
-  expect(pyproject).toContain('paths_to_mutate = "src/hooks/"');
+  expect(pyproject).toContain('paths_to_mutate = "src/hooks/,src/tools/"');
   expect(pyproject).not.toContain('plugin/hooks/');
 });

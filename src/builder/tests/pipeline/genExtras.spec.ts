@@ -17,6 +17,7 @@ import { repoRoot } from '../../../commons/support/repo';
 const DESCRIPTORS = discover(ECOSYSTEMS);
 const SRC_CONTENT = join(repoRoot, 'src', 'content');
 const SHARED_HOOKS_SRC = join(repoRoot, 'src', 'hooks');
+const SHARED_TOOLS_SRC = join(repoRoot, 'src', 'tools');
 
 describe('jsString', () => {
   it('escapes a double quote so generated code stays valid', () => {
@@ -219,6 +220,7 @@ describe('emitExtras', () => {
     return {
       outRoot: outDir(),
       sharedHooksSrc: SHARED_HOOKS_SRC,
+      sharedToolsSrc: SHARED_TOOLS_SRC,
       srcContent: SRC_CONTENT,
       tokens: new Map(Object.entries(d.vars)),
       version: '9.9.9',

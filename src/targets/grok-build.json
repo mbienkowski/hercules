@@ -95,6 +95,7 @@
           "build",
           "design",
           "discover",
+          "project-reset",
           "ship",
           "workflow"
         ]
@@ -139,5 +140,8 @@
   "guard": [
     "hercules_state.py",
     "frozen_tests.py"
+  ],
+  "tools": [
+    "project_reset.py"
   ]
 }

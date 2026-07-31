@@ -9,6 +9,7 @@ import {
   BUILD,
   DESIGN,
   DISCOVER,
+  PROJECT_RESET,
   SHIP,
   WORKFLOW,
   readFile,
@@ -99,7 +100,7 @@ describe('machine-local settings and spec-lifecycle contracts', () => {
   });
 
   it('wizard commands can only be started by explicit invocation', () => {
-    for (const rel of [DISCOVER, DESIGN, BUILD, SHIP, WORKFLOW]) {
+    for (const rel of [DISCOVER, DESIGN, BUILD, SHIP, WORKFLOW, PROJECT_RESET]) {
       const md = readFile(rel);
       expect(md.startsWith('---\n')).toBe(true);
       const head = md.slice(0, md.indexOf('\n---', 3));
@@ -140,6 +141,7 @@ describe('machine-local settings and spec-lifecycle contracts', () => {
       'commands/build.md',
       'commands/ship.md',
       'commands/workflow.md',
+      'commands/project-reset.md',
     ];
     for (const rel of mustExist) {
       expect(isFile(plugin, rel), `cited plugin path missing: plugin/${rel}`).toBe(true);

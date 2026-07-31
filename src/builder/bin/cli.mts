@@ -33,6 +33,7 @@ const DIST = join(REPO_ROOT, 'dist');
 // The canonical frozen-test guard + the one generic write-gate adapter live in the NEUTRAL
 // src/hooks/ tree; every ecosystem ships byte-copies, so the write-gate logic has one source of truth.
 const SHARED_HOOKS_SRC = join(REPO_ROOT, 'src', 'hooks');
+const SHARED_TOOLS_SRC = join(REPO_ROOT, 'src', 'tools');
 
 /** The one authoritative ecosystem list, derived from the descriptor files themselves. */
 export function targets(root: string = TARGETS_DIR): string[] {
@@ -82,6 +83,7 @@ export function buildTarget(target: string, outRoot: string): string[] {
   const ctx: ExtrasContext = {
     outRoot,
     sharedHooksSrc: SHARED_HOOKS_SRC,
+    sharedToolsSrc: SHARED_TOOLS_SRC,
     srcContent: SRC_CONTENT,
     tokens,
     version: readCanonicalVersion(REPO_ROOT),

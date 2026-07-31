@@ -170,6 +170,9 @@
     "frozen_tests.py",
     "hercules_gate.py"
   ],
+  "tools": [
+    "project_reset.py"
+  ],
   "gate": {
     "protocol": "event_guards",
     "allow": {
