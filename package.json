@@ -24,14 +24,14 @@
   "devDependencies": {
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
-    "@types/node": "26.1.1",
+    "@types/node": "26.1.2",
     "@typescript-eslint/parser": "8.65.0",
     "@vitest/coverage-v8": "4.1.10",
     "eslint": "10.8.0",
     "eslint-plugin-sonarjs": "4.2.0",
     "js-tiktoken": "1.0.21",
     "js-yaml": "5.2.2",
-    "typescript": "6.0.3",
+    "typescript": "7.0.2",
     "vitest": "4.1.10",
     "zod": "4.4.3"
   },
