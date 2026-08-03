@@ -1,3 +1,7 @@
+## v1.16.1 (2026-08-03)
+
+* fix(ci): clear the pip-cache-race and Node20-deprecation warnings (#41)
+
 ## v1.16.0 (2026-08-03)
 
 * feat(hercules)!: Replace the build engine with an explicit, recipe-driven distribution pipeline (#38)
