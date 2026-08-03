@@ -164,6 +164,16 @@ jobs:
       - name: Install dependencies
         run: make install
 
+      # Keyed on the pinned version (smoke-targets.json), not on repo content: a package CLI's npm
+      # tarball is identical across every commit until that pin moves. codex alone ships a ~350MB
+      # platform binary — without this, every push re-downloads it from scratch.
+      - name: Cache the CLI's npm download
+        if: matrix.install_method == 'package'
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: smoke-cli-${{ runner.os }}-${{ matrix.target }}-${{ matrix.npm_version }}
+
       # The CLI version is pinned, so an upstream release never turns this leg red — bump the pin by
       # hand (see RELEASE.md). Matrix values reach the script through env, never shell interpolation,
       # so a fork PR editing a smoke config cannot inject a command into this step.

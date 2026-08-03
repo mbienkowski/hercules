@@ -9,8 +9,11 @@ set -euo pipefail
 
 if [ "$INSTALL_METHOD" = "package" ]; then
   SPEC="$NPM_PACKAGE@$NPM_VERSION"
+  # 300s: some CLIs ship a ~350MB platform binary in the npm tarball (codex), which routinely
+  # outran the old 120s ceiling on a cold cache — turning one slow download into a guaranteed
+  # retry. The workflow's npm-download cache (ci.yml) makes a warm run seconds, not minutes.
   for i in 1 2 3; do
-    timeout 120 npm install -g "$SPEC" && break
+    timeout 300 npm install -g "$SPEC" && break
     echo "::warning::npm install of $SPEC failed (attempt $i/3), retrying..."
     sleep $((i * 5))
   done
