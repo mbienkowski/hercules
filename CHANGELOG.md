@@ -1,3 +1,7 @@
+## v1.16.0 (2026-08-03)
+
+* feat(hercules)!: Replace the build engine with an explicit, recipe-driven distribution pipeline (#38)
+
 ## v1.15.0 (2026-07-31)
 
 * fix(ci): drop the mutation jobs that silently blocked every release
