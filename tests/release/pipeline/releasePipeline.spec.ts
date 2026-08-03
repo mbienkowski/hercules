@@ -100,7 +100,7 @@ describe('the CI job graph', () => {
   it('CI is exactly the release-gating jobs, none main-only, with no separate discover job', () => {
     // These ARE the pipeline, each reproducible by `make <job id>`; mutation testing is off it.
     expect(Object.keys(CI_JOBS).sort()).toEqual([
-      'build', 'normative-gate', 'smoke', 'test', 'tripwire', 'validate', 'vulnerability-scan',
+      'build', 'smoke', 'test', 'validate', 'vulnerability-scan',
     ]);
     const jobText = JSON.stringify(CI_JOBS);
     expect(jobText).not.toContain('mutation');
@@ -113,31 +113,18 @@ describe('the CI job graph', () => {
     expect(CI_JOBS).not.toHaveProperty('discover');
   });
 
-  // The static/per-commit gates sit in the SAME tier as test/validate/smoke: `needs: [build]` only,
-  // running in parallel on every commit, unrestricted by branch or event.
-  it.each(['vulnerability-scan', 'tripwire', 'normative-gate'])(
-    "'%s' runs in parallel with test/validate/smoke (needs only build), every commit",
-    (jobName) => {
-      expect(new Set(jobNeeds(CI_JOBS[jobName]))).toEqual(new Set(['build']));
-      const jobIf = CI_JOBS[jobName]?.if ?? '';
-      expect(jobIf).not.toContain('refs/heads/main');
-      expect(jobIf).not.toContain('pull_request');
-    },
-  );
+  it('vulnerability-scan sits in the SAME tier as test/validate/smoke: needs only build, every commit', () => {
+    expect(new Set(jobNeeds(CI_JOBS['vulnerability-scan']))).toEqual(new Set(['build']));
+    const jobIf = CI_JOBS['vulnerability-scan']?.if ?? '';
+    expect(jobIf).not.toContain('refs/heads/main');
+    expect(jobIf).not.toContain('pull_request');
+  });
 
-  it.each(['vulnerability-scan', 'tripwire', 'normative-gate'])(
-    "'%s' job id and make target are the same string; the display name is a separate readable label",
-    (jobName) => {
-      const readableName: Record<string, string> = {
-        'vulnerability-scan': 'Vulnerability scan',
-        'tripwire': 'Tripwire — prod change carries a test',
-        'normative-gate': 'Normative-change declaration gate',
-      };
-      expect(CI_JOBS[jobName]?.['name']).toBe(readableName[jobName]);
-      const runSteps = (CI_JOBS[jobName]?.steps ?? []).map((s) => s.run).filter(Boolean) as string[];
-      expect(runSteps.some((run) => run.trim() === `make ${jobName}`)).toBe(true);
-    },
-  );
+  it("vulnerability-scan's job id and make target are the same string; the display name is a separate readable label", () => {
+    expect(CI_JOBS['vulnerability-scan']?.['name']).toBe('Vulnerability scan');
+    const runSteps = (CI_JOBS['vulnerability-scan']?.steps ?? []).map((s) => s.run).filter(Boolean) as string[];
+    expect(runSteps.some((run) => run.trim() === 'make vulnerability-scan')).toBe(true);
+  });
 });
 
 describe('the build-output tracked guard', () => {

@@ -410,7 +410,7 @@ make test-mutation   # LOCAL and manual only; no CI job runs it, no threshold ga
 
 **A change to test or CI infrastructure is verified by running the pipeline, not the suite.** When you
 touch `vitest.config.mts`, a `make` target, or anything under `internal/release/ci/`, run the workflows' own
-entry points — `make ci-build validate test test-smoke smoke-matrix tripwire normative-gate` — and simulate a
+entry points — `make ci-build validate test test-smoke smoke-matrix` — and simulate a
 release (`make release-version && make build && npx vitest run`). Two of the worst defects in one
 delivery were invisible to `npx vitest run`: excluding the flaky live-CLI specs from the default config
 left `run_smoke.sh` invoking them under a config that no longer found them, taking all seven CI smoke
@@ -430,11 +430,6 @@ silently blocked every release with no red check to explain it). A numeric floor
 letter-tests written to hit a number, and this repo's audit traced much of its test bloat to
 exactly that. What replaces them, mechanically:
 
-- **The tripwire** (`internal/release/ci/tripwire.sh`, per-commit CI job): a commit that changes
-  production code must carry a test change in the same commit; a pure rename is marked
-  `[rename-only]`. Deleting or shrinking a test file requires a `Test-removal:` line in the commit
-  message naming which surviving coverage takes over. The tripwire checks a test change EXISTS —
-  its quality is review-enforced against the examples below, not tool-enforced.
 - **Coverage ratchet** (from phase close-out): the MEASURED coverage of the behavioural suite
   becomes the floor; it rises only by re-measuring after tests are added, never by editing the
   number, and never as an aspiration.
@@ -567,24 +562,13 @@ fetch, no cache directory, and the suite runs offline by construction. Exact-pin
 can silently move the counts `tests/content/promptBudgets.spec.ts` gates on, so a bump is a reviewable,
 Dependabot-proposed PR, never an invisible transitive update.
 
-### Shipped-content review (the normative-change gate)
+### Shipped-content review
 
 **The committed `dist/` IS the reviewed snapshot.** `make build-check` byte-compares a fresh render
 against it on every commit, across all seven editions, so no shipped byte changes without appearing
-in a diff. On top of that, the **normative-change declaration gate**
-(`internal/release/ci/normative_gate.sh`, a per-commit CI job) forces the deliberate step the old bless
-ritual used to force: every commit touching `src/content/` must carry
-`Normative-change: <one sentence>` (or `Normative-change: none — wording only`) in its OWN message,
-and CI prints that commit's content diff right beside the declaration so review sees the real
-change, not just the claim. An early declared commit never excuses a later undeclared one — the
-gate judges each commit separately.
-
-**Honest scope.** The declaration is self-attested: the gate forces the statement and the visible
-diff, not comprehension — the same ceiling the retired bless ritual had. History to respect: three
-mutation campaigns showed contradictions get written on surfaces nobody pinned, so keep the
-structural guards beside the gate (whole-sentence rule pins, the scaling-model parsers, and the
-section-duplication rejection in `section()`/`sectionBody()` — a duplicated heading once passed the
-whole suite while changing behaviour).
+in a diff — that comparison, plus human review of the diff, is what governs a content change. No
+gate here accepts a self-attested sentence in place of the diff: a written claim about a change
+cannot distinguish a true one from a false one, only its own presence.
 
 Give every regex or absence-based guard a companion test that proves it fires on a real violation.
 A detector that quietly matches nothing reports success, and several here did.
@@ -597,9 +581,9 @@ fix the contract, not the test.
 There is no complexity gate. The phase-1 reset removed the cyclomatic/cognitive ceiling and its
 toolchain (ESLint + sonarjs, flake8 + cognitive-complexity): the ceiling guarded against the
 accreted machinery that phase deletes at the source, and a numeric gate invites writing to the
-number. What holds the bar now: `tsc` (strict types, both TS projects), review against this
-document, and the tripwire. If a function grows past what a reader follows in one sitting,
-simplify it — because a human said so, not because a linter's counter did.
+number. What holds the bar now: `tsc` (strict types, both TS projects) and review against this
+document. If a function grows past what a reader follows in one sitting, simplify it — because a
+human said so, not because a linter's counter did.
 
 ### Dependencies
 

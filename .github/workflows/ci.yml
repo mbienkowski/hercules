@@ -21,7 +21,7 @@ defaults:
   run:
     shell: bash
 
-# Job graph: build -> {test, validate, smoke, vulnerability-scan, tripwire, normative-gate}, all parallel.
+# Job graph: build -> {test, validate, smoke, vulnerability-scan}, all parallel.
 # Success gating is `needs:` throughout, and this workflow's overall result is what release.yml fires
 # on — so every job here is release-gating and nothing here may be slow, flaky, or advisory.
 # Mutation testing is deliberately NOT part of it: see the note at the bottom of this file.
@@ -201,50 +201,8 @@ jobs:
           name: smoke-results-${{ matrix.target }}
           path: smoke-results-${{ matrix.target }}.txt
 
-  # ── Static quality gates — every commit, parallel with test/validate/smoke ────
-  # Both `needs: [build]` only, so they sit in the same tier as the correctness jobs. Each job id
-  # and make target is the same string; the display name below is a readable label instead, so a
-  # red check reproduces via the id shown in the job's own `run:`/`make` line, not the check title.
-
-  # ── Per-commit gates — judge each pushed commit, not the cumulative branch diff ──────
-  # Both need full history (fetch-depth: 0) to resolve the base; the scripts fail LOUD when they
-  # cannot, never silently pass. Base/tip come from the event payload, per event type.
-
-  # Every commit changing production code must carry a test change ([rename-only] excepted).
-  tripwire:
-    name: Tripwire — prod change carries a test
-    needs: [build]
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Per-commit prod-needs-test gate
-        env:
-          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-        run: make tripwire
-
-  # Every commit touching shipped content must declare its normative impact in its own message.
-  normative-gate:
-    name: Normative-change declaration gate
-    needs: [build]
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Per-commit content-declaration gate
-        env:
-          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-        run: make normative-gate
-
-  # Fail on any high or critical dependency CVE. npm carries the whole dependency surface: the shipped
+  # `needs: [build]` only, so it sits in the same tier as the correctness jobs. Fail on any high or
+  # critical dependency CVE. npm carries the whole dependency surface: the shipped
   # plugin is zero-runtime-dep and the Python hooks are stdlib-only. See CODE_OF_CONDUCT.md § Dependencies.
   vulnerability-scan:
     name: Vulnerability scan

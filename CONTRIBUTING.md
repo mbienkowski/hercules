@@ -182,4 +182,4 @@ released package, use `codex plugin marketplace add mbienkowski/hercules` instea
 - All `.md` filenames must be **lowercase** — macOS is case-insensitive but Linux (CI) is not.
 - Tests live under the top-level `tests/` tree, mirroring the domain they cover, organised by feature. Exceptions: `tests/scripts/hooks/` and `tests/scripts/tools/` are their own islands (shipped code, stdlib-only Python).
 - One version, single-sourced — `package.json` is canonical; `pyproject.toml` is the only other literal and is cross-checked against it.
-- Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `ci:`). Commit messages are promises (see CODE_OF_CONDUCT.md): if your message claims a gate exists, it must be red-tested to exist. The `Normative-change:` declaration gate enforces that content edits are deliberate, not silent.
+- Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `ci:`). Commit messages are promises (see CODE_OF_CONDUCT.md): if your message claims a gate exists, it must be red-tested to exist.

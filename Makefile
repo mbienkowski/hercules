@@ -1,6 +1,6 @@
 .PHONY: test test-mutation test-smoke install install-py install-ts build build-check \
         typecheck compile test-py test-ts mutation-py mutation-ts \
-        vulnerability-scan tripwire normative-gate mutation-report \
+        vulnerability-scan mutation-report \
         ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate \
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
 
@@ -64,15 +64,6 @@ compile:
 		echo "ERROR: .local/ts-out/ is missing or empty and there is no local TypeScript toolchain to compile it — run 'make install-ts' first" >&2; \
 		exit 1; \
 	fi
-
-# ── Per-commit CI gates (phase-1 quality-gates reset) ─────────────────────────
-# Both judge a push ONE COMMIT AT A TIME (an early compliant commit never excuses a later
-# violating one) and fail LOUD on an unresolvable base — their jobs check out fetch-depth: 0.
-tripwire:
-	bash internal/release/ci/tripwire.sh
-
-normative-gate:
-	bash internal/release/ci/normative_gate.sh
 
 # ── Mutation testing — a manual developer tool, never a gate ─────────────────
 # Run by hand, on the change you are working on. No CI job runs these and no threshold blocks

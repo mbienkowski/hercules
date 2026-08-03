@@ -45,9 +45,8 @@ one — so a release can never ship a split or an un-injected (`{{ version }}`) 
 
 `release.yml` only fires when CI's whole run for that commit succeeded. What guards the publish:
 the build gates (drift + determinism), both behavioural test suites, the per-ecosystem live-CLI
-smoke matrix, the vulnerability scan, and the two per-commit gates (tripwire + normative-change
-declaration). Mutation testing is manual and cannot block a release. Check the red job on the
-missing commit
+smoke matrix, and the vulnerability scan. Mutation testing is manual and cannot block a release.
+Check the red job on the missing commit
 
 This is exactly how the release after 1.14.0 stalled: `mutation-py` ran only on `main`, grew past its 15-minute
 ceiling when `src/scripts/tools/` joined the mutated surface, and reported `cancelled` — no red check, no
