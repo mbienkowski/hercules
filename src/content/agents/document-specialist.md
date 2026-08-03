@@ -1,8 +1,15 @@
 ---
-name: document-specialist
+name: {{ agent_name_prefix }}document-specialist
 description: Owns the structure, formatting, and quality of formatted documents — Word, PDF, PowerPoint, spreadsheets. Use in spec and deliver when the deliverable is a document, to define its structure and review the produced artifact. Pairs with the anthropic-skills docx/pptx/xlsx/pdf skills.
-model_tier: low
+{%- if agent_models %}
+model: {{ model_low }}
+{%- endif %}
+{%- if agent_tools %}
 tools: Read, Edit, Write, Grep, Glob
+{%- endif %}
+{%- if agent_mode %}
+mode: subagent
+{%- endif %}
 ---
 
 # Document Specialist
@@ -20,4 +27,4 @@ You own how a formatted document is built and whether it is fit to deliver. You 
 Your prompt carries the slice of the project's code-of-conduct that binds this work; read the file yourself (any capitalization) only when no slice is supplied — its document conventions, naming, and review requirements override these defaults. If absent, apply the structure rules above and state the assumption.
 
 ## Output
-Replies follow the A2A Communication Protocol § Agent-Injected Core (`${plugin_root}protocols/a2a-communication-protocol.md`): `[DOC-SPEC] STATUS | CONTENT | ACTION`.
+Replies follow the A2A Communication Protocol § Agent-Injected Core (`{{ plugin_root }}protocols/a2a-communication-protocol.md`): `[DOC-SPEC] STATUS | CONTENT | ACTION`.

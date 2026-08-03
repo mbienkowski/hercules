@@ -6,8 +6,15 @@
 # working unchanged across a compiler runtime flip (few-shot rule #2 in the TypeScript migration
 # plan: a script invoked by a Makefile target — or, here, a git hook — calls back through `make`).
 
-if git diff --cached --name-only | grep -qE "^src/content/|^src/targets/|^src/hooks/[^/]+\.py$|^src/tools/[^/]+\.py$|^src/builder/[^/]+\.mts$|^src/builder/bin/cli\.mts$"; then
-    echo "src/content/, src/targets/, src/hooks/, src/tools/ or the src/builder/ compiler changed — regenerating dist/ ..."
+# The paths below are the ones a distribution is BUILT from. Three of the six patterns this hook
+# shipped with named directories that had not existed since the tree was restructured — src/hooks/,
+# src/tools/ and src/builder/ — so a change to a shipped Python hook, or to the build engine itself,
+# left dist/ stale and the commit passed. A test pins these against the tree (tests/repo/).
+#
+# `version-files.mts` and `package.json` are here because the build's first stage reads the canonical
+# version from them and writes it into every plugin manifest: a version edit alone changes dist/.
+if git diff --cached --name-only | grep -qE "^src/content/|^src/targets/|^src/scripts/(hooks|tools)/[^/]+\.py$|^internal/builder/|^internal/release/version-files\.mts$|^package\.json$"; then
+    echo "a source the build reads changed — regenerating dist/ ..."
     make build || exit 1
     git add dist
 fi

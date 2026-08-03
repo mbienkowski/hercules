@@ -1,0 +1,42 @@
+name: Mutation report
+# A scheduled REPORT, never a gate — as a blocking gate mutation once silently held back every
+# release. Two tiers by the owner's value hierarchy: shipped Python carries the >=85% kill-rate
+# requirement (a red scheduled job is a calendar flag, blocking nothing); machinery is
+# informational. All logic lives in internal/release/ci/mutation_report.sh via make, per this repo's
+# CI rule, so the identical report runs from a local terminal.
+on:
+  schedule:
+    - cron: '0 2 * * 6'   # Friday night (Sat 02:00 UTC); the script skips odd ISO weeks
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: mutation-report
+  cancel-in-progress: false
+env:
+  FORCE_MUTATION_REPORT: ${{ github.event_name == 'workflow_dispatch' && 'yes' || 'no' }}
+jobs:
+  mutation-report:
+    name: Fortnightly mutation report
+    runs-on: ubuntu-latest
+    # Shipped Python grew 80% in hardening wave 1; measured locally, tier 1 alone can exceed
+    # 25 minutes. Generous by design — a report that times out reports nothing.
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Install dependencies
+        run: make install
+      - name: Run the two-tier mutation report
+        run: make mutation-report
+      - name: Keep the full reports for two months
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report-${{ github.run_id }}
+          path: .local/reports/mutation/mutation.json
+          retention-days: 60
+          if-no-files-found: warn

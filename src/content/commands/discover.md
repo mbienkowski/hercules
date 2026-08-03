@@ -1,19 +1,33 @@
+{% if command_format == "toml" -%}
+description = "Discover phase — turn a rough idea into a clear, approved business requirement"
+
+prompt = """
+{%- else -%}
 ---
+{%- if command_name %}
+name: {{ command_name_prefix }}discover
+{%- endif %}
 description: Discover phase — turn a rough idea into a clear, approved business requirement
+{%- if command_disable_invocation %}
 disable-model-invocation: true
+{%- endif %}
+{%- if command_agent %}
+agent: hercules
+{%- endif %}
 ---
+{% if command_title == "heading" %}
+# {{ ns }}discover
+{% elsif command_wide_gap %}
 
-${target:claude}
-# ${ns}discover
-${target:end}
-
+{% endif %}
+{%- endif %}
 Turn a rough idea into a clear, approved business requirement — the foundation every other phase builds on. Plugin-file citations (`hercules-reference §…`, `protocols/…`) live in this plugin's directory.
 
-${target:claude}
-**Plan mode — required.** Call `${plan_enter}` at the start. Every draft is a full inline proposal. Iterate freely; always regenerate the complete draft — never patch sections; never skip steps. At the **Plan approval** gate, on the user's approval, call `${plan_exit}` (`auto`), then write.
-${target:default}
+{% if plan_mode == "tool" -%}
+**Plan mode — required.** Call `{{ plan_enter }}` at the start. Every draft is a full inline proposal. Iterate freely; always regenerate the complete draft — never patch sections; never skip steps. At the **Plan approval** gate, on the user's approval, call `{{ plan_exit }}` (`auto`), then write.
+{%- else -%}
 **Plan mode — required.** Enter plan mode at the start. Every draft is a full inline proposal. Iterate freely; always regenerate the complete draft — never patch sections; never skip steps. At the **Plan approval** gate, on the user's approval, leave plan mode, then write.
-${target:end}
+{%- endif %}
 
 ## Step 0 — Artifact location & prior context
 
@@ -52,7 +66,7 @@ Ask 2–3 follow-ups within a group if the answer is thin. Move on only when the
 
 ## Step 3 — Paraphrase, classify complexity & confirm
 
-Paraphrase what you heard in 2–3 sentences so the user can correct any misunderstanding before scoring. Score against `${plugin_root}protocols/debate-consensus-protocol.md` § complexity — both signal columns, then the higher of the two — and never restate its numbers here. Then show the judgement together with the choices open to the user:
+Paraphrase what you heard in 2–3 sentences so the user can correct any misunderstanding before scoring. Score against `{{ plugin_root }}protocols/debate-consensus-protocol.md` § complexity — both signal columns, then the higher of the two — and never restate its numbers here. Then show the judgement together with the choices open to the user:
 > "I'm classifying this as **{tier} complexity** because [one sentence rationale]."
 > "That convenes {n} advisors and allows {r}. Your call:"
 > **keep it** at {tier} (recommended) · **lower it** to {next-lower} · **raise it** to {next-higher} · **answer freely**
@@ -69,7 +83,7 @@ Every tier continues through Steps 4–7; the tier sets how many advisors run pl
 
 ## Step 4 — Advisor debate
 
-Advisors and debate depth both scale with the tier — the rubric is `protocols/debate-consensus-protocol.md` § complexity: `trivial` runs none, so skip to Step 5; `low` runs a reduced set that returns findings without cross-examining them; `medium` and up run the fuller set, with a later round only where the one before it left a topic contested. Read every count from the rubric; none is restated here. When advisors apply, follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **business-analyst, challenger, simplicity-advocate**) — choose deliberately different, even opposing, perspectives so they argue, not echo. Productive disagreement beats easy consensus. On the user's go-ahead, run the debate per `${plugin_root}protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`${plugin_root}protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
+Advisors and debate depth both scale with the tier — the rubric is `protocols/debate-consensus-protocol.md` § complexity: `trivial` runs none, so skip to Step 5; `low` runs a reduced set that returns findings without cross-examining them; `medium` and up run the fuller set, with a later round only where the one before it left a topic contested. Read every count from the rubric; none is restated here. When advisors apply, follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **business-analyst, challenger, simplicity-advocate**) — choose deliberately different, even opposing, perspectives so they argue, not echo. Productive disagreement beats easy consensus. On the user's go-ahead, run the debate per `{{ plugin_root }}protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`{{ plugin_root }}protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
 
 ## Step 5 — Draft & feedback loop
 
@@ -86,11 +100,11 @@ The gate accepts the canonical Plan-approval trigger words defined in `persona.m
 
 (medium+) Share this draft with stakeholders before locking. Say **"stakeholders approved"** or **"skip stakeholder review"** to proceed.
 
-${target:claude}
-On the user's approval, call `${plan_exit}` (`auto`), then write (Step 7) — no further prompts.
-${target:default}
+{% if plan_mode == "tool" -%}
+On the user's approval, call `{{ plan_exit }}` (`auto`), then write (Step 7) — no further prompts.
+{%- else -%}
 On the user's approval, leave plan mode, then write (Step 7) — no further prompts.
-${target:end}
+{%- endif %}
 
 ## Step 7 — Output
 
@@ -128,15 +142,12 @@ File structure:
 
 **Business language only** — committed and read by stakeholders. No class/method names, code, or file paths; implementation detail belongs in the spec. Design references hold visual-artifact links (Figma, wireframes), never implementation detail.
 
-Write the session-init state under `~/.hercules/` (see `hercules-reference § Machine-local state`), never the
-repo, atomically (temp + rename): create the registry entry if missing (`directory`, `docs_root`,
-`state_file`) — on an existing entry update only those keys, preserving `repositories`,
-`frozen_hook`, `keep_specs`, and anything else — and write the state file's session
-(`active_session`, `current_phase` `"discover"`, the `tier` + `tier_rationale` as the user last
-set them — Step 3's judgement, or a raise they made at the roster gate, whichever came later —
-`last_updated`). Preserve other entries/sessions.
+Write the session-init state under `~/.hercules/` (see `hercules-reference § Machine-local state`), never the repo. First, create or update the registry entry if needed (`directory`, `docs_root`, `state_file`), preserving `repositories`, `frozen_hook`, `keep_specs` on existing entries. Then run `python3 {{ plugin_root }}tools/state_patch.py apply --project-slug {slug} --session-id {new-session-id} --set active_session={new-session-id} --set current_phase=discover --set tier={tier} --set tier_rationale={rationale} --confirm` to write the state file's session atomically. Non-zero exit: relay the output and stop. Preserve other entries/sessions.
 
 Append a new row to `docs/INDEX.md` (create if absent) with `tier`, `discover` status,
 and a one-line goal summary.
 
-Show the saved path. Then say: "The requirements are locked. Ready for **Design**? Run `${ns}design` — we'll shape the solution and delivery sequence there."
+Show the saved path. Then say: "The requirements are locked. Ready for **Design**? Run `{{ ns }}design` — we'll shape the solution and delivery sequence there."
+{%- if command_format == "toml" %}
+"""
+{%- endif %}

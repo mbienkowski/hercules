@@ -1,165 +1,255 @@
 {
-  "schema": 1,
+  "$schema": "./recipe.schema.json",
   "name": "opencode",
-  "vars": {
-    "product": "OpenCode",
-    "host": "OpenCode",
-    "ns": "/hercules:",
-    "instructions_file": "AGENTS.md",
+  "variables": {
+    "advisor_delivery": "agent",
+    "agent_mode": true,
+    "agent_models": false,
+    "agent_name_prefix": "",
     "agent_ns": "",
-    "plugin_root": "",
+    "agent_tools": false,
+    "agents_readonly": false,
+    "command_agent": true,
+    "command_disable_invocation": false,
+    "command_format": "frontmatter",
+    "command_name": false,
+    "command_name_prefix": "",
+    "command_title": "none",
+    "command_wide_gap": false,
+    "forced_subagent": "no",
+    "host": "OpenCode",
+    "instructions_file": "AGENTS.md",
+    "lead_edit_block": "permission_layer",
+    "model_high": false,
+    "model_low": false,
+    "model_medium": false,
+    "ns": "/hercules:",
+    "persona_frontmatter": false,
     "plan_enter": "plan mode",
-    "plan_exit": "approval"
+    "plan_exit": "approval",
+    "plan_mode": "prose",
+    "plugin_manifest_dir": false,
+    "plugin_root": "",
+    "product": "OpenCode",
+    "version_manifest": "package_root",
+    "write_backstop": "settable_permission"
   },
-  "models": {
-    "high": null,
-    "medium": null,
-    "low": null
-  },
-  "smoke": {
-    "npm_package": "opencode-ai",
-    "npm_version": "1.18.3",
-    "cli": "opencode",
-    "test": "builder/tests/smoke/opencodeSmoke.spec.ts",
-    "expect": {
-      "version_cmd": [
-        "opencode",
-        "--version"
-      ]
-    }
-  },
-  "dispatch": "frontmatter",
-  "roles": {
-    "agent": {
-      "mode": "fields",
-      "body": "keep",
-      "fields": [
-        {
-          "key": "name",
-          "from": "frontmatter",
-          "field": "name"
-        },
-        {
-          "key": "description",
-          "from": "frontmatter",
-          "field": "description",
-          "render": true
-        },
-        {
-          "key": "mode",
-          "from": "primary_mode",
-          "primary": "hercules"
-        }
+  "runtime_variables": [],
+  "targets": {
+    "CAPABILITIES.md": {
+      "sources": [
+        "src/content/targets/opencode/CAPABILITIES.md"
       ]
     },
-    "command": {
-      "mode": "fields",
-      "body": "lstrip_newlines",
-      "fields": [
-        {
-          "key": "description",
-          "from": "frontmatter",
-          "field": "description",
-          "render": true
-        },
-        {
-          "key": "agent",
-          "from": "literal",
-          "value": "hercules"
-        }
+    "agents/backend-engineer.md": {
+      "sources": [
+        "src/content/agents/backend-engineer.md"
       ]
     },
-    "persona": {
-      "mode": "plain"
+    "agents/builder.md": {
+      "sources": [
+        "src/content/agents/builder.md"
+      ]
     },
-    "default": {
-      "mode": "preserve"
-    }
-  },
-  "routes": [
-    {
-      "kind": "exact",
-      "src": "capabilities.md",
-      "dest": "CAPABILITIES.md"
+    "agents/business-analyst.md": {
+      "sources": [
+        "src/content/agents/business-analyst.md"
+      ]
     },
-    {
-      "kind": "exact",
-      "src": "persona.md",
-      "dest": "instructions.md"
+    "agents/challenger.md": {
+      "sources": [
+        "src/content/agents/challenger.md"
+      ]
+    },
+    "agents/copywriter.md": {
+      "sources": [
+        "src/content/agents/copywriter.md"
+      ]
+    },
+    "agents/cynical-reviewer.md": {
+      "sources": [
+        "src/content/agents/cynical-reviewer.md"
+      ]
+    },
+    "agents/devops-engineer.md": {
+      "sources": [
+        "src/content/agents/devops-engineer.md"
+      ]
+    },
+    "agents/document-specialist.md": {
+      "sources": [
+        "src/content/agents/document-specialist.md"
+      ]
+    },
+    "agents/frontend-engineer.md": {
+      "sources": [
+        "src/content/agents/frontend-engineer.md"
+      ]
+    },
+    "agents/hercules.md": {
+      "sources": [
+        "src/content/agents/hercules.md"
+      ]
+    },
+    "agents/lead-architect.md": {
+      "sources": [
+        "src/content/agents/lead-architect.md"
+      ]
+    },
+    "agents/maintainer.md": {
+      "sources": [
+        "src/content/agents/maintainer.md"
+      ]
+    },
+    "agents/security-expert.md": {
+      "sources": [
+        "src/content/agents/security-expert.md"
+      ]
+    },
+    "agents/senior-qa-engineer.md": {
+      "sources": [
+        "src/content/agents/senior-qa-engineer.md"
+      ]
+    },
+    "agents/simplicity-advocate.md": {
+      "sources": [
+        "src/content/agents/simplicity-advocate.md"
+      ]
+    },
+    "agents/source-checker.md": {
+      "sources": [
+        "src/content/agents/source-checker.md"
+      ]
+    },
+    "agents/ux-ui-designer.md": {
+      "sources": [
+        "src/content/agents/ux-ui-designer.md"
+      ]
+    },
+    "commands/build.md": {
+      "sources": [
+        "src/content/commands/build.md"
+      ]
+    },
+    "commands/design.md": {
+      "sources": [
+        "src/content/commands/design.md"
+      ]
+    },
+    "commands/discover.md": {
+      "sources": [
+        "src/content/commands/discover.md"
+      ]
+    },
+    "commands/project-reset.md": {
+      "sources": [
+        "src/content/commands/project-reset.md"
+      ]
+    },
+    "commands/ship.md": {
+      "sources": [
+        "src/content/commands/ship.md"
+      ]
+    },
+    "commands/workflow.md": {
+      "sources": [
+        "src/content/commands/workflow.md"
+      ]
+    },
+    "hooks/frozen_tests.py": {
+      "sources": [
+        "src/scripts/hooks/frozen_tests.py"
+      ]
+    },
+    "hooks/hercules_state.py": {
+      "sources": [
+        "src/scripts/hooks/hercules_state.py"
+      ]
+    },
+    "instructions.md": {
+      "sources": [
+        "src/content/persona.md"
+      ]
+    },
+    "opencode.json": {
+      "sources": [
+        "src/content/targets/opencode/opencode.json"
+      ]
+    },
+    "plugin.js": {
+      "sources": [
+        "src/content/targets/opencode/plugin.js"
+      ]
+    },
+    "read-file.js": {
+      "sources": [
+        "src/content/targets/opencode/read-file.js"
+      ]
+    },
+    "protocols/a2a-communication-protocol.md": {
+      "sources": [
+        "src/content/protocols/a2a-communication-protocol.md"
+      ]
+    },
+    "protocols/debate-consensus-protocol.md": {
+      "sources": [
+        "src/content/protocols/debate-consensus-protocol.md"
+      ]
+    },
+    "protocols/workflow-protocol.md": {
+      "sources": [
+        "src/content/protocols/workflow-protocol.md"
+      ]
+    },
+    "skills/code-of-conduct-generator/SKILL.md": {
+      "sources": [
+        "src/content/skills/code-of-conduct-generator/SKILL.md"
+      ]
+    },
+    "skills/code-of-conduct-generator/coverage-map.md": {
+      "sources": [
+        "src/content/skills/code-of-conduct-generator/coverage-map.md"
+      ]
+    },
+    "skills/fusion-setup/SKILL.md": {
+      "sources": [
+        "src/content/skills/fusion-setup/SKILL.md"
+      ]
+    },
+    "skills/hercules-reference/SKILL.md": {
+      "sources": [
+        "src/content/skills/hercules-reference/SKILL.md"
+      ]
+    },
+    "skills/learnings/SKILL.md": {
+      "sources": [
+        "src/content/skills/learnings/SKILL.md"
+      ]
+    },
+    "skills/write-test-scenarios/SKILL.md": {
+      "sources": [
+        "src/content/skills/write-test-scenarios/SKILL.md"
+      ]
+    },
+    "tools/project_reset.py": {
+      "sources": [
+        "src/scripts/tools/project_reset.py"
+      ]
+    },
+    "tools/registry_sync.py": {
+      "sources": [
+        "src/scripts/tools/registry_sync.py"
+      ]
+    },
+    "tools/retire_spec.py": {
+      "sources": [
+        "src/scripts/tools/retire_spec.py"
+      ]
+    },
+    "tools/state_patch.py": {
+      "sources": [
+        "src/scripts/tools/state_patch.py"
+      ]
     }
-  ],
-  "artifacts": [
-    {
-      "dest": "opencode.json",
-      "content": {
-        "$schema": "https://opencode.ai/config.json",
-        "default_agent": "hercules",
-        "subagent_depth": 2,
-        "instructions": [
-          "instructions.md"
-        ],
-        "skills": {
-          "paths": [
-            "skills"
-          ]
-        }
-      }
-    }
-  ],
-  "guard": [
-    "frozen_tests.py",
-    "hercules_state.py"
-  ],
-  "tools": [
-    "project_reset.py"
-  ],
-  "templates": [
-    {
-      "src": "opencode.template.plugin.js",
-      "dest": "plugin.js",
-      "values": {
-        "__DEFAULT_AGENT__": {
-          "from": "js_string",
-          "value": "hercules"
-        },
-        "__SKILLS_PATH__": {
-          "from": "js_string",
-          "value": "skills"
-        },
-        "__ASSET_LIST__": {
-          "from": "js_string_list",
-          "values": [
-            "instructions.md",
-            "protocols/a2a-communication-protocol.md",
-            "protocols/debate-consensus-protocol.md",
-            "protocols/workflow-protocol.md",
-            "skills"
-          ]
-        },
-        "__INSTRUCTION_JOINS__": {
-          "from": "js_root_joins",
-          "paths": [
-            "instructions.md",
-            "protocols/a2a-communication-protocol.md",
-            "protocols/debate-consensus-protocol.md",
-            "protocols/workflow-protocol.md"
-          ]
-        },
-        "__AGENT_ENTRIES__": {
-          "from": "role_entries_js",
-          "role": "agent",
-          "drop": [],
-          "body_key": "prompt",
-          "key_prefix": ""
-        },
-        "__COMMAND_ENTRIES__": {
-          "from": "role_entries_js",
-          "role": "command",
-          "drop": [],
-          "body_key": "template",
-          "key_prefix": "hercules:"
-        }
-      }
-    }
-  ]
+  }
 }

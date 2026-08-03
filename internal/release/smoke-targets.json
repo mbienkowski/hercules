@@ -1,0 +1,110 @@
+{
+  "$schema": "./smoke-targets.schema.json",
+  "targets": {
+    "claude-code": {
+      "cli": "claude",
+      "install": {
+        "method": "package",
+        "name": "@anthropic-ai/claude-code",
+        "version": "2.1.214"
+      },
+      "expect": {
+        "version_cmd": [
+          "claude",
+          "--version"
+        ]
+      },
+      "test": "tests/dist/claude-code/smoke.spec.ts"
+    },
+    "codex": {
+      "cli": "codex",
+      "install": {
+        "method": "package",
+        "name": "@openai/codex",
+        "version": "0.146.0"
+      },
+      "expect": {
+        "version_cmd": [
+          "codex",
+          "--version"
+        ]
+      },
+      "test": "tests/dist/codex/smoke.spec.ts"
+    },
+    "copilot-cli": {
+      "cli": "copilot",
+      "install": {
+        "method": "package",
+        "name": "@github/copilot",
+        "version": "1.0.73"
+      },
+      "expect": {
+        "version_cmd": [
+          "copilot",
+          "--version"
+        ]
+      },
+      "test": "tests/dist/copilot-cli/smoke.spec.ts"
+    },
+    "cursor": {
+      "cli": "cursor-agent",
+      "install": {
+        "method": "script",
+        "url": "https://cursor.com/install",
+        "flags": "-fsSL"
+      },
+      "expect": {
+        "version_cmd": [
+          "cursor-agent",
+          "--version"
+        ]
+      },
+      "test": "tests/dist/cursor/smoke.spec.ts"
+    },
+    "gemini-cli": {
+      "cli": "gemini",
+      "install": {
+        "method": "package",
+        "name": "@google/gemini-cli",
+        "version": "0.51.0"
+      },
+      "expect": {
+        "version_cmd": [
+          "gemini",
+          "--version"
+        ]
+      },
+      "test": "tests/dist/gemini-cli/smoke.spec.ts"
+    },
+    "grok-build": {
+      "cli": "grok",
+      "install": {
+        "method": "package",
+        "name": "@xai-official/grok",
+        "version": "0.2.106"
+      },
+      "expect": {
+        "version_cmd": [
+          "grok",
+          "--version"
+        ]
+      },
+      "test": "tests/dist/universalSmoke.spec.ts"
+    },
+    "opencode": {
+      "cli": "opencode",
+      "install": {
+        "method": "package",
+        "name": "opencode-ai",
+        "version": "1.18.3"
+      },
+      "expect": {
+        "version_cmd": [
+          "opencode",
+          "--version"
+        ]
+      },
+      "test": "tests/dist/opencode/smoke.spec.ts"
+    }
+  }
+}

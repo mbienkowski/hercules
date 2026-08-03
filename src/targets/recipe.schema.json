@@ -1,0 +1,306 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://hercules.dev/recipe.schema.json",
+  "title": "Hercules recipe",
+  "description": "One tool's distribution, written out as a RECIPE rather than described to an engine that has to understand it. Every shipped file is named explicitly, once, with the ordered sources it is made of; the engine reads no other rule. Adding a tool costs exactly one file like this one, and 'why does dist/<tool>/x look like that?' is answered by reading the entry for x — never by reading builder code.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "variables",
+    "runtime_variables",
+    "targets"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Points an editor at this vocabulary, so a mistake is underlined while it is typed."
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "The distribution's directory name under dist/. Must equal the file's own stem."
+    },
+    "variables": {
+      "type": "object",
+      "description": "The values every source rendered for this tool sees. A value may itself contain a ${…} token: that token is NOT ours to resolve — it survives verbatim into the shipped file and is resolved by the host at runtime (declare it in runtime_variables). Booleans exist because Liquid treats the STRING \"false\" as true; a condition that must be off has to be a real false.",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "boolean"
+        ]
+      }
+    },
+    "runtime_variables": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "Every ${NAME} the shipped files are ALLOWED to still contain — the host resolves these, we never do. Anything else surviving into dist/ is an unresolved token and fails the build.",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+      }
+    },
+    "targets": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "Every file this distribution ships, keyed by its path under dist/<name>/. There is no glob, no route and no fallback: a file not named here is not shipped, and a file named here is shipped exactly as its entry says. `null` declines a path explicitly — it says 'we know about this one and it is deliberately absent', which reads differently from silence.",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/$defs/entry"
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sources"
+      ],
+      "description": "One shipped file: its ordered sources, the variables it sees, and the mode it is written with.",
+      "properties": {
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Repository-relative source paths, rendered in this order and joined by exactly one blank line. Order is the array's order — there is nothing else to sort by and nothing to sort.",
+          "items": {
+            "$ref": "#/$defs/relPath"
+          }
+        },
+        "variables": {
+          "type": "object",
+          "description": "Overrides applied over the distribution's variables, key by key, for this file only. `null` REMOVES the key from scope — a source that then mentions it fails loudly instead of silently rendering nothing.",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "permissions": {
+          "type": "string",
+          "pattern": "^[0-7]{3,4}$",
+          "description": "Octal mode for the written file. Absent means 644 — the mode nearly every shipped file has, so saying nothing keeps saying the true thing."
+        }
+      }
+    },
+    "relPath": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "anyOf": [
+          {
+            "pattern": "^/"
+          },
+          {
+            "pattern": "(^|/)\\.\\.(/|$)"
+          }
+        ]
+      },
+      "description": "A path inside the tree: relative, never escaping it."
+    },
+    "writeGate": {
+      "description": "The contents of a shipped hooks/write_gate.json — one host's DIALECT for one event, and no policy at all. The decision (may this file be written?) lives once, in src/scripts/hooks/hercules_gate.py, shared by every distribution. What differs per host is only how it names its write tools, where in its event the paths sit, and the exact JSON shape it wants back to mean allow/deny/notify — Cursor answers {\"permission\": \"deny\"} on two message channels, Gemini answers {\"decision\": \"deny\"} with the reason at the top. It is described HERE, as part of the one published vocabulary, rather than in a schema file of its own: it is the shape of one declared file, not a second specification. The build validates every entry whose destination ends in hooks/write_gate.json against it (internal/builder/recipe-loader.mts), so a typo in a key the guard reads is caught at build time and not at a user's keyboard — a gate that is asked for permission and answers with no reason is the failure this prevents.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "when"
+      ],
+      "properties": {
+        "when": {
+          "enum": [
+            "after_write",
+            "before_write"
+          ],
+          "description": "When this tool asks."
+        },
+        "tools": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Host's name for each write operation, keyed by the gate's canonical name. E.g. {\"edit\": \"Edit\"} — gate asks about 'edit', host announces 'Edit'."
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pathStrategy"
+          },
+          "description": "How to find the paths a write touches, from the host's event. Strategies try in order until one yields paths — no special-casing for hosts that announce differently."
+        },
+        "allow": {
+          "type": "object",
+          "description": "The reply shape meaning 'let the write proceed', copied verbatim in the host's own vocabulary — the gate never invents one."
+        },
+        "deny": {
+          "type": "object",
+          "description": "The reply shape meaning 'refuse this write', with the refusal text spliced in at 'reason_at'. Required when asking before a write, else nothing could refuse it."
+        },
+        "reason_at": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Where the refusal reason belongs in the reply — one element writes at the top level, more nest."
+        },
+        "user_key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Where the person's last message sits in the host's event, so a refusal can quote it. Omit if the host carries none."
+        },
+        "agent_key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Where the assistant's pending action sits in the host's event. Omit if the host carries none."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "when": {
+                "const": "before_write"
+              }
+            },
+            "required": [
+              "when"
+            ]
+          },
+          "then": {
+            "required": [
+              "tools",
+              "paths",
+              "deny",
+              "reason_at"
+            ],
+            "properties": {
+              "tools": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "paths": {
+                "type": "array",
+                "minItems": 1
+              },
+              "deny": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "reason_at": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "pathStrategy": {
+      "type": "object",
+      "discriminator": {
+        "propertyName": "from"
+      },
+      "required": [
+        "from"
+      ],
+      "oneOf": [
+        {
+          "$ref": "#/$defs/pathArgKeys"
+        },
+        {
+          "$ref": "#/$defs/pathPatchBody"
+        },
+        {
+          "$ref": "#/$defs/pathShellCommand"
+        }
+      ],
+      "properties": {
+        "from": {
+          "type": "string"
+        }
+      }
+    },
+    "pathArgKeys": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "keys"
+      ],
+      "properties": {
+        "from": {
+          "const": "arg_keys"
+        },
+        "keys": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "nested": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        }
+      }
+    },
+    "pathPatchBody": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "arg",
+        "pattern"
+      ],
+      "properties": {
+        "from": {
+          "const": "patch_body"
+        },
+        "arg": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pattern": {
+          "type": "string",
+          "minLength": 1
+        },
+        "as_tool": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "pathShellCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from"
+      ],
+      "properties": {
+        "from": {
+          "const": "shell_command"
+        },
+        "arg": {
+          "type": "string",
+          "minLength": 1,
+          "default": "command"
+        }
+      }
+    }
+  }
+}

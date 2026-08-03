@@ -1,0 +1,8 @@
+{
+  "_shape": "A gate told AFTER a write that answers on two channels — one key the person reads, one the agent reads.",
+  "when": "after_write",
+  "allow": {"permission": "allow"},
+  "deny": {"permission": "deny"},
+  "user_key": "userMessage",
+  "agent_key": "agentMessage"
+}

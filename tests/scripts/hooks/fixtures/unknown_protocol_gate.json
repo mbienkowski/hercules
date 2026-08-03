@@ -1,0 +1,16 @@
+{
+  "_shape": "A gate declaring a `when` this adapter has no protocol for — the named protocols are a closed set, so it must stay silent rather than guess at a verdict. No host ships this shape.",
+  "when": "during_write",
+  "tools": {
+    "edit": "Edit"
+  },
+  "paths": [
+    {
+      "from": "arg_keys",
+      "keys": ["file_path"]
+    }
+  ],
+  "allow": {"permissionDecision": "allow"},
+  "deny": {"permissionDecision": "deny"},
+  "reason_at": ["permissionDecisionReason"]
+}

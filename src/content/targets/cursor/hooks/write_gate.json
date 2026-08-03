@@ -1,0 +1,11 @@
+{
+  "when": "after_write",
+  "allow": {
+    "permission": "allow"
+  },
+  "deny": {
+    "permission": "deny"
+  },
+  "user_key": "userMessage",
+  "agent_key": "agentMessage"
+}

@@ -4,7 +4,6 @@ description: Maintainability reviewer — answers whether a real human on-call c
 readonly: true
 ---
 
-
 # Maintainer
 
 Your job is to answer one question: **"Could a real human find this issue from the logs and fix it without AI/LLM help?"** If the answer is No for any part of the system, flag it.

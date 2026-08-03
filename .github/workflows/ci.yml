@@ -21,7 +21,7 @@ defaults:
   run:
     shell: bash
 
-# Job graph: build -> {test, validate, smoke, complexity-scan, vulnerability-scan}, all parallel.
+# Job graph: build -> {test, validate, smoke, vulnerability-scan, tripwire, normative-gate}, all parallel.
 # Success gating is `needs:` throughout, and this workflow's overall result is what release.yml fires
 # on — so every job here is release-gating and nothing here may be slow, flaky, or advisory.
 # Mutation testing is deliberately NOT part of it: see the note at the bottom of this file.
@@ -59,7 +59,7 @@ jobs:
         run: make compile
 
       # Drift (committed dist/ == fresh build), determinism (two builds byte-equal) and the
-      # untracked-dist guard, all in src/release/ci/build_gates.sh.
+      # untracked-dist guard, all in internal/release/ci/build_gates.sh.
       - name: Build gates (drift, determinism, tracked)
         run: make ci-build
 
@@ -84,8 +84,8 @@ jobs:
           cache: "pip"
           cache-dependency-path: "pyproject.toml"
 
-      # Both runtimes: test-py covers src/hooks/ and its meta-guards, test-ts covers
-      # src/{builder,release,metrics}/.
+      # Both runtimes: test-py covers src/scripts/hooks/ and src/scripts/tools/ plus the repo
+      # meta-guards; test-ts covers internal/{builder,release}/ and tests/budgets/.
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -206,34 +206,43 @@ jobs:
   # and make target is the same string; the display name below is a readable label instead, so a
   # red check reproduces via the id shown in the job's own `run:`/`make` line, not the check title.
 
-  # Cyclomatic + cognitive complexity <= 15, both runtimes — the same ceiling governs ESLint
-  # (the TypeScript domains) and flake8 (the Python hooks). See CODE_OF_CONDUCT.md § Complexity.
-  complexity-scan:
-    name: Complexity scan
+  # ── Per-commit gates — judge each pushed commit, not the cumulative branch diff ──────
+  # Both need full history (fetch-depth: 0) to resolve the base; the scripts fail LOUD when they
+  # cannot, never silently pass. Base/tip come from the event payload, per event type.
+
+  # Every commit changing production code must carry a test change ([rename-only] excepted).
+  tripwire:
+    name: Tripwire — prod change carries a test
     needs: [build]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
-
-      # Both runtimes: ESLint (Node) lints the TypeScript domains, flake8 (Python) the hooks.
-      - uses: actions/setup-python@v6
         with:
-          python-version: "3.9"
-          cache: "pip"
-          cache-dependency-path: "pyproject.toml"
+          fetch-depth: 0
 
-      - uses: actions/setup-node@v7
+      - name: Per-commit prod-needs-test gate
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: make tripwire
+
+  # Every commit touching shipped content must declare its normative impact in its own message.
+  normative-gate:
+    name: Normative-change declaration gate
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
         with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: "package-lock.json"
+          fetch-depth: 0
 
-      - name: Install dependencies
-        run: make install
-
-      - name: Complexity gate (cyclomatic + cognitive, both runtimes)
-        run: make complexity-scan
+      - name: Per-commit content-declaration gate
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: make normative-gate
 
   # Fail on any high or critical dependency CVE. npm carries the whole dependency surface: the shipped
   # plugin is zero-runtime-dep and the Python hooks are stdlib-only. See CODE_OF_CONDUCT.md § Dependencies.

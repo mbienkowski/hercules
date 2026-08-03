@@ -1,0 +1,15 @@
+{
+  "_shape": "A gate that declares NO refusal shape — an incomplete configuration must fail OPEN, never crash and never block. No host ships this shape.",
+  "when": "before_write",
+  "tools": {
+    "edit": "Edit"
+  },
+  "paths": [
+    {
+      "from": "arg_keys",
+      "keys": ["file_path", "filePath"]
+    }
+  ],
+  "allow": {"permissionDecision": "allow"},
+  "reason_at": ["permissionDecisionReason"]
+}

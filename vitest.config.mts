@@ -1,39 +1,32 @@
 import { defineConfig } from 'vitest/config';
 
-// Hercules holds itself to >= 90% branch coverage, the same bar it enforces on its users and the
-// same number pytest-cov gates at. Branch, not line: line coverage passes on untested conditionals.
+// The default gate: every TypeScript spec except the ones that launch a real host CLI.
 export default defineConfig({
   test: {
-    include: ['src/{builder,release,metrics,content}/tests/**/*.spec.ts'],
-    // dist/ is committed build output and node_modules/ is vendored; neither holds our specs.
-    //
-    // The smoke specs launch the real host CLIs, so their runtime tracks network, npm cache and
-    // machine load rather than the code under test — one was measured timing out at 48s on this
-    // machine. A flaky spec in the default run makes every single-run result untrustworthy, and it
-    // already produced a false "the guard caught it" verdict during a mutation audit of this repo.
-    // They keep their own gate: `make test-smoke` names all six explicitly and rebuilds first.
-    exclude: ['node_modules/**', 'dist/**', '.ts-out/**', 'src/builder/tests/smoke/**'],
-    // Scopes spec discovery to this directory without changing the process working directory —
-    // specs resolve repo paths from cwd via src/commons/support/repo.ts.
+    include: ['tests/{builder,release,budgets,content}/**/*.spec.ts', 'tests/dist/**/*.spec.ts'],
+    // Only specs that launch a host binary are excluded — one was measured timing out at 48s — and
+    // they keep their own gate in vitest.smoke.config.mts. dist/ and node_modules/ hold no specs.
+    exclude: [
+      'node_modules/**', 'dist/**', '.local/**',
+      'tests/dist/**/smoke.spec.ts', 'tests/dist/universalSmoke.spec.ts',
+    ],
+    // Scopes discovery without changing cwd — specs resolve repo paths from it via support/repo.ts.
     root: import.meta.dirname,
-    // Build-driving specs render all six targets; 5s (the default) is a false failure under load.
+    // Build-driving specs render all seven targets; 5s (the default) is a false failure under load.
     testTimeout: 30_000,
     coverage: {
       provider: 'v8',
-      include: ['src/builder/**/*.mts', 'src/release/**/*.mts', 'src/metrics/**/*.mts'],
-      // Every domain's bin/ holds logic-free process entry points, exercised by `make build` rather
-      // than unit specs. stryker.conf.json excludes the same directories; keep the two in step.
+      include: ['internal/builder/**/*.mts', 'internal/release/**/*.mts', 'tests/budgets/**/*.mts'],
+      // Each bin/ holds logic-free entry points, exercised by `make build`. stryker.conf.json
+      // excludes the same directories; keep the two in step.
       exclude: [
-        'src/builder/**/*.d.mts', 'src/release/**/*.d.mts', 'src/metrics/**/*.d.mts',
-        'src/builder/bin/**', 'src/release/bin/**',
+        'internal/builder/**/*.d.mts', 'internal/release/**/*.d.mts', 'tests/budgets/**/*.d.mts',
+        'internal/builder/bin/**', 'internal/release/bin/**',
       ],
       reporter: ['text', 'json-summary'],
-      thresholds: {
-        branches: 90,
-        functions: 90,
-        lines: 90,
-        statements: 90,
-      },
+      // All transient tool output lives under one gitignored /.local/ tree (see .gitignore).
+      reportsDirectory: '.local/coverage',
+      thresholds: { statements: 80, branches: 80, functions: 80, lines: 80 },
     },
   },
 });

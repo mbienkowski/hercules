@@ -1,0 +1,28 @@
+{
+  "when": "before_write",
+  "tools": {
+    "write_file": "Write",
+    "replace": "Edit"
+  },
+  "paths": [
+    {
+      "from": "arg_keys",
+      "keys": [
+        "file_path",
+        "filePath",
+        "path",
+        "absolute_path",
+        "absolutePath",
+        "file",
+        "filename"
+      ],
+      "nested": []
+    }
+  ],
+  "deny": {
+    "decision": "deny"
+  },
+  "reason_at": [
+    "reason"
+  ]
+}

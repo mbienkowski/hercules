@@ -1,0 +1,17 @@
+{
+  "_shape": "A host whose SILENCE means allow — it declares no allow reply at all — and which carries no batched edit lists.",
+  "when": "before_write",
+  "tools": {
+    "write_file": "Write",
+    "replace": "Edit"
+  },
+  "paths": [
+    {
+      "from": "arg_keys",
+      "keys": ["file_path", "filePath", "path"],
+      "nested": []
+    }
+  ],
+  "deny": {"decision": "deny"},
+  "reason_at": ["reason"]
+}

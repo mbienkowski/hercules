@@ -2,9 +2,10 @@
   // Root project. Holds no files of its own — it exists so editors and `tsc -b` see both halves of
   // the tree. `npm run typecheck` builds both referenced projects.
   //
-  //   tsconfig.build.json  — src/{builder,release,metrics}/  -> ESM, .mts sources emitted as .mjs
-  //                           into .ts-out/
-  //   tsconfig.tests.json  — every domain's own tests/       -> ESM, type-checked only
+  //   tsconfig.build.json  — internal/{builder,release}/     -> ESM, .mts sources emitted as .mjs
+  //                           into .local/ts-out/
+  //   tsconfig.tests.json  — the top-level tests/ tree       -> ESM, type-checked only (includes
+  //                           tests/budgets/*.mts, the measurement code only tests read)
   //
   // Shared compiler options live in tsconfig.base.json.
   "files": [],

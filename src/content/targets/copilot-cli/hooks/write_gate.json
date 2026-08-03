@@ -1,0 +1,47 @@
+{
+  "when": "before_write",
+  "tools": {
+    "create": "Edit",
+    "edit": "Edit",
+    "str_replace_editor": "Edit",
+    "apply_patch": "Edit",
+    "write": "Edit",
+    "Write": "Edit",
+    "Edit": "Edit",
+    "MultiEdit": "Edit",
+    "NotebookEdit": "Edit"
+  },
+  "paths": [
+    {
+      "from": "arg_keys",
+      "keys": [
+        "path",
+        "file_path",
+        "filePath",
+        "filename",
+        "fileName",
+        "file",
+        "notebook_path",
+        "notebookPath",
+        "target_file",
+        "targetFile",
+        "absolute_path",
+        "absolutePath"
+      ],
+      "nested": [
+        "edits",
+        "changes",
+        "operations"
+      ]
+    }
+  ],
+  "allow": {
+    "permissionDecision": "allow"
+  },
+  "deny": {
+    "permissionDecision": "deny"
+  },
+  "reason_at": [
+    "permissionDecisionReason"
+  ]
+}

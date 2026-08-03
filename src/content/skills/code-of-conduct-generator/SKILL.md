@@ -20,17 +20,17 @@ conflicting values.
 
 Must run inside a git repository — else **stop** and tell the user to re-open Hercules in the target
 repository and re-invoke. Resolve the **target** repo per `hercules-reference § Code-of-conduct resolution`, not
-the launch directory; if ${host} was opened away from the code or several candidate roots exist, list
+the launch directory; if {{ host }} was opened away from the code or several candidate roots exist, list
 them (`ls`, `git rev-parse --show-toplevel`) and ask which repo the CoC is for. Run every scan, `find`,
 and git command against that root (`git -C <root>`), never bare `.`.
 
 ## Method
 
-${target:claude}
-1. **Plan mode & mode** — call `${plan_enter}` first, before any scanning; give a chat summary of the
-${target:default}
+{% if plan_mode == "tool" -%}
+1. **Plan mode & mode** — call `{{ plan_enter }}` first, before any scanning; give a chat summary of the
+{%- else -%}
 1. **Plan mode & mode** — enter plan mode first, before any scanning; give a chat summary of the
-${target:end}
+{%- endif %}
    flow and offer **Quick** (small/low-stakes default: scan → a few questions → draft → gate → review →
    commit) or **Thorough** (adds the coverage-map gap pass and an advisor critical-review pass). Name the detected
    root so the user can correct it.
@@ -68,15 +68,15 @@ ${target:end}
    added, conflicts, dropped), surfacing only the ~5 genuine decisions ranked by marginal information —
    never a long list to curate. Feedback applies **surgically** with a diff of what changed; regenerate
    wholesale only when the user reopens the scope, and re-gate only what changed.
-${target:claude}
-8. **Approve & write** — on approval: `${plan_exit}` (`auto`) → write atomically (temp + rename) → add a
-${target:default}
+{% if plan_mode == "tool" -%}
+8. **Approve & write** — on approval: `{{ plan_exit }}` (`auto`) → write atomically (temp + rename) → add a
+{%- else -%}
 8. **Approve & write** — on approval: leave plan mode → write atomically (temp + rename) → add a
-${target:end}
-   deduplicated `@`-reference (default `@./code-of-conduct.md`) to the **target** repo's `${instructions_file}`,
+{%- endif %}
+   deduplicated `@`-reference (default `@./code-of-conduct.md`) to the **target** repo's `{{ instructions_file }}`,
    creating it when missing.
 9. **Review & commit** — show the file and ask the user to review it. On their go-ahead, **stage then
-   commit** exactly the code-of-conduct file plus `${instructions_file}` when touched — `git add -- <paths>` then
+   commit** exactly the code-of-conduct file plus `{{ instructions_file }}` when touched — `git add -- <paths>` then
    `git commit -m … -- <paths>` — so an untracked new file commits cleanly and the user's other staged
    work is never reset or swept in; use the mined commit convention or a plain imperative subject.
    Attribution lives in the commit message, never in the file. Offer a push; never push automatically.

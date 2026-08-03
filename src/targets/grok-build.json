@@ -1,148 +1,257 @@
 {
-  "schema": 1,
+  "$schema": "./recipe.schema.json",
   "name": "grok-build",
-  "vars": {
-    "product": "Grok Build",
-    "host": "Grok",
-    "ns": "/hercules:",
-    "instructions_file": "CLAUDE.md",
+  "variables": {
+    "advisor_delivery": "agent",
+    "agent_mode": false,
+    "agent_models": false,
+    "agent_name_prefix": "",
     "agent_ns": "hercules:",
-    "plugin_root": "${GROK_PLUGIN_ROOT}/",
+    "agent_tools": true,
+    "agents_readonly": false,
+    "command_agent": false,
+    "command_disable_invocation": true,
+    "command_format": "frontmatter",
+    "command_name": false,
+    "command_name_prefix": "",
+    "command_title": "none",
+    "command_wide_gap": true,
+    "forced_subagent": "yes",
+    "host": "Grok",
+    "instructions_file": "CLAUDE.md",
+    "lead_edit_block": "none",
+    "model_high": false,
+    "model_low": false,
+    "model_medium": false,
+    "ns": "/hercules:",
+    "persona_frontmatter": false,
     "plan_enter": "plan mode",
-    "plan_exit": "approval"
+    "plan_exit": "approval",
+    "plan_mode": "prose",
+    "plugin_manifest_dir": false,
+    "plugin_root": "${GROK_PLUGIN_ROOT}/",
+    "product": "Grok Build",
+    "version_manifest": false,
+    "write_backstop": false
   },
-  "models": {
-    "high": null,
-    "medium": null,
-    "low": null
-  },
-  "smoke": {
-    "npm_package": "@xai-official/grok",
-    "npm_version": "0.2.106",
-    "cli": "grok",
-    "test": "builder/tests/smoke/grokBuildSmoke.spec.ts",
-    "expect": {
-      "version_cmd": [
-        "grok",
-        "--version"
-      ]
-    }
-  },
-  "dispatch": "path",
-  "roles": {
-    "agent": {
-      "mode": "preserve",
-      "resolve_model_tier": true,
-      "required": [
-        "name",
-        "description"
+  "runtime_variables": [
+    "GROK_PLUGIN_ROOT"
+  ],
+  "targets": {
+    ".grok-plugin/plugin.json": {
+      "sources": [
+        "src/content/targets/grok-build/.grok-plugin/plugin.json"
       ]
     },
-    "command": {
-      "mode": "preserve",
-      "resolve_model_tier": true
+    "CAPABILITIES.md": {
+      "sources": [
+        "src/content/targets/grok-build/CAPABILITIES.md"
+      ]
     },
-    "persona": {
-      "mode": "preserve",
-      "resolve_model_tier": true
+    "CLAUDE.md": {
+      "sources": [
+        "src/content/persona.md"
+      ]
     },
-    "default": {
-      "mode": "preserve",
-      "resolve_model_tier": true
+    "agents/backend-engineer.md": {
+      "sources": [
+        "src/content/agents/backend-engineer.md"
+      ]
+    },
+    "agents/builder.md": {
+      "sources": [
+        "src/content/agents/builder.md"
+      ]
+    },
+    "agents/business-analyst.md": {
+      "sources": [
+        "src/content/agents/business-analyst.md"
+      ]
+    },
+    "agents/challenger.md": {
+      "sources": [
+        "src/content/agents/challenger.md"
+      ]
+    },
+    "agents/copywriter.md": {
+      "sources": [
+        "src/content/agents/copywriter.md"
+      ]
+    },
+    "agents/cynical-reviewer.md": {
+      "sources": [
+        "src/content/agents/cynical-reviewer.md"
+      ]
+    },
+    "agents/devops-engineer.md": {
+      "sources": [
+        "src/content/agents/devops-engineer.md"
+      ]
+    },
+    "agents/document-specialist.md": {
+      "sources": [
+        "src/content/agents/document-specialist.md"
+      ]
+    },
+    "agents/frontend-engineer.md": {
+      "sources": [
+        "src/content/agents/frontend-engineer.md"
+      ]
+    },
+    "agents/hercules.md": {
+      "sources": [
+        "src/content/agents/hercules.md"
+      ]
+    },
+    "agents/lead-architect.md": {
+      "sources": [
+        "src/content/agents/lead-architect.md"
+      ]
+    },
+    "agents/maintainer.md": {
+      "sources": [
+        "src/content/agents/maintainer.md"
+      ]
+    },
+    "agents/security-expert.md": {
+      "sources": [
+        "src/content/agents/security-expert.md"
+      ]
+    },
+    "agents/senior-qa-engineer.md": {
+      "sources": [
+        "src/content/agents/senior-qa-engineer.md"
+      ]
+    },
+    "agents/simplicity-advocate.md": {
+      "sources": [
+        "src/content/agents/simplicity-advocate.md"
+      ]
+    },
+    "agents/source-checker.md": {
+      "sources": [
+        "src/content/agents/source-checker.md"
+      ]
+    },
+    "agents/ux-ui-designer.md": {
+      "sources": [
+        "src/content/agents/ux-ui-designer.md"
+      ]
+    },
+    "commands/build.md": {
+      "sources": [
+        "src/content/commands/build.md"
+      ]
+    },
+    "commands/design.md": {
+      "sources": [
+        "src/content/commands/design.md"
+      ]
+    },
+    "commands/discover.md": {
+      "sources": [
+        "src/content/commands/discover.md"
+      ]
+    },
+    "commands/project-reset.md": {
+      "sources": [
+        "src/content/commands/project-reset.md"
+      ]
+    },
+    "commands/ship.md": {
+      "sources": [
+        "src/content/commands/ship.md"
+      ]
+    },
+    "commands/workflow.md": {
+      "sources": [
+        "src/content/commands/workflow.md"
+      ]
+    },
+    "hooks/frozen_tests.py": {
+      "sources": [
+        "src/scripts/hooks/frozen_tests.py"
+      ]
+    },
+    "hooks/hercules_state.py": {
+      "sources": [
+        "src/scripts/hooks/hercules_state.py"
+      ]
+    },
+    "hooks/hooks.json": {
+      "sources": [
+        "src/content/targets/grok-build/hooks/hooks.json"
+      ]
+    },
+    "protocols/a2a-communication-protocol.md": {
+      "sources": [
+        "src/content/protocols/a2a-communication-protocol.md"
+      ]
+    },
+    "protocols/debate-consensus-protocol.md": {
+      "sources": [
+        "src/content/protocols/debate-consensus-protocol.md"
+      ]
+    },
+    "protocols/workflow-protocol.md": {
+      "sources": [
+        "src/content/protocols/workflow-protocol.md"
+      ]
+    },
+    "settings.json": {
+      "sources": [
+        "src/content/targets/grok-build/settings.json"
+      ]
+    },
+    "skills/code-of-conduct-generator/SKILL.md": {
+      "sources": [
+        "src/content/skills/code-of-conduct-generator/SKILL.md"
+      ]
+    },
+    "skills/code-of-conduct-generator/coverage-map.md": {
+      "sources": [
+        "src/content/skills/code-of-conduct-generator/coverage-map.md"
+      ]
+    },
+    "skills/fusion-setup/SKILL.md": {
+      "sources": [
+        "src/content/skills/fusion-setup/SKILL.md"
+      ]
+    },
+    "skills/hercules-reference/SKILL.md": {
+      "sources": [
+        "src/content/skills/hercules-reference/SKILL.md"
+      ]
+    },
+    "skills/learnings/SKILL.md": {
+      "sources": [
+        "src/content/skills/learnings/SKILL.md"
+      ]
+    },
+    "skills/write-test-scenarios/SKILL.md": {
+      "sources": [
+        "src/content/skills/write-test-scenarios/SKILL.md"
+      ]
+    },
+    "tools/project_reset.py": {
+      "sources": [
+        "src/scripts/tools/project_reset.py"
+      ]
+    },
+    "tools/registry_sync.py": {
+      "sources": [
+        "src/scripts/tools/registry_sync.py"
+      ]
+    },
+    "tools/retire_spec.py": {
+      "sources": [
+        "src/scripts/tools/retire_spec.py"
+      ]
+    },
+    "tools/state_patch.py": {
+      "sources": [
+        "src/scripts/tools/state_patch.py"
+      ]
     }
-  },
-  "routes": [
-    {
-      "kind": "exact",
-      "src": "capabilities.md",
-      "dest": "CAPABILITIES.md"
-    },
-    {
-      "kind": "exact",
-      "src": "persona.md",
-      "dest": "CLAUDE.md"
-    }
-  ],
-  "artifacts": [
-    {
-      "dest": "settings.json",
-      "content": {
-        "agent": "hercules",
-        "advisors": [
-          "backend-engineer",
-          "business-analyst",
-          "challenger",
-          "copywriter",
-          "cynical-reviewer",
-          "devops-engineer",
-          "document-specialist",
-          "frontend-engineer",
-          "lead-architect",
-          "maintainer",
-          "security-expert",
-          "senior-qa-engineer",
-          "simplicity-advocate",
-          "source-checker",
-          "ux-ui-designer"
-        ],
-        "skills": [
-          "code-of-conduct-generator",
-          "fusion-setup",
-          "hercules-reference",
-          "learnings",
-          "write-test-scenarios"
-        ],
-        "commands": [
-          "build",
-          "design",
-          "discover",
-          "project-reset",
-          "ship",
-          "workflow"
-        ]
-      }
-    },
-    {
-      "dest": "hooks/hooks.json",
-      "content": {
-        "hooks": {
-          "PreToolUse": [
-            {
-              "matcher": "Edit|MultiEdit|Write|NotebookEdit",
-              "hooks": [
-                {
-                  "type": "command",
-                  "command": "python3",
-                  "args": [
-                    "${GROK_PLUGIN_ROOT}/hooks/frozen_tests.py"
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "dest": ".grok-plugin/plugin.json",
-      "versioned": true,
-      "content": {
-        "name": "hercules",
-        "description": "Methodology & workflow system for software delivery with AI",
-        "version": "${version}",
-        "author": {
-          "name": "Michal Bienkowski"
-        },
-        "license": "AGPL-3.0",
-        "homepage": "https://github.com/mbienkowski/hercules"
-      }
-    }
-  ],
-  "guard": [
-    "hercules_state.py",
-    "frozen_tests.py"
-  ],
-  "tools": [
-    "project_reset.py"
-  ]
+  }
 }

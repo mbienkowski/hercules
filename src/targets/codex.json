@@ -1,294 +1,262 @@
 {
-  "schema": 1,
+  "$schema": "./recipe.schema.json",
   "name": "codex",
-  "vars": {
-    "product": "Codex",
-    "host": "Codex",
-    "ns": "$hercules-",
-    "instructions_file": "AGENTS.md",
+  "variables": {
+    "advisor_delivery": "skill",
+    "agent_mode": false,
+    "agent_models": false,
+    "agent_name_prefix": "hercules-advisor-",
     "agent_ns": "",
-    "plugin_root": "${PLUGIN_ROOT}/",
+    "agent_tools": false,
+    "agents_readonly": false,
+    "command_agent": false,
+    "command_disable_invocation": false,
+    "command_format": "frontmatter",
+    "command_name": true,
+    "command_name_prefix": "hercules-",
+    "command_title": "none",
+    "command_wide_gap": false,
+    "forced_subagent": "yes",
+    "host": "Codex",
+    "instructions_file": "AGENTS.md",
+    "lead_edit_block": "none",
+    "model_high": false,
+    "model_low": false,
+    "model_medium": false,
+    "ns": "$hercules-",
+    "persona_frontmatter": false,
     "plan_enter": "plan mode",
-    "plan_exit": "approval"
+    "plan_exit": "approval",
+    "plan_mode": "prose",
+    "plugin_manifest_dir": false,
+    "plugin_root": "${PLUGIN_ROOT}/",
+    "product": "Codex",
+    "version_manifest": false,
+    "write_backstop": false
   },
-  "models": {
-    "high": null,
-    "medium": null,
-    "low": null
-  },
-  "smoke": {
-    "npm_package": "@openai/codex",
-    "npm_version": "0.146.0",
-    "cli": "codex",
-    "test": "builder/tests/smoke/codexSmoke.spec.ts",
-    "expect": {
-      "version_cmd": [
-        "codex",
-        "--version"
-      ]
-    }
-  },
-  "dispatch": "path",
-  "roles": {
-    "agent": {
-      "mode": "fields",
-      "body": "keep",
-      "fields": [
-        {
-          "key": "name",
-          "from": "stem_prefix",
-          "prefix": "hercules-advisor-"
-        },
-        {
-          "key": "description",
-          "from": "frontmatter",
-          "field": "description",
-          "render": true
-        }
+  "runtime_variables": [
+    "PLUGIN_ROOT"
+  ],
+  "targets": {
+    ".codex-plugin/plugin.json": {
+      "sources": [
+        "src/content/targets/codex/.codex-plugin/plugin.json"
       ]
     },
-    "command": {
-      "mode": "fields",
-      "body": "lstrip_newlines",
-      "fields": [
-        {
-          "key": "name",
-          "from": "stem_prefix",
-          "prefix": "hercules-"
-        },
-        {
-          "key": "description",
-          "from": "frontmatter",
-          "field": "description",
-          "render": true
-        }
+    "AGENTS.md": {
+      "sources": [
+        "src/content/persona.md"
       ]
     },
-    "persona": {
-      "mode": "plain"
+    "CAPABILITIES.md": {
+      "sources": [
+        "src/content/targets/codex/CAPABILITIES.md"
+      ]
     },
-    "default": {
-      "mode": "preserve"
+    "hooks/frozen_tests.py": {
+      "sources": [
+        "src/scripts/hooks/frozen_tests.py"
+      ]
+    },
+    "hooks/hercules_gate.py": {
+      "sources": [
+        "src/scripts/hooks/hercules_gate.py"
+      ]
+    },
+    "hooks/hercules_state.py": {
+      "sources": [
+        "src/scripts/hooks/hercules_state.py"
+      ]
+    },
+    "hooks/hooks.json": {
+      "sources": [
+        "src/content/targets/codex/hooks/hooks.json"
+      ]
+    },
+    "hooks/write_gate.json": {
+      "sources": [
+        "src/content/targets/codex/hooks/write_gate.json"
+      ]
+    },
+    "protocols/a2a-communication-protocol.md": {
+      "sources": [
+        "src/content/protocols/a2a-communication-protocol.md"
+      ]
+    },
+    "protocols/debate-consensus-protocol.md": {
+      "sources": [
+        "src/content/protocols/debate-consensus-protocol.md"
+      ]
+    },
+    "protocols/workflow-protocol.md": {
+      "sources": [
+        "src/content/protocols/workflow-protocol.md"
+      ]
+    },
+    "skills/code-of-conduct-generator/SKILL.md": {
+      "sources": [
+        "src/content/skills/code-of-conduct-generator/SKILL.md"
+      ]
+    },
+    "skills/code-of-conduct-generator/coverage-map.md": {
+      "sources": [
+        "src/content/skills/code-of-conduct-generator/coverage-map.md"
+      ]
+    },
+    "skills/fusion-setup/SKILL.md": {
+      "sources": [
+        "src/content/skills/fusion-setup/SKILL.md"
+      ]
+    },
+    "skills/hercules-advisor-backend-engineer/SKILL.md": {
+      "sources": [
+        "src/content/agents/backend-engineer.md"
+      ]
+    },
+    "skills/hercules-advisor-builder/SKILL.md": {
+      "sources": [
+        "src/content/agents/builder.md"
+      ]
+    },
+    "skills/hercules-advisor-business-analyst/SKILL.md": {
+      "sources": [
+        "src/content/agents/business-analyst.md"
+      ]
+    },
+    "skills/hercules-advisor-challenger/SKILL.md": {
+      "sources": [
+        "src/content/agents/challenger.md"
+      ]
+    },
+    "skills/hercules-advisor-copywriter/SKILL.md": {
+      "sources": [
+        "src/content/agents/copywriter.md"
+      ]
+    },
+    "skills/hercules-advisor-cynical-reviewer/SKILL.md": {
+      "sources": [
+        "src/content/agents/cynical-reviewer.md"
+      ]
+    },
+    "skills/hercules-advisor-devops-engineer/SKILL.md": {
+      "sources": [
+        "src/content/agents/devops-engineer.md"
+      ]
+    },
+    "skills/hercules-advisor-document-specialist/SKILL.md": {
+      "sources": [
+        "src/content/agents/document-specialist.md"
+      ]
+    },
+    "skills/hercules-advisor-frontend-engineer/SKILL.md": {
+      "sources": [
+        "src/content/agents/frontend-engineer.md"
+      ]
+    },
+    "skills/hercules-advisor-hercules/SKILL.md": {
+      "sources": [
+        "src/content/agents/hercules.md"
+      ]
+    },
+    "skills/hercules-advisor-lead-architect/SKILL.md": {
+      "sources": [
+        "src/content/agents/lead-architect.md"
+      ]
+    },
+    "skills/hercules-advisor-maintainer/SKILL.md": {
+      "sources": [
+        "src/content/agents/maintainer.md"
+      ]
+    },
+    "skills/hercules-advisor-security-expert/SKILL.md": {
+      "sources": [
+        "src/content/agents/security-expert.md"
+      ]
+    },
+    "skills/hercules-advisor-senior-qa-engineer/SKILL.md": {
+      "sources": [
+        "src/content/agents/senior-qa-engineer.md"
+      ]
+    },
+    "skills/hercules-advisor-simplicity-advocate/SKILL.md": {
+      "sources": [
+        "src/content/agents/simplicity-advocate.md"
+      ]
+    },
+    "skills/hercules-advisor-source-checker/SKILL.md": {
+      "sources": [
+        "src/content/agents/source-checker.md"
+      ]
+    },
+    "skills/hercules-advisor-ux-ui-designer/SKILL.md": {
+      "sources": [
+        "src/content/agents/ux-ui-designer.md"
+      ]
+    },
+    "skills/hercules-build/SKILL.md": {
+      "sources": [
+        "src/content/commands/build.md"
+      ]
+    },
+    "skills/hercules-design/SKILL.md": {
+      "sources": [
+        "src/content/commands/design.md"
+      ]
+    },
+    "skills/hercules-discover/SKILL.md": {
+      "sources": [
+        "src/content/commands/discover.md"
+      ]
+    },
+    "skills/hercules-project-reset/SKILL.md": {
+      "sources": [
+        "src/content/commands/project-reset.md"
+      ]
+    },
+    "skills/hercules-reference/SKILL.md": {
+      "sources": [
+        "src/content/skills/hercules-reference/SKILL.md"
+      ]
+    },
+    "skills/hercules-ship/SKILL.md": {
+      "sources": [
+        "src/content/commands/ship.md"
+      ]
+    },
+    "skills/hercules-workflow/SKILL.md": {
+      "sources": [
+        "src/content/commands/workflow.md"
+      ]
+    },
+    "skills/learnings/SKILL.md": {
+      "sources": [
+        "src/content/skills/learnings/SKILL.md"
+      ]
+    },
+    "skills/write-test-scenarios/SKILL.md": {
+      "sources": [
+        "src/content/skills/write-test-scenarios/SKILL.md"
+      ]
+    },
+    "tools/project_reset.py": {
+      "sources": [
+        "src/scripts/tools/project_reset.py"
+      ]
+    },
+    "tools/registry_sync.py": {
+      "sources": [
+        "src/scripts/tools/registry_sync.py"
+      ]
+    },
+    "tools/retire_spec.py": {
+      "sources": [
+        "src/scripts/tools/retire_spec.py"
+      ]
+    },
+    "tools/state_patch.py": {
+      "sources": [
+        "src/scripts/tools/state_patch.py"
+      ]
     }
-  },
-  "routes": [
-    {
-      "kind": "exact",
-      "src": "capabilities.md",
-      "dest": "CAPABILITIES.md"
-    },
-    {
-      "kind": "exact",
-      "src": "persona.md",
-      "dest": "AGENTS.md"
-    },
-    {
-      "kind": "exact",
-      "src": "commands/build.md",
-      "dest": "skills/hercules-build/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "commands/design.md",
-      "dest": "skills/hercules-design/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "commands/discover.md",
-      "dest": "skills/hercules-discover/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "commands/project-reset.md",
-      "dest": "skills/hercules-project-reset/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "commands/ship.md",
-      "dest": "skills/hercules-ship/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "commands/workflow.md",
-      "dest": "skills/hercules-workflow/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/backend-engineer.md",
-      "dest": "skills/hercules-advisor-backend-engineer/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/builder.md",
-      "dest": "skills/hercules-advisor-builder/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/business-analyst.md",
-      "dest": "skills/hercules-advisor-business-analyst/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/challenger.md",
-      "dest": "skills/hercules-advisor-challenger/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/copywriter.md",
-      "dest": "skills/hercules-advisor-copywriter/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/cynical-reviewer.md",
-      "dest": "skills/hercules-advisor-cynical-reviewer/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/devops-engineer.md",
-      "dest": "skills/hercules-advisor-devops-engineer/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/document-specialist.md",
-      "dest": "skills/hercules-advisor-document-specialist/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/frontend-engineer.md",
-      "dest": "skills/hercules-advisor-frontend-engineer/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/hercules.md",
-      "dest": "skills/hercules-advisor-hercules/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/lead-architect.md",
-      "dest": "skills/hercules-advisor-lead-architect/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/maintainer.md",
-      "dest": "skills/hercules-advisor-maintainer/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/security-expert.md",
-      "dest": "skills/hercules-advisor-security-expert/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/senior-qa-engineer.md",
-      "dest": "skills/hercules-advisor-senior-qa-engineer/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/simplicity-advocate.md",
-      "dest": "skills/hercules-advisor-simplicity-advocate/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/source-checker.md",
-      "dest": "skills/hercules-advisor-source-checker/SKILL.md"
-    },
-    {
-      "kind": "exact",
-      "src": "agents/ux-ui-designer.md",
-      "dest": "skills/hercules-advisor-ux-ui-designer/SKILL.md"
-    }
-  ],
-  "artifacts": [
-    {
-      "dest": ".codex-plugin/plugin.json",
-      "versioned": true,
-      "content": {
-        "name": "hercules",
-        "description": "Methodology & workflow system for software delivery with AI",
-        "version": "${version}",
-        "author": {
-          "name": "Michal Bienkowski"
-        },
-        "license": "AGPL-3.0",
-        "homepage": "https://github.com/mbienkowski/hercules",
-        "repository": "https://github.com/mbienkowski/hercules",
-        "keywords": [
-          "methodology",
-          "workflow",
-          "spec-driven",
-          "tdd",
-          "delivery",
-          "code-review",
-          "agents"
-        ],
-        "skills": "./skills/",
-        "hooks": "./hooks/hooks.json"
-      }
-    },
-    {
-      "dest": "hooks/hooks.json",
-      "content": {
-        "hooks": {
-          "PreToolUse": [
-            {
-              "matcher": "apply_patch|Bash",
-              "hooks": [
-                {
-                  "type": "command",
-                  "command": "python3 \"$PLUGIN_ROOT/hooks/hercules_gate.py\" codex_pre_tool"
-                }
-              ]
-            }
-          ]
-        }
-      }
-    }
-  ],
-  "guard": [
-    "hercules_state.py",
-    "frozen_tests.py",
-    "hercules_gate.py"
-  ],
-  "tools": [
-    "project_reset.py"
-  ],
-  "gate": {
-    "protocol": "codex_pre_tool",
-    "tools": {
-      "apply_patch": "Edit",
-      "Bash": "Bash"
-    },
-    "path_keys": [
-      "path",
-      "file_path",
-      "filePath",
-      "filename",
-      "fileName",
-      "file",
-      "notebook_path",
-      "notebookPath",
-      "target_file",
-      "targetFile",
-      "absolute_path",
-      "absolutePath"
-    ],
-    "nested_keys": [
-      "edits",
-      "changes",
-      "operations"
-    ],
-    "allow": {
-      "hookSpecificOutput": {
-        "hookEventName": "PreToolUse",
-        "permissionDecision": "allow"
-      }
-    },
-    "deny": {
-      "hookSpecificOutput": {
-        "hookEventName": "PreToolUse",
-        "permissionDecision": "deny"
-      }
-    },
-    "reason_key": "permissionDecisionReason"
   }
 }
