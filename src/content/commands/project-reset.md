@@ -1,19 +1,33 @@
+{% if command_format == "toml" -%}
+description = "Clear what Hercules remembers about this project — features, settings, or documents"
+
+prompt = """
+{%- else -%}
 ---
+{%- if command_name %}
+name: {{ command_name_prefix }}project-reset
+{%- endif %}
 description: Clear what Hercules remembers about this project — features, settings, or documents
+{%- if command_disable_invocation %}
 disable-model-invocation: true
+{%- endif %}
+{%- if command_agent %}
+agent: hercules
+{%- endif %}
 ---
+{% if command_title == "heading" %}
+# {{ ns }}project-reset
+{% elsif command_wide_gap %}
 
-${target:claude}
-# ${ns}project-reset
-${target:end}
-
+{% endif %}
+{%- endif %}
 Clear what Hercules remembers about this project, and how it is configured for it. Plugin-file citations (`hercules-reference §…`) live in this plugin's directory.
 
-${target:claude}
-**Plan mode — required.** Call `${plan_enter}` at the start. Present the findings and the choices, then the confirmation. At the **Plan approval** gate the person says yes; call `${plan_exit}` (`auto`), then run the deletion.
-${target:default}
+{% if plan_mode == "tool" -%}
+**Plan mode — required.** Call `{{ plan_enter }}` at the start. Present the findings and the choices, then the confirmation. At the **Plan approval** gate the person says yes; call `{{ plan_exit }}` (`auto`), then run the deletion.
+{%- else -%}
 **Plan mode — required.** Enter plan mode at the start. Present the findings and the choices, then the confirmation. At the **Plan approval** gate the person says yes; leave plan mode, then run the deletion.
-${target:end}
+{%- endif %}
 
 **Not a delivery phase** — a maintenance action, invoked deliberately, never a side effect of another command. There is no next phase to point at when it finishes.
 
@@ -26,7 +40,7 @@ This command does not read or edit the record itself. A shipped program does tha
 Run the program in plan mode from the project you are in:
 
 ```
-python3 ${plugin_root}tools/project_reset.py plan --contract 1
+python3 {{ plugin_root }}tools/project_reset.py plan --contract 1
 ```
 
 Everything below is rendered from that reply and nothing else. Do not read `~/.hercules` yourself, and do not describe anything the reply does not contain.
@@ -39,7 +53,7 @@ Exit `4` on an `apply` means two different things, and they are told apart by wh
 
 Open with the project's `slug` and `directory`, then this, in this order and in these words:
 
-> ⚠  DANGER ZONE — ${ns}project-reset
+> ⚠  DANGER ZONE — {{ ns }}project-reset
 >
 >   This clears what Hercules remembers about this project, and how it is
 >   configured for it. It does not touch your code, your repository, its
@@ -114,7 +128,7 @@ Say "the last account of what was built" only for a feature whose stage is `ship
 The person says yes. Any other reply is feedback — show the choices again, never proceed. On approval, run the same selection with `apply`:
 
 ```
-python3 ${plugin_root}tools/project_reset.py apply --contract 1 --confirm --documents --feature 2026-07-29-one-dynamic-workflow
+python3 {{ plugin_root }}tools/project_reset.py apply --contract 1 --confirm --documents --feature 2026-07-29-one-dynamic-workflow
 ```
 
 ## Step 5 — Say what happened
@@ -145,3 +159,6 @@ Omit the third block entirely when `failed` is empty. When it is not, name every
 ## How this differs from abandoning a session
 
 **"abandon this session"** removes one in-flight feature from the record and marks its row in the session index. It reaches the feature you are working on, and nothing else. This command reaches any feature whether or not it was ever abandoned, the project's settings, and the documents folder — and it is the only one of the two that deletes files.
+{%- if command_format == "toml" %}
+"""
+{%- endif %}

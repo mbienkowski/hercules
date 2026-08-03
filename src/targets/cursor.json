@@ -1,187 +1,272 @@
 {
-  "schema": 1,
+  "$schema": "./recipe.schema.json",
   "name": "cursor",
-  "vars": {
-    "product": "Cursor",
-    "host": "Cursor",
-    "ns": "/",
-    "instructions_file": "AGENTS.md",
+  "variables": {
+    "advisor_delivery": "agent",
+    "agent_mode": false,
+    "agent_models": false,
+    "agent_name_prefix": "",
     "agent_ns": "",
-    "plugin_root": "${CURSOR_PLUGIN_ROOT}/",
+    "agent_tools": false,
+    "agents_readonly": true,
+    "command_agent": false,
+    "command_disable_invocation": false,
+    "command_format": "frontmatter",
+    "command_name": true,
+    "command_name_prefix": "",
+    "command_title": "none",
+    "command_wide_gap": false,
+    "forced_subagent": "no",
+    "host": "Cursor",
+    "instructions_file": "AGENTS.md",
+    "lead_edit_block": "none",
+    "model_high": false,
+    "model_low": false,
+    "model_medium": false,
+    "ns": "/",
+    "persona_frontmatter": true,
     "plan_enter": "plan mode",
-    "plan_exit": "approval"
+    "plan_exit": "approval",
+    "plan_mode": "prose",
+    "plugin_manifest_dir": ".cursor-plugin/",
+    "plugin_root": "${CURSOR_PLUGIN_ROOT}/",
+    "product": "Cursor",
+    "version_manifest": "plugin_folder",
+    "write_backstop": "notify_only"
   },
-  "models": {
-    "high": null,
-    "medium": null,
-    "low": null
-  },
-  "smoke": {
-    "cli": "cursor-agent",
-    "test": "builder/tests/smoke/cursorSmoke.spec.ts",
-    "install": {
-      "method": "script",
-      "url": "https://cursor.com/install",
-      "flags": "-fsSL"
-    },
-    "expect": {
-      "version_cmd": [
-        "cursor-agent",
-        "--version"
-      ]
-    }
-  },
-  "dispatch": "path",
-  "roles": {
-    "agent": {
-      "mode": "fields",
-      "body": "keep",
-      "fields": [
-        {
-          "key": "name",
-          "from": "frontmatter",
-          "field": "name"
-        },
-        {
-          "key": "description",
-          "from": "frontmatter",
-          "field": "description",
-          "render": true
-        },
-        {
-          "key": "readonly",
-          "from": "flag_if_name_in",
-          "value": "true",
-          "names": [
-            "cynical-reviewer",
-            "security-expert",
-            "source-checker",
-            "senior-qa-engineer",
-            "maintainer"
-          ]
-        }
+  "runtime_variables": [
+    "CURSOR_PLUGIN_ROOT"
+  ],
+  "targets": {
+    ".cursor-plugin/plugin.json": {
+      "sources": [
+        "src/content/targets/cursor/.cursor-plugin/plugin.json"
       ]
     },
-    "command": {
-      "mode": "fields",
-      "body": "lstrip_newlines",
-      "fields": [
-        {
-          "key": "name",
-          "from": "stem"
-        },
-        {
-          "key": "description",
-          "from": "frontmatter",
-          "field": "description",
-          "render": true
-        }
+    "CAPABILITIES.md": {
+      "sources": [
+        "src/content/targets/cursor/CAPABILITIES.md"
       ]
     },
-    "persona": {
-      "mode": "wrap",
-      "fields": [
-        {
-          "key": "description",
-          "from": "literal",
-          "value": "Hercules — the spec-first delivery methodology (Discover → Design → Build → Ship). Always-on persona and project instructions."
-        },
-        {
-          "key": "alwaysApply",
-          "from": "literal",
-          "value": "true"
-        }
+    "README.md": {
+      "sources": [
+        "src/content/targets/cursor/README.md"
       ]
     },
-    "default": {
-      "mode": "preserve"
+    "agents/backend-engineer.md": {
+      "sources": [
+        "src/content/agents/backend-engineer.md"
+      ]
+    },
+    "agents/builder.md": {
+      "sources": [
+        "src/content/agents/builder.md"
+      ]
+    },
+    "agents/business-analyst.md": {
+      "sources": [
+        "src/content/agents/business-analyst.md"
+      ]
+    },
+    "agents/challenger.md": {
+      "sources": [
+        "src/content/agents/challenger.md"
+      ]
+    },
+    "agents/copywriter.md": {
+      "sources": [
+        "src/content/agents/copywriter.md"
+      ]
+    },
+    "agents/cynical-reviewer.md": {
+      "sources": [
+        "src/content/agents/cynical-reviewer.md"
+      ]
+    },
+    "agents/devops-engineer.md": {
+      "sources": [
+        "src/content/agents/devops-engineer.md"
+      ]
+    },
+    "agents/document-specialist.md": {
+      "sources": [
+        "src/content/agents/document-specialist.md"
+      ]
+    },
+    "agents/frontend-engineer.md": {
+      "sources": [
+        "src/content/agents/frontend-engineer.md"
+      ]
+    },
+    "agents/hercules.md": {
+      "sources": [
+        "src/content/agents/hercules.md"
+      ]
+    },
+    "agents/lead-architect.md": {
+      "sources": [
+        "src/content/agents/lead-architect.md"
+      ]
+    },
+    "agents/maintainer.md": {
+      "sources": [
+        "src/content/agents/maintainer.md"
+      ]
+    },
+    "agents/security-expert.md": {
+      "sources": [
+        "src/content/agents/security-expert.md"
+      ]
+    },
+    "agents/senior-qa-engineer.md": {
+      "sources": [
+        "src/content/agents/senior-qa-engineer.md"
+      ]
+    },
+    "agents/simplicity-advocate.md": {
+      "sources": [
+        "src/content/agents/simplicity-advocate.md"
+      ]
+    },
+    "agents/source-checker.md": {
+      "sources": [
+        "src/content/agents/source-checker.md"
+      ]
+    },
+    "agents/ux-ui-designer.md": {
+      "sources": [
+        "src/content/agents/ux-ui-designer.md"
+      ]
+    },
+    "commands/build.md": {
+      "sources": [
+        "src/content/commands/build.md"
+      ]
+    },
+    "commands/design.md": {
+      "sources": [
+        "src/content/commands/design.md"
+      ]
+    },
+    "commands/discover.md": {
+      "sources": [
+        "src/content/commands/discover.md"
+      ]
+    },
+    "commands/project-reset.md": {
+      "sources": [
+        "src/content/commands/project-reset.md"
+      ]
+    },
+    "commands/ship.md": {
+      "sources": [
+        "src/content/commands/ship.md"
+      ]
+    },
+    "commands/workflow.md": {
+      "sources": [
+        "src/content/commands/workflow.md"
+      ]
+    },
+    "hooks/frozen_tests.py": {
+      "sources": [
+        "src/scripts/hooks/frozen_tests.py"
+      ]
+    },
+    "hooks/hercules_gate.py": {
+      "sources": [
+        "src/scripts/hooks/hercules_gate.py"
+      ]
+    },
+    "hooks/hercules_state.py": {
+      "sources": [
+        "src/scripts/hooks/hercules_state.py"
+      ]
+    },
+    "hooks/hooks.json": {
+      "sources": [
+        "src/content/targets/cursor/hooks/hooks.json"
+      ]
+    },
+    "hooks/write_gate.json": {
+      "sources": [
+        "src/content/targets/cursor/hooks/write_gate.json"
+      ]
+    },
+    "logo.svg": {
+      "sources": [
+        "src/content/targets/cursor/logo.svg"
+      ]
+    },
+    "protocols/a2a-communication-protocol.md": {
+      "sources": [
+        "src/content/protocols/a2a-communication-protocol.md"
+      ]
+    },
+    "protocols/debate-consensus-protocol.md": {
+      "sources": [
+        "src/content/protocols/debate-consensus-protocol.md"
+      ]
+    },
+    "protocols/workflow-protocol.md": {
+      "sources": [
+        "src/content/protocols/workflow-protocol.md"
+      ]
+    },
+    "rules/hercules-persona.mdc": {
+      "sources": [
+        "src/content/persona.md"
+      ]
+    },
+    "skills/code-of-conduct-generator/SKILL.md": {
+      "sources": [
+        "src/content/skills/code-of-conduct-generator/SKILL.md"
+      ]
+    },
+    "skills/code-of-conduct-generator/coverage-map.md": {
+      "sources": [
+        "src/content/skills/code-of-conduct-generator/coverage-map.md"
+      ]
+    },
+    "skills/fusion-setup/SKILL.md": {
+      "sources": [
+        "src/content/skills/fusion-setup/SKILL.md"
+      ]
+    },
+    "skills/hercules-reference/SKILL.md": {
+      "sources": [
+        "src/content/skills/hercules-reference/SKILL.md"
+      ]
+    },
+    "skills/learnings/SKILL.md": {
+      "sources": [
+        "src/content/skills/learnings/SKILL.md"
+      ]
+    },
+    "skills/write-test-scenarios/SKILL.md": {
+      "sources": [
+        "src/content/skills/write-test-scenarios/SKILL.md"
+      ]
+    },
+    "tools/project_reset.py": {
+      "sources": [
+        "src/scripts/tools/project_reset.py"
+      ]
+    },
+    "tools/registry_sync.py": {
+      "sources": [
+        "src/scripts/tools/registry_sync.py"
+      ]
+    },
+    "tools/retire_spec.py": {
+      "sources": [
+        "src/scripts/tools/retire_spec.py"
+      ]
+    },
+    "tools/state_patch.py": {
+      "sources": [
+        "src/scripts/tools/state_patch.py"
+      ]
     }
-  },
-  "routes": [
-    {
-      "kind": "exact",
-      "src": "capabilities.md",
-      "dest": "CAPABILITIES.md"
-    },
-    {
-      "kind": "exact",
-      "src": "persona.md",
-      "dest": "rules/hercules-persona.mdc"
-    }
-  ],
-  "artifacts": [
-    {
-      "dest": "hooks/hooks.json",
-      "content": {
-        "version": 1,
-        "hooks": {
-          "beforeShellExecution": [
-            {
-              "command": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py shell"
-            }
-          ],
-          "beforeMCPExecution": [
-            {
-              "command": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py mcp"
-            }
-          ],
-          "afterFileEdit": [
-            {
-              "command": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py after_edit"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "dest": ".cursor-plugin/plugin.json",
-      "versioned": true,
-      "content": {
-        "name": "hercules",
-        "displayName": "Hercules",
-        "description": "Methodology & workflow system for software delivery with AI",
-        "version": "${version}",
-        "author": {
-          "name": "Michal Bienkowski"
-        },
-        "license": "AGPL-3.0",
-        "homepage": "https://github.com/mbienkowski/hercules",
-        "repository": "https://github.com/mbienkowski/hercules",
-        "keywords": [
-          "methodology",
-          "workflow",
-          "spec-driven",
-          "tdd",
-          "delivery",
-          "code-review",
-          "agents"
-        ],
-        "logo": "./logo.svg",
-        "agents": "./agents/",
-        "commands": "./commands/",
-        "rules": "./rules/",
-        "skills": "./skills/",
-        "hooks": "./hooks/hooks.json"
-      }
-    }
-  ],
-  "guard": [
-    "hercules_state.py",
-    "frozen_tests.py",
-    "hercules_gate.py"
-  ],
-  "tools": [
-    "project_reset.py"
-  ],
-  "gate": {
-    "protocol": "event_guards",
-    "allow": {
-      "permission": "allow"
-    },
-    "deny": {
-      "permission": "deny"
-    },
-    "user_key": "userMessage",
-    "agent_key": "agentMessage"
   }
 }

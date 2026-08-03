@@ -1,19 +1,33 @@
+{% if command_format == "toml" -%}
+description = "Build phase — plan the delivery, then execute approved specs with TDD"
+
+prompt = """
+{%- else -%}
 ---
+{%- if command_name %}
+name: {{ command_name_prefix }}build
+{%- endif %}
 description: Build phase — plan the delivery, then execute approved specs with TDD
+{%- if command_disable_invocation %}
 disable-model-invocation: true
+{%- endif %}
+{%- if command_agent %}
+agent: hercules
+{%- endif %}
 ---
+{% if command_title == "heading" %}
+# {{ ns }}build
+{% elsif command_wide_gap %}
 
-${target:claude}
-# ${ns}build
-${target:end}
-
+{% endif %}
+{%- endif %}
 Plan the delivery, then execute the approved specs with TDD and full traceability. Plugin-file citations (`hercules-reference §…`, `protocols/…`) live in this plugin's directory.
 
-${target:claude}
-**Plan mode — required.** Build opens in plan mode: call `${plan_enter}`, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
-${target:default}
+{% if plan_mode == "tool" -%}
+**Plan mode — required.** Build opens in plan mode: call `{{ plan_enter }}`, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
+{%- else -%}
 **Plan mode — required.** Build opens in plan mode: enter plan mode, present the **delivery plan**, and exit through the **Plan approval** gate below. Execution then runs automatically, spec by spec (a *ship each* "ship now" opens Ship's own plan).
-${target:end}
+{%- endif %}
 
 ---
 
@@ -32,7 +46,7 @@ On resume, reconcile against the filesystem: a spec in `delivered_specs` whose f
 
 Find sessions with specs not yet delivered: the state lists a non-empty `pending_specs` (never count `delivered_specs` — kept specs stay on disk); with no state file, `*-business-requirements.md` plus spec files on disk counts.
 
-Present a numbered list. Ask which to deliver (number, path, or Enter for most recent). If no sessions are found, tell the user to run `${ns}design` first.
+Present a numbered list. Ask which to deliver (number, path, or Enter for most recent). If no sessions are found, tell the user to run `{{ ns }}design` first.
 
 ### Step 2 — Service paths
 
@@ -54,49 +68,47 @@ Show the delivery plan: each spec, the requirement(s) it satisfies (its `satisfi
 
 ### Plan approval
 
-${target:claude}
-The single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback; regenerate the plan, never silently proceed. On the user's approval, call `${plan_exit}` (`auto`) first, then set `current_phase: "build"`, `current_spec` to the first pending spec (on resume, the interrupted one), and the approved `cadence` (`"deliver-all"` / `"ship-each"`) in the session's state file (atomic temp + rename) and this session's `Status` to `build` in `docs/INDEX.md`; execution runs automatically per the approved batching and cadence.
-${target:default}
-The single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback; regenerate the plan, never silently proceed. On the user's approval, leave plan mode, then set `current_phase: "build"`, `current_spec` to the first pending spec (on resume, the interrupted one), and the approved `cadence` (`"deliver-all"` / `"ship-each"`) in the session's state file (atomic temp + rename) and this session's `Status` to `build` in `docs/INDEX.md`; execution runs automatically per the approved batching and cadence.
-${target:end}
+{% if plan_mode == "tool" -%}
+The single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback; regenerate the plan, never silently proceed. On the user's approval, call `{{ plan_exit }}` (`auto`) first, then run `python3 {{ plugin_root }}tools/state_patch.py apply --project-slug {slug} --session-id {id} --set current_phase=build --set current_spec={first-pending-spec} --set cadence={approved-cadence} --confirm` to write the session state. Non-zero exit: relay the output and stop. Then update this session's `Status` to `build` in `docs/INDEX.md`; execution runs automatically per the approved batching and cadence.
+{%- else -%}
+The single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback; regenerate the plan, never silently proceed. On the user's approval, leave plan mode, then run `python3 {{ plugin_root }}tools/state_patch.py apply --project-slug {slug} --session-id {id} --set current_phase=build --set current_spec={first-pending-spec} --set cadence={approved-cadence} --confirm` to write the session state. Non-zero exit: relay the output and stop. Then update this session's `Status` to `build` in `docs/INDEX.md`; execution runs automatically per the approved batching and cadence.
+{%- endif %}
 
 ---
 
 ## Execution (after Plan approval — automatic)
 
-For each spec in delivery order, run this cycle, announcing `"Spec N of M"`. Spawns in this phase carry the delegation packet (`${plugin_root}protocols/workflow-protocol.md#packet`).
+For each spec in delivery order, run this cycle, announcing `"Spec N of M"`. Spawns in this phase carry the delegation packet (`{{ plugin_root }}protocols/workflow-protocol.md#packet`).
 
 1. **Read the spec.** Acceptance criteria, implementation guide, `satisfies:` links. Confirm what "done" means before writing code. Classify the change: `annotation-only` (scaffold gate satisfied by existing code → skip to Step 3), `net-new`, `refactor`, or `mixed`.
 2. **Scaffold.** Create empty classes, method signatures, and interfaces — no logic. Gate: the scaffold must compile before any tests are written.
-3. **Write failing tests.** **Mandatory:** invoke `write-test-scenarios` for the spec's scope and its `## Test suite` section (skip only on its own precondition stop). Gate: every new test compiles **and fails for the right reason** — a real assertion of the requirement against the real interface, red only because the implementation is missing, never a syntax/runner error or forced failure. Frontend scope: suggest Gherkin e2e scenarios (Cypress/Playwright), kept in source control. Record the test files to `frozen_test_files`, their SHA-256 baselines to `frozen_baseline` (`{path: sha256}`, re-checked at retire and updated on a sanctioned correction), and set `current_spec_round: 1` in the same atomic write (overrides bind to the round). **The tests are now frozen** — the agent does not edit them.    Announce the freeze and its exits as bullets: "change test X" (your permission is recorded — and the edit proceeds this turn); the round-limit stop's five options (step 5); `frozen_hook: "off"` for prompt-only. Backstop: before advance, `git diff` frozen files; any change outside the sanctioned path (step 5) or current-round `frozen_override` blocks; clear a consumed `frozen_override` here.
+3. **Write failing tests.** **Mandatory:** invoke `write-test-scenarios` for the spec's scope and its `## Test suite` section (skip only on its own precondition stop). Gate: every new test compiles **and fails for the right reason** — a real assertion of the requirement against the real interface, red only because the implementation is missing, never a syntax/runner error or forced failure. Frontend scope: suggest Gherkin e2e scenarios (Cypress/Playwright), kept in source control. Freeze the suite in one state patch — run `python3 {{ plugin_root }}tools/state_patch.py apply --project-slug {slug} --session-id {id} --set frozen_test_files={...} --set frozen_baseline={...} --set current_spec_round=1 --confirm` to write these atomically; Non-zero exit: relay the output and stop. **The tests are now frozen** — the agent does not edit them.    Announce the freeze and its exits as bullets: "change test X" (your permission is recorded — and the edit proceeds this turn); the round-limit stop's five options (step 5); `frozen_hook: "off"` for prompt-only. Backstop: before advance, `git diff` frozen files; any change outside the sanctioned path (step 5) or current-round `frozen_override` blocks; clear a consumed `frozen_override` here.
 4. **Implement.** Write the minimum code to turn failing tests green; refactor inline while tests stay green. No test edits. No scope expansion. Respect `code-of-conduct.md`. Before freezing, confirm each new guard/assertion can actually fail against realistic input — upstream normalization may make it unreachable; surface as a warning. On constructor/signature changes with existing tests, run test-compile before the full check.
 5. **Quality gates.** All tests pass; every CoC-defined gate passes — branch coverage, mutation kill rate, lint/format, type-checks, arch-unit checks — at the CoC's thresholds (Hercules carries no numbers of its own). Coverage thresholds apply **per touched file** (`## Affected code`), not just aggregate — verify per file. Run the real tools, never a self-report. **Round limit:** at most 3 implementation rounds against the frozen tests; persist in `current_spec_round` so resume can't reset it. Still failing after round 3 → stop, root-cause, persist checkpoint, and ask:
-   > "Three rounds in, {spec} still fails {N} tests — my read: {root cause}. Your call: **correct the test** (tell me the fix — I record your grant and edit), **rework the design** (`${ns}design`), **adjust scope**, **more rounds**, or **accept with a reason**."
+   > "Three rounds in, {spec} still fails {N} tests — my read: {root cause}. Your call: **correct the test** (tell me the fix — I record your grant and edit), **rework the design** (`{{ ns }}design`), **adjust scope**, **more rounds**, or **accept with a reason**."
 
    On a correct-the-test grant, record `frozen_override` — files, spec, round, quoted words — and edit; gate: the corrected test compiles and asserts the corrected requirement (green against existing code is the expected pass); then, **atomically with clearing the override**, re-baseline each edited file (`frozen_baseline[path]` = new SHA-256) so Step 10 checks the sanctioned result, not the stale hash. This is fail-closed: no active override ⇒ no re-baseline, so an unsanctioned weakening still trips Step 10. The agent never edits a frozen test unprompted and never auto-advances.
 6. **Mutation gate.** When the CoC requires one, meet its kill-rate threshold. Fix surviving mutants, or annotate an accepted-equivalent. Runs before retire, so weak tests are strengthened while the spec is live.
-${target:codex}
-7. **Traceability.** An **independent review** (`hercules-reference § Independent review`), never a self-check: invoke the `$hercules-advisor-cynical-reviewer` skill with the packet (`${plugin_root}protocols/workflow-protocol.md#packet`); reading the spec's `satisfies:` + `*-business-requirements.md` + the test files **directly**, it maps each `satisfies:` requirement §section to ≥1 **named passing test** — and each acceptance criterion to a test. Synthesise: an uncovered requirement → stop, re-enter `${ns}design`.
-${target:default}
-7. **Traceability.** An **independent review** (`hercules-reference § Independent review`), never a self-check: spawn `${agent_ns}cynical-reviewer` with the packet (`${plugin_root}protocols/workflow-protocol.md#packet`); reading the spec's `satisfies:` + `*-business-requirements.md` + the test files **directly**, it maps each `satisfies:` requirement §section to ≥1 **named passing test** — and each acceptance criterion to a test. Synthesise: an uncovered requirement → stop, re-enter `${ns}design`.
-${target:end}
-8. **Advance.** Honour the cadence approved in plan mode. *Ship each* → pause: `"Spec N of M complete — tests green, traced. Ship now, continue (next spec), or continue all (finish the rest without pausing)?"`; "ship now" cross-checks this spec, blocks on regression, runs `${ns}ship` **spec-scoped** (ship.md § Spec-scoped ship); on failure control returns here and the spec is not retired. *Deliver all* → continue without pausing.
+{% if advisor_delivery == "skill" -%}
+7. **Traceability.** An **independent review** (`hercules-reference § Independent review`), never a self-check: invoke the `$hercules-advisor-cynical-reviewer` skill with the packet (`{{ plugin_root }}protocols/workflow-protocol.md#packet`); reading the spec's `satisfies:` + `*-business-requirements.md` + the test files **directly**, it maps each `satisfies:` requirement §section to ≥1 **named passing test** — and each acceptance criterion to a test. Synthesise: an uncovered requirement → stop, re-enter `{{ ns }}design`.
+{%- else -%}
+7. **Traceability.** An **independent review** (`hercules-reference § Independent review`), never a self-check: spawn `{{ agent_ns }}cynical-reviewer` with the packet (`{{ plugin_root }}protocols/workflow-protocol.md#packet`); reading the spec's `satisfies:` + `*-business-requirements.md` + the test files **directly**, it maps each `satisfies:` requirement §section to ≥1 **named passing test** — and each acceptance criterion to a test. Synthesise: an uncovered requirement → stop, re-enter `{{ ns }}design`.
+{%- endif %}
+8. **Advance.** Honour the cadence approved in plan mode. *Ship each* → pause: `"Spec N of M complete — tests green, traced. Ship now, continue (next spec), or continue all (finish the rest without pausing)?"`; "ship now" cross-checks this spec, blocks on regression, runs `{{ ns }}ship` **spec-scoped** (ship.md § Spec-scoped ship); on failure control returns here and the spec is not retired. *Deliver all* → continue without pausing.
 9. **Write the checkpoint.** Append a `build_progress` entry: acceptance criteria + `satisfies:` links, key decisions, interfaces, named tests added, coverage %, mutation %, constraints for later specs.
-10. **Retire the spec.** **Acceptance backstop first:** recompute each `frozen_baseline` entry's SHA-256; any changed-or-deleted file not under a current-round `frozen_override` = a tampered acceptance test → **HALT and tell the user**, don't retire (a prompt-invoked catch for out-of-band tampering, not an unbypassable lock). Only then, as the **last** action, `git rm docs/{session}/{spec-filename}` (plain delete if never committed) — code is now the source of truth — or, with `keep_specs: true`, keep and refresh to match what shipped. Update state atomically (temp + rename): set `current_spec` to next pending (or unset), append to `delivered_specs`, drop from `pending_specs`, remove `current_spec_round`, clear `frozen_test_files`, `frozen_baseline`, and `frozen_override` (clearing `frozen_baseline` is required — a stale one re-checks retired paths next spec). Multi-service: prefix spec refs with `"{service}/"`.
+10. **Retire the spec.** Run `python3 {{ plugin_root }}hooks/frozen_tests.py check --project-slug {slug} --session-id {id}` to verify the acceptance backstop; exit 2 means a frozen test drifted, was tampered with, or cannot be resolved — **HALT and tell the user** the drifted files from the output, don't retire. Only on exit 0, run `python3 {{ plugin_root }}tools/retire_spec.py apply --project-slug {slug} --session-id {id} --spec-file {spec-filename} --confirm` to delete the spec and clear its state in one operation (`--keep-specs` when `keep_specs: true`: the spec is updated to match what shipped, not deleted). Non-zero exit: relay the output and stop. Multi-service: prefix spec refs with `"{service}/"`.
 For a spec scoped to a service (named in its `## Scope`): announce `"Now working in {service} at {local-path}."`, resolve that service's CoC (§ CoC resolution; overrides the home CoC), and build absolute paths as `{service-path}/{path-from-repo-root}` for every Read/Write/Edit and Bash run — never a bare relative path.
 
 ## Cross-check validation (after all specs)
 
-Spawn `${agent_ns}cynical-reviewer` to cross-check the whole delivery — *does what we built match what we set out to build?* Specs are retired, so it reads each spec's `build_progress` checkpoint + the permanent `*-business-requirements.md`. Intentional improvement documented; scope reduction marked deferred; bug or regression is a **blocker**. Requirement traceability & drift with evidence: every requirement maps to a delivered spec and a named passing test (`✓ [requirement] → evidence` / `✗ [requirement] → NOT COVERED`); reverse drift (shipped behaviour with no originating requirement) is surfaced. Drift on a high-risk surface (the floored list in `protocols/debate-consensus-protocol.md` § complexity — auth, secrets, money, data migration, deletion, production config, concurrency, personal data, and anything the project treats as equally consequential) **blocks** until requirement-backed. Depth scales to tier: trivial/low light; medium+ full; high/critical add the domain-expert.
+Spawn `{{ agent_ns }}cynical-reviewer` to cross-check the whole delivery — *does what we built match what we set out to build?* Specs are retired, so it reads each spec's `build_progress` checkpoint + the permanent `*-business-requirements.md`. Intentional improvement documented; scope reduction marked deferred; bug or regression is a **blocker**. Requirement traceability & drift with evidence: every requirement maps to a delivered spec and a named passing test (`✓ [requirement] → evidence` / `✗ [requirement] → NOT COVERED`); reverse drift (shipped behaviour with no originating requirement) is surfaced. Drift on a high-risk surface (the floored list in `protocols/debate-consensus-protocol.md` § complexity — auth, secrets, money, data migration, deletion, production config, concurrency, personal data, and anything the project treats as equally consequential) **blocks** until requirement-backed. Depth scales to tier: trivial/low light; medium+ full; high/critical add the domain-expert.
 
-For a single-spec delivery, the cross-check may merge with Step 7's traceability review — spawn `${agent_ns}cynical-reviewer` once with both mandates.
-${target:cursor}
+For a single-spec delivery, the cross-check may merge with Step 7's traceability review — spawn `{{ agent_ns }}cynical-reviewer` once with both mandates.
+{% if forced_subagent == "no" %}
+**On {{ host }}, these reviewers are not runtime-forced** — {{ host }} exposes no orchestrator-forced spawn, so every `cynical-reviewer` spawn in this phase (Step 7 traceability and the cross-check above) must run as a real, isolated subagent (`@cynical-reviewer`) whose reply is a structured **handshake**: an explicit "I read `<sources>` directly (spec `satisfies:`, `*-business-requirements.md`, the named tests)" attestation plus the traceability matrix. If no such handshake returns — or the mapping appears to have been produced in the authoring context — **HALT and tell the user** the independent-review gate could not be confirmed; never accept a self-produced matrix as the review. (For a genuinely isolated reviewer, run the review packet through the headless `cursor-agent -p` CLI — a fresh agent process with its own context; Cursor's CLI has no flag to select a named subagent, so the packet itself must carry the reviewer's mandate. **When you invoke `cursor-agent -p`, set `HERCULES_RUNTIME_MODE=headless` in its environment** — that switches the frozen-test hook from advisory to an automatic `git checkout` restore, correct for an unattended process with no human to act on a notice.)
 
-**On ${host}, these reviewers are not runtime-forced** — ${host} exposes no orchestrator-forced spawn, so every `cynical-reviewer` spawn in this phase (Step 7 traceability and the cross-check above) must run as a real, isolated subagent (`@cynical-reviewer`) whose reply is a structured **handshake**: an explicit "I read `<sources>` directly (spec `satisfies:`, `*-business-requirements.md`, the named tests)" attestation plus the traceability matrix. If no such handshake returns — or the mapping appears to have been produced in the authoring context — **HALT and tell the user** the independent-review gate could not be confirmed; never accept a self-produced matrix as the review. (For a genuinely isolated reviewer, run the review packet through the headless `cursor-agent -p` CLI — a fresh agent process with its own context; Cursor's CLI has no flag to select a named subagent, so the packet itself must carry the reviewer's mandate. **When you invoke `cursor-agent -p`, set `HERCULES_RUNTIME_MODE=headless` in its environment** — that switches the frozen-test hook from advisory to an automatic `git checkout` restore, correct for an unattended process with no human to act on a notice.)
-
-**Frozen tests on ${host} are advisory in the IDE (${host} cannot block a file edit).** If the agent edits a frozen test in Composer, the hook surfaces a notice and does **not** revert — you undo it (Ctrl+Z) or grant an override (`"change test X — <why>"`). The remaining guards are best-effort, not a lock: `beforeShellExecution`/`beforeMCPExecution` deny the common frozen write/commit forms (coarse — `git add .`, `python -c`, heredocs slip past), and Step 10's backstop re-hashes every frozen test before retire — a strong catch, not a guarantee a tampered test can never ship. **If `python3` is not on PATH**, these hooks are inactive (fail-open) — say so at Build start, since frozen-test protection then rests on the acceptance backstop alone until `python3` is available.
-
-${target:end}
+**Frozen tests on {{ host }} are advisory in the IDE ({{ host }} cannot block a file edit).** If the agent edits a frozen test in Composer, the hook surfaces a notice and does **not** revert — you undo it (Ctrl+Z) or grant an override (`"change test X — <why>"`). The remaining guards are best-effort, not a lock: `beforeShellExecution`/`beforeMCPExecution` deny the common frozen write/commit forms (coarse — `git add .`, `python -c`, heredocs slip past), and Step 10's backstop re-hashes every frozen test before retire — a strong catch, not a guarantee a tampered test can never ship. **If `python3` is not on PATH**, these hooks are inactive (fail-open) — say so at Build start, since frozen-test protection then rests on the acceptance backstop alone until `python3` is available.
+{% endif %}
 Any undelivered spec or uncovered requirement → do not close out; the user resolves or defers with a reason.
 
 ## Capture learnings (all tiers)
@@ -109,6 +121,9 @@ After a passing cross-check there is no artifact to write — code, tests, and g
 
 Set this session's `Status` to `delivered` in `docs/INDEX.md`.
 
-Ask: "Anyone taking over? Say 'handoff to {name}: {note}', or skip." Then write to `~/.hercules/state/{slug}.json` atomically — **all** end-of-Build mutations (`handed_off_by`/`handoff_note`, `current_spec: null`, `pending_specs: []`, `build_complete: true`, `last_updated`) in **one** temp + rename (`persona.md` § 9).
+Ask: "Anyone taking over? Say 'handoff to {name}: {note}', or skip." Then run `python3 {{ plugin_root }}tools/state_patch.py apply --project-slug {slug} --session-id {id} --set handed_off_by={handoff-name} --set handoff_note={handoff-note} --set current_spec=null --set pending_specs=[] --set build_complete=true --unset current_spec_round --confirm` to write all end-of-Build mutations atomically; Non-zero exit: relay the output and stop.
 
-Show a one-line summary. Review the diff; run `${ns}ship` when ready.
+Show a one-line summary. Review the diff; run `{{ ns }}ship` when ready.
+{%- if command_format == "toml" %}
+"""
+{%- endif %}

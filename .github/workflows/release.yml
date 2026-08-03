@@ -70,7 +70,7 @@ jobs:
           dry_run: true
 
       # 2. Write the new version into the two literal sources: package.json (canonical) and
-      #    pyproject.toml. Plugin manifests carry a ${version} token, injected at build in step 2b.
+      #    pyproject.toml. Plugin manifest sources write {{ version }}, resolved at build in step 2b.
       - name: Bump version files
         env:
           NEW_VERSION: ${{ steps.bump.outputs.new_version }}

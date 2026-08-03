@@ -1,10 +1,12 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "_comment": [
-    "Mutates the builder/release engine only — never src/metrics/ (a measuring tool, not shipped",
-    "logic) or dist/ (generated output; proven by the drift gate, not mutation). mutmut covers the",
-    "Python islands via `make mutation-py`; both read src/release/mutation-gate.json, whose threshold",
-    "is 0 — these runs report a kill rate, they gate nothing and no CI job runs them."
+    "Mutation scope is LOGIC, never OUTPUT — the rule is written down in CODE_OF_CONDUCT.md",
+    "§ Adding an ecosystem, and these globs are it in machine form. Mutating a distribution would",
+    "ask \"would a test notice if the shipped bytes changed\", which `make build-check` already answers",
+    "absolutely and for free; mutating tests/budgets/ would mutate a measuring tool. mutmut covers the",
+    "Python islands via `make mutation-py`; both report a kill rate; the >=85% requirement the scheduled report applies is inline in",
+    "internal/release/ci/mutation_report.sh. No job that can block a merge or a release runs them."
   ],
   "packageManager": "npm",
   "testRunner": "vitest",
@@ -17,16 +19,16 @@
     "json"
   ],
   "jsonReporter": {
-    "fileName": "reports/mutation/mutation.json"
+    "fileName": ".local/reports/mutation/mutation.json"
   },
   "coverageAnalysis": "all",
   "mutate": [
-    "src/builder/**/*.mts",
-    "!src/builder/bin/**",
-    "src/release/**/*.mts",
-    "!src/release/bin/**"
+    "internal/builder/**/*.mts",
+    "!internal/builder/bin/**",
+    "internal/release/**/*.mts",
+    "!internal/release/bin/**"
   ],
-  "tempDirName": ".stryker-tmp",
+  "tempDirName": ".local/stryker-tmp",
   "cleanTempDir": true,
   "timeoutMS": 60000,
   "concurrency": 4

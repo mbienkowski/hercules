@@ -1,0 +1,35 @@
+{
+  "when": "before_write",
+  "tools": {
+    "apply_patch": "Edit",
+    "Bash": "Bash"
+  },
+  "paths": [
+    {
+      "from": "patch_body",
+      "arg": "command",
+      "pattern": "^\\*\\*\\* (?:Update|Add|Delete) File:\\s*(.+?)\\s*$",
+      "as_tool": "Edit"
+    },
+    {
+      "from": "shell_command",
+      "arg": "command"
+    }
+  ],
+  "allow": {
+    "hookSpecificOutput": {
+      "hookEventName": "PreToolUse",
+      "permissionDecision": "allow"
+    }
+  },
+  "deny": {
+    "hookSpecificOutput": {
+      "hookEventName": "PreToolUse",
+      "permissionDecision": "deny"
+    }
+  },
+  "reason_at": [
+    "hookSpecificOutput",
+    "permissionDecisionReason"
+  ]
+}

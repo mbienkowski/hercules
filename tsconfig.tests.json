@@ -1,7 +1,8 @@
 {
-  // Type-check config for every domain's tests/, the shared helpers, and the Vitest config. Never
-  // emitted — Vitest compiles tests from source, so this module format never reaches Node's loader.
-  // `moduleResolution: bundler` matches how Vite resolves these files, so checks match execution.
+  // Type-check config for the top-level tests/ tree, the shared support helpers, and the Vitest
+  // config. Never emitted — Vitest compiles tests from source, so this module format never reaches
+  // Node's loader. `moduleResolution: bundler` matches how Vite resolves these files, so checks match
+  // execution.
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
@@ -9,14 +10,19 @@
     "moduleResolution": "bundler",
     "noEmit": true
   },
-  // Specs import the modules under test from src/builder/, src/release/, src/metrics/, a separate project.
+  // Specs import the modules under test from internal/builder/ and internal/release/, a separate
+  // project. tests/budgets/*.mts is checked HERE rather than there: nothing runs it from the
+  // compiled output, so it is measurement code that only tests read — the budgets a shipped
+  // instruction file must meet.
   "references": [{ "path": "./tsconfig.build.json" }],
+  // Every TypeScript file under tests/, by glob rather than by a list of directories. The list was
+  // accurate and still wrong: a directory added to tests/ and forgotten here is not a type error, it
+  // is silence — the files simply never get checked, and nothing says so. The same failure shape as a
+  // pre-commit hook watching a directory that no longer exists. tests/repo/ and tests/scripts/ hold
+  // Python only, so the glob costs nothing to include them.
   "include": [
-    "src/builder/tests/**/*.ts",
-    "src/release/tests/**/*.ts",
-    "src/metrics/tests/**/*.ts",
-    "src/content/tests/**/*.ts",
-    "src/commons/support/**/*.ts",
+    "tests/**/*.ts",
+    "tests/**/*.mts",
     "*.config.mts"
   ]
 }

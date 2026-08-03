@@ -1,0 +1,8 @@
+{
+  "_shape": "A gate told after a write whose person and agent read the SAME key, and whose allow/deny carry an extra field the gate must copy through verbatim. No host ships this shape.",
+  "when": "after_write",
+  "allow": {"permission": "allow", "source": "hercules"},
+  "deny": {"permission": "deny", "source": "hercules"},
+  "user_key": "message",
+  "agent_key": "message"
+}

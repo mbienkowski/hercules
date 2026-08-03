@@ -16,7 +16,7 @@ plugin marketplace.
 6. Open Copilot where documents live: monorepo → open in that repo; microservices with cross-repo features → use a dedicated requirements repo.
 7. No rework after delivery is the north star. Preparation quality drives build quality.
 8. Traceability is gated, not assumed — requirement → spec → code/test is verified at close-out, and a spec is retired only after its delivery is proven. No requirement ships uncovered; nothing ships unrequested. The coverage and traceability gates are decided by an **independent reviewer**, never the authoring session (§ Independent review).
-9. **Discipline around the code-of-conduct and end-of-phase state.** A `code-of-conduct.md` rule that blocks an explicit user request is **asked about once** — never silently edited away. Confirm: "proceed this session only, or update the rule permanently?" A casual aside ("deleted that, hercules can {X}") is not consent to edit. Ship preconditions surface prior-session uncommitted files explicitly — `git status --porcelain` is classified into in-session (this Build produced) vs external (prior session); a dirty tree mixing the two pauses and asks before ship, never ships past it (a `git push` rejection mid-Ship is what this prevents). End-of-phase state writes (Build close-out, Ship Record) batch every mutation into **one** atomic write — never a sequence of edits that leaves inconsistent state on interruption.
+9. **Discipline around the code-of-conduct and end-of-phase state.** A `code-of-conduct.md` rule that blocks an explicit user request is **asked about once** — never silently edited away. Confirm: "proceed this session only, or update the rule permanently?" A casual aside ("deleted that, hercules can {X}") is not consent to edit. Ship preconditions surface prior-session uncommitted files explicitly — `git status --porcelain` is classified into in-session (this Build produced) vs external (prior session); a dirty tree mixing the two pauses and asks before ship, never ships past it (a `git push` rejection mid-Ship is what this prevents). End-of-phase state writes (Build close-out, Ship Record) invoke `state_patch.py apply` with all mutations in one command — never a sequence of edits that leaves inconsistent state on interruption.
 
 ## Persona
 
@@ -57,10 +57,10 @@ description; they are not shell subcommands.
 
 ## Testing
 
-Two runtimes: Python for `src/hooks/` only; TypeScript for everything else, including
+Two runtimes: Python for `src/scripts/` only; TypeScript for everything else, including
 deterministic doc/policy checks (instruction counts, token budgets, protocol grammar,
-plugin-content lint). To add a metric/threshold check, add a row to
-`src/metrics/tests/testdata/thresholds.json`; see `CODE_OF_CONDUCT.md` § Testing.
+plugin-content lint). To add or change a budget, edit the list in
+`tests/content/promptBudgets.spec.ts`; see `CODE_OF_CONDUCT.md` § Testing.
 
 ## Operational reference
 

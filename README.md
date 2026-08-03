@@ -28,7 +28,7 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
   built until you approve the plan.
 - **Solo developers** — move fast without accumulating requirements debt; a built-in advisory
   board challenges your design before any code; an independent reviewer — plus coverage and
-  mutation gates — holds the quality bar when you're the only human on it.
+  quality gates — holds the quality bar when you're the only human on it.
 - **Teams** — every feature traceable from requirement to merged code; built-in handoff notes
   and checkpoints let anyone pick up mid-build; one shared standard from your
   `code-of-conduct.md`, enforced identically for everyone.
@@ -565,7 +565,7 @@ contributor workflow (build, test locally, open a PR, test a branch before relea
 ## Plugin permissions
 
 Hercules is mostly Markdown — commands, agents, and skills — interpreted by your coding host, plus a small
-set of local programs (`src/hooks/*.py` and `src/tools/*.py`, dependency-free standard-library
+set of local programs (`src/scripts/hooks/` and `src/scripts/tools/`, dependency-free standard-library
 Python). What it can do is exactly what Claude Code can do in your session:
 
 - **Project files** — reads your project files to understand context; writes to `docs/` (or wherever
@@ -591,7 +591,7 @@ Python). What it can do is exactly what Claude Code can do in your session:
 - **Network** — none. All model calls go through your existing Claude Code session and API key.
   Hercules makes no direct API calls and opens no separate network channel — hooks included.
 
-You can audit exactly what runs on your machine in `dist/<your-ecosystem>/` (e.g. `dist/claude-code/`) — the installed plugin tree, generated from the authored source in `src/content/`, `src/targets/`, `src/hooks/`, and `src/tools/` (all committed to this repository).
+You can audit exactly what runs on your machine in `dist/<your-ecosystem>/` (e.g. `dist/claude-code/`) — the installed plugin tree, generated from the authored source in `src/content/`, `src/targets/`, `src/scripts/hooks/`, and `src/scripts/tools/` (all committed to this repository).
 
 ---
 

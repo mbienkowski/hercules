@@ -72,6 +72,8 @@ Requirements coverage:
     → partially covered: "quote" — but missing [specific gap]
 ```
 
+**On OpenCode, this reviewer is not runtime-forced** — OpenCode exposes no orchestrator-forced spawn, so run it as a real, isolated subagent (`@cynical-reviewer`) and require its reply to be a structured **handshake**: an explicit "I read `*-business-requirements.md` at `<path>` (N items)" attestation plus the coverage matrix above. If no such handshake returns — or the matrix appears to have been produced in the authoring context — **HALT and tell the user** the independent-review gate could not be confirmed; never accept a self-produced matrix as the review. (For a genuinely isolated reviewer, run the review packet through the headless `cursor-agent -p` CLI — a fresh agent process with its own context; Cursor's CLI has no flag to select a named subagent, so the packet itself must carry the reviewer's mandate.)
+
 Sub-spec ownership — every requirement must map to at least one spec via that spec's `satisfies:` header; a requirement owned by no spec is a ✗ — it would never get built.
 
 Note on n-1 — `*-business-requirements.md` is both the validation source and the only prior artifact (n-1); one read suffices.
@@ -131,10 +133,8 @@ into the relevant sections per its role. The template stays generic; the advisor
 If the feature is single-track (no meaningful split), emit one spec file (`spec-01`) covering the full scope.
 
 Update `docs/INDEX.md`: set this session's `Status` to `design` if creating the row,
-or update it in place if the row exists. Write atomically (temp + rename).
+or update it in place if the row exists.
 
-Update the active session in the project's state file (`~/.hercules/state/{slug}.json`): set
-`current_phase` to `"design"` and write `pending_specs` (the spec filenames in ascending delivery
-order). Write atomically (temp + rename), preserving other sessions.
+Update the active session in the project's state file by running `python3 tools/state_patch.py apply --project-slug {slug} --session-id {id} --set current_phase=design --set pending_specs={spec-filenames-in-order} --confirm` to write atomically; Non-zero exit: relay the output and stop.
 
 Show the saved spec paths in delivery order. Then say: "The specs and delivery sequence are locked. Ready to **Build**? Run `/hercules:build` — I'll present a delivery plan first, then deliver the specs."

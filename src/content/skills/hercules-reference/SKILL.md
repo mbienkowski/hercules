@@ -28,7 +28,7 @@ capitalization — `-`/`_`/space between the words, extension `.md`, in the repo
 `(?i)^code[-_ ]of[-_ ]conduct\.md$` matches any casing but not a lookalike like
 `code-of-conduct-draft.md`). Read it from the repository the work targets, not the nearest path: a
 service-scoped spec uses that service's repo (`repositories[service]`), otherwise the home code repo
-(`directory`); when ${host} is launched in a docs/requirements repo whose code lives elsewhere, the
+(`directory`); when {{ host }} is launched in a docs/requirements repo whose code lives elsewhere, the
 governing CoC is the code repo's, never the launch/artifact repo's just because it is closest to the
 working directory (a service CoC overrides the home CoC for that service's work). Then validate before
 trusting it — confirm the match is a real code-of-conduct at the target repo's root/`.github/`/`docs/`,
@@ -44,8 +44,7 @@ per project, keyed by a human-friendly slug (default the launch-directory basena
 collision), carrying `directory`, `docs_root`, a `state_file` pointer, and the `repositories` map.
 Resolve the current project by matching the launch directory against each entry's `directory` (a full
 path — collision-proof). The registry is a **regenerable index**: the state files are the source of
-truth, so a missing or stale registry entry is rebuilt from `~/.hercules/state/*.json` on the next run
-(a torn two-file write self-heals; never silently blank an entry). The **delivery state**
+truth, and `python3 {{ plugin_root }}tools/registry_sync.py repair plan|apply [--confirm]` heals the pointer half of a torn two-file write (when a `state_file` pointer names a file that does not exist, but the conventional `{slug}.json` does). Orphaned state files with no registry entry are reported but never fabricated. The **delivery state**
 `~/.hercules/state/{slug}.json` is the source of truth for delivery, **keyed by session** (one feature
 = one Discover gathering = one session, with its own `tier`).
 
@@ -156,14 +155,14 @@ Rule 7 in the Agent-Injected Core carries the minimal debate summary to all agen
 Once the user consents to advisors (§ Sub-agent consent), Discover and Design convene them — that is
 not separately optional. The tier's round range is a ceiling, never an itinerary: a further round
 runs only where the one before it left a topic contested, so a debate that converges ends there.
-Full orchestrator mechanics: [${plugin_root}protocols/debate-consensus-protocol.md](${plugin_root}protocols/debate-consensus-protocol.md).
+Full orchestrator mechanics: [{{ plugin_root }}protocols/debate-consensus-protocol.md]({{ plugin_root }}protocols/debate-consensus-protocol.md).
 For debates involving built-in Explore/Plan/Workflow agents, prepend the full
-`${plugin_root}protocols/debate-consensus-protocol.md` to the per-call delegation prompt.
+`{{ plugin_root }}protocols/debate-consensus-protocol.md` to the per-call delegation prompt.
 
 ## Independent review
 
 The two gates where a session would judge an artifact **it produced** — Design **requirement coverage**
-and Build **traceability** — are decided by a freshly-spawned `${agent_ns}cynical-reviewer` (read-only, not
+and Build **traceability** — are decided by a freshly-spawned `{{ agent_ns }}cynical-reviewer` (read-only, not
 a debate default — it never co-authored the draft), one reviewer per gate. It **reads the durable source
 directly** — the full `*-business-requirements.md` (+ the spec's `## Affected code`/acceptance criteria, or
 `build_progress` checkpoints) — **never a slice the producing agent pre-selected** (a curated slice is a

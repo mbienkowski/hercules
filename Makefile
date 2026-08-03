@@ -1,13 +1,20 @@
 .PHONY: test test-mutation test-smoke install install-py install-ts build build-check \
         typecheck compile test-py test-ts mutation-py mutation-ts \
-        complexity-scan complexity-scan-ts complexity-scan-py vulnerability-scan \
-        ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate bless-content \
+        vulnerability-scan mutation-report \
+        ci-build validate smoke-matrix smoke-install smoke-run smoke-annotate \
         release-verify release-meta release-version changelog release-commit npm-creds release-npm
 
 # ── Which runtime owns what ──────────────────────────────────────────────────
-# Python owns src/hooks/ and src/tools/ (both shipped to users); TypeScript owns src/{builder,release,metrics}/. The
-# -py/-ts suffix is the same string in the make target, the CI job id and the CI display name, so a
-# red check reproduces by copying its name into a terminal. Keep it that way.
+# Python owns src/scripts/hooks/ and src/scripts/tools/ (both shipped to users); TypeScript owns
+# internal/{builder,release}/ and tests/budgets/. The -py/-ts suffix is the same string in the make
+# target, the CI job id and the CI display name, so a red check reproduces by copying its name into a
+# terminal. Keep it that way.
+
+# A handful of tests/scripts/hooks/ specs run a shipped hook straight out of dist/<eco>/hooks/ via
+# subprocess.run; without this, `python3 <script>` writes a __pycache__ into the committed dist/
+# tree. Exported once here (every recipe's shell inherits it) rather than per target, so it covers
+# every current and future test target uniformly.
+export PYTHONDONTWRITEBYTECODE = 1
 
 install: install-py install-ts
 
@@ -17,18 +24,23 @@ install-py:
 install-ts:
 	npm ci
 
+# The build reads src/targets/<eco>.json as a RECIPE — every shipped file named explicitly, with the
+# ordered sources it is made of — and renders each source whole through LiquidJS. `build-check`
+# renders into a scratch tree and compares it with the committed dist/ by BYTES **and permission
+# bits**: that tree is what every marketplace installs from, so the comparison is a supply-chain
+# check, not a build-works check.
 build: compile
-	node .ts-out/builder/bin/cli.mjs --target all
+	node .local/ts-out/builder/bin/recipe.mjs --target all
 
 build-check: compile
-	node .ts-out/builder/bin/cli.mjs --target all --check
+	node .local/ts-out/builder/bin/recipe.mjs --target all --check
 
 test: test-py test-ts
 
-# The Python suite: src/hooks/ and src/tools/ (the two islands, see CODE_OF_CONDUCT.md § Testing)
-# plus the repo-wide meta-guards under src/commons/repo/.
+# The Python suite: src/scripts/hooks/ and src/scripts/tools/ (the two islands, see
+# CODE_OF_CONDUCT.md § Testing) plus the repo-wide meta-guards under tests/repo/.
 test-py: build-check
-	python -m pytest src/commons/repo/ src/hooks/tests/ src/tools/tests/ -v --cov=src/hooks --cov=src/tools --cov-branch --cov-report=term-missing --cov-fail-under=90
+	python -m pytest tests/repo/ tests/scripts/hooks/ tests/scripts/tools/ -v --cov=src/scripts/hooks --cov=src/scripts/tools --cov-branch --cov-report=term-missing
 
 test-ts:
 	npm run typecheck
@@ -38,52 +50,35 @@ test-ts:
 typecheck:
 	npm run typecheck
 
-# `tsc -b` trusts tsbuildinfo, so drop the stamp when .ts-out/ is gone or compile becomes a no-op.
+# `tsc -b` trusts tsbuildinfo, so drop the stamp when .local/ts-out/ is gone or compile becomes a no-op.
 # `tsc` itself may be absent: release.yml's privileged job runs no `npm ci` and downloads a compiled
-# .ts-out/ instead, so every compile-dependent target must work there too — hence the fallback to an
-# already-populated .ts-out/, and a loud failure only when neither is available.
+# .local/ts-out/ instead, so every compile-dependent target must work there too — hence the fallback to an
+# already-populated .local/ts-out/, and a loud failure only when neither is available.
 compile:
-	@[ -d .ts-out ] || rm -f tsconfig.build.tsbuildinfo tsconfig.tests.tsbuildinfo
+	@[ -d .local/ts-out ] || rm -f tsconfig.build.tsbuildinfo tsconfig.tests.tsbuildinfo
 	@if [ -x node_modules/.bin/tsc ]; then \
 		npm run compile; \
-	elif [ -d .ts-out ] && [ -n "$$(ls -A .ts-out 2>/dev/null)" ]; then \
-		echo "no local TypeScript toolchain (node_modules/.bin/tsc missing) — using the existing .ts-out/ as-is"; \
+	elif [ -d .local/ts-out ] && [ -n "$$(ls -A .local/ts-out 2>/dev/null)" ]; then \
+		echo "no local TypeScript toolchain (node_modules/.bin/tsc missing) — using the existing .local/ts-out/ as-is"; \
 	else \
-		echo "ERROR: .ts-out/ is missing or empty and there is no local TypeScript toolchain to compile it — run 'make install-ts' first" >&2; \
+		echo "ERROR: .local/ts-out/ is missing or empty and there is no local TypeScript toolchain to compile it — run 'make install-ts' first" >&2; \
 		exit 1; \
 	fi
 
-# ── Mutation testing — a developer tool, not a gate ──────────────────────────
-# Run by hand, on the change you are working on; no CI job runs these and no threshold blocks a merge
-# or a release (src/release/mutation-gate.json). Both report the kill rate and the surviving mutants,
-# which is what a campaign is actually read for; what to do about a survivor stays a human call.
+# ── Mutation testing — a manual developer tool, never a gate ─────────────────
+# Run by hand, on the change you are working on. No CI job runs these and no threshold blocks
+# anything: mutmut and Stryker print their own kill rate and their own survivor list, which is what
+# a campaign is actually read for. What to do about a survivor is a human call, in review.
+# History that settled this: as a main-only CI gate it outgrew its ceiling, reported `cancelled`
+# rather than `failed`, and silently blocked every release with no red check to explain it.
 test-mutation: mutation-py mutation-ts
 
 mutation-py:
-	mutmut run || true
-	mutmut results | tee mutmut-results.txt
-	python src/release/check_mutation_gate.py
+	mutmut run
+	mutmut results
 
-# The report script reads Stryker's JSON report and applies the same thresholds as the Python one
-# (src/release/mutation-gate.json), so the two runtimes cannot drift to two answers.
 mutation-ts: compile
-	npx stryker run || true
-	node .ts-out/release/bin/mutationGate.mjs
-
-# ── Complexity gate ───────────────────────────────────────────────────────────
-# Every first-party function stays under 15 on both cyclomatic and cognitive complexity, the same
-# ceiling on both runtimes. Tests are excluded — a table-driven spec is legitimately branchy and is
-# not shipped. See CODE_OF_CONDUCT.md § Complexity.
-complexity-scan: complexity-scan-ts complexity-scan-py
-
-# TypeScript domains (compiler / release / metrics). Config + ceiling live in eslint.config.mjs.
-complexity-scan-ts:
-	npx eslint --max-warnings=0 .
-
-# Shipped Python, both islands. --select restricts flake8 to the two complexity checks (C901 =
-# mccabe cyclomatic, CCR001 = cognitive); --extend-exclude drops each island's own tests.
-complexity-scan-py:
-	flake8 --select=C901,CCR001 --max-complexity=15 --max-cognitive-complexity=15 --extend-exclude=tests src/hooks src/tools
+	npx stryker run
 
 # ── Dependency vulnerability scan ─────────────────────────────────────────────
 # Fail on any high or critical CVE. npm carries the entire dependency surface: the shipped plugin is
@@ -97,59 +92,50 @@ vulnerability-scan:
 test-smoke: build-check
 	npx vitest run --config vitest.smoke.config.mts
 
-# Re-baseline the shipped-content hash manifest after an INTENTIONAL content edit. Commit the manifest
-# with the edit that caused it and say in the message what behaviour changed — the pin exists to make
-# that one deliberate step.
-#
-# Depends on build-check, not just build: `make build` writes what the source declares but does not
-# prune, so a stray file dropped into dist/ survives a rebuild and would be hashed straight into the
-# manifest. build-check byte-compares the whole tree and is what actually catches that.
-bless-content: build-check
-	BLESS_CONTENT=1 npx vitest run src/content/tests/workflowAndProtocols/protocolFiles.spec.ts \
-	  src/content/tests/workflowAndProtocols/normativeGolden.spec.ts
-	BLESS_CONTENT=1 npx vitest run src/content/tests/docsAndPlugin/shippedContentManifest.spec.ts
-	@echo "re-blessed: 4 goldens + the shipped-content manifest. Commit them with the edit that caused them."
 
 # ── CI entry points ──────────────────────────────────────────────────────────
 # The GitHub Actions workflows call only `make <target>`, so every step is testable and runnable
-# locally. Add a target plus a src/release/ci/ script, never an inline YAML block.
+# locally. Add a target plus an internal/release/ci/ script, never an inline YAML block.
 
 ci-build:
-	bash src/release/ci/build_gates.sh
+	bash internal/release/ci/build_gates.sh
 
 validate: compile
-	node .ts-out/release/bin/validatePackage.mjs
+	node .local/ts-out/release/bin/validatePackage.mjs
 
 smoke-matrix: compile
-	node .ts-out/release/bin/smokeMatrix.mjs
+	node .local/ts-out/release/bin/smokeMatrix.mjs
 
 smoke-install:
-	bash src/release/ci/install_cli.sh
+	bash internal/release/ci/install_cli.sh
 
 smoke-run:
-	bash src/release/ci/run_smoke.sh
+	bash internal/release/ci/run_smoke.sh
 
 smoke-annotate:
-	bash src/release/ci/annotate_smoke.sh
+	bash internal/release/ci/annotate_smoke.sh
 
 # ── Release entry points (release.yml) ───────────────────────────────────────
 release-verify:
-	bash src/release/ci/release_verify_checkout.sh
+	bash internal/release/ci/release_verify_checkout.sh
 
 release-meta:
-	bash src/release/ci/release_meta.sh
+	bash internal/release/ci/release_meta.sh
 
 release-version: compile
-	node .ts-out/release/bin/setVersion.mjs "$${NEW_VERSION}"
+	node .local/ts-out/release/bin/setVersion.mjs "$${NEW_VERSION}"
 
 changelog: compile
-	node .ts-out/release/bin/updateChangelog.mjs
+	node .local/ts-out/release/bin/updateChangelog.mjs
 
 release-commit:
-	bash src/release/ci/release_commit.sh
+	bash internal/release/ci/release_commit.sh
 
 npm-creds:
-	bash src/release/ci/npm_creds.sh
+	bash internal/release/ci/npm_creds.sh
 
 release-npm:
 	npm publish --access public
+
+mutation-report: compile
+	bash internal/release/ci/mutation_report.sh

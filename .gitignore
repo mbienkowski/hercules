@@ -1,15 +1,12 @@
-# Build output
-/build/
+# Transients: regenerable by one `make` target, machine-local, never committed
+/.local/
 
 # Node / TypeScript
 node_modules/
-# tsc output. Deliberately NOT named build/ — /build/ above is already ignored and pytest's
-# norecursedirs is documented around that name, so reusing it would collide with two existing rules.
-/.ts-out/
+# Every transient tool output (tsc's ts-out/, coverage/, .stryker-tmp/, mutation reports, pytest's
+# cache, the .coverage data file) lives under the single /.local/ tree above — nothing else to
+# ignore here.
 *.tsbuildinfo
-.stryker-tmp/
-reports/
-coverage/
 
 # Python
 __pycache__/
@@ -17,8 +14,8 @@ __pycache__/
 *.pyo
 *.egg-info/
 .venv/
-.coverage
-.pytest_cache/
+# mutmut's own cache/results files are not redirectable into .local/ (no configurable path in
+# mutmut>=2.4,<3), so they stay at the root as their own entries.
 .mutmut-cache
 /mutmut-results.txt
 
@@ -31,7 +28,8 @@ __pycache__/
 .DS_Store
 *.swp
 
-# Personal root project instructions (only plugin/CLAUDE.md is committed)
+# Personal root project instructions (the committed CLAUDE.md is the built dist/<eco>/CLAUDE.md,
+# authored at src/content/persona.md)
 /CLAUDE.md
 
 # Hercules temporary artifacts (planning, intermediate drafts)

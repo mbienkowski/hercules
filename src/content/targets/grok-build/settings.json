@@ -1,0 +1,35 @@
+{
+  "agent": "hercules",
+  "advisors": [
+    "backend-engineer",
+    "business-analyst",
+    "challenger",
+    "copywriter",
+    "cynical-reviewer",
+    "devops-engineer",
+    "document-specialist",
+    "frontend-engineer",
+    "lead-architect",
+    "maintainer",
+    "security-expert",
+    "senior-qa-engineer",
+    "simplicity-advocate",
+    "source-checker",
+    "ux-ui-designer"
+  ],
+  "skills": [
+    "code-of-conduct-generator",
+    "fusion-setup",
+    "hercules-reference",
+    "learnings",
+    "write-test-scenarios"
+  ],
+  "commands": [
+    "build",
+    "design",
+    "discover",
+    "project-reset",
+    "ship",
+    "workflow"
+  ]
+}

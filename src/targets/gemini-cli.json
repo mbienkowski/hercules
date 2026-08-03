@@ -1,146 +1,262 @@
 {
-  "schema": 1,
+  "$schema": "./recipe.schema.json",
   "name": "gemini-cli",
-  "vars": {
-    "product": "Gemini CLI",
-    "host": "Gemini",
-    "ns": "/",
-    "instructions_file": "GEMINI.md",
+  "variables": {
+    "advisor_delivery": "agent",
+    "agent_mode": false,
+    "agent_models": false,
+    "agent_name_prefix": "",
     "agent_ns": "",
-    "plugin_root": "${extensionPath}/",
+    "agent_tools": false,
+    "agents_readonly": false,
+    "command_agent": false,
+    "command_disable_invocation": false,
+    "command_format": "toml",
+    "command_name": false,
+    "command_name_prefix": "",
+    "command_title": "none",
+    "command_wide_gap": false,
+    "forced_subagent": "no",
+    "host": "Gemini",
+    "instructions_file": "GEMINI.md",
+    "lead_edit_block": "none",
+    "model_high": false,
+    "model_low": false,
+    "model_medium": false,
+    "ns": "/",
+    "persona_frontmatter": false,
     "plan_enter": "plan mode",
-    "plan_exit": "approval"
+    "plan_exit": "approval",
+    "plan_mode": "prose",
+    "plugin_manifest_dir": false,
+    "plugin_root": "${extensionPath}/",
+    "product": "Gemini CLI",
+    "version_manifest": false,
+    "write_backstop": false
   },
-  "models": {
-    "high": null,
-    "medium": null,
-    "low": null
-  },
-  "smoke": {
-    "npm_package": "@google/gemini-cli",
-    "npm_version": "0.51.0",
-    "cli": "gemini",
-    "test": "builder/tests/smoke/geminiCliSmoke.spec.ts",
-    "expect": {
-      "version_cmd": [
-        "gemini",
-        "--version"
-      ]
-    }
-  },
-  "dispatch": "path",
-  "roles": {
-    "agent": {
-      "mode": "fields",
-      "body": "keep",
-      "fields": [
-        {
-          "key": "name",
-          "from": "frontmatter",
-          "field": "name"
-        },
-        {
-          "key": "description",
-          "from": "frontmatter",
-          "field": "description",
-          "render": true
-        }
+  "runtime_variables": [
+    "extensionPath"
+  ],
+  "targets": {
+    "CAPABILITIES.md": {
+      "sources": [
+        "src/content/targets/gemini-cli/CAPABILITIES.md"
       ]
     },
-    "command": {
-      "mode": "toml_command",
-      "body": "strip_newlines",
-      "fields": [
-        {
-          "key": "description",
-          "from": "frontmatter",
-          "field": "description",
-          "render": true
-        }
+    "GEMINI.md": {
+      "sources": [
+        "src/content/persona.md"
       ]
     },
-    "persona": {
-      "mode": "plain"
+    "agents/backend-engineer.md": {
+      "sources": [
+        "src/content/agents/backend-engineer.md"
+      ]
     },
-    "default": {
-      "mode": "preserve"
+    "agents/builder.md": {
+      "sources": [
+        "src/content/agents/builder.md"
+      ]
+    },
+    "agents/business-analyst.md": {
+      "sources": [
+        "src/content/agents/business-analyst.md"
+      ]
+    },
+    "agents/challenger.md": {
+      "sources": [
+        "src/content/agents/challenger.md"
+      ]
+    },
+    "agents/copywriter.md": {
+      "sources": [
+        "src/content/agents/copywriter.md"
+      ]
+    },
+    "agents/cynical-reviewer.md": {
+      "sources": [
+        "src/content/agents/cynical-reviewer.md"
+      ]
+    },
+    "agents/devops-engineer.md": {
+      "sources": [
+        "src/content/agents/devops-engineer.md"
+      ]
+    },
+    "agents/document-specialist.md": {
+      "sources": [
+        "src/content/agents/document-specialist.md"
+      ]
+    },
+    "agents/frontend-engineer.md": {
+      "sources": [
+        "src/content/agents/frontend-engineer.md"
+      ]
+    },
+    "agents/hercules.md": {
+      "sources": [
+        "src/content/agents/hercules.md"
+      ]
+    },
+    "agents/lead-architect.md": {
+      "sources": [
+        "src/content/agents/lead-architect.md"
+      ]
+    },
+    "agents/maintainer.md": {
+      "sources": [
+        "src/content/agents/maintainer.md"
+      ]
+    },
+    "agents/security-expert.md": {
+      "sources": [
+        "src/content/agents/security-expert.md"
+      ]
+    },
+    "agents/senior-qa-engineer.md": {
+      "sources": [
+        "src/content/agents/senior-qa-engineer.md"
+      ]
+    },
+    "agents/simplicity-advocate.md": {
+      "sources": [
+        "src/content/agents/simplicity-advocate.md"
+      ]
+    },
+    "agents/source-checker.md": {
+      "sources": [
+        "src/content/agents/source-checker.md"
+      ]
+    },
+    "agents/ux-ui-designer.md": {
+      "sources": [
+        "src/content/agents/ux-ui-designer.md"
+      ]
+    },
+    "commands/build.toml": {
+      "sources": [
+        "src/content/commands/build.md"
+      ]
+    },
+    "commands/design.toml": {
+      "sources": [
+        "src/content/commands/design.md"
+      ]
+    },
+    "commands/discover.toml": {
+      "sources": [
+        "src/content/commands/discover.md"
+      ]
+    },
+    "commands/project-reset.toml": {
+      "sources": [
+        "src/content/commands/project-reset.md"
+      ]
+    },
+    "commands/ship.toml": {
+      "sources": [
+        "src/content/commands/ship.md"
+      ]
+    },
+    "commands/workflow.toml": {
+      "sources": [
+        "src/content/commands/workflow.md"
+      ]
+    },
+    "gemini-extension.json": {
+      "sources": [
+        "src/content/targets/gemini-cli/gemini-extension.json"
+      ]
+    },
+    "hooks/frozen_tests.py": {
+      "sources": [
+        "src/scripts/hooks/frozen_tests.py"
+      ]
+    },
+    "hooks/hercules_gate.py": {
+      "sources": [
+        "src/scripts/hooks/hercules_gate.py"
+      ]
+    },
+    "hooks/hercules_state.py": {
+      "sources": [
+        "src/scripts/hooks/hercules_state.py"
+      ]
+    },
+    "hooks/hooks.json": {
+      "sources": [
+        "src/content/targets/gemini-cli/hooks/hooks.json"
+      ]
+    },
+    "hooks/write_gate.json": {
+      "sources": [
+        "src/content/targets/gemini-cli/hooks/write_gate.json"
+      ]
+    },
+    "protocols/a2a-communication-protocol.md": {
+      "sources": [
+        "src/content/protocols/a2a-communication-protocol.md"
+      ]
+    },
+    "protocols/debate-consensus-protocol.md": {
+      "sources": [
+        "src/content/protocols/debate-consensus-protocol.md"
+      ]
+    },
+    "protocols/workflow-protocol.md": {
+      "sources": [
+        "src/content/protocols/workflow-protocol.md"
+      ]
+    },
+    "skills/code-of-conduct-generator/SKILL.md": {
+      "sources": [
+        "src/content/skills/code-of-conduct-generator/SKILL.md"
+      ]
+    },
+    "skills/code-of-conduct-generator/coverage-map.md": {
+      "sources": [
+        "src/content/skills/code-of-conduct-generator/coverage-map.md"
+      ]
+    },
+    "skills/fusion-setup/SKILL.md": {
+      "sources": [
+        "src/content/skills/fusion-setup/SKILL.md"
+      ]
+    },
+    "skills/hercules-reference/SKILL.md": {
+      "sources": [
+        "src/content/skills/hercules-reference/SKILL.md"
+      ]
+    },
+    "skills/learnings/SKILL.md": {
+      "sources": [
+        "src/content/skills/learnings/SKILL.md"
+      ]
+    },
+    "skills/write-test-scenarios/SKILL.md": {
+      "sources": [
+        "src/content/skills/write-test-scenarios/SKILL.md"
+      ]
+    },
+    "tools/project_reset.py": {
+      "sources": [
+        "src/scripts/tools/project_reset.py"
+      ]
+    },
+    "tools/registry_sync.py": {
+      "sources": [
+        "src/scripts/tools/registry_sync.py"
+      ]
+    },
+    "tools/retire_spec.py": {
+      "sources": [
+        "src/scripts/tools/retire_spec.py"
+      ]
+    },
+    "tools/state_patch.py": {
+      "sources": [
+        "src/scripts/tools/state_patch.py"
+      ]
     }
-  },
-  "routes": [
-    {
-      "kind": "exact",
-      "src": "capabilities.md",
-      "dest": "CAPABILITIES.md"
-    },
-    {
-      "kind": "exact",
-      "src": "persona.md",
-      "dest": "GEMINI.md"
-    },
-    {
-      "kind": "suffix_swap",
-      "prefix": "commands/",
-      "from_suffix": ".md",
-      "to_suffix": ".toml"
-    }
-  ],
-  "artifacts": [
-    {
-      "dest": "hooks/hooks.json",
-      "content": {
-        "hooks": {
-          "BeforeTool": [
-            {
-              "matcher": "write_file|replace",
-              "hooks": [
-                {
-                  "type": "command",
-                  "command": "python3 ${extensionPath}/hooks/hercules_gate.py || exit 0"
-                }
-              ]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "dest": "gemini-extension.json",
-      "versioned": true,
-      "content": {
-        "name": "hercules",
-        "version": "${version}",
-        "description": "Methodology & workflow system for software delivery with AI",
-        "contextFileName": "GEMINI.md"
-      }
-    }
-  ],
-  "guard": [
-    "hercules_state.py",
-    "frozen_tests.py",
-    "hercules_gate.py"
-  ],
-  "tools": [
-    "project_reset.py"
-  ],
-  "gate": {
-    "protocol": "pre_tool",
-    "tools": {
-      "write_file": "Write",
-      "replace": "Edit"
-    },
-    "path_keys": [
-      "file_path",
-      "filePath",
-      "path",
-      "absolute_path",
-      "absolutePath",
-      "file",
-      "filename"
-    ],
-    "nested_keys": [],
-    "deny": {
-      "decision": "deny"
-    },
-    "reason_key": "reason"
   }
 }

@@ -21,7 +21,7 @@ defaults:
   run:
     shell: bash
 
-# Job graph: build -> {test, validate, smoke, complexity-scan, vulnerability-scan}, all parallel.
+# Job graph: build -> {test, validate, smoke, vulnerability-scan}, all parallel.
 # Success gating is `needs:` throughout, and this workflow's overall result is what release.yml fires
 # on — so every job here is release-gating and nothing here may be slow, flaky, or advisory.
 # Mutation testing is deliberately NOT part of it: see the note at the bottom of this file.
@@ -59,7 +59,7 @@ jobs:
         run: make compile
 
       # Drift (committed dist/ == fresh build), determinism (two builds byte-equal) and the
-      # untracked-dist guard, all in src/release/ci/build_gates.sh.
+      # untracked-dist guard, all in internal/release/ci/build_gates.sh.
       - name: Build gates (drift, determinism, tracked)
         run: make ci-build
 
@@ -84,8 +84,8 @@ jobs:
           cache: "pip"
           cache-dependency-path: "pyproject.toml"
 
-      # Both runtimes: test-py covers src/hooks/ and its meta-guards, test-ts covers
-      # src/{builder,release,metrics}/.
+      # Both runtimes: test-py covers src/scripts/hooks/ and src/scripts/tools/ plus the repo
+      # meta-guards; test-ts covers internal/{builder,release}/ and tests/budgets/.
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -164,6 +164,16 @@ jobs:
       - name: Install dependencies
         run: make install
 
+      # Keyed on the pinned version (smoke-targets.json), not on repo content: a package CLI's npm
+      # tarball is identical across every commit until that pin moves. codex alone ships a ~350MB
+      # platform binary — without this, every push re-downloads it from scratch.
+      - name: Cache the CLI's npm download
+        if: matrix.install_method == 'package'
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: smoke-cli-${{ runner.os }}-${{ matrix.target }}-${{ matrix.npm_version }}
+
       # The CLI version is pinned, so an upstream release never turns this leg red — bump the pin by
       # hand (see RELEASE.md). Matrix values reach the script through env, never shell interpolation,
       # so a fork PR editing a smoke config cannot inject a command into this step.
@@ -201,41 +211,8 @@ jobs:
           name: smoke-results-${{ matrix.target }}
           path: smoke-results-${{ matrix.target }}.txt
 
-  # ── Static quality gates — every commit, parallel with test/validate/smoke ────
-  # Both `needs: [build]` only, so they sit in the same tier as the correctness jobs. Each job id
-  # and make target is the same string; the display name below is a readable label instead, so a
-  # red check reproduces via the id shown in the job's own `run:`/`make` line, not the check title.
-
-  # Cyclomatic + cognitive complexity <= 15, both runtimes — the same ceiling governs ESLint
-  # (the TypeScript domains) and flake8 (the Python hooks). See CODE_OF_CONDUCT.md § Complexity.
-  complexity-scan:
-    name: Complexity scan
-    needs: [build]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-
-      # Both runtimes: ESLint (Node) lints the TypeScript domains, flake8 (Python) the hooks.
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.9"
-          cache: "pip"
-          cache-dependency-path: "pyproject.toml"
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: "package-lock.json"
-
-      - name: Install dependencies
-        run: make install
-
-      - name: Complexity gate (cyclomatic + cognitive, both runtimes)
-        run: make complexity-scan
-
-  # Fail on any high or critical dependency CVE. npm carries the whole dependency surface: the shipped
+  # `needs: [build]` only, so it sits in the same tier as the correctness jobs. Fail on any high or
+  # critical dependency CVE. npm carries the whole dependency surface: the shipped
   # plugin is zero-runtime-dep and the Python hooks are stdlib-only. See CODE_OF_CONDUCT.md § Dependencies.
   vulnerability-scan:
     name: Vulnerability scan

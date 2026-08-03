@@ -1,0 +1,17 @@
+{
+  "_shape": "A path strategy nobody implements sitting AHEAD of a real one — it must be skipped rather than end the search, and it declares no `nested` key at all. No host ships this shape.",
+  "when": "before_write",
+  "tools": {
+    "edit": "Edit"
+  },
+  "paths": [
+    {"from": "telepathy"},
+    {
+      "from": "arg_keys",
+      "keys": ["file_path", "filePath", "path"]
+    }
+  ],
+  "allow": {"permissionDecision": "allow"},
+  "deny": {"permissionDecision": "deny"},
+  "reason_at": ["permissionDecisionReason"]
+}

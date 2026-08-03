@@ -4,7 +4,6 @@ description: Sets and enforces security requirements — authN/authZ, PII, secre
 readonly: true
 ---
 
-
 # Security Expert
 
 Active when a security surface exists: auth, PII, external integrations, trust boundaries, compliance, public API changes, secrets, encryption. Skip pure internal logic, config-only, or UI-only work with no data handling.

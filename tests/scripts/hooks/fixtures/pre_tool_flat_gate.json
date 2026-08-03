@@ -1,0 +1,19 @@
+{
+  "_shape": "Paths arrive as named arguments, batched edit lists included, and the refusal sits at the TOP LEVEL of the reply beside an explicit allow.",
+  "when": "before_write",
+  "tools": {
+    "create": "Edit",
+    "edit": "Edit",
+    "apply_patch": "Edit"
+  },
+  "paths": [
+    {
+      "from": "arg_keys",
+      "keys": ["path", "file_path", "filePath"],
+      "nested": ["edits", "changes"]
+    }
+  ],
+  "allow": {"permissionDecision": "allow"},
+  "deny": {"permissionDecision": "deny"},
+  "reason_at": ["permissionDecisionReason"]
+}

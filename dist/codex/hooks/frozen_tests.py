@@ -1,21 +1,19 @@
-"""PreToolUse hook: block edits to frozen test files during an active Hercules build.
-
-Wired by `hooks/hooks.json` on `Edit|MultiEdit|Write|NotebookEdit` and spawned in exec form as
-`python3 ${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py`, with the payload as JSON on stdin. Exit 2
-(reason on stderr) hard-blocks the tool call; exit 0 allows it.
-
-Fails OPEN — no resolvable active build, a parse error, or no `python3` on PATH all allow the edit —
-so the hook never bricks unrelated work; it blocks only when a confirmed active build owns the
-target. It reads model-authored state, so enforcement is runtime-*mediated*, not tamper-proof
-against a model that rewrites that state.
+"""Blocks edits to a frozen test file while a Hercules build owns it, so acceptance criteria cannot
+drift to force a green. Reads model-authored state: enforcement is mediated, not tamper-proof.
+Two modes, opposite postures. As a PreToolUse hook (event JSON on stdin, exit 2 blocks) it fails
+OPEN — an unresolvable build, a parse error, or a missing `python3` all allow the edit, so a hook
+bug never bricks unrelated work. As `check --project-slug S [--session-id ID]` it is the retire-time
+backstop and fails CLOSED: anything it cannot resolve is reported as blocking, never as clean.
 """
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from hercules_state import canon, frozen_candidates, resolve_build_contexts  # noqa: E402
@@ -38,6 +36,8 @@ def _target_paths(tool_input):
 
 
 def _reason(path, session) -> str:
+    """The refusal a person and an agent both read: which test, which spec and round, and the two
+    ways to unblock it — a user-granted override for this turn, or a project-wide opt-out."""
     spec = session.get("current_spec") or "the current spec"
     rnd = session.get("current_spec_round") or 1
     return (
@@ -54,9 +54,8 @@ def _reason(path, session) -> str:
 
 
 def _override_allows(session, roots, target_canon) -> bool:
-    """True iff an explicit user-granted `frozen_override` covers this path right now. Spec- and
-    round-bound, and fails CLOSED: anything malformed, stale, or mistyped leaves the block standing.
-    Parsed inside its own guard so a bad override can never disarm the wider frozen check."""
+    """True iff a user-granted `frozen_override` covers this path right now — spec- and round-bound.
+    Fails CLOSED: anything malformed, stale, or mistyped leaves the block standing."""
     try:
         ov = session.get("frozen_override")
         if not isinstance(ov, dict):
@@ -89,9 +88,8 @@ def _sha256(path) -> str | None:
 
 
 def _entry_drifted(entry, baseline, session, roots) -> bool:
-    """True if one frozen-test entry has drifted from its baseline (fail-closed). Three drift causes:
-    the file was never baselined, every copy vanished, or a present copy's hash differs and no active
-    override covers it. `entry` is already validated as a non-empty string by the caller."""
+    """True if one frozen-test entry has drifted from its baseline. Fail-closed: never baselined,
+    every copy vanished, or a surviving copy's hash differs with no override covering it."""
     want = baseline.get(entry)
     if not isinstance(want, str) or not want:
         return True  # active baseline but this frozen file wasn't baselined → fail-closed
@@ -99,8 +97,8 @@ def _entry_drifted(entry, baseline, session, roots) -> bool:
     present = [(c, h) for c, h in candidate_hashes if h is not None]  # copies still on disk
     if not present:
         return True  # a frozen test that disappeared is tampering (fail-closed)
-    # EVERY present copy must match the baseline; a mismatch under ANY root is drift unless the
-    # user's override covers that copy (an override spans every root of the entry).
+
+    # A mismatch under ANY root is drift unless the user's override covers that copy.
     mismatched = [(c, h) for c, h in present if h != want]
     if not mismatched:
         return False
@@ -108,14 +106,8 @@ def _entry_drifted(entry, baseline, session, roots) -> bool:
 
 
 def frozen_drift(session, roots) -> list:
-    """The ``frozen_test_files`` entries whose on-disk bytes diverge from ``session['frozen_baseline']``
-    (a ``{repo-relative-path: sha256}`` map) and that no live ``frozen_override`` covers — the
-    phase-acceptance backstop run before a spec is retired, catching a tamper made by any route.
-
-    Inactive (returns ``[]``) when no baseline was recorded. When active the direction is fail-closed:
-    a vanished or never-baselined entry is drift, and an entry resolving under several roots is drift
-    if **any** root's copy diverges. Never raises.
-    """
+    """The frozen tests whose bytes diverge from the session's baseline with no override covering
+    them — the backstop before a spec retires. Inactive until baselined, fail-closed once it is."""
     try:
         baseline = session.get("frozen_baseline")
         if not isinstance(baseline, dict) or not baseline:
@@ -163,8 +155,8 @@ def decide(payload, home=None):
         if not isinstance(payload, dict) or payload.get("tool_name") not in _MUTATING_TOOLS:
             return 0, ""
         cwd = payload.get("cwd") or os.getcwd()
-        # EVERY matching build session keeps its guard (nested projects, shared
-        # directories, paused builds) — a single-winner pick would fail the rest open.
+
+        # EVERY matching build session keeps its guard — a single-winner pick fails the rest open.
         contexts = [
             (session, roots, project)
             for session, roots, project in resolve_build_contexts(cwd, home=home)
@@ -185,6 +177,8 @@ def decide(payload, home=None):
 
 
 def main(stdin_text=None, home=None) -> int:
+    """Hook entry point: read the host's event from stdin, print any refusal on stderr, and return
+    the exit code that blocks (2) or allows (0). Unreadable input allows, the fail-OPEN direction."""
     try:
         if stdin_text is not None:
             raw = stdin_text
@@ -199,7 +193,71 @@ def main(stdin_text=None, home=None) -> int:
     return code
 
 
-# pragma: no mutate — the guard's only mutant sys.exits pytest at collection (exit 0),
-# which mutmut misreads as survived; the import-side-effect and end-to-end tests cover it.
+def _load_registry(home=None) -> dict:
+    """The `projects` map from `config.json`, or `{}` when it cannot be read — the caller reports
+    that as a resolution failure rather than raising, fail-closed either way."""
+    try:
+        config = json.loads(((Path(home) if home else Path.home()) / ".hercules" / "config.json")
+                            .read_text())
+    except Exception:
+        return {}
+    projects = config.get("projects")
+    return projects if isinstance(projects, dict) else {}
+
+
+def _resolve_check_session(projects, slug, session_id, home):
+    """The session `check` re-hashes and the roots its paths resolve under. A slug is a dictionary
+    lookup, never a path fragment; an unresolvable one raises `ValueError`, which the caller blocks on."""
+    entry = projects.get(slug)
+    if not isinstance(entry, dict):
+        raise ValueError(f"No project '{slug}' is registered.")
+    state_file = entry.get("state_file") or f"{slug}.json"
+    if os.path.basename(state_file) != state_file:
+        raise ValueError(f"The state pointer for '{slug}' escapes the record directory.")
+    home_dir = Path(home) if home else Path.home()
+    state = json.loads((home_dir / ".hercules" / "state" / state_file).read_text())
+    resolved_id = session_id or state.get("active_session")
+    session = (state.get("sessions") or {}).get(resolved_id)
+    if not isinstance(session, dict):
+        raise ValueError(f"No session '{resolved_id}' is recorded for project '{slug}'.")
+    roots = [canon(r) for r in [entry.get("directory")] + list((entry.get("repositories") or {}).values()) if r]
+    return resolved_id, session, roots
+
+
+def check_command(project_slug, session_id=None, home=None) -> tuple:
+    """Run the drift backstop for one session by command. `(exit_code, payload)`: 0 with no drifted
+    files is clean; 2 is real drift OR an unresolvable project/session — unverifiable must block."""
+    try:
+        resolved_id, session, roots = _resolve_check_session(_load_registry(home), project_slug,
+                                                              session_id, home)
+    except Exception as exc:
+        return 2, {"project": project_slug, "session": session_id, "drifted_files": [],
+                   "error": str(exc)}
+    drifted = frozen_drift(session, roots)
+    payload = {"project": project_slug, "session": resolved_id, "drifted_files": drifted,
+              "error": None}
+    return (2 if drifted else 0), payload
+
+
+def _build_check_parser() -> argparse.ArgumentParser:
+    """`check`'s whole argument surface: the project being retired, and optionally which session."""
+    parser = argparse.ArgumentParser(prog="frozen_tests check", add_help=False)
+    parser.add_argument("--project-slug", dest="project_slug", required=True)
+    parser.add_argument("--session-id", dest="session_id", default=None)
+    return parser
+
+
+def cli_main(argv, home=None) -> int:
+    """`check`'s entry point: print the verdict as JSON and return its exit code. Kept apart from
+    `main()` so the live hook's stdin-JSON contract stays untouched."""
+    args = _build_check_parser().parse_args(list(argv))
+    code, payload = check_command(args.project_slug, args.session_id, home=home)
+    print(json.dumps(payload, indent=2))
+    return code
+
+
+# pragma: no mutate — this guard's only mutant sys.exits pytest at collection, which mutmut misreads as survived; the end-to-end tests cover it.
 if __name__ == "__main__":  # pragma: no mutate
+    if len(sys.argv) > 1 and sys.argv[1] == "check":
+        sys.exit(cli_main(sys.argv[2:]))
     sys.exit(main())

@@ -1,5 +1,5 @@
-# LF everywhere: the compiler parses markdown with native LF handling, so a CRLF file could
-# silently change how frontmatter is read. Binary files are auto-detected and left alone.
+# LF everywhere: the build renders whole files and the byte gate compares them, so a CRLF source
+# would silently change the shipped bytes. Binary files are auto-detected and left alone.
 * text=auto eol=lf
 
 # Generated, not authored — collapsed in review by default (still expandable, still diffed).

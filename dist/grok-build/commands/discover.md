@@ -118,13 +118,7 @@ File structure:
 
 **Business language only** — committed and read by stakeholders. No class/method names, code, or file paths; implementation detail belongs in the spec. Design references hold visual-artifact links (Figma, wireframes), never implementation detail.
 
-Write the session-init state under `~/.hercules/` (see `hercules-reference § Machine-local state`), never the
-repo, atomically (temp + rename): create the registry entry if missing (`directory`, `docs_root`,
-`state_file`) — on an existing entry update only those keys, preserving `repositories`,
-`frozen_hook`, `keep_specs`, and anything else — and write the state file's session
-(`active_session`, `current_phase` `"discover"`, the `tier` + `tier_rationale` as the user last
-set them — Step 3's judgement, or a raise they made at the roster gate, whichever came later —
-`last_updated`). Preserve other entries/sessions.
+Write the session-init state under `~/.hercules/` (see `hercules-reference § Machine-local state`), never the repo. First, create or update the registry entry if needed (`directory`, `docs_root`, `state_file`), preserving `repositories`, `frozen_hook`, `keep_specs` on existing entries. Then run `python3 ${GROK_PLUGIN_ROOT}/tools/state_patch.py apply --project-slug {slug} --session-id {new-session-id} --set active_session={new-session-id} --set current_phase=discover --set tier={tier} --set tier_rationale={rationale} --confirm` to write the state file's session atomically. Non-zero exit: relay the output and stop. Preserve other entries/sessions.
 
 Append a new row to `docs/INDEX.md` (create if absent) with `tier`, `discover` status,
 and a one-line goal summary.

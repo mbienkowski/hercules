@@ -1,0 +1,17 @@
+{
+  "_shape": "The refusal reason belongs TWO levels deep, under a wrapper the deny shape does not carry — the gate has to create it. No host ships this shape.",
+  "when": "before_write",
+  "tools": {
+    "edit": "Edit"
+  },
+  "paths": [
+    {
+      "from": "arg_keys",
+      "keys": ["file_path", "filePath"],
+      "nested": ["edits"]
+    }
+  ],
+  "allow": {"decision": "allow"},
+  "deny": {"decision": "deny"},
+  "reason_at": ["details", "reason"]
+}

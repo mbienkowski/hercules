@@ -1,23 +1,9 @@
-"""Clear Hercules' machine-local record of one project — the tool behind `project-reset`.
-
-Reads `~/.hercules/config.json` (the registry) and `~/.hercules/state/{slug}.json` (the delivery
-state), reports what a project holds, and — only on an explicit confirmation — removes a chosen
-subset: individual feature records, every feature record, the project's configurable settings, and
-the project's documents folder.
-
-Two properties define this module and neither is negotiable.
-
-**It takes no path from its caller.** Every path it acts on is re-derived from the registry it reads
-itself. A slug or a feature key is a dictionary lookup, never a path fragment, so a crafted name
-cannot traverse anywhere.
-
-**It fails CLOSED.** The hooks alongside it fail open, because allowing an edit is their safe
-default; here the safe default is to delete nothing. Every exception, ambiguous read or failed check
-refuses and exits non-zero.
-
-Self-contained by necessity: this ships to `dist/<edition>/tools/` while the hooks ship to
-`dist/<edition>/hooks/`, so importing their resolver would break at runtime. `canon` is duplicated
-rather than shared — eight lines of duplication beats coupling two domains with opposite postures.
+"""Clear Hercules' machine-local record of one project — the tool behind `project-reset`: report what
+a project holds and, on explicit confirmation, remove a chosen subset of its feature records, its
+configurable settings, and its documents folder. Two properties are not negotiable. It takes NO path
+from its caller — every path is re-derived from the registry it reads itself, so a slug or a feature
+key is a dictionary lookup, never a path fragment. And it fails CLOSED: any exception, ambiguous read
+or failed check deletes nothing. `canon` is duplicated rather than imported — `tools/` ships alone.
 """
 
 from __future__ import annotations
@@ -29,8 +15,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-# Bumped only on a breaking change to the argument surface or the JSON shape. The command passes the
-# version it was written against; a mismatch refuses rather than guessing.
+# Bumped only when the argument surface or JSON shape breaks; the command passes the version it was written against, and a mismatch refuses.
 CONTRACT_VERSION = 1
 
 EXIT_OK = 0
@@ -40,8 +25,7 @@ EXIT_UNCONFIRMED = 3
 EXIT_INTERNAL = 4
 EXIT_NOTHING = 5
 
-# The four registry fields a person may clear and set again. Anything else in the entry — the match
-# key and the state pointer — is structural and survives, so no state file is orphaned.
+# The four registry fields a person may clear and set again; the match key and the state pointer are structural, survive, and so orphan no state file.
 CONFIGURABLE_FIELDS = ("docs_root", "repositories", "frozen_hook", "keep_specs")
 
 
@@ -73,17 +57,11 @@ class Internal(Exception):
         self.message = message
 
 
-# --------------------------------------------------------------------------------------------
-# Path canonicalisation
-# --------------------------------------------------------------------------------------------
+# ── Path canonicalisation ────────────────────────────────────────────────────────────────────
 
 def canon(p) -> str:
-    """Canonicalise a path for comparison: expand ~, resolve symlinks and .., fold case.
-
-    Case folds on macOS and Windows, where differently-cased paths name the same file — the
-    fail-closed direction. Falls back to the raw string when resolution fails, so a comparison
-    never throws.
-    """
+    """Canonicalise a path for comparison: expand ~, resolve symlinks/.., fold case on macOS and
+    Windows where two casings name one file. Falls back to the raw string, so it never throws."""
     try:
         resolved = os.path.realpath(os.path.expanduser(str(p)))
     except Exception:
@@ -104,9 +82,7 @@ def is_strict_descendant(child_c: str, root_c: str) -> bool:
     return child_c != root_c and child_c.startswith(root_c + os.sep)
 
 
-# --------------------------------------------------------------------------------------------
-# Reading the registry and state
-# --------------------------------------------------------------------------------------------
+# ── Reading the registry and state ────────────────────────────────────────────────────────────
 
 def hercules_home(home=None) -> Path:
     """The state tree root. Tests pass an explicit `home`; there is deliberately no flag for it, so
@@ -141,16 +117,11 @@ def state_path(home, entry: dict, slug: str) -> Path:
     return hercules_home(home) / "state" / name
 
 
-# --------------------------------------------------------------------------------------------
-# Project resolution
-# --------------------------------------------------------------------------------------------
+# ── Project resolution ────────────────────────────────────────────────────────────────────────
 
 def entry_match_roots(entry: dict) -> list:
-    """The canonical roots that identify a project: its `directory` AND its `docs_root`.
-
-    Matching `directory` alone misses the common arrangement where the documents live in their own
-    repository and the person is working there — the tool would then resolve nothing at all.
-    """
+    """The canonical roots that identify a project: its `directory` AND its `docs_root` — matching
+    `directory` alone resolves nothing when the documents live in their own repository."""
     raw = [entry.get("directory"), entry.get("docs_root")]
     return [canon(r) for r in raw if r]
 
@@ -178,9 +149,8 @@ def _candidates(projects: dict) -> list:
 
 
 def resolve_project(projects: dict, cwd, requested_slug=None):
-    """Return `(slug, entry)` for the project this run acts on, or raise `Ambiguous` carrying the
-    candidates. `requested_slug` is honoured only when it is a key of `projects` — membership, never
-    a path."""
+    """The project this run acts on as `(slug, entry)`, else `Ambiguous` carrying the candidates.
+    `requested_slug` is honoured only as a key of `projects` — membership, never a path."""
     if requested_slug is not None:
         if requested_slug in projects:
             return requested_slug, projects[requested_slug]
@@ -194,9 +164,7 @@ def resolve_project(projects: dict, cwd, requested_slug=None):
                            "Run this again naming one of the projects listed.")
 
 
-# --------------------------------------------------------------------------------------------
-# Inventory — what the project holds
-# --------------------------------------------------------------------------------------------
+# ── Inventory — what the project holds ────────────────────────────────────────────────────────
 
 def feature_rows(state: dict) -> list:
     """Each feature as `{"key", "stage"}` — the name and the phase, and nothing from inside the
@@ -222,9 +190,8 @@ def documents_row(entry: dict) -> dict:
     raw = entry.get("docs_root") or ""
     path = Path(raw) if raw else None
     inside = bool(raw) and is_strict_descendant(canon(raw), canon(entry.get("directory") or ""))
-    # Feature folders only. A dotted entry — `.git` above all — is not a feature, and this number is
-    # rendered to a person as "N feature folders", so counting one would be a lie on exactly the
-    # arrangement the requirement calls out: a documents folder that is its own repository.
+
+    # Feature folders only: a person reads this as "N feature folders", and `.git` is not one.
     folders = 0
     if path is not None and path.is_dir():
         folders = sum(1 for child in path.iterdir()
@@ -232,9 +199,7 @@ def documents_row(entry: dict) -> dict:
     return {"path": raw, "inside_code_repo": inside, "folders": folders}
 
 
-# --------------------------------------------------------------------------------------------
-# Refusal rules — checked in order, first match refuses
-# --------------------------------------------------------------------------------------------
+# ── Refusal rules — checked in order, first match refuses ─────────────────────────────────────
 
 def rule_blank(raw, ctx) -> bool:
     """Empty, whitespace, `.` or `..` — checked BEFORE canonicalisation. `os.path.realpath("")`
@@ -349,9 +314,7 @@ def safety_context(home, slug: str, entry: dict, projects: dict) -> dict:
     }
 
 
-# --------------------------------------------------------------------------------------------
-# Deletion
-# --------------------------------------------------------------------------------------------
+# ── Deletion ──────────────────────────────────────────────────────────────────────────────────
 
 def _remove_leaf(path: Path, failures: list) -> None:
     """Remove one file, link or empty directory, recording rather than raising on refusal."""
@@ -367,13 +330,8 @@ def _remove_leaf(path: Path, failures: list) -> None:
 
 
 def _is_on_root_filesystem(child: Path, root_dev: int) -> bool:
-    """Whether `child` sits on the same filesystem as the validated root.
-
-    A link is answered True without being followed — `_remove_leaf` unlinks it as a link, and
-    `os.walk(followlinks=False)` never descends through one, so its target's device is irrelevant.
-    An unreadable entry is answered True so the walk still offers it for removal; refusing there
-    would leave it behind while reporting nothing.
-    """
+    """Whether `child` sits on the same filesystem as the validated root. A link answers True without
+    being followed, and so does an unreadable entry, which the walk must still offer for removal."""
     if child.is_symlink():
         return True
     try:
@@ -397,9 +355,8 @@ def _walk_bottom_up(root: Path, root_dev: int, root_c: str):
 
 
 def delete_tree(root: Path) -> list:
-    """Remove `root` and everything under it, bottom-up, never following links. Returns the entries
-    that could not be removed as `{"path", "reason"}`. An already-absent entry counts as satisfied,
-    so a re-run after a partial failure finds less to do."""
+    """Remove `root` and everything under it, bottom-up, never following links; returns what could
+    not be removed. An already-absent entry counts as satisfied, so a re-run finishes the job."""
     if not root.exists() and not root.is_symlink():
         return []
     failures: list = []
@@ -417,9 +374,7 @@ def delete_tree(root: Path) -> list:
     return failures
 
 
-# --------------------------------------------------------------------------------------------
-# Atomic edits to the record
-# --------------------------------------------------------------------------------------------
+# ── Atomic edits to the record ────────────────────────────────────────────────────────────────
 
 def atomic_write_json(path: Path, data) -> None:
     """Write JSON through a temporary file in the SAME directory: flush, fsync, copy the original's
@@ -472,9 +427,7 @@ def verify_removed(path: Path, removed_keys, container: str, before: dict) -> bo
     return all(holder.get(k) == v for k, v in survivors.items())
 
 
-# --------------------------------------------------------------------------------------------
-# The two modes
-# --------------------------------------------------------------------------------------------
+# ── The two modes ─────────────────────────────────────────────────────────────────────────────
 
 def _selected_features(selection: dict, state: dict) -> list:
     """The feature keys this run acts on. A named key is a dictionary lookup against the record —
@@ -536,9 +489,8 @@ def _apply_settings(home, slug, projects) -> bool:
 
 
 def apply_plan(home, slug, entry, state, projects, selection) -> dict:
-    """Perform the deletion. Re-derives every path and re-runs every refusal rule on its own result,
-    trusting nothing a prior `plan` returned. Resolves all targets before changing anything, so a
-    later step never re-derives a path from a setting an earlier step already cleared."""
+    """Perform the deletion, trusting nothing a prior `plan` returned: every path is re-derived and
+    every refusal rule re-run here, and all targets resolve before the first thing is cleared."""
     features = _selected_features(selection, state)
     docs = entry.get("docs_root") or ""
     plan = _would_delete(slug, entry, state, selection)
@@ -552,9 +504,7 @@ def apply_plan(home, slug, entry, state, projects, selection) -> dict:
     return {"deleted": plan, "kept": {"features": kept}, "failed": failures, "verified": verified}
 
 
-# --------------------------------------------------------------------------------------------
-# Command line
-# --------------------------------------------------------------------------------------------
+# ── Command line ──────────────────────────────────────────────────────────────────────────────
 
 def build_parser() -> argparse.ArgumentParser:
     """The whole argument surface: a mode, the contract version, an optional project slug, the
@@ -601,12 +551,8 @@ def _run(args, home, cwd) -> tuple:
 
 
 def main(argv=None, home=None, cwd=None) -> int:
-    """Resolve, dispatch, and translate any failure into a scripted refusal. Nothing escapes as a
-    traceback: an unhandled error here would leave the command with no message to relay.
-
-    `home` and `cwd` are parameters rather than flags on purpose: tests point them at a fixture
-    tree, and no caller of the shipped command line can redirect the tool at another record.
-    """
+    """Resolve, dispatch, and turn every failure into a scripted refusal — nothing escapes as a
+    traceback. `home` and `cwd` are parameters, never flags, so no caller can redirect the tool."""
     try:
         args = build_parser().parse_args(list(argv) if argv is not None else None)
     except SystemExit:

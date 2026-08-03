@@ -1,10 +1,5 @@
-"""Read-only resolver for active Hercules build sessions.
-
-Reads `~/.hercules/config.json` (the registry) and `~/.hercules/state/{slug}.json` (the delivery
-state) to answer, for a working directory: which build sessions are active, and what are their
-frozen test files. Callers may pass an explicit `home` to point at another state tree. Never
-writes; never raises.
-"""
+"""Read-only resolver for active Hercules build sessions: which builds own a working directory, and
+which test files each of them freezes. Reads `~/.hercules` only — never writes, never raises."""
 
 from __future__ import annotations
 
@@ -15,12 +10,8 @@ from pathlib import Path
 
 
 def canon(p) -> str:
-    """Canonicalise a path for comparison: expand ~, resolve symlinks/.., fold case.
-
-    Case folds on macOS and Windows, where differently-cased paths name the same file — the
-    fail-closed direction. Falls back to the raw string when filesystem resolution fails, so a
-    comparison never throws.
-    """
+    """Canonicalise a path for comparison: expand ~, resolve symlinks/.., fold case on macOS and
+    Windows where two casings name one file. Falls back to the raw string, so it never throws."""
     try:
         resolved = os.path.realpath(os.path.expanduser(str(p)))
     except Exception:
@@ -31,14 +22,13 @@ def canon(p) -> str:
 
 
 def _hercules_home(home=None) -> Path:
+    """The machine-local record tree; `home` redirects it at a fixture tree in tests."""
     return (Path(home) if home else Path.home()) / ".hercules"
 
 
 def resolve_session(cwd, home=None):
-    """Return `(session, roots, entry)` for the most authoritative matching context — the session a
-    block reason attributes itself to — or `(None, [], None)` when nothing resolves (fail-open).
-    `resolve_build_contexts` is the guard's source of truth: EVERY matching build session.
-    """
+    """The single most authoritative context for `cwd` as `(session, roots, entry)` — the one a block
+    message names — or `(None, [], None)`. Enforcement uses `resolve_build_contexts`, not this."""
     contexts = resolve_build_contexts(cwd, home=home)
     if not contexts:
         return None, [], None
@@ -46,14 +36,13 @@ def resolve_session(cwd, home=None):
 
 
 def _is_within_root(cwd_c, root):
-    """True if canonical cwd `cwd_c` IS `root` or lives inside it — a real path-component match
-    (`root + os.sep`), so `/a/proj` is not treated as being inside `/a/project`."""
+    """True if `cwd_c` IS `root` or lives inside it, matching whole path components so `/a/proj` is
+    not treated as inside `/a/project`."""
     return cwd_c == root or cwd_c.startswith(root + os.sep)
 
 
 def _build_sessions(sessions, active):
-    """Every build session, active one first (so callers treat it as most-authoritative), then any
-    paused builds in file order. `s is not active` avoids listing the active build twice."""
+    """Every build session, the active one first and then any paused builds in file order."""
     ordered = [active] if isinstance(active, dict) and active.get("current_phase") == "build" else []
     ordered += [s for s in sessions.values()
                 if s is not active and isinstance(s, dict) and s.get("current_phase") == "build"]
@@ -61,13 +50,9 @@ def _build_sessions(sessions, active):
 
 
 def _project_rows(slug, entry, cwd_c, home):
-    """Rows one registry project contributes for `cwd_c`, as `(build_rows, fallback_rows)` of
-    `(depth, session, roots, entry)`. `build_rows` holds every build session, active first then
-    paused ones in file order; `fallback_rows` holds the active session alone, and only when
-    nothing is building, so callers can still see the phase. Both are empty when the project
-    doesn't contain `cwd_c` or its state pointer escapes `~/.hercules/state`. May raise — the
-    caller treats that as "no rows", the fail-open direction.
-    """
+    """One registry project's rows for `cwd_c` as `(build_rows, fallback_rows)` of `(depth, session,
+    roots, entry)`: every build session, or the active one alone when nothing is building."""
+
     # The project's own directory plus every extra repository it registers, all canonicalised.
     raw_roots = [entry.get("directory")] + list((entry.get("repositories") or {}).values())
     roots = [canon(r) for r in raw_roots if r]
@@ -79,8 +64,8 @@ def _project_rows(slug, entry, cwd_c, home):
         return [], []  # a pointer escaping ~/.hercules/state is never followed
     state = json.loads((_hercules_home(home) / "state" / state_file).read_text())
     sessions = state.get("sessions") or {}
-    # Path length as a specificity proxy: a longer matched root is a deeper, more specific match, so
-    # the caller can rank a nested repo's rows above a broad parent's.
+
+    # Path length stands in for specificity: a longer matched root is a deeper, more specific match.
     depth = max(len(r) for r in matched)
     active = sessions.get(state.get("active_session"))
     builds = _build_sessions(sessions, active)
@@ -92,13 +77,8 @@ def _project_rows(slug, entry, cwd_c, home):
 
 
 def resolve_build_contexts(cwd, home=None):
-    """Return `[(session, roots, entry), ...]` for every registry project containing `cwd`, ordered
-    most-authoritative first: build sessions before non-build, deeper roots before shallower, a
-    state file's active session before its paused ones. Roots can nest, slugs can share a directory,
-    and one state file can hold several build sessions — a single-winner resolution would silently
-    drop the losers' frozen-test guards, so every build session rides along. When nothing is
-    building, the deepest project's active session (if any) is returned alone. Never raises.
-    """
+    """Every build session guarding `cwd`, deepest root first, active before paused — ALL of them,
+    since one winner would drop the losers' freezes. The active session alone when nothing builds."""
     try:
         config = json.loads((_hercules_home(home) / "config.json").read_text())
         projects = config.get("projects", {}) or {}
@@ -115,8 +95,8 @@ def resolve_build_contexts(cwd, home=None):
             continue  # this project's state is unreadable → skip it, guard the rest
         build_rows += builds
         fallback_rows += fallback
-    # Stable sort: deepest project first; within a project the insertion order stands
-    # (active session first, then paused builds in file order).
+
+    # Stable sort: deepest project first, and within a project the insertion order stands.
     build_rows.sort(key=lambda r: r[0], reverse=True)
     if build_rows:
         return [(s, r, e) for _, s, r, e in build_rows]
@@ -125,12 +105,8 @@ def resolve_build_contexts(cwd, home=None):
 
 
 def frozen_candidates(entry, roots) -> set:
-    """Canonical paths a (usually repo-relative) frozen-test entry could denote: the entry joined to
-    EVERY project root, whether or not a file exists there yet. Matching under *any* root counts as
-    frozen — the fail-closed direction — so a multi-service repo can't dodge the freeze by writing
-    the same relative path under another root. Junk entries (non-string, empty) resolve to nothing
-    rather than poisoning the caller's whole frozen set.
-    """
+    """Canonical paths a frozen-test entry could denote — joined to EVERY project root, existing or
+    not, so a multi-repo project cannot dodge a freeze. A junk entry resolves to nothing."""
     if not isinstance(entry, str) or not entry:
         return set()
     if os.path.isabs(entry):

@@ -77,7 +77,7 @@ Regenerate the complete plan on each amendment — never patch sections.
 
 **3. Push.** Execute the approved push action without force flags. On failure: report the raw git error, leave commits intact, stop (spec-scoped: return to Build's Advance prompt). Multi-repo: push in delivery order; stop on first failure and report which repos are inconsistent.
 
-**4. Record.** Session-wide ship only — spec-scoped skips this. Write **all** end-of-ship state mutations in **one** atomic temp + rename to `~/.hercules/state/{slug}.json` — `current_phase: "shipped"`, `build_complete: false`, `shipped_commit`, `last_updated`, and `shipped_pr` if step 5 ran. Show `"Shipped {session-slug} at {short-SHA}."`
+**4. Record.** Session-wide ship only — spec-scoped skips this. Run `python3 ${extensionPath}/tools/state_patch.py apply --project-slug {slug} --session-id {id} --set current_phase=shipped --set build_complete=false --set shipped_commit={sha} --set shipped_pr={url-if-available} --confirm`. Non-zero exit: relay the output and stop. Show `"Shipped {session-slug} at {short-SHA}."`
 
 **5. Create PR.** Only when the plan includes a PR step and Step 3 succeeded. Recheck first: `gh pr list --head {branch} --state open` — if already open, record URL as `shipped_pr` and show it. Otherwise: read `*-business-requirements.md`, extract `## Goal` and `## Success criteria`, compose body (no AI attribution or tool-credit trailers), then `gh pr create --title "{commit subject}" --body "{body}" --base "{base branch}"`. Record `shipped_pr: "{URL}"` atomically and show `"Opened PR: {URL}"`. On failure: surface the raw `gh` error; leave `shipped_commit` intact; the user opens the PR manually.
 """

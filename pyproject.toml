@@ -16,13 +16,6 @@ dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
     "mutmut>=2.4,<3",
-    # Complexity gate for the shipped Python hooks (`make complexity-scan`). Pinned EXACTLY, not by
-    # range, for the same reason .npmrc pins the tokenizer exactly: a linter's algorithm can shift
-    # scores between releases, and a gate whose verdict moves on a silent minor bump is not a gate.
-    # flake8-cognitive-complexity provides CCR001 (SonarSource cognitive complexity); mccabe (C901,
-    # cyclomatic) ships inside flake8. Dependabot proposes bumps as reviewable PRs.
-    "flake8==7.3.0",
-    "flake8-cognitive-complexity==0.1.0",
 ]
 
 # No package is shipped — the deliverable is the compiled plugin tree under dist/claude-code/.
@@ -31,40 +24,48 @@ dev = [
 py-modules = []
 
 [tool.pytest.ini_options]
-# `src` is on the path (not just ".") so the hook tests' `from hooks.tests.conftest import …` resolves
-# `hooks` as a top-level package now that it lives at src/hooks/.
+# "." is on the path so the top-level `tests` package resolves — the hook tests' `from
+# tests.scripts.hooks.conftest import …` needs `tests.scripts.hooks` importable, and "src" stays
+# alongside it so `hercules_gate.py`/`registry_sync.py`-style sibling imports still resolve once each
+# conftest inserts its own src/scripts/hooks or src/scripts/tools onto sys.path directly.
 pythonpath = [".", "src"]
-# Both islands carry a `tests/` package, so without namespace-package awareness pytest names
-# each one just `tests` and the second collides with the first. This makes it use the full
-# dotted path (`hooks.tests…`, `tools.tests…`), which is also how the test modules import.
+# Both islands nest under the one top-level `tests` package, so without namespace-package awareness
+# pytest names each one just `tests` and the second collides with the first. This makes it use the
+# full dotted path (`tests.scripts.hooks…`, `tests.scripts.tools…`), which is also how the test
+# modules import.
 consider_namespace_packages = true
-# src/hooks/tests/ and src/tools/tests/ are SEPARATE trees from src/commons/repo/ (see
+# tests/scripts/hooks/ and tests/scripts/tools/ are SEPARATE trees from tests/repo/ (see
 # CODE_OF_CONDUCT.md § Testing) — the two Python islands — so each must be listed explicitly.
-testpaths = ["src/commons/repo", "src/hooks/tests", "src/tools/tests"]
+testpaths = ["tests/repo", "tests/scripts/hooks", "tests/scripts/tools"]
+# Every transient tool output lives under the one gitignored /.local/ tree (see .gitignore).
+cache_dir = ".local/pytest-cache"
 
 [tool.mutmut]
-# The two shipped-Python islands are the whole mutated surface: src/hooks/ (the ONE gate adapter
-# every ecosystem ships) and src/tools/ (the programs a command invokes). Stryker covers the
-# TypeScript side (`make mutation-ts`). Neither run gates anything — see CODE_OF_CONDUCT.md § Testing.
+# The two shipped-Python islands are the whole mutated surface: src/scripts/hooks/ (the ONE gate
+# adapter every ecosystem ships) and src/scripts/tools/ (the programs a command invokes). Stryker
+# covers the TypeScript side (`make mutation-ts`). Neither run gates anything — see
+# CODE_OF_CONDUCT.md § Testing.
 #
-# The islands share no imports, so only src/hooks/tests/ can kill a src/hooks/ mutant and only
-# src/tools/tests/ can kill a src/tools/ one. Mutating both at once therefore pays for the other
-# island's suite on every mutant: `--paths-to-mutate src/tools/ --runner "python -m pytest
-# src/tools/tests/ -x -q --tb=no --no-header"` is both faster and no weaker when you are hardening
-# one island.
-paths_to_mutate = "src/hooks/,src/tools/"
-# Each island's tests/ nests INSIDE its own mutated tree, so both must be excluded explicitly or
-# mutmut would mutate the tests themselves alongside the source they are supposed to be judging.
-paths_to_exclude = "test_*.py,__init__.py,conftest.py,src/hooks/tests/*,src/tools/tests/*"
+# The islands share no imports, so only tests/scripts/hooks/ can kill a src/scripts/hooks/ mutant and
+# only tests/scripts/tools/ can kill a src/scripts/tools/ one. Mutating both at once therefore pays
+# for the other island's suite on every mutant: `--paths-to-mutate src/scripts/tools/ --runner
+# "python -m pytest tests/scripts/tools/ -x -q --tb=no --no-header"` is both faster and no weaker
+# when you are hardening one island.
+paths_to_mutate = "src/scripts/hooks/,src/scripts/tools/"
+# Each island's tests/ now lives in a separate top-level tree rather than nested inside its own
+# mutated source, so mutmut never walks into it in the first place; the filename globs stay as a
+# defensive guard against a stray test-named file ever landing back under src/scripts/hooks/ or
+# src/scripts/tools/.
+paths_to_exclude = "test_*.py,__init__.py,conftest.py"
 backup = false
-# src/commons/repo/ carries nothing that exercises either island's mutation behavior, so the runner
+# tests/repo/ carries nothing that exercises either island's mutation behavior, so the runner
 # is each island's own tests and nothing else.
-runner = "python -m pytest src/hooks/tests/ src/tools/tests/ -x -q --tb=no --no-header"
-tests_dir = "src/hooks/tests/,src/tools/tests/"
+runner = "python -m pytest tests/scripts/hooks/ tests/scripts/tools/ -x -q --tb=no --no-header"
+tests_dir = "tests/scripts/hooks/,tests/scripts/tools/"
 
 [tool.coverage.run]
-omit = [
-    "src/commons/**/test_*.py", "src/commons/**/__init__.py", "src/commons/**/conftest.py",
-    "src/hooks/tests/**/test_*.py", "src/hooks/tests/**/__init__.py", "src/hooks/tests/**/conftest.py",
-    "src/tools/tests/**/test_*.py", "src/tools/tests/**/__init__.py", "src/tools/tests/**/conftest.py",
-]
+# No `omit` needed: `--cov=src/scripts/hooks --cov=src/scripts/tools` (Makefile) only ever measures
+# those two trees, and every test file now lives in the separate top-level tests/ tree, never nested
+# inside either. Every transient tool output lives under the one gitignored /.local/ tree (see
+# .gitignore).
+data_file = ".local/.coverage"

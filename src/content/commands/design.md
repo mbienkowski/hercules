@@ -1,19 +1,33 @@
+{% if command_format == "toml" -%}
+description = "Design phase — turn a business requirement into numbered technical specs"
+
+prompt = """
+{%- else -%}
 ---
+{%- if command_name %}
+name: {{ command_name_prefix }}design
+{%- endif %}
 description: Design phase — turn a business requirement into numbered technical specs
+{%- if command_disable_invocation %}
 disable-model-invocation: true
+{%- endif %}
+{%- if command_agent %}
+agent: hercules
+{%- endif %}
 ---
+{% if command_title == "heading" %}
+# {{ ns }}design
+{% elsif command_wide_gap %}
 
-${target:claude}
-# ${ns}design
-${target:end}
-
+{% endif %}
+{%- endif %}
 Turn a business requirement into numbered technical specs ready for Build. Plugin-file citations (`hercules-reference §…`, `protocols/…`) live in this plugin's directory.
 
-${target:claude}
-**Plan mode — required.** Call `${plan_enter}` at the start. Every draft is a full inline proposal; iterate freely; always regenerate the complete draft — never patch sections. At the **Plan approval** gate, on the user's approval, call `${plan_exit}` (`auto`), then write.
-${target:default}
+{% if plan_mode == "tool" -%}
+**Plan mode — required.** Call `{{ plan_enter }}` at the start. Every draft is a full inline proposal; iterate freely; always regenerate the complete draft — never patch sections. At the **Plan approval** gate, on the user's approval, call `{{ plan_exit }}` (`auto`), then write.
+{%- else -%}
 **Plan mode — required.** Enter plan mode at the start. Every draft is a full inline proposal; iterate freely; always regenerate the complete draft — never patch sections. At the **Plan approval** gate, on the user's approval, leave plan mode, then write.
-${target:end}
+{%- endif %}
 
 Technical design and delivery sequencing wizard. Locate the business requirements, break them into self-contained specs, iterate, validate (implementability, then coverage with evidence), then take Plan approval and write. Never write without approval or with uncovered requirements.
 
@@ -32,7 +46,7 @@ Found sessions ready for design:
 Which feature do you want to design? (number, path, or press Enter for the most recent)
 ```
 
-If the path doesn't match, ask to confirm or correct. If no sessions are found, tell the user to run `${ns}discover` first.
+If the path doesn't match, ask to confirm or correct. If no sessions are found, tell the user to run `{{ ns }}discover` first.
 
 ## Step 2 — Read requirements
 
@@ -54,7 +68,7 @@ Ask only what is needed — only what the Step 3 scan and `*-business-requiremen
 
 ## Step 5 — Advisor debate
 
-Advisor count and debate depth both come from the tier read forward from Discover, scored against § complexity of the debate protocol cited below; its numbers are never restated here. Follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **lead-architect, security-expert, senior-qa-engineer**). On the user's go-ahead, run the debate per `${plugin_root}protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`${plugin_root}protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
+Advisor count and debate depth both come from the tier read forward from Discover, scored against § complexity of the debate protocol cited below; its numbers are never restated here. Follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **lead-architect, security-expert, senior-qa-engineer**). On the user's go-ahead, run the debate per `{{ plugin_root }}protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`{{ plugin_root }}protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
 
 ## Step 6 — Draft & feedback loop
 
@@ -69,11 +83,11 @@ Iterate: apply every change, show the updated draft, ask again, until the user i
 
 Implementability check — every file named in a spec's `## Affected code` must already exist or be explicitly marked new; every `satisfies:` header must resolve to a real `*-business-requirements.md` section. Block on any mismatch — do not paper over it.
 
-${target:codex}
-Requirements coverage is an **independent review** (`hercules-reference § Independent review`), never a self-check: invoke the `$hercules-advisor-cynical-reviewer` skill with the delegation packet (`${plugin_root}protocols/workflow-protocol.md#packet`). It reads `*-business-requirements.md` and the spec drafts **directly** (never a slice you pre-select) and, for every requirement item, cites the specific spec sentence that addresses it — no coverage by assumption or paraphrase. It returns the coverage matrix:
-${target:default}
-Requirements coverage is an **independent review** (`hercules-reference § Independent review`), never a self-check: spawn `${agent_ns}cynical-reviewer` with the delegation packet (`${plugin_root}protocols/workflow-protocol.md#packet`). It reads `*-business-requirements.md` and the spec drafts **directly** (never a slice you pre-select) and, for every requirement item, cites the specific spec sentence that addresses it — no coverage by assumption or paraphrase. It returns the coverage matrix:
-${target:end}
+{% if advisor_delivery == "skill" -%}
+Requirements coverage is an **independent review** (`hercules-reference § Independent review`), never a self-check: invoke the `$hercules-advisor-cynical-reviewer` skill with the delegation packet (`{{ plugin_root }}protocols/workflow-protocol.md#packet`). It reads `*-business-requirements.md` and the spec drafts **directly** (never a slice you pre-select) and, for every requirement item, cites the specific spec sentence that addresses it — no coverage by assumption or paraphrase. It returns the coverage matrix:
+{%- else -%}
+Requirements coverage is an **independent review** (`hercules-reference § Independent review`), never a self-check: spawn `{{ agent_ns }}cynical-reviewer` with the delegation packet (`{{ plugin_root }}protocols/workflow-protocol.md#packet`). It reads `*-business-requirements.md` and the spec drafts **directly** (never a slice you pre-select) and, for every requirement item, cites the specific spec sentence that addresses it — no coverage by assumption or paraphrase. It returns the coverage matrix:
+{%- endif %}
 ```
 Requirements coverage:
   ✓ [requirement text]
@@ -83,11 +97,9 @@ Requirements coverage:
   ~ [requirement text]
     → partially covered: "quote" — but missing [specific gap]
 ```
-${target:cursor}
-
-**On ${host}, this reviewer is not runtime-forced** — ${host} exposes no orchestrator-forced spawn, so run it as a real, isolated subagent (`@cynical-reviewer`) and require its reply to be a structured **handshake**: an explicit "I read `*-business-requirements.md` at `<path>` (N items)" attestation plus the coverage matrix above. If no such handshake returns — or the matrix appears to have been produced in the authoring context — **HALT and tell the user** the independent-review gate could not be confirmed; never accept a self-produced matrix as the review. (For a genuinely isolated reviewer, run the review packet through the headless `cursor-agent -p` CLI — a fresh agent process with its own context; Cursor's CLI has no flag to select a named subagent, so the packet itself must carry the reviewer's mandate.)
-
-${target:end}
+{% if forced_subagent == "no" %}
+**On {{ host }}, this reviewer is not runtime-forced** — {{ host }} exposes no orchestrator-forced spawn, so run it as a real, isolated subagent (`@cynical-reviewer`) and require its reply to be a structured **handshake**: an explicit "I read `*-business-requirements.md` at `<path>` (N items)" attestation plus the coverage matrix above. If no such handshake returns — or the matrix appears to have been produced in the authoring context — **HALT and tell the user** the independent-review gate could not be confirmed; never accept a self-produced matrix as the review. (For a genuinely isolated reviewer, run the review packet through the headless `cursor-agent -p` CLI — a fresh agent process with its own context; Cursor's CLI has no flag to select a named subagent, so the packet itself must carry the reviewer's mandate.)
+{% endif %}
 Sub-spec ownership — every requirement must map to at least one spec via that spec's `satisfies:` header; a requirement owned by no spec is a ✗ — it would never get built.
 
 Note on n-1 — `*-business-requirements.md` is both the validation source and the only prior artifact (n-1); one read suffices.
@@ -96,11 +108,11 @@ Synthesise the reviewer's findings (that synthesis is the terminal judgment): if
 
 ## Step 8 — Plan approval
 
-${target:claude}
-This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback, not approval. **Do not write the specs until the user approves.** On approval, call `${plan_exit}` (`auto`), then write (Step 9).
-${target:default}
+{% if plan_mode == "tool" -%}
+This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback, not approval. **Do not write the specs until the user approves.** On approval, call `{{ plan_exit }}` (`auto`), then write (Step 9).
+{%- else -%}
 This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback, not approval. **Do not write the specs until the user approves.** On approval, leave plan mode, then write (Step 9).
-${target:end}
+{%- endif %}
 
 ## Step 9 — Output
 
@@ -151,10 +163,11 @@ into the relevant sections per its role. The template stays generic; the advisor
 If the feature is single-track (no meaningful split), emit one spec file (`spec-01`) covering the full scope.
 
 Update `docs/INDEX.md`: set this session's `Status` to `design` if creating the row,
-or update it in place if the row exists. Write atomically (temp + rename).
+or update it in place if the row exists.
 
-Update the active session in the project's state file (`~/.hercules/state/{slug}.json`): set
-`current_phase` to `"design"` and write `pending_specs` (the spec filenames in ascending delivery
-order). Write atomically (temp + rename), preserving other sessions.
+Update the active session in the project's state file by running `python3 {{ plugin_root }}tools/state_patch.py apply --project-slug {slug} --session-id {id} --set current_phase=design --set pending_specs={spec-filenames-in-order} --confirm` to write atomically; Non-zero exit: relay the output and stop.
 
-Show the saved spec paths in delivery order. Then say: "The specs and delivery sequence are locked. Ready to **Build**? Run `${ns}build` — I'll present a delivery plan first, then deliver the specs."
+Show the saved spec paths in delivery order. Then say: "The specs and delivery sequence are locked. Ready to **Build**? Run `{{ ns }}build` — I'll present a delivery plan first, then deliver the specs."
+{%- if command_format == "toml" %}
+"""
+{%- endif %}

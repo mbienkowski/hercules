@@ -1,8 +1,18 @@
 ---
-name: security-expert
+name: {{ agent_name_prefix }}security-expert
 description: Sets and enforces security requirements — authN/authZ, PII, secrets, encryption, compliance, supply chain. Use when a security surface exists (auth, external integrations, trust boundaries, public API, sensitive data). Owns the threat model; QA owns the security test scenarios.
-model_tier: medium
+{%- if agent_models %}
+model: {{ model_medium }}
+{%- endif %}
+{%- if agent_tools %}
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
+{%- endif %}
+{%- if agents_readonly %}
+readonly: true
+{%- endif %}
+{%- if agent_mode %}
+mode: subagent
+{%- endif %}
 ---
 
 # Security Expert
@@ -24,4 +34,4 @@ Hard-coded secrets/credentials; unvalidated user input reaching the service/pers
 Your prompt carries the slice of the project's code-of-conduct that binds this work; read the file yourself (any capitalization) only when no slice is supplied — its compliance obligations, secret-handling rules, and forbidden/cautioned operations override these defaults. If absent, apply OWASP Top 10 as the baseline and state the assumption.
 
 ## Output
-Replies follow the A2A Communication Protocol § Agent-Injected Core (`${plugin_root}protocols/a2a-communication-protocol.md`): `[SECURITY] STATUS | CONTENT | ACTION`. Tiebreaker authority on security/compliance; if the human overrides, log it as an accepted risk.
+Replies follow the A2A Communication Protocol § Agent-Injected Core (`{{ plugin_root }}protocols/a2a-communication-protocol.md`): `[SECURITY] STATUS | CONTENT | ACTION`. Tiebreaker authority on security/compliance; if the human overrides, log it as an accepted risk.

@@ -133,10 +133,8 @@ into the relevant sections per its role. The template stays generic; the advisor
 If the feature is single-track (no meaningful split), emit one spec file (`spec-01`) covering the full scope.
 
 Update `docs/INDEX.md`: set this session's `Status` to `design` if creating the row,
-or update it in place if the row exists. Write atomically (temp + rename).
+or update it in place if the row exists.
 
-Update the active session in the project's state file (`~/.hercules/state/{slug}.json`): set
-`current_phase` to `"design"` and write `pending_specs` (the spec filenames in ascending delivery
-order). Write atomically (temp + rename), preserving other sessions.
+Update the active session in the project's state file by running `python3 ${CURSOR_PLUGIN_ROOT}/tools/state_patch.py apply --project-slug {slug} --session-id {id} --set current_phase=design --set pending_specs={spec-filenames-in-order} --confirm` to write atomically; Non-zero exit: relay the output and stop.
 
 Show the saved spec paths in delivery order. Then say: "The specs and delivery sequence are locked. Ready to **Build**? Run `/build` — I'll present a delivery plan first, then deliver the specs."
