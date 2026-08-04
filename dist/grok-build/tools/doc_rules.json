@@ -443,6 +443,12 @@
       "severity": "block",
       "title": "reference does not resolve",
       "fix": "point it at a section that exists, or correct the filename"
+    },
+    {
+      "id": "DOC702",
+      "severity": "block",
+      "title": "scenario identifier names nothing",
+      "fix": "point covers: at a scenario that exists in the requirements, or add the scenario"
     }
   ],
   "guidance": {
@@ -525,7 +531,9 @@
   "references": {
     "header_pattern": "^(satisfies|covers):\\s*\\[?(.+?)\\]?\\s*$",
     "section_marker": "\u00a7",
-    "note": "The one hard block. A spec pointing at a requirements section that does not exist is not a matter of taste: the link is broken and traceability is already lost."
+    "note": "The one hard block. A spec pointing at a requirements section that does not exist is not a matter of taste: the link is broken and traceability is already lost.",
+    "covers_pattern": "^covers:\\s*\\[?(.+?)\\]?\\s*$",
+    "scenario_note": "A spec's covers: names the scenarios it delivers. Each must exist in the requirements it satisfies \u2014 an identifier that names nothing is a promise to build something undefined."
   },
   "review": {
     "note": "The judgement half, made accountable. A reviewer fills in one verdict per category \u2014 silence is never a pass, exactly as the A2A protocol already requires of a Pass status. The tool never forms the opinion; it checks the opinion was formed for every category, and turns the severities into one decision so 'needs work' stops being a feeling.",

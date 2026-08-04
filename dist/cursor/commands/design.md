@@ -92,6 +92,11 @@ After Plan approval, create one file per spec under the artifact root
 docs/YYYY-MM-DD-{short-desc}/YYYY-MM-DD-{short-desc}-spec-NN-{slug}.md
 ```
 
+Every spec carries `covers:` — the scenario identifiers from the requirements' `## Flows` that it
+delivers. Each must name a scenario that exists, and every scenario in the requirements must be
+covered by exactly one spec. That is what turns the traceability gate at Build into a search for an
+identifier rather than a judgement about whether two sentences mean the same thing.
+
 Delivery order is the ascending `NN`: each spec is a self-contained delivery track, ordered so it
 builds on the ones before it. For multiple services, scope each spec to a single service and name
 that service in its `## Scope`.
@@ -100,6 +105,7 @@ Each sub-spec file structure:
 ```markdown
 # Spec {NN}: {slug}
 satisfies: [YYYY-MM-DD-{short-desc}-business-requirements.md §Section]
+covers: [M1, N1, N2]
 complexity: {tier}
 profile: code
 
@@ -139,7 +145,7 @@ Key technical decisions, patterns to follow, constraints from code-of-conduct.md
 - **E2E:** [list end-to-end scenarios, if applicable]
 
 ## Acceptance criteria
-Given / When / Then for each deliverable.
+Given / When / Then for each deliverable, each ending in the scenario it proves — `[M1]`, `[N2]`.
 
 ## Known violations
 Architecture/dependency rules expected to fail at scaffold time, and which spec resolves them. Leave empty when none.

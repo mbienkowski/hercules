@@ -34,8 +34,10 @@ const BUDGETS: ReadonlyArray<readonly [string, string, number]> = [
   // Raised from 2200 alongside Discover: the spec template gained the sections that make a spec
   // unambiguous — challenge, decision record, patterns, naming, DO/DON'T, risks — and the
   // independent review Build's gate will not open without.
-  ['the design command', 'commands/design.md', 2700],
-  ['the build command', 'commands/build.md', 3260],
+  ['the design command', 'commands/design.md', 2800],
+  // Raised from 3260 when traceability became a search for a scenario identifier
+  // rather than a judgement about whether two sentences mean the same thing.
+  ['the build command', 'commands/build.md', 3320],
   ['the ship command', 'commands/ship.md', 1800],
   ['the guided workflow command', 'commands/workflow.md', 2000],
   ['the project-reset command', 'commands/project-reset.md', 1620],

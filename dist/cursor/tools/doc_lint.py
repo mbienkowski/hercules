@@ -400,7 +400,9 @@ def check_references(doc: Document, rules: dict, found: Findings) -> None:
     lost its traceability, and no amount of judgement makes a dead link live."""
     config = rules["references"]
     header = re.compile(config["header_pattern"], re.IGNORECASE)
+    covers = re.compile(config["covers_pattern"], re.IGNORECASE)
     marker = config["section_marker"]
+    satisfied = None
 
     for line_no, line in doc.preamble:
         match = header.match(line.strip())
@@ -416,6 +418,7 @@ def check_references(doc: Document, rules: dict, found: Findings) -> None:
             if not target.exists():
                 found.add("DOC701", "%r names no file beside this document" % filename, line_no)
                 continue
+            satisfied = target
             anchor = anchor.strip()
             if not anchor:
                 continue
@@ -424,6 +427,24 @@ def check_references(doc: Document, rules: dict, found: Findings) -> None:
                                                target.read_text(encoding="utf-8"), re.MULTILINE)}
             if anchor.lower() not in headings:
                 found.add("DOC701", "%r has no section %r" % (filename, anchor), line_no)
+
+    # A `covers:` identifier is the other half of the same link: it names a scenario in the document
+    # the spec satisfies, and that is what makes Build's traceability a grep rather than a paraphrase.
+    if satisfied is None:
+        return
+    known = set(re.findall(r"^-\s*([MNC][0-9]+)\b", satisfied.read_text(encoding="utf-8"),
+                           re.MULTILINE))
+    for line_no, line in doc.preamble:
+        match = covers.match(line.strip())
+        if match is None:
+            continue
+        for identifier in match.group(1).split(","):
+            identifier = identifier.strip().strip("[]")
+            if ":" in identifier:
+                identifier = identifier.split(":")[-1].strip()
+            if identifier and identifier not in known:
+                found.add("DOC702", "%s is not a scenario in %s" % (identifier, satisfied.name),
+                          line_no)
 
 
 # ── modes ───────────────────────────────────────────────────────────────────────────────────────

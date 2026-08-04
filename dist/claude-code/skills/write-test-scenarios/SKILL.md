@@ -20,6 +20,10 @@ Translate a source of truth into failing test stubs the test runner will pick up
 3. **Name tests in business language.** Each test name states the business fact it verifies, not
    the implementation detail — a product owner must understand it. Example:
    "Expired token returns 401 and leaks no internal detail" not "test_auth_check_expiry".
+   Where the source carries a scenario identifier (`M1`, `N2`), append it to the test name in the
+   project's convention — `..._N2`, or `[N2]` in a string name. The traceability gate then finds the
+   test by searching for the identifier instead of matching a paraphrase, which is the difference
+   between a check that can be fooled and one that cannot.
 4. **Scaffold to fail for the right reason.** Each stub calls the actual production interface and
    asserts the expected outcome. For a spec/requirements source the test fails because the
    production code does not exist yet; for a characterisation source it asserts the observed

@@ -82,6 +82,9 @@ VIOLATIONS = {
     "DOC601": (CLEAN_REQUIREMENTS, REQUIREMENTS_NAME, "critical"),
     "DOC602": (pad_words(CLEAN_REQUIREMENTS, 60), REQUIREMENTS_NAME, "medium"),
     "DOC701": (CLEAN_SPEC.replace("§Flows]", "§Flows That Do Not Exist]", 1), SPEC_NAME, "medium"),
+    "DOC702": (CLEAN_SPEC.replace("complexity: medium",
+                                  "covers: [F1:M1, F1:N9]\ncomplexity: medium", 1),
+               SPEC_NAME, "medium"),
 }
 
 
@@ -90,12 +93,18 @@ def test_there_are_rules_to_defend():
     assert len(RULES["rules"]) > 12
 
 
-def test_almost_nothing_blocks():
+def test_only_a_dead_link_blocks():
     """The posture, pinned. The standard advises and a person decides; a checker that refuses
-    legitimate documents teaches people to write for the checker instead of for the reader. Only an
-    unresolvable reference is not a matter of taste."""
-    blocking = [rule["id"] for rule in RULES["rules"] if rule["severity"] == "block"]
-    assert blocking == ["DOC701"], blocking
+    legitimate documents teaches people to write for the checker instead of for the reader.
+
+    The one exception is a reference to something that does not exist — a section, or a scenario
+    identifier. That is not a matter of taste: the link is broken, traceability is already lost, and
+    no judgement makes it live. Anything blocking must be in that class, which is what this asserts —
+    a new blocking rule has to be a dead link, not merely something someone felt strongly about."""
+    blocking = [rule for rule in RULES["rules"] if rule["severity"] == "block"]
+    assert [rule["id"] for rule in blocking] == ["DOC701", "DOC702"], blocking
+    for rule in blocking:
+        assert "resolve" in rule["title"] or "names nothing" in rule["title"], rule
     assert {rule["severity"] for rule in RULES["rules"]} <= {"block", "advice"}
 
 
