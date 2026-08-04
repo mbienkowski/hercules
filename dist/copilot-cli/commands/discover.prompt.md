@@ -76,7 +76,7 @@ Do not create the file until formal **Plan approval** in Step 6 (the stakeholder
 
 ## Step 6 — Plan approval
 
-This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. Before accepting approval, verify all five core sections (Goal, Users, Scope, Constraints, Success criteria) have real content — no placeholders. Design references is optional (omit when no visual scope).
+This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. Before accepting approval, verify the core sections (Goal, Users, Scope, Flows, Constraints, Success criteria) have real content — no placeholders, and every flow naming at least one way it can fail. Risks & unknowns joins them at medium and above; Technical suggestions and Design references are optional.
 
 The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback; regenerate the draft, never silently proceed.
 

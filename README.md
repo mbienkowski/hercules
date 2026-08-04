@@ -339,8 +339,9 @@ Hercules:  High complexity recommends advisors — business-analyst, security-ex
 You:       Yes.
 Hercules:  Here's the draft (business language, no code). Review it, then say `approved`:
 ```
-*(Condensed — Discover actually walks goal, users, scope, constraints, and success criteria one
-topic at a time, and the advisor debate runs before the draft.)*
+*(Condensed — Discover walks problem, actors, main flow, failure modes, constraints and "done" one
+topic at a time; the advisor debate runs before the draft, and an independent reviewer reads it
+after.)*
 ```markdown
 # Business Requirements: password-reset
 ## Goal
@@ -350,11 +351,21 @@ Registered users with a verified email address.
 ## Scope
 In: request a reset, receive a one-time link, set a new password.
 Out: the email-delivery service itself (already exists).
+## Flows
+### F1 — Reset a forgotten password (Registered user)
+- **Story** — as a user who forgot my password I regain access without contacting support.
+- M1 | Link opened within 30 minutes → the password is changed and the link stops working.
+- N1 | Link opened after 30 minutes → refused, and a fresh link can be requested.
+- N2 | Email is not registered → the same confirmation is shown, revealing nothing either way.
 ## Constraints
 Reset tokens are single-use and expire after 30 minutes; email delivery uses the existing service.
 ## Success criteria
 A reset link works once, expires after 30 minutes, and never reveals whether an email is registered.
 ```
+
+Every flow names at least one way it can fail — that is where negative test scenarios come from, and
+asking for them at the end never works. Depth scales with complexity: a one-line fix does not grow
+this document, and a payment migration does.
 
 ---
 

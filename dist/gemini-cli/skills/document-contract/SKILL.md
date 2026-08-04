@@ -24,9 +24,11 @@ effort on the content, not on the ceremony.
 The standard says **where things go**, so a reader knows where to look. It holds no opinion on most
 sentences. Two consequences worth taking seriously:
 
-- **A finding is advice unless it says otherwise.** Exactly one thing blocks: a `satisfies:` or
-  `covers:` reference pointing at a section that does not exist. Everything else is a note you may
-  act on or decline — declining a piece of advice is a legitimate outcome, not a violation.
+- **A finding is advice unless it says otherwise.** Only one kind of finding blocks: a **dead
+  reference** — a `satisfies:` naming a section that is not there, or a `covers:` naming a scenario
+  that is not there. That is not a matter of taste; the link is broken and traceability is already
+  lost. Everything else is a note you may act on or decline — declining advice is a legitimate
+  outcome, not a violation.
 - **When a rule refuses something legitimate, the rule is wrong.** Say so rather than bending the
   document around it. A rule that refuses good work is a defect in the rule.
 

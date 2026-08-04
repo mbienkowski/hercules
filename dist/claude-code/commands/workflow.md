@@ -30,7 +30,7 @@ Phase commands are user-invoked skills, so on each transition run the phase by r
 
 *Purpose: pin the real need, not the first thing you said.*
 
-Run the full `/hercules:discover` flow (Steps 0–7). When all five discovery groups (Goal, Users, Scope, Constraints, Success criteria) are covered, complexity is classified, and the `*-business-requirements.md` draft is approved and saved, pause:
+Run the full `/hercules:discover` flow (Steps 0–8). When all six discovery groups (Problem, Actors, Main flow & scope, Failure modes, Constraints, Done) are covered, complexity is classified, and the `*-business-requirements.md` draft is approved, saved and reviewed, pause:
 
 > I think we have a clear picture of what you want to build.
 > Before we move on — is there anything else you'd like to add or change here?

@@ -26,7 +26,10 @@ const AGENTS = agentNames().filter((name) => name !== LEAD);
 /** Every budget, as `[what it is, the file, its ceiling in tokens]`. */
 const BUDGETS: ReadonlyArray<readonly [string, string, number]> = [
   ['the debate protocol', 'protocols/debate-consensus-protocol.md', 1700],
-  ['the workflow protocol', 'protocols/workflow-protocol.md', 1250],
+  // Raised from 1250 for G9 and the two phase lists that now carry the review and the
+  // falsification step. This file is summed into every command's instruction chain, so it is the
+  // one to keep honest — the chain gate below is what actually holds it.
+  ['the workflow protocol', 'protocols/workflow-protocol.md', 1300],
   // Raised from 2020 when Discover took on the document standard: six question groups instead of
   // five, the Flows section in the emitted template, and the independent review that Design's gate
   // will not open without. The alternative was a command that describes less than it does.

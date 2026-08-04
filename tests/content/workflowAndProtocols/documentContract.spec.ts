@@ -24,6 +24,10 @@ const read = (relativePath: string): string =>
 
 interface Rules {
   readonly kinds: Record<string, { readonly sections: ReadonlyArray<{ readonly name: string }> }>;
+  readonly rules: ReadonlyArray<{
+    readonly id: string; readonly severity: string;
+    readonly title: string; readonly fix: string;
+  }>;
   readonly review: {
     readonly severities: readonly string[];
     readonly rubrics: Record<string, ReadonlyArray<{ readonly category: string }>>;
@@ -49,8 +53,12 @@ describe('the authoring skill and the standard describe the same thing', () => {
     };
     const missing: string[] = [];
     for (const [kind, body] of Object.entries(parsed.kinds)) {
+      const page = pages[kind];
+      // A kind with no page at all is the louder failure: it means a document type ships with
+      // nothing teaching how to write it.
+      expect(page, `no half of the skill teaches the ${kind} document`).toBeTypeOf('string');
       for (const section of body.sections) {
-        if (!pages[kind].includes(section.name)) missing.push(`${kind}: ${section.name}`);
+        if (!(page ?? '').includes(section.name)) missing.push(`${kind}: ${section.name}`);
       }
     }
     expect(missing, 'these sections are enforced but never explained').toEqual([]);
@@ -86,7 +94,14 @@ describe('the skill does not restate what would drift', () => {
     expect(skill).toContain('you are not asked to run anything');
   });
 
-  it('it states which single finding blocks', () => {
-    expect(read(SKILL)).toMatch(/exactly one thing blocks/i);
+  it('it states which kind of finding blocks, and agrees with the rules about it', () => {
+    // Pins the promise on both sides: the skill names the blocking CATEGORY, and every rule that
+    // actually blocks belongs to it. A blocking rule added outside that class fails here.
+    expect(read(SKILL)).toMatch(/dead\s+reference/i);
+    const blocking = rules().rules.filter((rule) => rule.severity === 'block');
+    expect(blocking.length).toBeGreaterThan(0);
+    for (const rule of blocking) {
+      expect(`${rule.title} ${rule.fix}`).toMatch(/resolve|exist|names nothing/i);
+    }
   });
 });

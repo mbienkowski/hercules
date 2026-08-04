@@ -10,13 +10,14 @@ mode); a GATE halts the phase until met.
 
 context → brief & documents → questions → score tier (GATE: user confirms; G7) →
 roster (GATE: user accepts; G8) → advisor debate → draft & iterate → Plan approval (GATE)
-→ write requirements
+→ write requirements → independent review (GATE; G9)
 
 ### Design {#phase-design}
 
 session discovery → read requirements → scan constraints & read tier → design questions →
-roster (GATE: user accepts; G8) → advisor debate → draft specs → implementability (GATE) →
-coverage (GATE) → Plan approval (GATE) → write specs
+roster (GATE: user accepts; G8) → advisor debate → draft specs → falsify assumptions (GATE) →
+implementability (GATE) → coverage (GATE) → Plan approval (GATE) → write specs →
+independent review (GATE; G9)
 
 ### Build {#phase-build}
 
