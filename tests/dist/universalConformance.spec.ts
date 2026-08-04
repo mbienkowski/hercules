@@ -70,6 +70,11 @@ const CONFORMANCE_EXPECTATIONS: Record<string, Expectation> = {
     pins: [
       ['agents/hercules.md', '\nmodel: opus\n'],
       ['hooks/hooks.json', '${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py'],
+      // The document gate's three modes, each pinned to the hooks.json entry that actually fires
+      // it — a mode importable and unit-tested in isolation is not a mode a host will ever call.
+      ['hooks/hooks.json', '"${CLAUDE_PLUGIN_ROOT}/hooks/document_gate.py",\n              "probes"\n'],
+      ['hooks/hooks.json', '"${CLAUDE_PLUGIN_ROOT}/hooks/document_gate.py",\n              "advance"\n'],
+      ['hooks/hooks.json', '"${CLAUDE_PLUGIN_ROOT}/hooks/document_gate.py",\n              "review"\n'],
     ],
     antiPins: [['agents/hercules.md', 'model_tier']],
   },
@@ -135,7 +140,12 @@ const CONFORMANCE_EXPECTATIONS: Record<string, Expectation> = {
     neutralityExempt: [],
     planIdiomsBanned: true,
     topLevel: new Set(['.grok-plugin', 'CAPABILITIES.md', 'CLAUDE.md', 'agents', 'commands', 'hooks', 'protocols', 'settings.json', 'skills', 'tools']),
-    pins: [['hooks/hooks.json', '${GROK_PLUGIN_ROOT}/hooks/frozen_tests.py']],
+    pins: [
+      ['hooks/hooks.json', '${GROK_PLUGIN_ROOT}/hooks/frozen_tests.py'],
+      ['hooks/hooks.json', '"${GROK_PLUGIN_ROOT}/hooks/document_gate.py",\n              "probes"\n'],
+      ['hooks/hooks.json', '"${GROK_PLUGIN_ROOT}/hooks/document_gate.py",\n              "advance"\n'],
+      ['hooks/hooks.json', '"${GROK_PLUGIN_ROOT}/hooks/document_gate.py",\n              "review"\n'],
+    ],
     antiPins: [
       ['hooks/hooks.json', 'CLAUDE_PLUGIN_ROOT'],
       ['agents/hercules.md', '\nmodel:'],
