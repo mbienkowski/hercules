@@ -238,6 +238,16 @@
         "src/content/skills/write-test-scenarios/SKILL.md"
       ]
     },
+    "tools/doc_lint.py": {
+      "sources": [
+        "src/scripts/tools/doc_lint.py"
+      ]
+    },
+    "tools/doc_rules.json": {
+      "sources": [
+        "src/scripts/tools/doc_rules.json"
+      ]
+    },
     "tools/project_reset.py": {
       "sources": [
         "src/scripts/tools/project_reset.py"

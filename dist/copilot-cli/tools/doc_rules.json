@@ -1,0 +1,635 @@
+{
+  "rules_version": 1,
+  "note": "The canonical rule catalogue for Hercules delivery documents. doc_lint.py is the only reader; the authoring skill summarises it and the commands echo its template. Edit a rule here, never in prose.",
+  "tiers": [
+    "trivial",
+    "low",
+    "medium",
+    "high",
+    "critical"
+  ],
+  "scenario_classes": {
+    "M": "main",
+    "N": "negative",
+    "C": "corner"
+  },
+  "scenario_line": {
+    "claim_pattern": "^- ([MNC])([0-9]+)\\b",
+    "pattern": "^- ([MNC])([0-9]+) \\| (.+?) (?:->|→) (.+)$",
+    "max_words": 25,
+    "describes": "One scenario per line: an identifier, a trigger, an arrow, and an observable outcome. A bullet that does not open with an identifier is ordinary prose, not a malformed scenario."
+  },
+  "placeholders": [
+    "TBD",
+    "TODO",
+    "FIXME",
+    "N/A",
+    "None identified",
+    "To be determined",
+    "as appropriate",
+    "standard practices apply",
+    "lorem ipsum"
+  ],
+  "meaningful_when_empty": [
+    "Known violations",
+    "Out of scope"
+  ],
+  "banned_phrases": [
+    "should",
+    "must be able to",
+    "as needed",
+    "appropriately",
+    "properly",
+    "correctly",
+    "robust",
+    "efficient",
+    "scalable",
+    "user-friendly",
+    "seamless",
+    "leverage",
+    "best practices",
+    "comprehensive",
+    "etc.",
+    "and so on",
+    "various",
+    "several",
+    "might",
+    "where possible",
+    "if necessary",
+    "make sure",
+    "it is important to",
+    "in order to"
+  ],
+  "mandate_patterns": [
+    "\\b(?:must|shall|should|needs? to|has to|is required to)\\s+(?:be\\s+)?(?:implemented|built|coded|written|stored|cached|indexed|deployed|hosted|architected|refactored|migrated)\\b",
+    "\\bthis (?:must|should|has to) be done (?:this way|using|with)\\b",
+    "\\bwe (?:will|shall) (?:use|build|migrate|refactor)\\b"
+  ],
+  "implementation_token_patterns": [
+    "`[^`]+`",
+    "\\b[A-Za-z_][A-Za-z0-9_]*\\(\\)",
+    "\\b[\\w-]+\\.(?:js|ts|py|java|go|rb|sql|ya?ml|json|xml|tsx|jsx|mts)\\b",
+    "(?:^|\\s)[A-Za-z0-9_-]+/[A-Za-z0-9_./-]+"
+  ],
+  "identifier_shape_patterns": [
+    "\\b[a-z]+[A-Z][A-Za-z0-9]*\\b",
+    "\\b[A-Z][a-z]+[A-Z][A-Za-z0-9]*\\b"
+  ],
+  "identifier_shape_note": "Calibrated down from error to warning: an all-caps run matches business acronyms (SLA, GDPR, VAT) and a mixed-case run matches brand names a requirement may legitimately name (PayPal, GitHub). Only the unambiguous shapes above block.",
+  "hedge_words": [
+    "could",
+    "might",
+    "may",
+    "one option",
+    "possibly",
+    "worth considering"
+  ],
+  "suggestion_closing_sentence": "These are suggestions from Product, not decisions. Design owns the technical choice.",
+  "normative_sections": [
+    "Implementation",
+    "Rules — DO / DON'T"
+  ],
+  "normative_note": "Bullet style strips the subject and the modality a sentence carries, which is the most ambiguous prose form per word. These sections restore both: every bullet names its subject and states its obligation.",
+  "modal_patterns": [
+    "\\bMUST NOT\\b",
+    "\\bMUST\\b",
+    "\\bMAY\\b",
+    "\\bNEVER\\b",
+    "\\bALWAYS\\b"
+  ],
+  "lexicons": {
+    "vendor": [
+      "redis",
+      "jackson",
+      "kafka",
+      "mongo",
+      "hibernate",
+      "axios",
+      "lodash",
+      "pandas",
+      "openpyxl",
+      "jquery",
+      "guava",
+      "log4j",
+      "boto",
+      "okhttp",
+      "postgres",
+      "sqlite",
+      "django",
+      "rails",
+      "spring"
+    ],
+    "port_markers": [
+      "Port",
+      "Repository",
+      "Store",
+      "Gateway",
+      "Provider"
+    ],
+    "adapter_paths": [
+      "infrastructure",
+      "adapter",
+      "adapters",
+      "driver",
+      "drivers"
+    ],
+    "weak_noun": [
+      "data",
+      "info",
+      "manager",
+      "helper",
+      "util",
+      "utils",
+      "processor",
+      "handler",
+      "misc",
+      "common",
+      "stuff",
+      "item",
+      "object",
+      "temp"
+    ],
+    "weak_verb": [
+      "do",
+      "handle",
+      "process",
+      "manage",
+      "perform",
+      "execute",
+      "run",
+      "check"
+    ]
+  },
+  "style_limits": {
+    "max_heading_depth": 3,
+    "max_bullet_words": 25,
+    "max_bullet_nesting": 1,
+    "max_sections": 16,
+    "max_fenced_lines": 25,
+    "prose_max_words": 150,
+    "referent_ratio": 0.7
+  },
+  "kinds": {
+    "business-requirements": {
+      "title": "Business Requirements",
+      "owner": "product",
+      "filename_pattern": "^\\d{4}-\\d{2}-\\d{2}-[a-z0-9-]+-business-requirements\\.md$",
+      "budgets": {
+        "trivial": {
+          "words_floor": 100,
+          "words_soft": 200,
+          "words_hard": 300,
+          "scenarios": {
+            "M": 1,
+            "N": 1,
+            "C": 0
+          }
+        },
+        "low": {
+          "words_floor": 180,
+          "words_soft": 350,
+          "words_hard": 500,
+          "scenarios": {
+            "M": 2,
+            "N": 2,
+            "C": 1
+          }
+        },
+        "medium": {
+          "words_floor": 250,
+          "words_soft": 500,
+          "words_hard": 750,
+          "scenarios": {
+            "M": 4,
+            "N": 4,
+            "C": 3
+          }
+        },
+        "high": {
+          "words_floor": 350,
+          "words_soft": 700,
+          "words_hard": 1050,
+          "scenarios": {
+            "M": 6,
+            "N": 6,
+            "C": 5
+          }
+        },
+        "critical": {
+          "words_floor": 450,
+          "words_soft": 900,
+          "words_hard": 1350,
+          "scenarios": {
+            "M": 8,
+            "N": 8,
+            "C": 8
+          }
+        }
+      },
+      "sections": [
+        {
+          "name": "Goal",
+          "style": "bullets",
+          "required_from": "trivial",
+          "min_items": 1,
+          "mandate": "The problem in the user's words, and the change wanted."
+        },
+        {
+          "name": "Users",
+          "style": "bullets",
+          "required_from": "trivial",
+          "min_items": 1,
+          "mandate": "Each actor, and how they cope today without this."
+        },
+        {
+          "name": "Scope",
+          "style": "free",
+          "required_from": "trivial",
+          "min_items": 2,
+          "mandate": "In scope and out of scope, as noun phrases. Out of scope is never empty."
+        },
+        {
+          "name": "Flows",
+          "style": "scenarios",
+          "required_from": "low",
+          "min_items": 2,
+          "mandate": "Per flow: a story line, then main, negative and corner scenario lines."
+        },
+        {
+          "name": "Constraints",
+          "style": "bullets",
+          "required_from": "trivial",
+          "min_items": 1,
+          "mandate": "Business, time, regulatory and integration constraints."
+        },
+        {
+          "name": "Success criteria",
+          "style": "bullets",
+          "required_from": "trivial",
+          "min_items": 1,
+          "mandate": "Measurable, each carrying a number or a named standard."
+        },
+        {
+          "name": "Risks & unknowns",
+          "style": "bullets",
+          "required_from": "medium",
+          "min_items": 1,
+          "mandate": "Future risks and open assumptions. Mitigation plans belong in the spec."
+        },
+        {
+          "name": "Technical suggestions (non-binding)",
+          "style": "bullets",
+          "required_from": "never",
+          "min_items": 1,
+          "hedged": true,
+          "allows_implementation_tokens": true,
+          "mandate": "The only place technical vocabulary is legal, and only as a suggestion."
+        },
+        {
+          "name": "Design references",
+          "style": "bullets",
+          "required_from": "never",
+          "min_items": 1,
+          "mandate": "Links to visual artifacts. Links only, never inline content."
+        }
+      ]
+    },
+    "spec": {
+      "title": "Spec",
+      "owner": "team",
+      "filename_pattern": "^\\d{4}-\\d{2}-\\d{2}-[a-z0-9-]+-spec-\\d{2}-[a-z0-9-]+\\.md$",
+      "profiles": [
+        "code"
+      ],
+      "budgets": {
+        "trivial": {
+          "words_floor": 100,
+          "words_soft": 250,
+          "words_hard": 375,
+          "scenarios": {
+            "M": 1,
+            "N": 1,
+            "C": 0
+          }
+        },
+        "low": {
+          "words_floor": 180,
+          "words_soft": 400,
+          "words_hard": 600,
+          "scenarios": {
+            "M": 2,
+            "N": 2,
+            "C": 1
+          }
+        },
+        "medium": {
+          "words_floor": 250,
+          "words_soft": 600,
+          "words_hard": 900,
+          "scenarios": {
+            "M": 4,
+            "N": 4,
+            "C": 3
+          }
+        },
+        "high": {
+          "words_floor": 350,
+          "words_soft": 850,
+          "words_hard": 1275,
+          "scenarios": {
+            "M": 6,
+            "N": 6,
+            "C": 5
+          }
+        },
+        "critical": {
+          "words_floor": 450,
+          "words_soft": 1100,
+          "words_hard": 1650,
+          "scenarios": {
+            "M": 8,
+            "N": 8,
+            "C": 8
+          }
+        }
+      },
+      "sections": [
+        {
+          "name": "Challenge",
+          "style": "prose",
+          "required_from": "trivial",
+          "min_items": 1,
+          "mandate": "The one prose slot: the requirement restated, and the single hardest thing."
+        },
+        {
+          "name": "Scope",
+          "style": "bullets",
+          "required_from": "trivial",
+          "min_items": 1,
+          "mandate": "What this spec delivers, and the service it belongs to."
+        },
+        {
+          "name": "Affected code",
+          "style": "bullets",
+          "required_from": "trivial",
+          "min_items": 1,
+          "mandate": "Existing classes, methods and modules this touches. Each named, or marked NEW."
+        },
+        {
+          "name": "Decision record",
+          "style": "table",
+          "required_from": "trivial",
+          "min_items": 1,
+          "mandate": "Decision, chosen, rejected and why, risk, mitigation, revisit-when."
+        },
+        {
+          "name": "Structure & patterns",
+          "style": "table",
+          "required_from": "medium",
+          "min_items": 1,
+          "mandate": "Each pattern named, with why, and one real use case. Deviations carry a why."
+        },
+        {
+          "name": "Naming contract",
+          "style": "table",
+          "required_from": "high",
+          "min_items": 1,
+          "mandate": "Domain vocabulary, names rejected, and why rejected."
+        },
+        {
+          "name": "Implementation",
+          "style": "bullets",
+          "required_from": "trivial",
+          "min_items": 1,
+          "mandate": "Key technical decisions and the constraints the code-of-conduct binds."
+        },
+        {
+          "name": "Rules — DO / DON'T",
+          "style": "table",
+          "required_from": "high",
+          "min_items": 2,
+          "mandate": "Two columns, imperative, each row independently testable."
+        },
+        {
+          "name": "Risks & mitigations",
+          "style": "table",
+          "required_from": "medium",
+          "min_items": 1,
+          "mandate": "Risk, the signal that it is happening, the mitigation, and who owns it at build."
+        },
+        {
+          "name": "Test suite",
+          "style": "bullets",
+          "required_from": "trivial",
+          "min_items": 1,
+          "exempt_from_word_budget": true,
+          "mandate": "Unit, integration, API and end-to-end scenarios, plus what must never be mocked."
+        },
+        {
+          "name": "Acceptance criteria",
+          "style": "free",
+          "required_from": "trivial",
+          "min_items": 1,
+          "exempt_from_word_budget": true,
+          "mandate": "Given / When / Then per deliverable, each bound to a scenario identifier."
+        },
+        {
+          "name": "Known violations",
+          "style": "free",
+          "required_from": "trivial",
+          "min_items": 0,
+          "mandate": "Architecture or dependency rules expected to fail at scaffold time."
+        },
+        {
+          "name": "Deletion note",
+          "style": "free",
+          "required_from": "trivial",
+          "min_items": 1,
+          "mandate": "How this spec retires once its feature is delivered in code."
+        }
+      ]
+    }
+  },
+  "rules": [
+    {
+      "id": "DOC101",
+      "severity": "error",
+      "title": "required section missing",
+      "fix": "add the section, or lower the tier if the depth is not warranted"
+    },
+    {
+      "id": "DOC102",
+      "severity": "error",
+      "title": "sections out of order",
+      "fix": "reorder to match the template from `doc_lint.py template`"
+    },
+    {
+      "id": "DOC103",
+      "severity": "error",
+      "title": "placeholder text",
+      "fix": "write the real content, or delete the section entirely — an empty section is omitted, never stubbed"
+    },
+    {
+      "id": "DOC104",
+      "severity": "error",
+      "title": "required section is empty",
+      "fix": "fill it, or delete it if nothing real belongs there"
+    },
+    {
+      "id": "DOC105",
+      "severity": "error",
+      "title": "heading deeper than the limit",
+      "fix": "promote the content to a section, or turn it into a table"
+    },
+    {
+      "id": "DOC106",
+      "severity": "error",
+      "title": "unknown section heading",
+      "fix": "rename it to a section the standard defines, or move the content under one"
+    },
+    {
+      "id": "DOC201",
+      "severity": "error",
+      "title": "prose in a bullet-only section",
+      "fix": "turn each sentence into a bullet, a table row, or move it to the prose section"
+    },
+    {
+      "id": "DOC202",
+      "severity": "warn",
+      "title": "ambiguous phrase",
+      "fix": "replace with a number, a named standard, or a MUST / MAY ... WHEN clause"
+    },
+    {
+      "id": "DOC203",
+      "severity": "warn",
+      "title": "bullet longer than the limit",
+      "fix": "split it, or promote the detail to a table"
+    },
+    {
+      "id": "DOC204",
+      "severity": "error",
+      "title": "implementation detail outside the suggestions section",
+      "fix": "move it under 'Technical suggestions (non-binding)', or say it in business language"
+    },
+    {
+      "id": "DOC209",
+      "severity": "warn",
+      "title": "identifier-shaped word in a business document",
+      "fix": "if this names a class or a field, move it to the suggestions section; if it is a brand or an acronym, leave it"
+    },
+    {
+      "id": "DOC205",
+      "severity": "warn",
+      "title": "bullet opens with a pronoun",
+      "fix": "name the subject the bullet is about"
+    },
+    {
+      "id": "DOC206",
+      "severity": "error",
+      "title": "technical mandate in a business document",
+      "fix": "state the outcome the business needs; the technical choice belongs to Design"
+    },
+    {
+      "id": "DOC207",
+      "severity": "error",
+      "title": "suggestions section is not hedged",
+      "fix": "hedge each bullet, and close the section with its fixed sentence"
+    },
+    {
+      "id": "DOC208",
+      "severity": "warn",
+      "title": "normative bullet carries no modal",
+      "fix": "write MUST, MUST NOT, or MAY ... WHEN, so the obligation is unambiguous"
+    },
+    {
+      "id": "DOC301",
+      "severity": "error",
+      "title": "flow is missing a main or negative scenario",
+      "fix": "add the missing class, or mark the flow 'scenarios: n/a' with a reason"
+    },
+    {
+      "id": "DOC302",
+      "severity": "error",
+      "title": "malformed scenario line",
+      "fix": "write it as '- M1 | trigger -> observable outcome'"
+    },
+    {
+      "id": "DOC303",
+      "severity": "error",
+      "title": "negative scenarios outnumbered by main scenarios",
+      "fix": "add negative scenarios — the failure space is unexamined, not absent"
+    },
+    {
+      "id": "DOC304",
+      "severity": "error",
+      "title": "duplicate scenario identifier",
+      "fix": "give each scenario its own identifier; identifiers are never reused"
+    },
+    {
+      "id": "DOC305",
+      "severity": "warn",
+      "title": "more scenarios than the tier allows",
+      "fix": "cut to the budget, or split the feature into two"
+    },
+    {
+      "id": "DOC401",
+      "severity": "error",
+      "title": "filename does not match the pattern",
+      "fix": "rename to the dated, kebab-case form the standard defines"
+    },
+    {
+      "id": "DOC402",
+      "severity": "error",
+      "title": "risk row carries no mitigation",
+      "fix": "state the mitigation, or move the row to the requirements as an accepted risk"
+    },
+    {
+      "id": "DOC403",
+      "severity": "warn",
+      "title": "revisit-when is not observable",
+      "fix": "name a metric, a date, or an event — never 'if problems arise'"
+    },
+    {
+      "id": "DOC501",
+      "severity": "error",
+      "title": "vendor name in a port or interface",
+      "fix": "name the role, not the vendor; the vendor belongs in the adapter"
+    },
+    {
+      "id": "DOC502",
+      "severity": "warn",
+      "title": "weak name carries no behaviour",
+      "fix": "rename so a reader with no context knows what it does, or justify it in the naming contract"
+    },
+    {
+      "id": "DOC601",
+      "severity": "error",
+      "title": "document is below the tier floor",
+      "fix": "go deeper — at this tier the document is expected to carry more than this"
+    },
+    {
+      "id": "DOC602",
+      "severity": "error",
+      "title": "document is over the tier hard cap",
+      "fix": "cut, or move evidence and enumerations into an appendix file"
+    },
+    {
+      "id": "DOC603",
+      "severity": "warn",
+      "title": "document is over the tier soft cap",
+      "fix": "cut, or say why the extra length is earned"
+    },
+    {
+      "id": "DOC604",
+      "severity": "warn",
+      "title": "section is hollow",
+      "fix": "give it a referent — an identifier, a path, a number, an endpoint — or delete the section"
+    },
+    {
+      "id": "DOC605",
+      "severity": "error",
+      "title": "section repeats its own heading and adds nothing",
+      "fix": "lead with the answer; the heading already said the topic"
+    }
+  ]
+}

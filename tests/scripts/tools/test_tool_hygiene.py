@@ -20,6 +20,9 @@ _TOOL_SCRIPTS = sorted(_TOOLS_DIR.glob("*.py"))
 
 # DECLARATIONS, not permissions: a syntax scan cannot know which trees a program writes to.
 _TOOLS = {
+    # Read-only by declaration: it judges a document and prints a verdict, and the caller persists
+    # that verdict through state_patch.py — so a failed check can never leave a torn state file.
+    "doc_lint.py": {"writes": False, "fails": "closed", "shells_to_git": False},
     "project_reset.py": {"writes": True, "fails": "closed", "shells_to_git": False},
     "state_patch.py": {"writes": True, "fails": "closed", "shells_to_git": False},
     "retire_spec.py": {"writes": True, "fails": "closed", "shells_to_git": True},

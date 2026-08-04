@@ -13,7 +13,7 @@
 #
 # `version-files.mts` and `package.json` are here because the build's first stage reads the canonical
 # version from them and writes it into every plugin manifest: a version edit alone changes dist/.
-if git diff --cached --name-only | grep -qE "^src/content/|^src/targets/|^src/scripts/(hooks|tools)/[^/]+\.py$|^internal/builder/|^internal/release/version-files\.mts$|^package\.json$"; then
+if git diff --cached --name-only | grep -qE "^src/content/|^src/targets/|^src/scripts/(hooks|tools)/[^/]+\.(py|json)$|^internal/builder/|^internal/release/version-files\.mts$|^package\.json$"; then
     echo "a source the build reads changed — regenerating dist/ ..."
     make build || exit 1
     git add dist
