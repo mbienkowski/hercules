@@ -327,6 +327,19 @@ planned. Each of these was decided while building, for a reason the plan could n
   gate alone — the tool that reads a repository is the one that needed `ls-files`.
 - **The ghost-path figures in § 2.3 were withdrawn and re-measured** against the shipped scanner; the
   exploratory spike had mis-parsed git's output. The section carries the corrected numbers.
+- **BR-2 resolved as "always ask".** The scan reports a split convention under `conflicts` with each
+  side's file share, recent share and an example file, and names no winner — no `recommended` field,
+  `resolution` always `question`, pinned by test. Recency is a good argument and a bad decision
+  procedure: code is edited while a convention is being adopted and equally while it is being torn
+  out, and nothing in the scan distinguishes those. Defaulting is also the asymmetric mistake — adding
+  a default later is one line, while removing one after code-of-conducts were generated from it
+  leaves every such file carrying a rule nobody chose. The shipped invariant stands unchanged.
+- **Rivalry is stated, not inferred.** Grouping tools by the middle of their fact id read
+  `cfg.test.pytest` and `cfg.test.vitest` as a contradiction, when a repository holding Python and
+  TypeScript needs both. Competing tools are named explicitly.
+- **Idiom markers are scoped to the files the question is about.** Unscoped, any file that mentions a
+  marker counts as using it — this scanner's own source names every pattern it looks for, and
+  reported itself as the repository's one holdout.
 - **Per-tool git allowlists** (§ 7.1) landed as planned, and the hygiene scan additionally learned to
   follow a tool's hardened git wrapper — routing every call through one place is the better shape, and
   a scan that only understood argv-at-the-call-site would have pushed tools away from it.

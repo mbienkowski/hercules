@@ -155,6 +155,16 @@ describe('the code-of-conduct generator keeps its promises to whoever runs it', 
     expect(map).toContain('describes what nobody maintains');
   });
 
+  it('turns a split convention into a question rather than counting the votes', () => {
+    // Code is edited while a convention is being adopted and equally while it is being torn out, so
+    // a share is an argument to put to someone, never an answer to act on.
+    const text = flat(GENERATOR);
+    expect(text).toContain('Every `conflicts` entry becomes one question');
+    expect(text).toContain('Never pick for the user');
+    expect(flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md'))
+      .toContain('a question, never majority rule');
+  });
+
   it('makes every group teach its rules, not just state them', () => {
     // A rule without its reason is generalised wrongly; a rule without an example is read
     // generically. Both were optional before, which meant absent.

@@ -120,6 +120,53 @@ NODE_PACKAGES = {
     "husky": ("cfg.hooks.precommit", "Husky present as a dependency"),
 }
 
+# Two ways of doing one thing, where a file commits to one of them visibly. Deliberately small: every
+# pair costs a pass over each sampled file, and a pair nobody's repository uses is pure maintenance.
+# Sides are ordered — the FIRST that matches wins, because the markers are not mutually exclusive
+# (a `unittest.TestCase` method is still spelled `def test_…`), and the more specific one is listed
+# first so a file is attributed to the convention it actually commits to.
+#
+# Each pair is SCOPED to the files the question is about. Without that, any file that merely mentions
+# a marker is counted as using it — this scanner's own source names every pattern below, and would
+# otherwise report itself as the repository's one holdout.
+IDIOM_PAIRS = {
+    "test.style.python": ("How Python tests are written", ("*test*.py", "*_test.py"), [
+        ("unittest-class", re.compile(r"\bunittest\.TestCase\b")),
+        ("pytest-function", re.compile(r"^\s*def test_", re.M)),
+    ]),
+    "assertion.python": ("How Python tests assert", ("*test*.py", "*_test.py"), [
+        ("unittest-assert", re.compile(r"\bself\.assert[A-Z]")),
+        ("bare-assert", re.compile(r"^\s*assert\s", re.M)),
+    ]),
+    "http.client.python": ("Which HTTP client Python code reaches for", ("*.py",), [
+        ("httpx", re.compile(r"^\s*(?:import|from) httpx\b", re.M)),
+        ("requests", re.compile(r"^\s*(?:import|from) requests\b", re.M)),
+    ]),
+    "test.runner.js": ("Which test runner JavaScript and TypeScript tests import",
+                       ("*.test.*", "*.spec.*"), [
+        ("vitest", re.compile(r"""from ['"]vitest['"]""")),
+        ("jest", re.compile(r"""from ['"]@jest/globals['"]""")),
+    ]),
+}
+
+# Tools that genuinely compete for one job, named explicitly rather than grouped by the middle of
+# their fact id. Grouping by concern reads `cfg.test.pytest` and `cfg.test.vitest` as rivals, when a
+# repository with Python and TypeScript in it needs both — and pairs a coverage tool against a test
+# runner, which answer different questions. Rivalry is a fact about tools, so it is stated.
+CONFIG_RIVALS = (
+    ("Which JavaScript test runner is authoritative",
+     ("cfg.test.vitest", "cfg.test.jest", "cfg.test.mocha")),
+    ("Which JavaScript test runner the configuration files declare",
+     ("cfg.test.vitest_config", "cfg.test.jest_config")),
+    ("Which Python linter is authoritative", ("cfg.lint.ruff", "cfg.lint.flake8")),
+    ("Which Python formatter is authoritative", ("cfg.format.black", "cfg.format.isort")),
+    ("Which Python type checker is authoritative", ("cfg.types.mypy", "cfg.types.pyright")),
+    ("Which end-to-end runner is authoritative", ("cfg.test.e2e",)),
+)
+
+# More than one of these means two package managers are both claiming to pin the same dependencies.
+RIVAL_LOCKFILES = ("package-lock.json", "yarn.lock", "pnpm-lock.yaml")
+
 CONVENTIONAL_SUBJECT = re.compile(
     r"^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?!?: ")
 TICKET_REFERENCE = re.compile(r"(#\d+|[A-Z]{2,}-\d+)")
@@ -435,39 +482,123 @@ def liveness(root, files: list, months: float, recent_months: float, depth: int,
 
 # ── Numbers a rule can cite ───────────────────────────────────────────────────────────────────
 
-def shape_facts(root, files: list) -> tuple:
-    """Module sizes and marker density, so a threshold can quote this repository instead of a
-    default nobody measured. Bounded: a large repository yields a sample, and says so."""
+def classify_idioms(relative: str, text: str) -> dict:
+    """Which side of each competing idiom this one file takes, at most one side per concern."""
+    taken = {}
+    for concern, (_, scope, sides) in IDIOM_PAIRS.items():
+        name_only = relative.rsplit("/", 1)[-1]
+        if not any(fnmatch.fnmatch(name_only, g) for g in scope):
+            continue
+        for name, pattern in sides:
+            if pattern.search(text):
+                taken[concern] = name
+                break
+    return taken
+
+
+def conflicts_from_idioms(idioms: dict, directories: list, depth: int) -> list:
+    """Where a repository does one thing two ways, both ways with their standing: how much of the
+    code takes each side, and how much of the RECENT work happens where that side lives.
+
+    It reports both and resolves neither. Recency is a good argument and a bad decision procedure —
+    code is edited when it is being adopted and equally when it is being removed, and this cannot
+    tell those apart. A rule the repository will be held to is worth one question."""
+    recent = {entry["path"]: entry["recent_touches"] for entry in directories}
+    found = []
+    for concern in sorted(idioms):
+        sides = idioms[concern]
+        if len(sides) < 2:
+            continue  # one way of doing something is a convention, not a conflict
+        total_files = sum(len(paths) for paths in sides.values())
+        total_recent = sum(sum(recent.get(directory_of(p, depth), 0) for p in paths)
+                           for paths in sides.values())
+        candidates = []
+        for name in sorted(sides):
+            paths = sorted(sides[name])
+            touches = sum(recent.get(directory_of(p, depth), 0) for p in paths)
+            candidates.append({
+                "name": name,
+                "files": len(paths),
+                "file_share": round(len(paths) / total_files, 4),
+                "recent_touches": touches,
+                "recent_share": round(touches / total_recent, 4) if total_recent else 0.0,
+                "example": paths[0],
+            })
+        candidates.sort(key=lambda c: (-c["files"], c["name"]))
+        found.append({
+            "id": f"conflict.{concern}",
+            "concern": IDIOM_PAIRS[concern][0],
+            "candidates": candidates,
+            "resolution": "question",
+        })
+    return found
+
+
+def _config_candidates(names: list) -> list:
+    return [{"name": name, "files": 1, "file_share": round(1 / len(names), 4),
+             "recent_touches": 0, "recent_share": 0.0, "example": name}
+            for name in sorted(names)]
+
+
+def conflicts_from_config(facts: list) -> list:
+    """Two rival tools both declared for one job. Which is authoritative is a decision nobody wrote
+    down anywhere the scan can read, so it is asked rather than inferred from which config is newer."""
+    present = {entry["id"] for entry in facts}
+    found = []
+    for index, (concern, rivals) in enumerate(CONFIG_RIVALS):
+        declared = [name for name in rivals if name in present]
+        if len(declared) > 1:
+            found.append({"id": f"conflict.cfg.{index}", "concern": concern,
+                          "candidates": _config_candidates(declared), "resolution": "question"})
+    lockfiles = next((entry["value"] for entry in facts if entry["id"] == "cfg.deps.lockfile"), [])
+    rival_locks = [name for name in RIVAL_LOCKFILES
+                   if any(str(value).endswith(name) for value in lockfiles)]
+    if len(rival_locks) > 1:
+        found.append({"id": "conflict.cfg.lockfile",
+                      "concern": "Which package manager pins the dependencies",
+                      "candidates": _config_candidates(rival_locks), "resolution": "question"})
+    return found
+
+
+def read_code_sample(root, files: list) -> tuple:
+    """One bounded pass over the repository's own code, answering everything that needs the file
+    contents: how long its modules run, how many markers they carry, and which side of a competing
+    idiom each file takes. One pass because each of those alone would not justify the reads."""
     code = [f for f in sorted(files)
             if f.endswith(CODE_SUFFIXES) and not is_generated(f) and not is_secret_path(f)]
-    sample = code[:MAX_FILES_READ]
-    lengths, markers, read = [], 0, 0
-    for relative in sample:
+    lengths, markers, read, idioms = [], 0, 0, {}
+    for relative in code[:MAX_FILES_READ]:
         text = read_file(root, relative)
         if text is None:
             continue
         read += 1
         lengths.append(len(text.splitlines()))
         markers += len(MARKER.findall(text))
+        for concern, side in classify_idioms(relative, text).items():
+            idioms.setdefault(concern, {}).setdefault(side, []).append(relative)
+    return sorted(lengths), markers, read, len(code), idioms
+
+
+def shape_facts(lengths: list, markers: int, read: int, total: int) -> tuple:
+    """Module sizes and marker density, so a threshold can quote this repository instead of a
+    default nobody measured. Bounded: a large repository yields a sample, and says so."""
     if not lengths:
         return [], ["shape.module_size"]
-    lengths.sort()
-
     def percentile(fraction: float) -> int:
         return lengths[min(len(lengths) - 1, int(len(lengths) * fraction))]
 
     citation = [{"kind": "count", "pattern": "code files read",
-                 "matched": read, "sampled": len(code)}]
+                 "matched": read, "sampled": total}]
     found = [
         fact("shape.module_size", "Module length percentiles across the sampled code files",
              {"p50": percentile(0.5), "p90": percentile(0.9), "p99": percentile(0.99),
               "max": lengths[-1]}, citation,
-             "inferred-high" if read == len(code) else "inferred-medium"),
+             "inferred-high" if read == total else "inferred-medium"),
         fact("shape.marker_density", "TODO, FIXME, XXX and HACK markers per sampled file",
              {"markers": markers, "files": read,
               "per_file": round(markers / read, 3) if read else 0.0}, citation),
     ]
-    return found, ([] if read == len(code) else ["shape.sampled_only"])
+    return found, ([] if read == total else ["shape.sampled_only"])
 
 
 # ── The document ──────────────────────────────────────────────────────────────────────────────
@@ -476,13 +607,16 @@ def scan(root, months: float, recent_months: float, depth: int, commits: int) ->
     files, root_kind = head_files(root)
     truncated = len(files) >= MAX_PATHS
     probes, attempted, matched = probe_facts(files)
-    shape, shape_unknowns = shape_facts(root, files)
+    lengths, markers, read, total_code, idioms = read_code_sample(root, files)
+    shape, shape_unknowns = shape_facts(lengths, markers, read, total_code)
 
     collected = {}
     for entry in (probes + pyproject_facts(root, files) + package_json_facts(root, files)
                   + history_facts(root, commits) + shape):
         collected.setdefault(entry["id"], entry)
+    facts = sorted(collected.values(), key=lambda entry: entry["id"])
 
+    alive = liveness(root, files, months, recent_months, depth, commits)
     unknowns = sorted(set(shape_unknowns) | ({"liveness.complete"} if truncated else set()))
     return {
         "schema_version": 1,
@@ -491,8 +625,10 @@ def scan(root, months: float, recent_months: float, depth: int, commits: int) ->
         "files_at_head": len(files),
         "probes_attempted": attempted,
         "probes_matched": matched,
-        "facts": sorted(collected.values(), key=lambda entry: entry["id"]),
-        "liveness": liveness(root, files, months, recent_months, depth, commits),
+        "facts": facts,
+        "liveness": alive,
+        "conflicts": conflicts_from_config(facts)
+                     + conflicts_from_idioms(idioms, alive["directories"], depth),
         "unknowns": unknowns,
         "truncated": truncated,
     }

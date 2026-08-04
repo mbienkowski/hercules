@@ -25,8 +25,9 @@ yours:
   bind work nobody is doing. A `generated: true` directory is build output; it states nothing.
 - **Reconcile config against code** — a rule the config states but the sampled code visibly violates
   becomes a Step-4 question, never an enforced rule.
-- **Two live patterns for one concern → a question, never majority rule.** The shares are evidence
-  for the question, not an answer to it.
+- **Two live patterns for one concern → a question, never majority rule.** The scan reports them
+  under `conflicts` with both shares; it names no winner, and neither do you. A pattern is edited
+  while it is being adopted and equally while it is being torn out.
 - **Anything the tool marks `unknown`, or that is not locally observable at all** — branch protection,
   required reviewers, self-merge policy live in the forge, not the repo — is a Step-4 question.
 - **Determinism & resume** — the tool's document is byte-identical for one commit; a fixed question

@@ -124,3 +124,48 @@ def fact(document: dict, fact_id: str) -> dict:
 
 def directory(document: dict, path: str) -> dict:
     return next(d for d in document["liveness"]["directories"] if d["path"] == path)
+
+
+def build_split_repo(root: Path, base_epoch: int = 1_900_000_000) -> Path:
+    """A repository doing one thing two ways: a large legacy suite in the older convention that
+    nobody touches, and a smaller new one that is where all the recent work happens. The two
+    majorities disagree — by file count the old way wins, by recent work the new way does — which is
+    the whole reason this is a question rather than a count."""
+    build_repo(root, base_epoch)
+    for index in range(6):
+        _write(root, f"tests/legacy/test_report_{index}.py",
+               "import unittest\n\n\nclass ReportTest(unittest.TestCase):\n"
+               "    def test_it(self):\n        self.assertTrue(True)\n")
+    _commit(root, "chore: import the legacy suite", AGE_PREHISTORY, base_epoch)
+
+    for index in range(2):
+        _write(root, f"tests/api/test_engine_{index}.py",
+               "def test_it():\n    assert True\n")
+    _commit(root, "feat(api): add the new suite", AGE_RECENT, base_epoch)
+    _write(root, "tests/api/test_engine_0.py", "def test_it():\n    assert True  # revised\n")
+    _commit(root, "fix(api): revise the new suite", AGE_HEAD, base_epoch)
+    return root
+
+
+@pytest.fixture
+def split_repo(tmp_path) -> Path:
+    return build_split_repo(tmp_path / "split")
+
+
+def build_consistent_repo(root: Path, base_epoch: int = 1_900_000_000) -> Path:
+    """A repository that does each thing exactly one way, and one non-test module that merely NAMES
+    another way. Both are how a conflict gets invented where none exists: a lone convention counted
+    as a split, and a mention read as a use."""
+    build_repo(root, base_epoch)
+    for index in range(3):
+        _write(root, f"tests/api/test_engine_{index}.py", "def test_it():\n    assert True\n")
+    _write(root, "src/core/style_notes.py",
+           '"""The suite moved off unittest.TestCase years ago; self.assertTrue is gone too."""\n'
+           "SUPPORTED = ('pytest',)\n")
+    _commit(root, "feat(api): one way of testing", AGE_RECENT, base_epoch)
+    return root
+
+
+@pytest.fixture
+def consistent_repo(tmp_path) -> Path:
+    return build_consistent_repo(tmp_path / "consistent")
