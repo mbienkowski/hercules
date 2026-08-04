@@ -57,13 +57,19 @@ and git command against that root (`git -C <root>`), never bare `.`.
    per `hercules-reference § Sub-agent consent`, carrying the A2A § Agent-Injected Core plus the observations; a full trio is
    opt-in or automatic for a contested repo, per `hercules-reference § Debate protocol`; advisors return findings
    only, never write. Quick runs a light platitude/no-evidence self-scan instead.
-7. **Gate & present** — hold the draft until every rule clears the gate: reads exactly one way;
-   conflicts with no other; is backed by a captured observation or a user answer ("it looks nice" is not
-   proof); names an objective mechanical check — and **dry-run each cited check, dropping any that
-   fails** (full rationale in **§ Output format**). Then present it with a short summary (top standards,
-   added, conflicts, dropped), surfacing only the ~5 genuine decisions ranked by marginal information —
-   never a long list to curate. Feedback applies **surgically** with a diff of what changed; regenerate
-   wholesale only when the user reopens the scope, and re-gate only what changed.
+7. **Gate & present** — the gate is a program, not a promise. Build the envelope — every drafted rule
+   as `{id, section, tag, text, check, citations}` plus the `facts` and `answers` it may cite (shape in
+   **§ Rules envelope**) — and pipe it to
+   `python3 ${extensionPath}/tools/coc_audit.py draft --contract 1`. Exit 0 ships; any other exit means
+   fix or drop what its `findings` name, then re-run — never argue past it, and never hand-wave a rule
+   it refused. It judges what a program can: tagged MUST/SHOULD, names a check, cites evidence the
+   envelope carries, unique id, and the directive count against the bands (only the ceiling refuses).
+   The judgements it cannot make stay yours — each rule reads exactly one way and conflicts with no
+   other. Then present it with a short summary (top standards, added, conflicts, dropped, plus the
+   reported band when it is past `intended`), surfacing only the ~5 genuine decisions ranked by
+   marginal information — never a long list to curate. Feedback applies **surgically** with a diff of
+   what changed; regenerate wholesale only when the user reopens the scope, and re-gate only what
+   changed.
 8. **Approve & write** — on approval: leave plan mode → write atomically (temp + rename) → add a
    deduplicated `@`-reference (default `@./code-of-conduct.md`) to the **target** repo's `GEMINI.md`,
    creating it when missing.

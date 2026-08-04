@@ -248,6 +248,11 @@
         "src/content/skills/write-test-scenarios/SKILL.md"
       ]
     },
+    "tools/coc_audit.py": {
+      "sources": [
+        "src/scripts/tools/coc_audit.py"
+      ]
+    },
     "tools/project_reset.py": {
       "sources": [
         "src/scripts/tools/project_reset.py"

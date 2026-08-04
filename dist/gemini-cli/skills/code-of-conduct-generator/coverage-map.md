@@ -50,8 +50,32 @@ The emitted CoC is enforced-only and formatted for an AI reader:
 - **Gate (Step 6b) — every rule clears all four**: reads exactly one way; conflicts with no other; is
   backed by a captured observation or a user answer ("it looks nice", or an answer that just restates the
   rule, is not proof); names an **objective** mechanical check (reviewer-judgment-only is rejected unless
-  it also names a signal). Emit the rule→evidence citations as an auditable appendix; **dry-run each cited
-  check** (the grep must match; the lint rule or CI job must exist) and drop any rule whose check fails.
+  it also names a signal). The last three are decided by `coc_audit.py draft` (Step 7), not by eye; the
+  first stays a reading. Citations live in the envelope, never as an appendix in the file — an appendix
+  would spend every agent's tokens on every task, forever.
+
+## § Rules envelope (Step 7 submits this; `coc_audit.py draft` judges it)
+
+One JSON object on stdin. Rule sentences are the only free text, and they enter last:
+
+```json
+{ "contract": 1,
+  "facts":   [{"id": "cfg.lint.formatter"}],
+  "answers": [{"id": "q3"}],
+  "rules":   [{"id": "style.formatter", "section": "Development", "tag": "MUST",
+               "text": "Format every file with the repository formatter before committing.",
+               "check": "CI runs the formatter in check mode",
+               "citations": ["fact:cfg.lint.formatter", "answer:q3"],
+               "why": "…", "dont": "…", "do": "…"}] }
+```
+
+- `tag` is **MUST** or **SHOULD**, nothing else; `check` names the grep, lint rule, job or threshold.
+- Every citation reads `fact:<id>` or `answer:<id>` and must name evidence the envelope carries — an
+  id nothing produced is the shape of a rule invented and justified afterwards.
+- `id` is unique and stable: it is how an update run re-verifies this rule years later.
+- `why`, `dont`, `do` are annotations — they teach the rule already counted and cost no directive.
+- The reply carries `findings` (each naming its `rule_id`), `directives`, `band`, and
+  `unused_evidence` — evidence the draft ignored, which is where the next question comes from.
 
 ## A. Architecture & design
 - Layering & dependency direction [P0] — module graph, import cycles → deps point one way, no cycles. (conv)

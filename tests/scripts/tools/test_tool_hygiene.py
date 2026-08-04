@@ -24,6 +24,7 @@ _TOOLS = {
     "state_patch.py": {"writes": True, "fails": "closed", "shells_to_git": False},
     "retire_spec.py": {"writes": True, "fails": "closed", "shells_to_git": True},
     "registry_sync.py": {"writes": True, "fails": "closed", "shells_to_git": False},
+    "coc_audit.py": {"writes": False, "fails": "closed", "shells_to_git": False},
 }
 
 

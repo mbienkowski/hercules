@@ -127,4 +127,18 @@ describe('the code-of-conduct generator keeps its promises to whoever runs it', 
     expect(positions.filter((at) => at === -1), 'every documented step must be present').toEqual([]);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
   });
+
+  it('decides the gate with a program rather than asking an agent to be careful', () => {
+    // The whole point of the gate: a rule an agent cannot justify to a validator does not ship.
+    const text = flat(GENERATOR);
+    expect(text).toContain('tools/coc_audit.py draft --contract 1');
+    expect(text).toContain('Exit 0 ships');
+  });
+
+  it('tells the drafting agent where the envelope it must fill is specified', () => {
+    // A gate whose input shape is undocumented is a gate the agent guesses its way past.
+    expect(flat(GENERATOR)).toContain('§ Rules envelope');
+    expect(flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md'))
+      .toContain('## § Rules envelope');
+  });
 });
