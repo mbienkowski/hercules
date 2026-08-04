@@ -36,9 +36,12 @@ and git command against that root (`git -C <root>`), never bare `.`.
    Contributor Covenant is not an engineering standard — treat it as none and create a separate file.
    **More than one** → never silently pick; list every match and confirm the target. None → default
    `code-of-conduct.md` in the root.
-3. **Scan (≤5 min)** — run the **§ Scan playbook** in `coverage-map.md`: bounded and config-first,
-   size-adaptive, mining git history for the commit/branch/merge/release conventions, reconciling config
-   against code, capturing a citation per observation.
+3. **Scan** — run `python3 ${CLAUDE_PLUGIN_ROOT}/tools/coc_scan.py all --root <root> --contract 1` for the
+   evidence: what the repo declares, what its history shows, which directories are alive, dormant or
+   generated, and a ranked file list to read from. Non-zero exit: relay its message and stop — never
+   hand-scan around a refusal. Then run the **§ Scan playbook** in `coverage-map.md` for what the tool
+   cannot decide: reading the ranked sample for patterns and idioms, reconciling config against code,
+   and turning every `unknown` into a Step-4 question.
 4. **Questions** — ask a single batch in one message — no trickle. The main agent decides the count
    each run but **never asks fewer than 5–8 questions** (minimum 5, up to 8 or more for a large or
    polyglot repo); even Quick asks at least this many, since a fuller interview signals deeper, more

@@ -28,6 +28,8 @@ _TOOLS = {
                        "git_subcommands": {"ls-files", "rm"}},
     "registry_sync.py": {"writes": True, "fails": "closed", "shells_to_git": False},
     "coc_audit.py": {"writes": False, "fails": "closed", "shells_to_git": False},
+    "coc_scan.py": {"writes": False, "fails": "closed", "shells_to_git": True,
+                    "git_subcommands": {"ls-files", "ls-tree", "log", "tag", "rev-parse"}},
 }
 
 
@@ -113,22 +115,52 @@ def test_a_shipped_tool_never_invokes_version_control(script: Path):
     assert not calls, f"{script.name} mentions git in executable code: {calls}"
 
 
+def _starts_with_git(node) -> bool:
+    return (isinstance(node, ast.List) and bool(node.elts)
+            and isinstance(node.elts[0], ast.Constant) and node.elts[0].value == "git")
+
+
+def _git_wrapper_names(tree) -> set:
+    """Functions that assemble a `["git", …]` argv. Routing every invocation through one wrapper is
+    the better shape — the hardening `-c` overrides are applied in a single place — so the scan
+    understands it rather than pushing tools back to writing argv at each call site."""
+    names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if any(_starts_with_git(child) for child in ast.walk(node)):
+                names.add(node.name)
+    return names
+
+
 def _git_argv_calls(source: str) -> list:
-    """Every `…run(["git", …])` in the source, as AST call nodes."""
-    return [
-        node for node in ast.walk(ast.parse(source))
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
-        and node.func.attr == "run" and node.args and isinstance(node.args[0], ast.List)
-        and node.args[0].elts and isinstance(node.args[0].elts[0], ast.Constant)
-        and node.args[0].elts[0].value == "git"
-    ]
+    """Every call that runs git: the argv written at the call site, or a call into the tool's own
+    wrapper carrying the subcommand as a list."""
+    tree = ast.parse(source)
+    direct = [node for node in ast.walk(tree)
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+              and node.func.attr == "run" and node.args and _starts_with_git(node.args[0])]
+    if direct:
+        return direct
+    wrappers = _git_wrapper_names(tree)
+    return [node for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+            and node.func.id in wrappers
+            and any(isinstance(arg, ast.List) for arg in node.args)]
 
 
 def _literal_subcommands(call) -> list:
-    """The non-flag string literals of one git argv; a dynamic `-C <dir>` is no Constant."""
-    return [elt.value for elt in call.args[0].elts[1:]
-            if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
-            and not elt.value.startswith("-")]
+    """The subcommand of one git argv: the FIRST non-flag literal, which is where git's own grammar
+    puts the verb. Later literals are its arguments — `HEAD` to `ls-tree` names a ref, not a second
+    command — and treating those as verbs would force refs into the allowlist, where a reader could
+    no longer tell a granted capability from a positional argument."""
+    argv = next((arg for arg in call.args if isinstance(arg, ast.List)), None)
+    for element in (argv.elts if argv else []):
+        if not (isinstance(element, ast.Constant) and isinstance(element.value, str)):
+            continue  # a dynamic `-C <dir>` is no Constant, so it never masks the verb
+        if element.value == "git" or element.value.startswith("-"):
+            continue
+        return [element.value]
+    return []
 
 
 @pytest.mark.parametrize("script", [p for p in _TOOL_SCRIPTS if _TOOLS[p.name]["shells_to_git"]],
@@ -138,11 +170,19 @@ def test_a_git_capable_tool_never_runs_an_uncontained_git_subcommand(script: Pat
     would let an argument be reinterpreted by a shell."""
     allowed = _TOOLS[script.name].get("git_subcommands")
     assert allowed, f"{script.name} declares shells_to_git but no git_subcommands"
-    argv_calls = _git_argv_calls(script.read_text())
+    source = script.read_text()
+    argv_calls = _git_argv_calls(source)
     assert argv_calls, f"{script.name} declares shells_to_git but calls no git argv"
+    # Checked over EVERY subprocess call in the file, not only the git ones: a tool that routes git
+    # through a wrapper keeps its one `run(…)` somewhere else entirely, and a `shell=True` added
+    # there would be invisible to a scan that only looked where the argv was written.
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
+                and node.func.attr in ("run", "Popen", "call", "check_output"):
+            assert not any(kw.arg == "shell" and getattr(kw.value, "value", False) is True
+                           for kw in node.keywords), \
+                f"{script.name} runs a subprocess with shell=True"
     for call in argv_calls:
-        assert not any(kw.arg == "shell" for kw in call.keywords), \
-            f"{script.name} runs git with shell=True"
         subcommands = _literal_subcommands(call)
         assert set(subcommands) <= allowed, \
             f"{script.name} runs a git argv with an unreviewed literal: {subcommands}"

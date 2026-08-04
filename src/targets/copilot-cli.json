@@ -248,6 +248,11 @@
         "src/scripts/tools/coc_audit.py"
       ]
     },
+    "tools/coc_scan.py": {
+      "sources": [
+        "src/scripts/tools/coc_scan.py"
+      ]
+    },
     "tools/project_reset.py": {
       "sources": [
         "src/scripts/tools/project_reset.py"

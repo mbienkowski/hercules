@@ -135,6 +135,26 @@ describe('the code-of-conduct generator keeps its promises to whoever runs it', 
     expect(text).toContain('Exit 0 ships');
   });
 
+  it('gathers its evidence with a program before it reasons about any of it', () => {
+    const text = flat(GENERATOR);
+    expect(text).toContain('tools/coc_scan.py all --root');
+    expect(text).toContain('never hand-scan around a refusal');
+  });
+
+  it('keeps one authority for the scan rather than a tool and a rival prose procedure', () => {
+    // The playbook used to specify the mechanics the tool now performs. Left in place it would be a
+    // second, drifting description of one job, paid for twice out of the same budget.
+    const map = flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md');
+    expect(map).toContain('this is what the tool cannot decide');
+    expect(map).not.toContain('git log -n 200');
+  });
+
+  it('tells the agent to weigh living code above code nobody maintains', () => {
+    const map = flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md');
+    expect(map).toContain('liveness.top_files');
+    expect(map).toContain('describes what nobody maintains');
+  });
+
   it('makes every group teach its rules, not just state them', () => {
     // A rule without its reason is generalised wrongly; a rule without an example is read
     // generically. Both were optional before, which meant absent.

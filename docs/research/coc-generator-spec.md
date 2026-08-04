@@ -43,15 +43,18 @@ clone has none of, so django produced zeros rather than an error — the worst f
 Falling back to `git ls-tree -r HEAD` recovers all 7082 files. **Requirement:** resolve the file list
 through that fallback, and refuse rather than emit zeros if both come back empty.
 
-**2.3 Ghost paths are 25–63% of touches, so the HEAD intersection is load-bearing, not tidying.**
-Touches to paths absent at HEAD: flask 62, express 89, cobra 17, vue 437, Hercules 1104, django 1144.
-Without intersecting `git ls-files`/`ls-tree` at HEAD, between a quarter and two thirds of the ranking
-is deleted or renamed-away code.
+**2.3 Ghost paths matter enormously in some repositories and not at all in others.** Re-measured with
+the shipped scanner — the exploratory spike mis-parsed git's `-z` output and inflated these badly, so
+its figures are withdrawn — touches to paths absent at HEAD are: flask 0%, cobra 0%, vue 0.6%,
+django 0.6%, express 3.1%, **Hercules 44%**. A repository that has never moved its layout has no
+ghosts at all; one that has restructured has little else. The HEAD intersection is therefore not
+tidying: without it, nearly half of this repository's own ranking would be code that no longer
+exists, while a scan validated only on the calmer repositories would have shown no reason for it.
 
-**2.4 Dormancy must be computed against the full HEAD tree.** With that fix django reports 255
-directories, 88 dormant — including `tests/template_backends` (29 files, zero touches in 12 months).
-Untouched mass is invisible to `git log` by construction, and it is precisely the mass the heatmap
-exists to expose.
+**2.4 Dormancy must be computed against the full HEAD tree.** The shipped scanner reports django as
+255 directories, 86 dormant and 126 alive — the dormant ones including `tests/template_backends`
+(29 files, zero touches in 12 months). Untouched mass is invisible to `git log` by construction, and
+it is precisely the mass the heatmap exists to expose.
 
 **2.5 Decay is worthless; two plain windows are not.** Re-measured on django's real 12 months at
 half-lives 30/90/180/365 d, the top-10 directory set is 9–10 of 10 identical across the whole range.

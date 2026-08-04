@@ -11,29 +11,27 @@ Load only the groups whose stack the scan detected; always load A–D, H–L, Q�
 **Sources:** backbone points cite a primary standard; `(conv)` = established convention, not a cited spec.
 Each point: `name [tier][stack] — scan signal → rule shape.`
 
-## § Scan playbook (SKILL Step 3 runs this — bounded ≤5 min, config-first)
+## § Scan playbook (SKILL Step 3 runs `coc_scan.py`; this is what the tool cannot decide)
 
-Bound the whole scan with a hard **5-minute cap** plus file/byte caps; on breach, mark the rest
-`unknown` (they become Step-4 questions) — degrade, never stall. Read config, not the tree.
+The tool reports what the repo declares, what its history shows, and which directories are still
+worked on. It resolves under a fifth of the points below — the fifth every repo has. The rest is
+yours:
 
-- **Sizing probe** — `git ls-files | wc -l`, an extension histogram, and workspace/monorepo detection
-  (`nx.json`/`go.work`/multiple manifests) classify the repo before any heavy work.
-- **Config first** — read the known config set (deps + lockfiles, lint/format, `tsconfig`, CI workflows,
-  `Dockerfile`, `CODEOWNERS`, migrations dir, secrets-scanner/dependabot); it resolves most points cheaply.
-- **Sample, don't read the tree** — grep counts are evidence (`rg -l <pat> | wc -l`); read only a canonical
-  sorted sample (~20–30 files); note repeated design patterns and test conventions.
-- **Mine bounded history** — `git log -n 200` → commit convention (format, scope, tense, ticket refs);
-  branch names and merge shape → branching/merge strategy; `git tag` → release cadence.
+- **Read from `liveness.top_files`, never the tree** — take ~20–30 from the head of that ranked list
+  and name the design patterns, test conventions, and idioms in them. This is where a DO/DON'T
+  fragment comes from, and why the list is ranked rather than alphabetical.
+- **Weigh by `status`** — `alive` code is the standard the repo is actually converging on; `cooling`
+  is current but not the frontier; `dormant` describes what nobody maintains, and rules drawn from it
+  bind work nobody is doing. A `generated: true` directory is build output; it states nothing.
 - **Reconcile config against code** — a rule the config states but the sampled code visibly violates
   becomes a Step-4 question, never an enforced rule.
-- **Large / monorepo** — scan root config plus a few representative modules per language, never every
-  module; proceed sampled and invite the user to point at key modules or grant budget, never block.
-- **Tag & capture** — tag each observation (`inferred-high` … `unknown`) and capture its `file:line` /
-  count / commit so a rule can cite it. Two live patterns for one concern → a question, never majority
-  rule. Exclude `.env*` and credential paths; record structure, never values.
-- **Determinism & resume** — canonical sorted sampling and a fixed question order make two runs
-  ~identical. Plan mode blocks writes, so hold results in memory (a bounded interrupted scan re-runs);
-  after the write step the draft/answers/mode persist to `~/.hercules/state/{slug}-coc.json` to resume.
+- **Two live patterns for one concern → a question, never majority rule.** The shares are evidence
+  for the question, not an answer to it.
+- **Anything the tool marks `unknown`, or that is not locally observable at all** — branch protection,
+  required reviewers, self-merge policy live in the forge, not the repo — is a Step-4 question.
+- **Determinism & resume** — the tool's document is byte-identical for one commit; a fixed question
+  order carries the rest. Plan mode blocks writes, so hold results in memory; after the write step the
+  draft/answers/mode persist to `~/.hercules/state/{slug}-coc.json` to resume.
 
 ## § Output format (SKILL Step 5 formats per this; Step 6b gate checks it)
 
