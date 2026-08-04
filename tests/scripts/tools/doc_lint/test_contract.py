@@ -27,29 +27,30 @@ def test_a_clean_document_exits_zero_and_says_so(tmp_path):
     code, payload = lint(tmp_path, CLEAN_REQUIREMENTS, REQUIREMENTS_NAME)
     assert code == EXIT_OK
     assert payload["clean"] is True
-    assert payload["counts"]["error"] == 0
+    assert payload["counts"]["block"] == 0
 
 
-def test_a_violating_document_exits_refused(tmp_path):
-    """The caller branches on the code, never on the prose."""
-    broken = CLEAN_REQUIREMENTS.replace("- **Change wanted**", "- **Change wanted** TBD", 1)
-    code, payload = lint(tmp_path, broken, REQUIREMENTS_NAME)
+def test_a_broken_reference_is_the_one_thing_that_blocks(tmp_path):
+    """A spec pointing at a section that does not exist has already lost its traceability, so this
+    is the single finding the caller must not wave through."""
+    broken = CLEAN_SPEC.replace("§Flows]", "§Nowhere]", 1)
+    code, payload = lint(tmp_path, broken, SPEC_NAME)
     assert code == EXIT_REFUSED
     assert payload["clean"] is False
+    assert "DOC701" in fired(payload)
+
+
+def test_advice_alone_never_blocks(tmp_path):
+    """The posture in one test: the standard informs, and a person decides. Only an unattended run
+    (--strict) promotes advice, so nothing silently refuses a document a human is happy with."""
+    advised = CLEAN_REQUIREMENTS.replace("- **Change wanted**", "- **Change wanted** TBD", 1)
+    code, payload = lint(tmp_path, advised, REQUIREMENTS_NAME)
     assert "DOC103" in fired(payload)
-
-
-def test_a_warning_alone_does_not_block(tmp_path):
-    """Style rules are advisory by design; only --strict promotes them."""
-    warned = CLEAN_REQUIREMENTS.replace(
-        "## Constraints\n", "## Constraints\n- The bookingSlot stays bound to 1 stylist.\n", 1)
-    code, payload = lint(tmp_path, warned, REQUIREMENTS_NAME)
-    assert "DOC209" in fired(payload)
-    assert payload["counts"]["error"] == 0
+    assert payload["counts"]["block"] == 0
     assert code == EXIT_OK
     assert payload["clean"] is True
 
-    strict_code, strict_payload = lint(tmp_path, warned, REQUIREMENTS_NAME, strict=True)
+    strict_code, strict_payload = lint(tmp_path, advised, REQUIREMENTS_NAME, strict=True)
     assert strict_code == EXIT_REFUSED
     assert strict_payload["clean"] is False
 
@@ -98,23 +99,23 @@ def test_the_reply_carries_the_hash_the_caller_persists(tmp_path):
 
 def test_every_finding_names_a_fix(tmp_path):
     """A finding that states only the defect leaves the author guessing at the remedy."""
-    broken = CLEAN_REQUIREMENTS.replace("### In scope", "#### In scope", 1)
+    broken = CLEAN_REQUIREMENTS.replace("- **Change wanted**", "- **Change wanted** TBD", 1)
     _, payload = lint(tmp_path, broken, REQUIREMENTS_NAME)
     assert payload["findings"]
     for finding in payload["findings"]:
         assert finding["fix"].strip(), finding
-        assert finding["severity"] in ("error", "warn")
+        assert finding["severity"] in ("block", "advice")
         assert finding["rule"].startswith("DOC")
 
 
-def test_errors_are_reported_before_warnings(tmp_path):
-    """The first line a person reads should be the one that blocks them."""
-    broken = CLEAN_REQUIREMENTS.replace(
-        "## Constraints\n",
-        "## Constraints\n- The bookingSlot stays bound to 1 stylist.\n- Slots TBD.\n", 1)
-    _, payload = lint(tmp_path, broken, REQUIREMENTS_NAME)
+def test_a_block_is_reported_before_advice(tmp_path):
+    """The first line a person reads should be the one that actually stops them."""
+    broken = CLEAN_SPEC.replace("§Flows]", "§Nowhere]", 1).replace(
+        "## Implementation\n", "## Implementation\n- TBD.\n", 1)
+    _, payload = lint(tmp_path, broken, SPEC_NAME)
     severities = [finding["severity"] for finding in payload["findings"]]
-    assert severities == sorted(severities, key=lambda value: value != "error")
+    assert "block" in severities and "advice" in severities
+    assert severities == sorted(severities, key=lambda value: value != "block")
 
 
 @pytest.mark.parametrize("kind", ["business-requirements", "spec"])
@@ -159,11 +160,26 @@ def test_the_rules_mode_publishes_the_whole_catalogue():
     assert all(rule["fix"] for rule in payload["rules"])
 
 
+def test_the_guidance_mode_publishes_the_judgement_half():
+    """The skill and the command templates are written from this, which is the whole reason the
+    standard is one file: what an author is told and what gets checked come from the same place."""
+    code, payload = run(["guidance"])
+    assert code == EXIT_OK
+    entries = [entry for group in payload["guidance"].values()
+               if isinstance(group, list) for entry in group]
+    assert len(entries) >= 8
+    assert all(entry["why"] for entry in entries)
+    # Guidance is taught, never scored: none of it may appear as an enforceable rule.
+    rule_titles = {rule["title"] for rule in run(["rules"])[1]["rules"]}
+    assert not rule_titles & {entry["topic"] for entry in entries}
+
+
 def test_every_mode_prints_exactly_one_json_object(tmp_path):
     """The output contract in one assertion: parseable, on every path, including refusals."""
     path = tmp_path / REQUIREMENTS_NAME
     path.write_text(CLEAN_REQUIREMENTS, encoding="utf-8")
     for argv in (["rules"],
+                 ["guidance"],
                  ["template", "--kind", "spec"],
                  ["template", "--kind", "nope"],
                  ["check", "--path", str(path), "--kind", "business-requirements"],

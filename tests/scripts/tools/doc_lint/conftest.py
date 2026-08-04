@@ -128,12 +128,18 @@ Remove this file once the move operation ships. Code is the source of truth afte
 
 
 def lint(tmp_path: Path, text: str, name: str, kind: str = "", tier: str = "medium",
-         strict: bool = False):
+         strict: bool = False, place_requirements: bool = True):
     """Write the document and run the tool over it, returning ``(exit_code, payload)``.
+
+    The requirements document is placed alongside by default because that is where a spec actually
+    lives, and its ``satisfies:`` reference has to resolve to something. Pass
+    ``place_requirements=False`` to leave the reference dangling on purpose.
 
     The payload is PARSED, never matched as text — an unparseable reply is a real defect in a
     program whose whole output contract is one JSON object.
     """
+    if place_requirements and name != REQUIREMENTS_NAME:
+        (tmp_path / REQUIREMENTS_NAME).write_text(CLEAN_REQUIREMENTS, encoding="utf-8")
     path = tmp_path / name
     path.write_text(text, encoding="utf-8")
     argv = ["check", "--path", str(path)]

@@ -40,26 +40,11 @@ VIOLATIONS = {
         "- **Customer** — today rings the salon during opening hours and waits on hold.\n"
         "- **Stylist** — today writes the change on paper and re-enters it later that day.\n", ""),
         REQUIREMENTS_NAME, "medium"),
-    "DOC105": (CLEAN_REQUIREMENTS.replace("### In scope", "#### In scope", 1),
-               REQUIREMENTS_NAME, "medium"),
     "DOC106": (CLEAN_REQUIREMENTS + "\n## Invented Section\n- a bullet with the number 4 in it.\n",
                REQUIREMENTS_NAME, "medium"),
-    "DOC201": (CLEAN_REQUIREMENTS.replace(
-        "## Goal\n", "## Goal\nThis paragraph is prose where the standard asks for 2 bullets.\n", 1),
-        REQUIREMENTS_NAME, "medium"),
-    "DOC202": (CLEAN_REQUIREMENTS.replace(
-        "- **Change wanted** — a customer moves an appointment without speaking to anyone.",
-        "- **Change wanted** — the salon should move an appointment for 2 people.", 1),
-        REQUIREMENTS_NAME, "medium"),
-    "DOC203": (CLEAN_REQUIREMENTS.replace(
-        "## Constraints\n", "## Constraints\n- " + "word " * 40 + "30.\n", 1),
-        REQUIREMENTS_NAME, "medium"),
     "DOC204": (CLEAN_REQUIREMENTS.replace(
         "- **Change wanted** — a customer moves an appointment without speaking to anyone.",
         "- **Change wanted** — the `BookingCalendar` record moves for 2 people.", 1),
-        REQUIREMENTS_NAME, "medium"),
-    "DOC205": (CLEAN_REQUIREMENTS.replace(
-        "## Constraints\n", "## Constraints\n- It moves the appointment within 60 seconds.\n", 1),
         REQUIREMENTS_NAME, "medium"),
     "DOC206": (CLEAN_REQUIREMENTS.replace(
         "## Constraints\n",
@@ -69,13 +54,6 @@ VIOLATIONS = {
                + "\n## Technical suggestions (non-binding)\n"
                  "- The nightly job owns the 2 hour cut-off and nothing else does.\n",
                REQUIREMENTS_NAME, "medium"),
-    "DOC208": (CLEAN_SPEC.replace(
-        "- **Claim first** — the slot claim MUST be taken before the appointment row moves.",
-        "- **Claim first** — the slot claim is taken before the appointment row moves.", 1),
-        SPEC_NAME, "medium"),
-    "DOC209": (CLEAN_REQUIREMENTS.replace(
-        "## Constraints\n", "## Constraints\n- The bookingSlot stays bound to 1 stylist.\n", 1),
-        REQUIREMENTS_NAME, "medium"),
     "DOC301": (CLEAN_REQUIREMENTS.replace(
         "- N3 | Stylist picks a slot another customer already holds → refused, and the clash is named.\n",
         ""), REQUIREMENTS_NAME, "medium"),
@@ -101,27 +79,38 @@ VIOLATIONS = {
         "| Two winners for one slot | Daily clash count above 0 | One claim per slot and time | backend |",
         "| Two winners for one slot | Daily clash count above 0 |  | backend |", 1),
         SPEC_NAME, "medium"),
-    "DOC403": (CLEAN_SPEC.replace("| Clash refusals exceed 2 in 100 moves |",
-                                  "| if problems arise |", 1), SPEC_NAME, "medium"),
-    "DOC501": (CLEAN_SPEC.replace("`SlotClaim` — NEW, holds the winning claim for one slot and one time.",
-                                  "`RedisSlotStore` — NEW, holds the winning claim for one slot.", 1),
-               SPEC_NAME, "medium"),
-    "DOC502": (CLEAN_SPEC.replace("`BookingCalendar` — gains a move operation alongside its existing create operation.",
-                                  "`BookingManager` — gains a move operation alongside its create.", 1),
-               SPEC_NAME, "medium"),
     "DOC601": (CLEAN_REQUIREMENTS, REQUIREMENTS_NAME, "critical"),
     "DOC602": (pad_words(CLEAN_REQUIREMENTS, 60), REQUIREMENTS_NAME, "medium"),
-    "DOC603": (pad_words(CLEAN_REQUIREMENTS, 20), REQUIREMENTS_NAME, "medium"),
-    "DOC604": (CLEAN_REQUIREMENTS + "\n## Design references\n- a link\n", REQUIREMENTS_NAME, "medium"),
-    "DOC605": (CLEAN_REQUIREMENTS.replace(
-        "## Constraints\n", "## Constraints\n- The constraints for this are the constraints.\n", 1),
-        REQUIREMENTS_NAME, "medium"),
+    "DOC701": (CLEAN_SPEC.replace("§Flows]", "§Flows That Do Not Exist]", 1), SPEC_NAME, "medium"),
 }
 
 
 def test_there_are_rules_to_defend():
     """An empty catalogue would make every parametrised case below vacuous."""
-    assert len(RULES["rules"]) > 20
+    assert len(RULES["rules"]) > 12
+
+
+def test_almost_nothing_blocks():
+    """The posture, pinned. The standard advises and a person decides; a checker that refuses
+    legitimate documents teaches people to write for the checker instead of for the reader. Only an
+    unresolvable reference is not a matter of taste."""
+    blocking = [rule["id"] for rule in RULES["rules"] if rule["severity"] == "block"]
+    assert blocking == ["DOC701"], blocking
+    assert {rule["severity"] for rule in RULES["rules"]} <= {"block", "advice"}
+
+
+def test_the_judgement_half_is_taught_rather_than_gated():
+    """Naming, ambiguity and hollowness are real concerns and deliberately not rules: they are
+    guidance in the same file, so the skill can be written from it without the linter refusing
+    anyone over them."""
+    topics = [entry["topic"] for group in RULES["guidance"].values()
+              if isinstance(group, list) for entry in group]
+    assert len(topics) >= 8
+    for group in RULES["guidance"].values():
+        if not isinstance(group, list):
+            continue
+        for entry in group:
+            assert entry["do"] and entry["dont"] and entry["why"], entry
 
 
 def test_every_catalogued_rule_owns_a_violation():

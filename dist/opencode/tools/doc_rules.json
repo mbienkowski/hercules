@@ -1,6 +1,6 @@
 {
   "rules_version": 1,
-  "note": "The canonical rule catalogue for Hercules delivery documents. doc_lint.py is the only reader; the authoring skill summarises it and the commands echo its template. Edit a rule here, never in prose.",
+  "note": "The canonical standard for Hercules delivery documents, and the single source the linter, the authoring skill and the command templates are all written from \u2014 so what an author is told and what gets checked cannot drift apart. `rules` is the mechanical half: things that are true or false without an opinion. `guidance` is the judgement half, which is taught and never gated.",
   "tiers": [
     "trivial",
     "low",
@@ -15,7 +15,7 @@
   },
   "scenario_line": {
     "claim_pattern": "^- ([MNC])([0-9]+)\\b",
-    "pattern": "^- ([MNC])([0-9]+) \\| (.+?) (?:->|→) (.+)$",
+    "pattern": "^- ([MNC])([0-9]+) \\| (.+?) (?:->|\u2192) (.+)$",
     "max_words": 25,
     "describes": "One scenario per line: an identifier, a trigger, an arrow, and an observable outcome. A bullet that does not open with an identifier is ordinary prose, not a malformed scenario."
   },
@@ -34,32 +34,6 @@
     "Known violations",
     "Out of scope"
   ],
-  "banned_phrases": [
-    "should",
-    "must be able to",
-    "as needed",
-    "appropriately",
-    "properly",
-    "correctly",
-    "robust",
-    "efficient",
-    "scalable",
-    "user-friendly",
-    "seamless",
-    "leverage",
-    "best practices",
-    "comprehensive",
-    "etc.",
-    "and so on",
-    "various",
-    "several",
-    "might",
-    "where possible",
-    "if necessary",
-    "make sure",
-    "it is important to",
-    "in order to"
-  ],
   "mandate_patterns": [
     "\\b(?:must|shall|should|needs? to|has to|is required to)\\s+(?:be\\s+)?(?:implemented|built|coded|written|stored|cached|indexed|deployed|hosted|architected|refactored|migrated)\\b",
     "\\bthis (?:must|should|has to) be done (?:this way|using|with)\\b",
@@ -71,11 +45,6 @@
     "\\b[\\w-]+\\.(?:js|ts|py|java|go|rb|sql|ya?ml|json|xml|tsx|jsx|mts)\\b",
     "(?:^|\\s)[A-Za-z0-9_-]+/[A-Za-z0-9_./-]+"
   ],
-  "identifier_shape_patterns": [
-    "\\b[a-z]+[A-Z][A-Za-z0-9]*\\b",
-    "\\b[A-Z][a-z]+[A-Z][A-Za-z0-9]*\\b"
-  ],
-  "identifier_shape_note": "Calibrated down from error to warning: an all-caps run matches business acronyms (SLA, GDPR, VAT) and a mixed-case run matches brand names a requirement may legitimately name (PayPal, GitHub). Only the unambiguous shapes above block.",
   "hedge_words": [
     "could",
     "might",
@@ -85,90 +54,6 @@
     "worth considering"
   ],
   "suggestion_closing_sentence": "These are suggestions from Product, not decisions. Design owns the technical choice.",
-  "normative_sections": [
-    "Implementation",
-    "Rules — DO / DON'T"
-  ],
-  "normative_note": "Bullet style strips the subject and the modality a sentence carries, which is the most ambiguous prose form per word. These sections restore both: every bullet names its subject and states its obligation.",
-  "modal_patterns": [
-    "\\bMUST NOT\\b",
-    "\\bMUST\\b",
-    "\\bMAY\\b",
-    "\\bNEVER\\b",
-    "\\bALWAYS\\b"
-  ],
-  "lexicons": {
-    "vendor": [
-      "redis",
-      "jackson",
-      "kafka",
-      "mongo",
-      "hibernate",
-      "axios",
-      "lodash",
-      "pandas",
-      "openpyxl",
-      "jquery",
-      "guava",
-      "log4j",
-      "boto",
-      "okhttp",
-      "postgres",
-      "sqlite",
-      "django",
-      "rails",
-      "spring"
-    ],
-    "port_markers": [
-      "Port",
-      "Repository",
-      "Store",
-      "Gateway",
-      "Provider"
-    ],
-    "adapter_paths": [
-      "infrastructure",
-      "adapter",
-      "adapters",
-      "driver",
-      "drivers"
-    ],
-    "weak_noun": [
-      "data",
-      "info",
-      "manager",
-      "helper",
-      "util",
-      "utils",
-      "processor",
-      "handler",
-      "misc",
-      "common",
-      "stuff",
-      "item",
-      "object",
-      "temp"
-    ],
-    "weak_verb": [
-      "do",
-      "handle",
-      "process",
-      "manage",
-      "perform",
-      "execute",
-      "run",
-      "check"
-    ]
-  },
-  "style_limits": {
-    "max_heading_depth": 3,
-    "max_bullet_words": 25,
-    "max_bullet_nesting": 1,
-    "max_sections": 16,
-    "max_fenced_lines": 25,
-    "prose_max_words": 150,
-    "referent_ratio": 0.7
-  },
   "kinds": {
     "business-requirements": {
       "title": "Business Requirements",
@@ -404,7 +289,7 @@
           "mandate": "Key technical decisions and the constraints the code-of-conduct binds."
         },
         {
-          "name": "Rules — DO / DON'T",
+          "name": "Rules \u2014 DO / DON'T",
           "style": "table",
           "required_from": "high",
           "min_items": 2,
@@ -453,183 +338,193 @@
   "rules": [
     {
       "id": "DOC101",
-      "severity": "error",
+      "severity": "advice",
       "title": "required section missing",
-      "fix": "add the section, or lower the tier if the depth is not warranted"
+      "fix": "add the section, or say why this document does without it"
     },
     {
       "id": "DOC102",
-      "severity": "error",
+      "severity": "advice",
       "title": "sections out of order",
-      "fix": "reorder to match the template from `doc_lint.py template`"
+      "fix": "reorder to match `doc_lint.py template`, so readers find things where they expect"
     },
     {
       "id": "DOC103",
-      "severity": "error",
+      "severity": "advice",
       "title": "placeholder text",
-      "fix": "write the real content, or delete the section entirely — an empty section is omitted, never stubbed"
+      "fix": "write the real content, or delete the section \u2014 an empty section is omitted, never stubbed"
     },
     {
       "id": "DOC104",
-      "severity": "error",
+      "severity": "advice",
       "title": "required section is empty",
       "fix": "fill it, or delete it if nothing real belongs there"
     },
     {
-      "id": "DOC105",
-      "severity": "error",
-      "title": "heading deeper than the limit",
-      "fix": "promote the content to a section, or turn it into a table"
-    },
-    {
       "id": "DOC106",
-      "severity": "error",
+      "severity": "advice",
       "title": "unknown section heading",
       "fix": "rename it to a section the standard defines, or move the content under one"
     },
     {
-      "id": "DOC201",
-      "severity": "error",
-      "title": "prose in a bullet-only section",
-      "fix": "turn each sentence into a bullet, a table row, or move it to the prose section"
-    },
-    {
-      "id": "DOC202",
-      "severity": "warn",
-      "title": "ambiguous phrase",
-      "fix": "replace with a number, a named standard, or a MUST / MAY ... WHEN clause"
-    },
-    {
-      "id": "DOC203",
-      "severity": "warn",
-      "title": "bullet longer than the limit",
-      "fix": "split it, or promote the detail to a table"
-    },
-    {
       "id": "DOC204",
-      "severity": "error",
+      "severity": "advice",
       "title": "implementation detail outside the suggestions section",
-      "fix": "move it under 'Technical suggestions (non-binding)', or say it in business language"
-    },
-    {
-      "id": "DOC209",
-      "severity": "warn",
-      "title": "identifier-shaped word in a business document",
-      "fix": "if this names a class or a field, move it to the suggestions section; if it is a brand or an acronym, leave it"
-    },
-    {
-      "id": "DOC205",
-      "severity": "warn",
-      "title": "bullet opens with a pronoun",
-      "fix": "name the subject the bullet is about"
+      "fix": "move it under the non-binding suggestions, or say it in business language"
     },
     {
       "id": "DOC206",
-      "severity": "error",
+      "severity": "advice",
       "title": "technical mandate in a business document",
       "fix": "state the outcome the business needs; the technical choice belongs to Design"
     },
     {
       "id": "DOC207",
-      "severity": "error",
-      "title": "suggestions section is not hedged",
-      "fix": "hedge each bullet, and close the section with its fixed sentence"
-    },
-    {
-      "id": "DOC208",
-      "severity": "warn",
-      "title": "normative bullet carries no modal",
-      "fix": "write MUST, MUST NOT, or MAY ... WHEN, so the obligation is unambiguous"
+      "severity": "advice",
+      "title": "suggestion reads as a decision",
+      "fix": "hedge it, and close the section with its fixed sentence"
     },
     {
       "id": "DOC301",
-      "severity": "error",
-      "title": "flow is missing a main or negative scenario",
-      "fix": "add the missing class, or mark the flow 'scenarios: n/a' with a reason"
+      "severity": "advice",
+      "title": "flow has no failure case",
+      "fix": "add a negative scenario, or mark the flow 'scenarios: n/a' with a reason"
     },
     {
       "id": "DOC302",
-      "severity": "error",
+      "severity": "advice",
       "title": "malformed scenario line",
       "fix": "write it as '- M1 | trigger -> observable outcome'"
     },
     {
       "id": "DOC303",
-      "severity": "error",
-      "title": "negative scenarios outnumbered by main scenarios",
-      "fix": "add negative scenarios — the failure space is unexamined, not absent"
+      "severity": "advice",
+      "title": "fewer failure cases than happy paths",
+      "fix": "add negative scenarios \u2014 the failure space is unexamined, not absent"
     },
     {
       "id": "DOC304",
-      "severity": "error",
+      "severity": "advice",
       "title": "duplicate scenario identifier",
       "fix": "give each scenario its own identifier; identifiers are never reused"
     },
     {
       "id": "DOC305",
-      "severity": "warn",
-      "title": "more scenarios than the tier allows",
-      "fix": "cut to the budget, or split the feature into two"
+      "severity": "advice",
+      "title": "more scenarios than the tier suggests",
+      "fix": "cut to the budget, or split the feature into two specs"
     },
     {
       "id": "DOC401",
-      "severity": "error",
+      "severity": "advice",
       "title": "filename does not match the pattern",
       "fix": "rename to the dated, kebab-case form the standard defines"
     },
     {
       "id": "DOC402",
-      "severity": "error",
+      "severity": "advice",
       "title": "risk row carries no mitigation",
-      "fix": "state the mitigation, or move the row to the requirements as an accepted risk"
-    },
-    {
-      "id": "DOC403",
-      "severity": "warn",
-      "title": "revisit-when is not observable",
-      "fix": "name a metric, a date, or an event — never 'if problems arise'"
-    },
-    {
-      "id": "DOC501",
-      "severity": "error",
-      "title": "vendor name in a port or interface",
-      "fix": "name the role, not the vendor; the vendor belongs in the adapter"
-    },
-    {
-      "id": "DOC502",
-      "severity": "warn",
-      "title": "weak name carries no behaviour",
-      "fix": "rename so a reader with no context knows what it does, or justify it in the naming contract"
+      "fix": "state the mitigation, or record it in the requirements as an accepted risk"
     },
     {
       "id": "DOC601",
-      "severity": "error",
-      "title": "document is below the tier floor",
-      "fix": "go deeper — at this tier the document is expected to carry more than this"
+      "severity": "advice",
+      "title": "shorter than this tier usually warrants",
+      "fix": "go deeper, or lower the tier if the depth is genuinely not needed"
     },
     {
       "id": "DOC602",
-      "severity": "error",
-      "title": "document is over the tier hard cap",
-      "fix": "cut, or move evidence and enumerations into an appendix file"
+      "severity": "advice",
+      "title": "longer than this tier usually warrants",
+      "fix": "cut, or move evidence and long enumerations into an appendix file"
     },
     {
-      "id": "DOC603",
-      "severity": "warn",
-      "title": "document is over the tier soft cap",
-      "fix": "cut, or say why the extra length is earned"
-    },
-    {
-      "id": "DOC604",
-      "severity": "warn",
-      "title": "section is hollow",
-      "fix": "give it a referent — an identifier, a path, a number, an endpoint — or delete the section"
-    },
-    {
-      "id": "DOC605",
-      "severity": "error",
-      "title": "section repeats its own heading and adds nothing",
-      "fix": "lead with the answer; the heading already said the topic"
+      "id": "DOC701",
+      "severity": "block",
+      "title": "reference does not resolve",
+      "fix": "point it at a section that exists, or correct the filename"
     }
-  ]
+  ],
+  "guidance": {
+    "note": "Judgement the checker deliberately does not make. The authoring skill and the command templates are written from this list, so a person learns these rather than being refused by them. Nothing here is scored, counted, or gated.",
+    "writing": [
+      {
+        "topic": "Say it once, plainly",
+        "do": "Lead with the answer, then the reason in at most one sentence.",
+        "dont": "Open with context and arrive at the point three lines later.",
+        "why": "A reader scanning for a decision should find it in the first line of the section."
+      },
+      {
+        "topic": "Words of degree carry a number",
+        "do": "Token validation stays under 200 ms at the gateway.",
+        "dont": "Validation is fast and scalable.",
+        "why": "Fast means a different thing to each reader, so it settles no argument."
+      },
+      {
+        "topic": "State the obligation",
+        "do": "The claim MUST be taken before the row moves.",
+        "dont": "The claim is taken before the row moves.",
+        "why": "Bullets drop the subject and the modality a sentence carries, which is how a terse document ends up more ambiguous than a wordy one."
+      },
+      {
+        "topic": "Finish the list",
+        "do": "Returns 200, 409 or 503, and no other status.",
+        "dont": "Returns 200, 409, etc.",
+        "why": "An unfinished list is read as permission to invent the rest."
+      },
+      {
+        "topic": "Omit rather than stub",
+        "do": "Delete a section that has nothing real in it, heading included.",
+        "dont": "Leave the heading with 'None identified' under it.",
+        "why": "A stub reads as considered-and-cleared when nobody considered it."
+      }
+    ],
+    "naming": [
+      {
+        "topic": "The swap test",
+        "do": "Name the role: a store, a gateway, a calendar.",
+        "dont": "Name the vendor in anything but the adapter that wraps it.",
+        "why": "If changing the library would force a rename, the design has taken a dependency it did not mean to. This is CODE_OF_CONDUCT.md's own rule, applied to the spec."
+      },
+      {
+        "topic": "The cold-reader test",
+        "do": "findCompletedRefund(key)",
+        "dont": "getData(key)",
+        "why": "If someone with no context cannot guess roughly what it does, the name is carrying nothing and the reader has to go and look."
+      },
+      {
+        "topic": "Weak words to avoid in a name",
+        "do": "Say what it does to what.",
+        "dont": "manager, helper, util, processor, handler, data, info, temp.",
+        "why": "They name a category, not a job, and they fit anything."
+      }
+    ],
+    "scenarios": [
+      {
+        "topic": "Which corner cases earn a line",
+        "do": "Admit one that is irreversible, sits on a boundary already named, involves two actors or retries, or has bitten before.",
+        "dont": "Enumerate every theoretical combination.",
+        "why": "A matrix nobody finishes reading protects nothing. Record the rest on one 'Considered and dropped' line so the thinking stays visible."
+      },
+      {
+        "topic": "Outcomes are observable",
+        "do": "refused, and the next 3 free slots are offered.",
+        "dont": "handled gracefully.",
+        "why": "A tester has to be able to tell whether it happened."
+      }
+    ],
+    "length": [
+      {
+        "topic": "Depth follows the tier, not the template",
+        "do": "Go deep at any tier; spend the research effort where the blast radius is.",
+        "dont": "Pad a low-tier document to look thorough, or truncate a critical one to look tidy.",
+        "why": "The budgets in this file are a signal that something may be off, not a target to hit."
+      }
+    ]
+  },
+  "references": {
+    "header_pattern": "^(satisfies|covers):\\s*\\[?(.+?)\\]?\\s*$",
+    "section_marker": "\u00a7",
+    "note": "The one hard block. A spec pointing at a requirements section that does not exist is not a matter of taste: the link is broken and traceability is already lost."
+  }
 }
