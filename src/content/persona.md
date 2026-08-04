@@ -66,7 +66,7 @@ The list is pinned by `tests/` (drift, no-stack-literals, required clauses).
 
 Reusable procedures in `skills/` (auto-loaded, model-invoked by description):
 
-- **Delivery aids:** `write-test-scenarios`
+- **Delivery aids:** `write-test-scenarios`, `document-contract`
 - **Knowledge:** `learnings`, `code-of-conduct-generator`
 
 Each obeys a shared contract (phase-anchored trigger, precondition-then-stop, atomic/idempotent

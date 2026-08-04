@@ -40,6 +40,11 @@ const BUDGETS: ReadonlyArray<readonly [string, string, number]> = [
   ['the code-of-conduct generator', 'skills/code-of-conduct-generator/SKILL.md', 3000],
   ['its coverage map', 'skills/code-of-conduct-generator/coverage-map.md', 6600],
   ['the fusion-setup skill', 'skills/fusion-setup/SKILL.md', 1100],
+  ['the document contract', 'skills/document-contract/SKILL.md', 1150],
+  // The two companions carry the worked examples. They are read when authoring one document, not
+  // on every spawn, so they buy their size back in what the author does not have to invent.
+  ['its requirements half', 'skills/document-contract/requirements-contract.md', 1700],
+  ['its design half', 'skills/document-contract/design-contract.md', 1800],
 ];
 
 // One distribution is measured: the content is the same everywhere, only the file names differ.

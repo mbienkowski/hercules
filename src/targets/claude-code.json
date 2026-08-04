@@ -213,6 +213,21 @@
         "src/content/skills/code-of-conduct-generator/coverage-map.md"
       ]
     },
+    "skills/document-contract/SKILL.md": {
+      "sources": [
+        "src/content/skills/document-contract/SKILL.md"
+      ]
+    },
+    "skills/document-contract/requirements-contract.md": {
+      "sources": [
+        "src/content/skills/document-contract/requirements-contract.md"
+      ]
+    },
+    "skills/document-contract/design-contract.md": {
+      "sources": [
+        "src/content/skills/document-contract/design-contract.md"
+      ]
+    },
     "skills/fusion-setup/SKILL.md": {
       "sources": [
         "src/content/skills/fusion-setup/SKILL.md"
