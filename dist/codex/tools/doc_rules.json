@@ -526,5 +526,120 @@
     "header_pattern": "^(satisfies|covers):\\s*\\[?(.+?)\\]?\\s*$",
     "section_marker": "\u00a7",
     "note": "The one hard block. A spec pointing at a requirements section that does not exist is not a matter of taste: the link is broken and traceability is already lost."
+  },
+  "review": {
+    "note": "The judgement half, made accountable. A reviewer fills in one verdict per category \u2014 silence is never a pass, exactly as the A2A protocol already requires of a Pass status. The tool never forms the opinion; it checks the opinion was formed for every category, and turns the severities into one decision so 'needs work' stops being a feeling.",
+    "severities": [
+      "blocker",
+      "major",
+      "minor",
+      "nit",
+      "pass"
+    ],
+    "severity_meaning": {
+      "blocker": "the document cannot be built from as written; work stops",
+      "major": "a real gap that will cost rework if it ships unfixed",
+      "minor": "worth fixing, will not cause rework on its own",
+      "nit": "taste, clarity, consistency",
+      "pass": "examined and sound \u2014 name what was checked"
+    },
+    "finding_fields": [
+      "where",
+      "observation",
+      "impact",
+      "recommendation"
+    ],
+    "policy": {
+      "note": "How many unresolved majors a tier tolerates before the draft goes back. A blocker always sends it back. Rounds are bounded so a review cannot loop forever.",
+      "max_rounds": 3,
+      "tiers": {
+        "trivial": {
+          "major_allowed": 3,
+          "blocker_allowed": 0
+        },
+        "low": {
+          "major_allowed": 3,
+          "blocker_allowed": 0
+        },
+        "medium": {
+          "major_allowed": 2,
+          "blocker_allowed": 0
+        },
+        "high": {
+          "major_allowed": 1,
+          "blocker_allowed": 0
+        },
+        "critical": {
+          "major_allowed": 0,
+          "blocker_allowed": 0
+        }
+      }
+    },
+    "rubrics": {
+      "business-requirements": [
+        {
+          "category": "problem-clarity",
+          "asks": "Is the real problem stated, and would the beneficiary recognise it as theirs?"
+        },
+        {
+          "category": "flow-coverage",
+          "asks": "Are these the flows that matter, and is the failure space examined rather than assumed?"
+        },
+        {
+          "category": "example-quality",
+          "asks": "Do the stories and scenarios name concrete, observable outcomes a tester could check?"
+        },
+        {
+          "category": "measurability",
+          "asks": "Does every success criterion carry a number or a named standard?"
+        },
+        {
+          "category": "scope-boundaries",
+          "asks": "Is what we are NOT doing stated, and is it the honest boundary rather than a formality?"
+        },
+        {
+          "category": "risk-realism",
+          "asks": "Are the risks the ones that would actually bite, with the unknowns admitted?"
+        },
+        {
+          "category": "business-language",
+          "asks": "Has a technical decision been smuggled in as a requirement?"
+        }
+      ],
+      "spec": [
+        {
+          "category": "requirement-coverage",
+          "asks": "Does this answer the business requirement it claims to satisfy, in full?"
+        },
+        {
+          "category": "ambiguity",
+          "asks": "Is any sentence readable two ways by two engineers?"
+        },
+        {
+          "category": "decision-rationale",
+          "asks": "Is each choice justified against a named alternative, with the risk it carries?"
+        },
+        {
+          "category": "pattern-fit",
+          "asks": "Are the patterns named, warranted, and are deviations explained rather than silent?"
+        },
+        {
+          "category": "naming",
+          "asks": "Would a swapped library force a rename? Would a cold reader guess what each name does?"
+        },
+        {
+          "category": "risk-mitigation",
+          "asks": "Does every risk carry a mitigation that would actually work, with a signal to watch?"
+        },
+        {
+          "category": "testability",
+          "asks": "Can each acceptance criterion become a named, automatable test?"
+        },
+        {
+          "category": "feasibility",
+          "asks": "Can this be built as described, with what exists today?"
+        }
+      ]
+    }
   }
 }

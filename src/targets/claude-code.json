@@ -233,6 +233,11 @@
         "src/scripts/tools/doc_lint.py"
       ]
     },
+    "tools/doc_report.py": {
+      "sources": [
+        "src/scripts/tools/doc_report.py"
+      ]
+    },
     "tools/doc_rules.json": {
       "sources": [
         "src/scripts/tools/doc_rules.json"
