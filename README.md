@@ -120,8 +120,8 @@ Every enforcement hook runs through your system `python3` and **fails open** wit
 <details id="install-claude-code">
 <summary><b>Claude Code</b></summary>
 
-- **Requires** [Claude Code](https://code.claude.com) — Hercules runs inside it. No extra packages; the enforcement hooks use your system `python3` (see Requirements).
-- **Install** — in Claude Code (CLI or Desktop), type (`hercules@mbienkowski` = `plugin@marketplace`):
+- **Requires** [Claude Code](https://code.claude.com); no extra packages (hooks use your system `python3` — § Requirements).
+- **Install** — in Claude Code, CLI or Desktop (`hercules@mbienkowski` = `plugin@marketplace`):
 
 ```
 /plugin marketplace add mbienkowski/hercules
@@ -129,12 +129,10 @@ Every enforcement hook runs through your system `python3` and **fails open** wit
 /reload-plugins
 ```
 
-- **Verify** — run `/help` (or `/plugin`) and confirm the `/hercules:` commands appear; if not, enable it from the `/plugin` screen.
+- **Verify** — `/help` (or `/plugin`) lists the `/hercules:` commands; if not, enable it from the `/plugin` screen.
 - **Start** — `/hercules:workflow`.
-- **Desktop** — same flow in the chat, or the in-app plugin browser (the `+` near the prompt → **Plugins**). It is *not* a "Settings → Plugins" page.
-
-**For a team (or CI) — no typing.** Declare it once in `settings.json` (user `~/.claude/settings.json`, project `.claude/settings.json`, or
-local) so everyone gets Hercules on clone:
+- **Desktop** — same commands in the chat, or the in-app plugin browser (`+` near the prompt → **Plugins**; *not* a "Settings → Plugins" page).
+- **Team / CI — no typing.** Declare it once in `settings.json` (user `~/.claude/settings.json`, project `.claude/settings.json`, or local); everyone gets Hercules on clone. Merges with existing settings, never replaces them:
 
 ```json
 {
@@ -145,13 +143,8 @@ local) so everyone gets Hercules on clone:
 }
 ```
 
-- **Pin a version** — add a `ref` (release tag or commit SHA) for reproducible installs across machines and CI; omit it (as above) to track the default branch, which drifts. Pull updates with `claude plugin update hercules@mbienkowski` (see § Updating); a pinned `ref` only moves when you bump it.
-- **Scope** — the more-specific scope wins (local > project > user). Use **project** scope to standardize a repo; for governance, an org fork + a pinned version. This file merges with existing Claude Code settings, never replaces them.
-
-| Your situation | Use |
-|---|---|
-| Just want the plugin (most people) | **Marketplace** — the steps above |
-| A whole team / CI | **`settings.json`** (`extraKnownMarketplaces` + `enabledPlugins`) |
+- **Pin a version** — add a `ref` (release tag or commit SHA) to the source for reproducible installs; omit it (as above) to track the default branch. A pinned `ref` moves only when you bump it; updates otherwise via § Updating.
+- **Scope** — most-specific wins (local > project > user). **Project** scope standardizes a repo; for governance, an org fork + a pinned version.
 
 </details>
 
@@ -159,39 +152,35 @@ local) so everyone gets Hercules on clone:
 <summary><b>Codex</b></summary>
 
 - **Requires** the Codex app or Codex CLI with plugin support, plus `python3` for the frozen-test hook.
-- **Install from GitHub** — Codex can consume the repository's marketplace directly; no clone or local build is needed:
+- **Install** — straight from GitHub, no clone or build needed:
 
 ```bash
 codex plugin marketplace add mbienkowski/hercules
 codex plugin add hercules@mbienkowski
 ```
 
-  In the Codex app, restart it, open **Plugins**, choose the `mbienkowski` marketplace, and enable Hercules. Review/trust its hooks when prompted.
-- **Build locally** — from this repository run `npm install` and `make build`; the native plugin is emitted at `dist/codex/` and is also exposed through `.agents/plugins/marketplace.json` for local testing.
-- **Start** — invoke `$hercules-workflow` (or `$hercules-discover`, `$hercules-design`, `$hercules-build`, `$hercules-ship`).
-- **Project guidance** — Codex reads the generated `AGENTS.md` when it is copied into the project; the plugin itself provides the reusable skills and hooks.
-- **Enforcement** — the hook covers Codex `apply_patch` and `Bash` events and fails open when no active Hercules Build owns frozen tests. It is a guardrail, not a sandbox; shell-side edits are also caught by Build's pre-advance `git diff` backstop.
+- **App** — restart, open **Plugins** → `mbienkowski` marketplace → enable Hercules; trust its hooks when prompted.
+- **Build locally** (optional) — `npm install && make build` emits `dist/codex/`, exposed via `.agents/plugins/marketplace.json` for local testing.
+- **Start** — `$hercules-workflow` (per-phase: `$hercules-discover`, `$hercules-design`, `$hercules-build`, `$hercules-ship`).
+- **Project guidance** — Codex reads the generated `AGENTS.md` once copied into your project; skills and hooks come from the plugin itself.
+- **Enforcement** — a hook over `apply_patch` + `Bash` events: a guardrail, not a sandbox; Build's pre-advance `git diff` backstop catches shell-side edits. Gaps in `dist/codex/CAPABILITIES.md`.
 
 </details>
 
 <details id="install-cursor">
 <summary><b>Cursor</b></summary>
 
-- **Requires** [Cursor](https://cursor.com) **≥ 2.5** (added plugin packaging; the isolated advisor subagents landed in 2.4).
-- **Install** — copy the built plugin `dist/cursor/` (`.cursor-plugin/plugin.json` + `agents/`, `commands/`, `rules/`, `skills/`) into `~/.cursor/plugins/local/hercules/`, then restart Cursor.
-- **Verify** — under **Customize → Plugins**: the persona rule (`rules/hercules-persona.mdc`) always applies, the `/discover … /workflow` commands appear, and advisors run as isolated subagents.
+- **Requires** [Cursor](https://cursor.com) **≥ 2.5** (plugin packaging; isolated advisor subagents landed in 2.4).
+- **Install** — copy the built `dist/cursor/` into `~/.cursor/plugins/local/hercules/`, then restart Cursor.
+- **Verify** — **Customize → Plugins**: the persona rule always applies, the `/discover … /workflow` commands appear, advisors run as isolated subagents.
 - **Start** — `/workflow`.
-
-**Capability note — Cursor is a best-effort enforcement tier, below Claude Code and OpenCode.** Cursor's edit hook can't block an edit before it lands, so on Cursor the frozen-test lock is materially weaker than the real **pre-write veto** you get on Claude Code and OpenCode; Hercules works *with* the host, not against it:
-
-- **Best-effort deny where Cursor can block** — a plugin hook denies the common shell/MCP forms that write to or commit a frozen test (a coarse guardrail, not a sandbox — forms like `git add .` that stage by pathspec still slip past).
-- **Advisory on the edit path (IDE)** — a Composer edit to a frozen test raises a notice and leaves
-  your working tree untouched; you undo it or grant an override.
-- **Auto-restore only when headless** — an unattended `cursor-agent` run restores the file via `git checkout` (no human present to act on a notice).
-- **Acceptance gate** — every frozen test is re-hashed before a spec retires; a strong, prompt-enforced catch, not an unbypassable lock.
-- **Independent review is best-effort** — the reviewer must return a handshake or Hercules HALTs; fully forced only via the headless `cursor-agent -p` CLI.
-
-Gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
+- **Enforcement — best-effort tier** (Cursor can't block an edit before it lands, so the frozen-test lock is weaker than the pre-write veto elsewhere):
+  - **Shell/MCP writes** — denied by hook (coarse: `git add .`-style pathspec staging slips past).
+  - **IDE edits** — advisory notice, your tree untouched; you undo it or grant an override.
+  - **Headless `cursor-agent` runs** — auto-restore via `git checkout` (no human present to act on a notice).
+  - **Acceptance gate** — frozen tests re-hashed before a spec retires; a strong catch, not an unbypassable lock.
+  - **Independent review** — the reviewer must return a handshake or Hercules HALTs; fully forced only via headless `cursor-agent -p`.
+  - Gaps in `dist/cursor/CAPABILITIES.md`.
 
 </details>
 
@@ -237,14 +226,13 @@ Gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
 }
 ```
 
-- OpenCode resolves it via `package.json` `main` (`dist/opencode/plugin.js`) and loads it through the `config` hook (agents, commands, instructions).
 - **Start** — restart OpenCode, then `/hercules:workflow`.
 - **Enforcement** — a real `tool.execute.before` veto (needs `python3`); gaps in `dist/opencode/CAPABILITIES.md`.
 
 <details>
 <summary><i>Alternative: npm</i></summary>
 
-Also published to npm as `hercules` (on release, when an `NPM_TOKEN` is configured) — reference the package name instead:
+Also published to npm as `hercules` — reference the package name instead:
 
 ```json
 {
