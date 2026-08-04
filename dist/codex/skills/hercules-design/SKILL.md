@@ -99,6 +99,11 @@ Each sub-spec file structure:
 # Spec {NN}: {slug}
 satisfies: [YYYY-MM-DD-{short-desc}-business-requirements.md §Section]
 complexity: {tier}
+profile: code
+
+## Challenge
+The one prose slot: the requirement restated in your own words, plus the single hardest thing
+about it. Under 150 words, no technology named — a technology here is a decision, not a challenge.
 
 ## Scope
 What this spec delivers (code paths, services, components).
@@ -106,8 +111,24 @@ What this spec delivers (code paths, services, components).
 ## Affected code
 Existing classes, methods, and modules this spec touches (from a codebase scan).
 
+## Decision record
+| Decision | Chosen | Rejected (why) | Risk of choice | Mitigation | Revisit when |
+|---|---|---|---|---|---|
+
+## Structure & patterns
+(medium+) Each pattern named, why it applies, and one real use case. A deviation carries its WHY.
+
+## Naming contract
+(high+) Domain vocabulary, the names rejected, and why — the swap test and the cold-reader test.
+
 ## Implementation
 Key technical decisions, patterns to follow, constraints from code-of-conduct.md.
+
+## Rules — DO / DON'T
+(high+) Two columns, imperative, each row checkable against a diff.
+
+## Risks & mitigations
+(medium+) Risk, the signal it is happening, the mitigation, and who owns it at build.
 
 ## Test suite
 - **Unit:** [list what to unit-test] — mocking: [what must be mocked, what must never be, and why]
@@ -125,6 +146,10 @@ Architecture/dependency rules expected to fail at scaffold time, and which spec 
 Delete this file via `git rm` once its feature is delivered in code (a keep-specs code-of-conduct refreshes it instead). Code is the source of truth after delivery.
 ```
 
+Section depth follows the tier — `python3 ${PLUGIN_ROOT}/tools/doc_lint.py template --kind spec
+--tier {tier}` prints exactly the skeleton this tier expects, and the `document-contract` skill
+carries the ambiguity replacements, the naming questions and worked fragments for each table.
+
 The spec's depth is filled in by whichever specialist advisors ran in Step 5 — each contributing
 into the relevant sections per its role. The template stays generic; the advisors make it specific.
 
@@ -135,4 +160,23 @@ or update it in place if the row exists.
 
 Update the active session in the project's state file by running `python3 ${PLUGIN_ROOT}/tools/state_patch.py apply --project-slug {slug} --session-id {id} --set current_phase=design --set pending_specs={spec-filenames-in-order} --confirm` to write atomically; Non-zero exit: relay the output and stop.
 
-Show the saved spec paths in delivery order. Then say: "The specs and delivery sequence are locked. Ready to **Build**? Run `$hercules-build` — I'll present a delivery plan first, then deliver the specs."
+Show the saved spec paths in delivery order.
+
+## Step 10 — Review
+
+Each spec is reviewed by someone who did not write it — an **independent review**
+(`hercules-reference § Independent review`), never a self-check.
+Invoke the `$hercules-advisor-cynical-reviewer` skill with the delegation packet
+(`${PLUGIN_ROOT}/protocols/workflow-protocol.md#packet`).
+It reads each spec **directly** and answers every category in the spec rubric
+(`python3 ${PLUGIN_ROOT}/tools/doc_report.py rubric`), writing its answers beside the spec as
+`{same-name}-report.json`.
+
+The rubric asks what no check can: does this answer the requirement in full, is any sentence
+readable two ways, would a swapped library force a rename, could this be built as described. A
+category left unanswered is not a pass.
+
+Surface `blocker` and `major` findings to the user as input, never as an auto-veto.
+
+Build will not open until every spec's review says proceed — that gate runs on its own, so there is
+nothing here to remember. Then say: "The specs and delivery sequence are locked. Ready to **Build**? Run `$hercules-build` — I'll present a delivery plan first, then deliver the specs."

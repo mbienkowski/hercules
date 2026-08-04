@@ -54,15 +54,20 @@ If no documents: ask — > What do you want to build? Wait for the answer before
 ## Step 2 — Discovery (one group per turn)
 
 One group per turn; wait for the answer before the next group. Plainly small idea (a fix, a
-tweak)? Ask all five groups in one message instead — depth scales, the groups stay.
+tweak)? Ask all six in one message instead — depth scales, the questions stay.
 
-**Group A — Goal & problem:** problem solved; who benefits and how  
-**Group B — Users:** who uses this; current workflow without it  
-**Group C — Scope:** what's in scope for v1; what's explicitly out of scope  
-**Group D — Constraints:** technical, time, team size, compliance; any API contracts, ADRs, or integration specs? If yes, link or paste them.  
-**Group E — Success criteria:** how you know it's done; what "good enough" looks like for v1
+**Group A — Problem:** the real problem, and who is hurt by it today  
+**Group B — Actors:** who uses this; how they cope now without it  
+**Group C — Main flow & scope:** the path that matters; what is explicitly out of scope  
+**Group D — Failure modes:** what has to fail gracefully, and what must never happen  
+**Group E — Constraints:** time, compliance, integration; any API contracts or ADRs — link or paste them  
+**Group F — Done:** the number or named standard that says it worked
 
-Ask 2–3 follow-ups within a group if the answer is thin. Move on only when the group is clear.
+Further banks open when the subject calls for them — data & privacy, money, access & roles,
+volume, recovery & undo, regulatory, migration, adoption. The `document-contract` skill carries
+those banks, the test for an answer too thin to build on, and the push-back ladder to use instead
+of accepting it. Follow it rather than taking the first sentence offered: a vague answer here is
+what a vague requirement is made of.
 
 ## Step 3 — Paraphrase, classify complexity & confirm
 
@@ -130,15 +135,30 @@ File structure:
 ### Out of scope
 ...
 
+## Flows
+### F1 — {flow name} ({actor})
+- **Story** — as a {actor} I {do the thing} so that {outcome}.
+- M1 | {trigger} → {observable outcome}
+- N1 | {what goes wrong} → {what the user gets instead}
+
 ## Constraints
 ...
 
 ## Success criteria
 ...
 
+## Risks & unknowns
+(medium+ — what could bite, and the assumptions still open)
+
+## Technical suggestions (non-binding)
+(optional — the only place technical vocabulary is legal, and only as an option. Closes with:
+"These are suggestions from Product, not decisions. Design owns the technical choice.")
+
 ## Design references
 (Figma, wireframes, mockups, or other external design links — omit if none. Links only, no code.)
 ```
+
+Section depth follows the tier — `python3 {{ plugin_root }}tools/doc_lint.py template --kind business-requirements --tier {tier}` prints exactly the skeleton this tier expects. `M`/`N`/`C` are main, negative and corner scenarios; every flow names at least one way it can fail. The `document-contract` skill carries the notation, the corner-case selection heuristic, and the containment rules.
 
 **Business language only** — committed and read by stakeholders. No class/method names, code, or file paths; implementation detail belongs in the spec. Design references hold visual-artifact links (Figma, wireframes), never implementation detail.
 
@@ -147,7 +167,32 @@ Write the session-init state under `~/.hercules/` (see `hercules-reference § Ma
 Append a new row to `docs/INDEX.md` (create if absent) with `tier`, `discover` status,
 and a one-line goal summary.
 
-Show the saved path. Then say: "The requirements are locked. Ready for **Design**? Run `{{ ns }}design` — we'll shape the solution and delivery sequence there."
+Show the saved path.
+
+## Step 8 — Review
+
+The requirements are reviewed by someone who did not write them — an **independent review**
+(`hercules-reference § Independent review`), never a self-check.
+{% if advisor_delivery == "skill" -%}
+Invoke the `$hercules-advisor-cynical-reviewer` skill with the delegation packet
+(`{{ plugin_root }}protocols/workflow-protocol.md#packet`).
+{%- else -%}
+Spawn `{{ agent_ns }}cynical-reviewer` with the delegation packet
+(`{{ plugin_root }}protocols/workflow-protocol.md#packet`).
+{%- endif %}
+It reads the document **directly** and answers every category in the rubric
+(`python3 {{ plugin_root }}tools/doc_report.py rubric` prints them; `… template --kind
+business-requirements` prints the shape), writing its answers beside the document as
+`{same-name}-report.json`.
+
+A category left unanswered is not a pass, and a pass must name what was checked — the judge refuses
+a review that does neither, so an incomplete one costs a round rather than passing quietly.
+
+Surface the reviewer's findings to the user as input, never as an auto-veto: a `blocker` or `major`
+is theirs to accept, fix, or overrule with a reason.
+
+Design will not open until this review says proceed — that gate runs on its own, so there is nothing
+here to remember. Then say: "The requirements are locked. Ready for **Design**? Run `{{ ns }}design` — we'll shape the solution and delivery sequence there."
 {%- if command_format == "toml" %}
 """
 {%- endif %}

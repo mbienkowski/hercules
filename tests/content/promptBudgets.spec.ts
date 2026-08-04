@@ -27,8 +27,14 @@ const AGENTS = agentNames().filter((name) => name !== LEAD);
 const BUDGETS: ReadonlyArray<readonly [string, string, number]> = [
   ['the debate protocol', 'protocols/debate-consensus-protocol.md', 1700],
   ['the workflow protocol', 'protocols/workflow-protocol.md', 1250],
-  ['the discover command', 'commands/discover.md', 2020],
-  ['the design command', 'commands/design.md', 2200],
+  // Raised from 2020 when Discover took on the document standard: six question groups instead of
+  // five, the Flows section in the emitted template, and the independent review that Design's gate
+  // will not open without. The alternative was a command that describes less than it does.
+  ['the discover command', 'commands/discover.md', 2550],
+  // Raised from 2200 alongside Discover: the spec template gained the sections that make a spec
+  // unambiguous — challenge, decision record, patterns, naming, DO/DON'T, risks — and the
+  // independent review Build's gate will not open without.
+  ['the design command', 'commands/design.md', 2700],
   ['the build command', 'commands/build.md', 3260],
   ['the ship command', 'commands/ship.md', 1800],
   ['the guided workflow command', 'commands/workflow.md', 2000],
