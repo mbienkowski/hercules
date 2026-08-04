@@ -5,16 +5,16 @@
 [![License: AGPL-3.0](https://img.shields.io/github/license/mbienkowski/hercules?style=flat-square)](https://github.com/mbienkowski/hercules/blob/main/LICENSE)
 
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%9C%85-gray?style=flat-square)](#install-claude-code)
-[![OpenCode](https://img.shields.io/badge/OpenCode-%E2%9C%85-gray?style=flat-square)](#install-opencode)
+[![Codex](https://img.shields.io/badge/Codex-%E2%9C%85-gray?style=flat-square)](#install-codex)
 [![Cursor](https://img.shields.io/badge/Cursor-%E2%9C%85-gray?style=flat-square)](#install-cursor)
-[![Grok Build](https://img.shields.io/badge/Grok%20Build-%E2%9C%85-gray?style=flat-square)](#install-grok-build)
 [![Gemini CLI](https://img.shields.io/badge/Gemini%20CLI-%E2%9C%85-gray?style=flat-square)](#install-gemini-cli)
 [![GitHub Copilot CLI](https://img.shields.io/badge/GitHub%20Copilot%20CLI-%E2%9C%85-gray?style=flat-square)](#install-github-copilot-cli)
-[![Codex](https://img.shields.io/badge/Codex-%E2%9C%85-gray?style=flat-square)](#install-codex)
+[![Grok Build](https://img.shields.io/badge/Grok%20Build-%E2%9C%85-gray?style=flat-square)](#install-grok-build)
+[![OpenCode](https://img.shields.io/badge/OpenCode-%E2%9C%85-gray?style=flat-square)](#install-opencode)
 
 Half god, half man — strong enough to wrestle a lion, patient enough to sit through your kickoff meeting.
 
-**Hercules is a universal, spec-first delivery plugin** — install it natively in your AI coding tool — that enforces **Discover → Design → Build → Ship** so what you're building ships fast and reliably, without the rework.
+**Hercules is a universal, spec-first delivery plugin** — installed natively in your AI coding tool — that enforces **Discover → Design → Build → Ship** so what you're building ships fast and reliably, without the rework.
 
 ![How Hercules works](docs/workflow/workflow-diagram-simplified.svg)
 
@@ -38,20 +38,90 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
 > - **Marketplace:** a source (here, a GitHub repo) you add plugins from.
 > - **Agent:** a specialist persona Claude can consult.
 > - **Business requirements:** the permanent, plain-language "what & why" doc.
-> - **Spec:** specification — a temporary technical blueprint, deleted once delivered in code.
+> - **Spec:** specification — a technical blueprint for one build; removed on delivery by default, kept if you say so (see § How it works).
+> - **`code-of-conduct.md`:** your *per-project, lowercase* standards file that Hercules reads at runtime — not this repo's contributor `CODE_OF_CONDUCT.md`.
 > - **Mutation testing:** a quality check that deliberately introduces bugs to confirm your tests actually catch them — not just run green.
+
+---
+
+## How it works
+
+Every feature runs the **same four phases**. Each phase opens with a plan and waits for your
+approval before writing or executing anything — one Plan-approval gate per phase (clarifying
+questions can come before it).
+
+| Phase | Answers | What happens | Output |
+|---|---|---|---|
+| **Discover** | **WHAT** | Pins the real need — who benefits, scope, and what "done" means. The heaviest phase; bring everything you have. | `*-business-requirements.md` — permanent, plain business language |
+| **Design** | **HOW** | Turns requirements into self-contained specs, challenged by specialist advisors before any code. | one or more `*-spec-NN-*.md` build blueprints |
+| **Build** | **MAKE** | You approve a delivery plan (which specs, in what order, grouped how), then each spec ships test-first: real tests (frozen once written; unblock any by asking), implementation, and the quality gates your `code-of-conduct.md` defines. | working code + tests |
+| **Ship** | **COMMIT** | After you review the diff, Hercules drafts a commit plan, waits for approval, then executes. No follow-up questions. | a conventional commit + optional push + optional PR |
+
+Outputs are dated Markdown files (`YYYY-MM-DD` = today's date; `desc` = a short slug; `NN` = the
+spec number), saved to `docs/` by default (see § Where your delivery docs live).
+
+**Two documents, two lifecycles:**
+
+- **Business-requirements** — long-lived, committed forever, in business language: the shareable
+  record of what a feature is *for*.
+- **Specs** — **removed on delivery by default** (`git rm` once the spec is delivered in code —
+  code, tests, and git history become the source of truth). This is a setting, not a law: put
+  *"always keep the specs"* in your `code-of-conduct.md` and delivered specs are kept and
+  refreshed instead of deleted.
+
+What scales with complexity is the **review**, not the phases: how many advisors are convened, and
+how far they argue. A typo runs none; a payment migration convenes the full council and lets it
+disagree. Effort is sized to the change.
+
+**Complexity scoring (so depth isn't guesswork).** Discover scores the feature on *effort* and
+*blast-radius* (how many users or systems a bug could harm) and takes the higher:
+
+| Tier | Effort signals | Blast-radius signals | Advisors | Rounds |
+|---|---|---|---|---|
+| trivial | typo, config tweak | no user-visible change | 0 | 0 |
+| low | single-service change | one bounded flow affected | 2 | 1 |
+| medium | cross-service or new API | multiple flows affected | 2–3 | 1–2 |
+| high | auth, payments, migration | data at risk, deletion, prod config | 3–5 | 1–2 |
+| critical | multi-service migration | user data, security primitives, money | 4–6 | 2–3 + fresh eyes |
+
+- **Only `trivial` skips the board** — every other tier proposes one, sized by the table above, and you decide it
+  advisor by advisor: accept the proposal, drop any of them, or name someone else. Nothing spawns before you answer.
+- **The rounds column is a ceiling, not a schedule** — a second round runs only where the first left advisors disagreeing. A debate that converges ends there. `critical` is the exception: it always runs its second round and a fresh-eyes panel, because that is where a missed problem is least recoverable.
+- **High-risk surfaces are floored at `high`** — auth, secrets, money, data migration, deletion, production config, concurrency, or personal data, however small the diff. Those are examples, not a closed list: your `code-of-conduct.md` can add to them, and Hercules floors anything else it judges equally consequential — and says so when it does.
+- **You stay in control** — you see the score and can override it; advisor dissent is input you weigh, never an automatic re-score.
+
+**Quality has numbers, not adjectives:**
+
+- **Coverage** — Build gates on the branch-coverage threshold your `code-of-conduct.md` sets.
+- **Mutation** — a kill-rate gate runs when the CoC defines one (the generator defaults to **≥90%**); it checks your tests actually catch bugs.
+- **Traceability** — a requirement ships only when a **named test** asserts it, decided by an **independent reviewer**, not the session that wrote the code.
+- **Not optional** — once a gate applies, it is not a best-practice you skip under pressure.
 
 ---
 
 ## Install
 
-Hercules installs natively in each supported ecosystem — **pick yours**.
+Hercules installs natively in each supported ecosystem — **pick yours**. At a glance:
+
+| Ecosystem | Install via | Commands look like | Frozen-test enforcement |
+|---|---|---|---|
+| [Claude Code](#install-claude-code) | marketplace (`/plugin`) | `/hercules:workflow` | ✅ real pre-write veto (`PreToolUse`) |
+| [Codex](#install-codex) | marketplace (`codex plugin`) | `$hercules-workflow` | ⚠️ guardrail over `apply_patch` + `Bash` — not a sandbox |
+| [Cursor](#install-cursor) | marketplace (repo URL import) | `/workflow` | ⚠️ best-effort: shell/MCP deny + advisory on IDE edits |
+| [Gemini CLI](#install-gemini-cli) | `gemini extensions install` | `/workflow` | ✅ real pre-write veto (`BeforeTool`) |
+| [GitHub Copilot CLI](#install-github-copilot-cli) | marketplace (`copilot plugin`) | `/workflow` | ✅ real pre-write veto (`preToolUse`) |
+| [Grok Build](#install-grok-build) | marketplace (`/marketplace`) | `/hercules:workflow` | ✅ real pre-write veto (`PreToolUse`) |
+| [OpenCode](#install-opencode) | `opencode.json` entry | `/hercules:workflow` | ✅ real pre-write veto (`tool.execute.before`) |
+
+Every enforcement hook runs through your system `python3` and **fails open** without it
+(§ Requirements). Each ecosystem's exact capabilities and disclosed gaps live in
+`dist/<ecosystem>/CAPABILITIES.md`.
 
 <details id="install-claude-code">
 <summary><b>Claude Code</b></summary>
 
-- **Requires** [Claude Code](https://code.claude.com) — Hercules runs inside it. No extra packages; the enforcement hooks use your system `python3` (see Requirements).
-- **Install** — in Claude Code (CLI or Desktop), type (`hercules@mbienkowski` = `plugin@marketplace`):
+- **Requires** [Claude Code](https://code.claude.com); no extra packages (hooks use your system `python3` — § Requirements).
+- **Install** — in Claude Code, CLI or Desktop (`hercules@mbienkowski` = `plugin@marketplace`):
 
 ```
 /plugin marketplace add mbienkowski/hercules
@@ -59,12 +129,10 @@ Hercules installs natively in each supported ecosystem — **pick yours**.
 /reload-plugins
 ```
 
-- **Verify** — run `/help` (or `/plugin`) and confirm the `/hercules:` commands appear; if not, enable it from the `/plugin` screen.
+- **Verify** — `/help` (or `/plugin`) lists the `/hercules:` commands; if not, enable it from the `/plugin` screen.
 - **Start** — `/hercules:workflow`.
-- **Desktop** — same flow in the chat, or the in-app plugin browser (the `+` near the prompt → **Plugins**). It is *not* a "Settings → Plugins" page.
-
-**For a team (or CI) — no typing.** Declare it once in `settings.json` (user `~/.claude/settings.json`, project `.claude/settings.json`, or
-local) so everyone gets Hercules on clone:
+- **Desktop** — same commands in the chat, or the in-app plugin browser (`+` near the prompt → **Plugins**; *not* a "Settings → Plugins" page).
+- **Team / CI — no typing.** Declare it once in `settings.json` (user `~/.claude/settings.json`, project `.claude/settings.json`, or local); everyone gets Hercules on clone. Merges with existing settings, never replaces them:
 
 ```json
 {
@@ -75,75 +143,45 @@ local) so everyone gets Hercules on clone:
 }
 ```
 
-- **Pin a version** — add a `ref` (release tag or commit SHA) for reproducible installs across machines and CI; omit it (as above) to track the default branch, which drifts. Pull updates with `claude plugin update hercules@mbienkowski` (see § Updating); a pinned `ref` only moves when you bump it.
-- **Scope** — the more-specific scope wins (local > project > user). Use **project** scope to standardize a repo; for governance, an org fork + a pinned version. This file merges with existing Claude Code settings, never replaces them.
-
-| Your situation | Use |
-|---|---|
-| Just want the plugin (most people) | **Marketplace** — the steps above |
-| A whole team / CI | **`settings.json`** (`extraKnownMarketplaces` + `enabledPlugins`) |
+- **Pin a version** — add a `ref` (release tag or commit SHA) to the source for reproducible installs; omit it (as above) to track the default branch. A pinned `ref` moves only when you bump it; updates otherwise via § Updating.
+- **Scope** — most-specific wins (local > project > user). **Project** scope standardizes a repo; for governance, an org fork + a pinned version.
 
 </details>
 
-<details id="install-opencode">
-<summary><b>OpenCode</b></summary>
+<details id="install-codex">
+<summary><b>Codex</b></summary>
 
-- **Requires** [OpenCode](https://opencode.ai).
-- **Install** — add the GitHub repo to your `opencode.json` (the canonical install):
+- **Requires** the Codex app or Codex CLI with plugin support, plus `python3` for the frozen-test hook.
+- **Install** — straight from GitHub, no clone or build needed:
 
-```json
-{
-  "plugin": ["github:mbienkowski/hercules"]
-}
+```bash
+codex plugin marketplace add mbienkowski/hercules
+codex plugin add hercules@mbienkowski
 ```
 
-- OpenCode resolves it via `package.json` `main` (`dist/opencode/plugin.js`) and loads it through the `config` hook (agents, commands, instructions).
-- **Start** — restart OpenCode, then `/hercules:workflow`.
-- **Enforcement** — a real `tool.execute.before` veto (needs `python3`); gaps in `dist/opencode/CAPABILITIES.md`.
-
-<details>
-<summary><i>Alternative: npm</i></summary>
-
-Also published to npm as `hercules` (on release, when an `NPM_TOKEN` is configured) — reference the package name instead:
-
-```json
-{
-  "plugin": ["hercules"]
-}
-```
-
-</details>
+- **App** — restart, open **Plugins** → `mbienkowski` marketplace → enable Hercules; trust its hooks when prompted.
+- **Build locally** (optional) — `npm install && make build` emits `dist/codex/`, exposed via `.agents/plugins/marketplace.json` for local testing.
+- **Start** — `$hercules-workflow` (per-phase: `$hercules-discover`, `$hercules-design`, `$hercules-build`, `$hercules-ship`).
+- **Project guidance** — Codex reads the generated `AGENTS.md` once copied into your project; skills and hooks come from the plugin itself.
+- **Enforcement** — a hook over `apply_patch` + `Bash` events: a guardrail, not a sandbox; Build's pre-advance `git diff` backstop catches shell-side edits. Gaps in `dist/codex/CAPABILITIES.md`.
 
 </details>
 
 <details id="install-cursor">
 <summary><b>Cursor</b></summary>
 
-- **Requires** [Cursor](https://cursor.com) **≥ 2.5** (added plugin packaging; the isolated advisor subagents landed in 2.4).
-- **Install** — copy the built plugin `dist/cursor/` (`.cursor-plugin/plugin.json` + `agents/`, `commands/`, `rules/`, `skills/`) into `~/.cursor/plugins/local/hercules/`, then restart Cursor.
-- **Verify** — under **Customize → Plugins**: the persona rule (`rules/hercules-persona.mdc`) always applies, the `/discover … /workflow` commands appear, and advisors run as isolated subagents.
+- **Requires** [Cursor](https://cursor.com) **≥ 2.6** for the marketplace import (plugin packaging landed in 2.5, isolated advisor subagents in 2.4).
+- **Install (marketplace)** — **Dashboard → Settings → Plugins → Import**, paste `https://github.com/mbienkowski/hercules`, enable **hercules**. No clone or build — Cursor parses the repo's `.cursor-plugin/marketplace.json` directly.
+- **Install (local / offline)** — copy the built `dist/cursor/` into `~/.cursor/plugins/local/hercules/`, then restart Cursor.
+- **Verify** — **Customize → Plugins**: the persona rule always applies, the `/discover … /workflow` commands appear, advisors run as isolated subagents.
 - **Start** — `/workflow`.
-
-**Capability note — Cursor is a best-effort enforcement tier, below Claude Code and OpenCode.** Cursor's edit hook can't block an edit before it lands, so on Cursor the frozen-test lock is materially weaker than the real **pre-write veto** you get on Claude Code and OpenCode; Hercules works *with* the host, not against it:
-
-- **Best-effort deny where Cursor can block** — a plugin hook denies the common shell/MCP forms that write to or commit a frozen test (a coarse guardrail, not a sandbox — forms like `git add .` that stage by pathspec still slip past).
-- **Advisory on the edit path (IDE)** — a Composer edit to a frozen test raises a notice and leaves
-  your working tree untouched; you undo it or grant an override.
-- **Auto-restore only when headless** — an unattended `cursor-agent` run restores the file via `git checkout` (no human present to act on a notice).
-- **Acceptance gate** — every frozen test is re-hashed before a spec retires; a strong, prompt-enforced catch, not an unbypassable lock.
-- **Independent review is best-effort** — the reviewer must return a handshake or Hercules HALTs; fully forced only via the headless `cursor-agent -p` CLI.
-
-Gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
-
-</details>
-
-<details id="install-grok-build">
-<summary><b>Grok Build</b></summary>
-
-- **Requires** [Grok Build](https://x.ai/cli) — `npm install -g @xai-official/grok` (reads Claude-format plugins natively).
-- **Install** — add `mbienkowski/hercules` as a marketplace source, then install **hercules** from Grok's `/marketplace`.
-- **Start** — `/hercules:workflow`.
-- **Enforcement** — a real `PreToolUse` veto (needs `python3`); gaps in `dist/grok-build/CAPABILITIES.md`.
+- **Enforcement — best-effort tier** (Cursor can't block an edit before it lands, so the frozen-test lock is weaker than the pre-write veto elsewhere):
+  - **Shell/MCP writes** — denied by hook (coarse: `git add .`-style pathspec staging slips past).
+  - **IDE edits** — advisory notice, your tree untouched; you undo it or grant an override.
+  - **Headless `cursor-agent` runs** — auto-restore via `git checkout` (no human present to act on a notice).
+  - **Acceptance gate** — frozen tests re-hashed before a spec retires; a strong catch, not an unbypassable lock.
+  - **Independent review** — the reviewer must return a handshake or Hercules HALTs; fully forced only via headless `cursor-agent -p`.
+  - Gaps in `dist/cursor/CAPABILITIES.md`.
 
 </details>
 
@@ -167,22 +205,43 @@ Gaps are disclosed in `dist/cursor/CAPABILITIES.md`.
 
 </details>
 
-<details id="install-codex">
-<summary><b>Codex app</b></summary>
+<details id="install-grok-build">
+<summary><b>Grok Build</b></summary>
 
-- **Requires** the Codex app or Codex CLI with plugin support, plus `python3` for the frozen-test hook.
-- **Install from GitHub** — Codex can consume the repository's marketplace directly; no clone or local build is needed:
+- **Requires** [Grok Build](https://x.ai/cli) — `npm install -g @xai-official/grok` (reads Claude-format plugins natively).
+- **Install** — add `mbienkowski/hercules` as a marketplace source, then install **hercules** from Grok's `/marketplace`.
+- **Start** — `/hercules:workflow`.
+- **Enforcement** — a real `PreToolUse` veto (needs `python3`); gaps in `dist/grok-build/CAPABILITIES.md`.
 
-```bash
-codex plugin marketplace add mbienkowski/hercules
-codex plugin add hercules@mbienkowski
+</details>
+
+<details id="install-opencode">
+<summary><b>OpenCode</b></summary>
+
+- **Requires** [OpenCode](https://opencode.ai).
+- **Install** — add the GitHub repo to your `opencode.json` (the canonical install):
+
+```json
+{
+  "plugin": ["github:mbienkowski/hercules"]
+}
 ```
 
-  In the Codex app, restart it, open **Plugins**, choose the `mbienkowski` marketplace, and enable Hercules. Review/trust its hooks when prompted.
-- **Build locally** — from this repository run `npm install` and `make build`; the native plugin is emitted at `dist/codex/` and is also exposed through `.agents/plugins/marketplace.json` for local testing.
-- **Start** — invoke `$hercules-workflow` (or `$hercules-discover`, `$hercules-design`, `$hercules-build`, `$hercules-ship`).
-- **Project guidance** — Codex reads the generated `AGENTS.md` when it is copied into the project; the plugin itself provides the reusable skills and hooks.
-- **Enforcement** — the hook covers Codex `apply_patch` and `Bash` events and fails open when no active Hercules Build owns frozen tests. It is a guardrail, not a sandbox.
+- **Start** — restart OpenCode, then `/hercules:workflow`.
+- **Enforcement** — a real `tool.execute.before` veto (needs `python3`); gaps in `dist/opencode/CAPABILITIES.md`.
+
+<details>
+<summary><i>Alternative: npm</i></summary>
+
+Also published to npm as `hercules` — reference the package name instead:
+
+```json
+{
+  "plugin": ["hercules"]
+}
+```
+
+</details>
 
 </details>
 
@@ -190,31 +249,26 @@ codex plugin add hercules@mbienkowski
 
 ## Quickstart
 
-Once installed, in any ecosystem:
+Once installed:
 
-- **It's your default delivery partner** — just say *"Hercules, where do I start?"*, or run the workflow command; it steers only the sessions where the plugin is enabled.
-- **Invoke it** with `/hercules:workflow` (Claude Code, OpenCode, Grok Build), `/workflow` (Gemini CLI, Copilot CLI, Cursor), or `$hercules-workflow` (Codex) — and the per-phase commands the same way.
-- **New repo?** Hercules detects it and walks you through the one-time setup first.
+- **It's your default delivery partner** — just say *"Hercules, where do I start?"*, or run the
+  workflow command in your ecosystem's form (the table in § Install); it steers only the sessions
+  where the plugin is enabled.
+- **New repo?** Hercules detects it and walks you through the one-time setup first
+  (§ Before your first feature).
 
-The fastest way to start is the guided workflow — Hercules walks you through every phase:
+The fastest way to start is the guided workflow — Hercules walks you through all four phases:
 
 ```
 /hercules:workflow
 ```
 
-Or run each phase on its own. Outputs are dated Markdown files (`YYYY-MM-DD` = today's date; `desc` = a
-short slug; `NN` = the spec number):
+Or run any phase on its own: `/hercules:discover`, `/hercules:design`, `/hercules:build`,
+`/hercules:ship` — adjusting the prefix to your ecosystem.
 
-| Command | Phase | Focus | What it produces |
-|---|---|---|---|
-| `/hercules:discover` | Discover — **WHAT** | Pin the real need | a `*-business-requirements.md` (the permanent "what & why") |
-| `/hercules:design` | Design — **HOW** | Turn it into a spec | one or more `*-spec-NN-*.md` build blueprints |
-| `/hercules:build` | Build — **MAKE** | Approve the delivery plan, then build & verify | working code + tests (specs deleted once delivered in code) |
-| `/hercules:ship` | Ship — **COMMIT** | Commit the delivered work | a conventional commit + optional push + optional PR |
-
-- **One run per feature** — start a new one any time with `/hercules:workflow` and a description; multiple can be in-flight at once, each with its own sequentially-numbered spec files.
-- **Your `docs/` accumulates** business-requirements files, a session digest (`docs/INDEX.md`), and reusable lessons (`docs/learnings.md`); specs are temporary — deleted once the feature is delivered in code (code becomes the source of truth).
-- **Abandon one mid-flight** by saying **"abandon this session"** — its INDEX row is marked abandoned and its state cleared; your docs stay yours.
+- **One run per feature** — start a new one any time with the workflow command and a description; multiple can be in-flight at once, each with its own sequentially-numbered spec files.
+- **Your `docs/` accumulates** business-requirements files, a session digest (`docs/INDEX.md`), and reusable lessons (`docs/learnings.md`); spec files come and go per their lifecycle (§ How it works).
+- **Abandon a run mid-flight** by saying **"abandon this session"** — its INDEX row is marked abandoned and its state cleared; your docs stay yours.
 
 ---
 
@@ -264,15 +318,9 @@ Type `/hercules:workflow`. Discovery is where the real work happens — bring ev
 PRDs (product requirement docs), ADRs (architecture decision records), Figma links, QA scenarios, API
 contracts, Slack threads. The more context you bring, the
 better. Hercules will always paraphrase what it understood before writing — correct it if anything's
-off. Your first session ends with a requirements document saved to `docs/`.
-
-Every phase works the same way — Hercules presents a plan and waits for your approval before doing anything:
-
-- **Discover / Design** — draft a document and write it to `docs/` on approval (revisit it any time).
-- **Build** — presents a delivery plan (which specs, in what order, grouped how), then delivers test-first on approval (ship each spec as it lands, or deliver all in one pass).
-- **Ship** — drafts the commit plan, then commits and pushes on approval.
-
-One Plan-approval gate per phase authorizes every write and execution; clarifying questions can come before it. That's the whole loop — repeat for every feature.
+off. Every phase then follows the plan → your approval → execution loop from § How it works — nothing
+is written or run before your yes. Your first session ends with a requirements document saved to
+`docs/`. That's the whole loop — repeat it for every feature.
 
 ### What that looks like
 
@@ -313,56 +361,8 @@ A reset link works once, expires after 30 minutes, and never reveals whether an 
 ## Where your delivery docs live
 
 - **One place** — every requirement and spec lives together, versioned and reviewable like code. Default: `docs/` in the directory where you launch it.
-- **Change it** — name the directory (or a dedicated docs repo) once in your project's **`code-of-conduct.md`** — a *per-project, lowercase* config Hercules reads at runtime (not this repo's contributor `CODE_OF_CONDUCT.md`).
+- **Change it** — name the directory (or a dedicated docs repo) once in your project's `code-of-conduct.md`.
 - **Multi-service** — tell Hercules each service's local path; it asks once and remembers them **on your machine only**, under `~/.hercules/` (a registry `config.json` + per-project state; local filesystem paths and delivery progress only — no credentials, tokens, or telemetry). Nothing about where your repos live is written into the docs.
-
----
-
-## How it works
-
-Every feature runs the **same four phases**. What scales is the **review**: how many advisors are
-convened, and how far they argue. A typo runs none; a payment migration convenes the full council and
-lets it disagree. Effort is sized to the change.
-
-1. **Discover — WHAT** (the heaviest phase) — pins the real need, who benefits, scope, and what "done"
-   means. Output: a permanent `*-business-requirements.md`, in plain business language.
-2. **Design — HOW** — turns requirements into self-contained **specs**, challenged by specialist
-   advisors before any code. Output: `*-spec-NN-*.md` (temporary).
-3. **Build — MAKE** — you approve a delivery plan, then each spec ships test-first: real tests (frozen
-   once written; unblock any by asking), implementation, and the quality gates your `code-of-conduct.md`
-   defines. Output: code + tests; specs deleted once delivered (`git rm`).
-4. **Ship — COMMIT** — after you review the diff, Hercules drafts a commit plan, waits for approval,
-   then executes. No follow-up questions.
-
-**Two documents, two lifecycles:**
-
-- **Business-requirements** — long-lived, committed forever, in business language: the shareable record of what a feature is *for*.
-- **Specs** — per-development: deleted once delivered, since code, tests, and git history become the source of truth.
-- **Want permanent specs?** Put *"always keep the specs"* in your `code-of-conduct.md` — delivered specs are then kept and refreshed, not deleted.
-
-**Complexity scoring (so depth isn't guesswork).** Discover scores the feature on *effort* and
-*blast-radius* (how many users or systems a bug could harm) and takes the higher:
-
-| Tier | Effort signals | Blast-radius signals | Advisors | Rounds |
-|---|---|---|---|---|
-| trivial | typo, config tweak | no user-visible change | 0 | 0 |
-| low | single-service change | one bounded flow affected | 2 | 1 |
-| medium | cross-service or new API | multiple flows affected | 2–3 | 1–2 |
-| high | auth, payments, migration | data at risk, deletion, prod config | 3–5 | 1–2 |
-| critical | multi-service migration | user data, security primitives, money | 4–6 | 2–3 + fresh eyes |
-
-- **Only `trivial` skips the board** — every other tier proposes one, sized by the table above, and you decide it
-  advisor by advisor: accept the proposal, drop any of them, or name someone else. Nothing spawns before you answer.
-- **The rounds column is a ceiling, not a schedule** — a second round runs only where the first left advisors disagreeing. A debate that converges ends there. `critical` is the exception: it always runs its second round and a fresh-eyes panel, because that is where a missed problem is least recoverable.
-- **High-risk surfaces are floored at `high`** — auth, secrets, money, data migration, deletion, production config, concurrency, or personal data, however small the diff. Those are examples, not a closed list: your `code-of-conduct.md` can add to them, and Hercules floors anything else it judges equally consequential — and says so when it does.
-- **You stay in control** — you see the score and can override it; advisor dissent is input you weigh, never an automatic re-score.
-
-**Quality has numbers, not adjectives:**
-
-- **Coverage** — Build gates on the branch-coverage threshold your `code-of-conduct.md` sets.
-- **Mutation** — a kill-rate gate runs when the CoC defines one (the generator defaults to **≥90%**); it checks your tests actually catch bugs.
-- **Traceability** — a requirement ships only when a **named test** asserts it, decided by an **independent reviewer**, not the session that wrote the code.
-- **Not optional** — once a gate applies, it is not a best-practice you skip under pressure.
 
 ---
 
@@ -380,15 +380,13 @@ later.
   you want to do this twice?" question. A solo developer under deadline pressure benefits from
   Discover as much as a team of ten.
 - **Structured speed, not slow and careful.** Move fast, use AI to amplify your pace, but move
-  with intent. Discover defines what you're actually building. Design decides how. Build and Ship
-  execute against a spec the human approved — not against a guess. The structure is what makes
-  the speed reliable.
-- **All four phases, every time — depth scales, not the phases.** Every feature runs Discover →
-  Design → Build → Ship and produces the same artifacts; what changes with complexity is
-  the number of advisors and how far they debate (a trivial task runs neither). Not because ceremony is the goal, but because
-  even a one-line change in production code has a business reason. That reason belongs in
-  `business-requirements.md` so six months from now anyone reading the history knows *why*
-  something changed, not just what. The trivial path is fast: fewer advisors (the independent reviewer is offered — your call), same traceability.
+  with intent: Build and Ship execute against a spec the human approved — not against a guess.
+  The structure is what makes the speed reliable.
+- **All four phases, every time — depth scales, not the phases.** Not because ceremony is the
+  goal, but because even a one-line change in production code has a business reason. That reason
+  belongs in `business-requirements.md` so six months from now anyone reading the history knows
+  *why* something changed, not just what. The trivial path is fast: no advisor debate (the
+  independent reviewer is offered — your call), same traceability.
 - **Human in the loop, by design.** The human decides what is needed. Hercules ensures that
   decision is captured, challenged, and executed faithfully, with tests, traceability, and a
   clean git record. If you want an AI that acts without asking, this is the wrong tool. If you
@@ -415,23 +413,18 @@ Hercules makes it easier to do that well.
 </details>
 
 <details>
-<summary><b>OpenCode</b></summary>
+<summary><b>Codex</b></summary>
 
-- Restart OpenCode to re-resolve the GitHub plugin and pull the latest; pin a `ref` (or the npm version) in `opencode.json` for reproducible installs.
+- Refresh the Git marketplace with `codex plugin marketplace upgrade mbienkowski`, then restart Codex. If the installed copy does not refresh, run `codex plugin remove hercules` followed by `codex plugin add hercules@mbienkowski`.
+- For a pinned release, add the marketplace with `--ref vX.Y.Z` and use that marketplace snapshot for reproducible installs.
 
 </details>
 
 <details>
 <summary><b>Cursor</b></summary>
 
-- Re-copy the freshly built `dist/cursor/` over `~/.cursor/plugins/local/hercules/`, then restart Cursor.
-
-</details>
-
-<details>
-<summary><b>Grok Build</b></summary>
-
-- `grok plugin update hercules` — or reinstall from `/marketplace` (each catalog plugin is SHA-pinned).
+- **Marketplace install** — re-import the repo URL under **Dashboard → Settings → Plugins** to pull the latest.
+- **Local install** — re-copy the freshly built `dist/cursor/` over `~/.cursor/plugins/local/hercules/`, then restart Cursor.
 
 </details>
 
@@ -450,10 +443,16 @@ Hercules makes it easier to do that well.
 </details>
 
 <details>
-<summary><b>Codex</b></summary>
+<summary><b>Grok Build</b></summary>
 
-- Refresh the Git marketplace with `codex plugin marketplace upgrade mbienkowski`, then restart Codex. If the installed copy does not refresh, run `codex plugin remove hercules` followed by `codex plugin add hercules@mbienkowski`.
-- For a pinned release, add the marketplace with `--ref vX.Y.Z` and use that marketplace snapshot for reproducible installs.
+- `grok plugin update hercules` — or reinstall from `/marketplace` (each catalog plugin is SHA-pinned).
+
+</details>
+
+<details>
+<summary><b>OpenCode</b></summary>
+
+- Restart OpenCode to re-resolve the GitHub plugin and pull the latest; pin a `ref` (or the npm version) in `opencode.json` for reproducible installs.
 
 </details>
 
@@ -472,23 +471,17 @@ Hercules makes it easier to do that well.
 </details>
 
 <details>
-<summary><b>OpenCode</b></summary>
+<summary><b>Codex</b></summary>
 
-- Remove the `"plugin": ["github:mbienkowski/hercules"]` entry from your `opencode.json`, then restart OpenCode.
+- Run `codex plugin remove hercules`, then `codex plugin marketplace remove mbienkowski` if no other plugin uses that marketplace. Remove any copied `AGENTS.md` line or file separately if you enabled the always-on project guidance.
 
 </details>
 
 <details>
 <summary><b>Cursor</b></summary>
 
-- Delete `~/.cursor/plugins/local/hercules/`, then restart Cursor.
-
-</details>
-
-<details>
-<summary><b>Grok Build</b></summary>
-
-- `grok plugin uninstall hercules` (or remove it from `/marketplace`); drop the source from `~/.grok/config.toml` if you added one.
+- **Marketplace install** — remove the plugin (and the marketplace) under **Dashboard → Settings → Plugins**.
+- **Local install** — delete `~/.cursor/plugins/local/hercules/`, then restart Cursor.
 
 </details>
 
@@ -507,9 +500,16 @@ Hercules makes it easier to do that well.
 </details>
 
 <details>
-<summary><b>Codex</b></summary>
+<summary><b>Grok Build</b></summary>
 
-- Run `codex plugin remove hercules`, then `codex plugin marketplace remove mbienkowski` if no other plugin uses that marketplace. Remove any copied `AGENTS.md` line or file separately if you enabled the always-on project guidance.
+- `grok plugin uninstall hercules` (or remove it from `/marketplace`); drop the source from `~/.grok/config.toml` if you added one.
+
+</details>
+
+<details>
+<summary><b>OpenCode</b></summary>
+
+- Remove the `"plugin": ["github:mbienkowski/hercules"]` entry from your `opencode.json`, then restart OpenCode.
 
 </details>
 
@@ -526,8 +526,8 @@ Everything under `docs/` (requirements, INDEX, learnings) is your content and st
 <details>
 <summary><b>Clear what Hercules remembers about one project</b></summary>
 
-- **Start** — `/hercules:project-reset` (Claude Code, OpenCode, Grok Build) or `/project-reset`
-  (Cursor, Gemini CLI, GitHub Copilot CLI).
+- **Start** — `project-reset`, in your ecosystem's command form (the table in § Install):
+  `/hercules:project-reset`, `/project-reset`, or `$hercules-project-reset`.
 - **What it clears** — any combination of four things, each chosen on its own: one feature's record,
   every feature's record for the project, the project's settings, and the documents folder.
 - **What it never touches** — your code, your repository, its history, its branches, or any file you
@@ -619,12 +619,11 @@ number and their rounds to complexity, and adds none for trivial work).
 - **A session that produced an artifact can't judge it without bias.** The counter: the requirement-
   coverage and traceability gates are decided by a **fresh independent reviewer** that reads the source
   directly and never sees the author's reasoning — its findings come back to you, they don't self-approve.
-- **Output volume feeds the drift.** The counter: a terse agent-communication protocol — structured,
-  low-noise replies.
-- **The debate costs fewer tokens than reworking a missed spec.** A requirement gap that slips into
-  Build means restated requirements, revised specs, re-run tests, and a second review cycle — far
-  more costly than the advisor debate that would have caught it upfront. The A2A (agent-to-agent)
-  communication protocol keeps advisor messages structured and low-noise, bounding the per-debate cost.
+- **The debate costs less than the rework it prevents — and stays cheap by design.** A requirement
+  gap that slips into Build means restated requirements, revised specs, re-run tests, and a second
+  review cycle — far more costly than the advisor debate that would have caught it upfront. The
+  A2A (agent-to-agent) protocol keeps advisor messages terse, structured, and low-noise, bounding
+  the per-debate cost and the drift that verbose output feeds.
 
 You stay in control: advisors are a recommendation you approve, never automatic.
 

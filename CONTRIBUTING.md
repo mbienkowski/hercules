@@ -16,11 +16,9 @@ make test           # drift-check dist/ + run the suite with coverage (both runt
 make test-mutation  # mutation testing — never a job that can block a merge or a release
 ```
 
-> **`make test-mutation` is a tool, not a gate.** Mutation testing reaches CI only as the scheduled
-> `mutation-report.yml` (`make mutation-report`), and no kill rate blocks a merge or
-> a release — it prints the score and the surviving mutants, and you decide what a survivor is worth
-> (a missing test, a better behaviour, or nothing). Worth running on code you are hardening; never
-> something that stands between a green merge and the version it ships.
+> **`make test-mutation` is a tool, not a gate** — it prints the score and the surviving mutants,
+> and no kill rate blocks a merge or a release. The whole policy (scope, the scheduled report, what
+> a survivor is worth) is stated once, in [`CODE_OF_CONDUCT.md` § Testing](CODE_OF_CONDUCT.md).
 
 After editing anything under `src/content/`, `src/targets/`, `src/scripts/hooks/`, or `src/scripts/tools/`, rebuild and commit `dist/`
 alongside the source change. An optional pre-commit hook regenerates `dist/` automatically:
@@ -72,11 +70,8 @@ mirrors each domain by name (`tests/builder/` tests `internal/builder/`, and so 
   counts, loading-chain ceilings). Read only by tests, and deliberately outside the compiled build:
   nothing runs it from `.local/ts-out/`, because measuring a budget IS a test.
 - `internal/release/` — ships the builder's output: versioning, changelog, npm packaging, CI smoke/validate
-  checks, and the mutation kill-rate report (both its TypeScript and Python halves — the one
-  requirement, shipped Python at >=85%, is inline in `internal/release/ci/mutation_report.sh`, and
-  only the scheduled report job enforces it).
-  `internal/release/ci/` holds the bash glue the GitHub workflows call through
-  `make`. `tests/release/` covers all of it.
+  checks, and the mutation kill-rate report. `internal/release/ci/` holds the bash glue the GitHub
+  workflows call through `make`. `tests/release/` covers all of it.
 - `dist/` — generated output, committed and tracked (never git-ignored).
 - `tests/` — the top-level tree above, plus two cross-cutting trees that belong to no single domain:
   repo-wide meta-guards (`tests/repo/`) plus the TypeScript test helpers shared across every domain's
@@ -171,15 +166,14 @@ The repository's `.agents/plugins/marketplace.json` points Codex at `dist/codex`
 `mbienkowski` marketplace first if Codex resolves the public and local sources ambiguously. For the
 released package, use `codex plugin marketplace add mbienkowski/hercules` instead of a local path.
 
-## Naming and contracts
-
-- **Every name is self-explanatory**, following conventions junior and senior recognize: variable names, test names, file names, rule ids, class names. Cryptic ids make review and maintenance harder.
-- **Derived contracts, not duplicated lists** (see CODE_OF_CONDUCT.md § Working principles). When two artifacts must agree, a test derives one side from the other's source — so a rename fails loudly, not silently.
-
 ## Conventions
 
 - **No comments in code** unless explaining a non-obvious decision.
 - All `.md` filenames must be **lowercase** — macOS is case-insensitive but Linux (CI) is not.
-- Tests live under the top-level `tests/` tree, mirroring the domain they cover, organised by feature. Exceptions: `tests/scripts/hooks/` and `tests/scripts/tools/` are their own islands (shipped code, stdlib-only Python).
-- One version, single-sourced — `package.json` is canonical; `pyproject.toml` is the only other literal and is cross-checked against it.
-- Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `ci:`). Commit messages are promises (see CODE_OF_CONDUCT.md): if your message claims a gate exists, it must be red-tested to exist.
+- Tests live under the top-level `tests/` tree, mirroring the domain they cover, organised by
+  feature. Exceptions: `tests/scripts/hooks/` and `tests/scripts/tools/` are their own islands
+  (shipped code, stdlib-only Python).
+- Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
+  `refactor:`, `test:`, `docs:`, `ci:`).
+- Naming, cross-file contracts, version single-sourcing, and commit-message promises are principles,
+  stated once in [`CODE_OF_CONDUCT.md` § Working principles](CODE_OF_CONDUCT.md) and § Invariants.
