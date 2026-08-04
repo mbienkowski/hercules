@@ -26,10 +26,10 @@ const AGENTS = agentNames().filter((name) => name !== LEAD);
 /** Every budget, as `[what it is, the file, its ceiling in tokens]`. */
 const BUDGETS: ReadonlyArray<readonly [string, string, number]> = [
   ['the debate protocol', 'protocols/debate-consensus-protocol.md', 1700],
-  // Raised from 1250 for G9 and the two phase lists that now carry the review and the
-  // falsification step. This file is summed into every command's instruction chain, so it is the
-  // one to keep honest — the chain gate below is what actually holds it.
-  ['the workflow protocol', 'protocols/workflow-protocol.md', 1300],
+  // Raised from 1250, then to 1300, then here: G9, G10, and the two phase lists that carry the
+  // review and the falsification step. Summed into every command's instruction chain, so the
+  // chain gate below is what actually holds this file honest.
+  ['the workflow protocol', 'protocols/workflow-protocol.md', 1360],
   // Raised from 2020 when Discover took on the document standard: six question groups instead of
   // five, the Flows section in the emitted template, and the independent review that Design's gate
   // will not open without. The alternative was a command that describes less than it does.
@@ -37,9 +37,9 @@ const BUDGETS: ReadonlyArray<readonly [string, string, number]> = [
   // Raised from 2200 alongside Discover: the spec template gained the sections that make a spec
   // unambiguous — challenge, decision record, patterns, naming, DO/DON'T, risks — and the
   // independent review Build's gate will not open without.
-  // Raised again for the falsification step. It is the longest single addition here and the one
-  // that earns its length: it exists to stop a plan being approved and only then found impossible.
-  ['the design command', 'commands/design.md', 3350],
+  // Raised again: Step 7 now states the actual guarantee (a spec write is refused, not merely
+  // advised) once probe enforcement moved into a real write-gate rather than a prose instruction.
+  ['the design command', 'commands/design.md', 3420],
   // Raised from 3260 when traceability became a search for a scenario identifier
   // rather than a judgement about whether two sentences mean the same thing.
   ['the build command', 'commands/build.md', 3320],

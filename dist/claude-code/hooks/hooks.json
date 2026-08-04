@@ -10,6 +10,14 @@
             "args": [
               "${CLAUDE_PLUGIN_ROOT}/hooks/frozen_tests.py"
             ]
+          },
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/document_gate.py",
+              "probes"
+            ]
           }
         ]
       },

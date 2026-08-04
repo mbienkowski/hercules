@@ -148,6 +148,63 @@ def test_the_shipped_gate_leaves_unrelated_work_alone(tmp_path, ecosystem):
 
 
 @pytest.mark.parametrize("ecosystem", _SHIPPED)
+def test_a_spec_cannot_be_written_until_the_shipped_prober_verifies(tmp_path, ecosystem):
+    """The chain Design's falsification step actually depends on, walked as shipped: an agent that
+    skipped Step 7 entirely is stopped at the write, running the real probe_run.py binary produces
+    a record the gate accepts, and only then does the write proceed.
+
+    This exact sequence caught a real defect during review: `probe_run.py run --into` failed
+    whenever the probes/ directory did not exist yet — which is every session's first probe, since
+    nothing else creates that directory first. A unit test with a pre-made tmp_path would never
+    have reproduced it; only driving the shipped binary against a fresh session layout did.
+    """
+    home, repo = tmp_path / "home", tmp_path / "repo"
+    session, slug = "2026-08-04-probe-smoke", "probesmoke"
+    folder = repo / "docs" / session
+    folder.mkdir(parents=True)
+    (home / ".hercules" / "state").mkdir(parents=True)
+    (home / ".hercules" / "config.json").write_text(json.dumps({
+        "schema_version": 1,
+        "projects": {slug: {"directory": str(repo), "docs_root": "docs",
+                            "state_file": "%s.json" % slug, "repositories": {}}}}))
+    (home / ".hercules" / "state" / ("%s.json" % slug)).write_text(json.dumps({
+        "schema_version": 1, "active_session": session,
+        "sessions": {session: {"tier": "medium", "current_phase": "design"}}}))
+
+    spec = folder / ("%s-spec-01-thing.md" % session)
+    gate = _DIST / ecosystem / "hooks" / "document_gate.py"
+    prober = _DIST / ecosystem / "tools" / "probe_run.py"
+    env = {**os.environ, "HOME": str(home)}
+
+    def gate_write():
+        event = {"tool_name": "Write", "cwd": str(repo), "tool_input": {"file_path": str(spec)}}
+        result = subprocess.run([sys.executable, str(gate), "probes"], input=json.dumps(event),
+                                capture_output=True, text=True, env=env)
+        return result.returncode, result.stderr
+
+    code, err = gate_write()
+    assert code == _DENY, "%s allowed a spec write with zero probes run" % ecosystem
+    assert "cannot be written yet" in err
+
+    for label, extra in (("dependency", [sys.executable, "--version"]),
+                         ("seam", ["true"] if os.name != "nt" else ["cmd", "/c", "exit", "0"])):
+        record = folder / "probes" / ("probe-%s.json" % label)
+        assert not record.parent.exists() or label != "dependency", "probes/ pre-existed unexpectedly"
+        result = subprocess.run(
+            [sys.executable, str(prober), "run", "--label", label, "--tier", "medium",
+             "--expect", "it runs clean", "--into", str(record), "--"] + extra,
+            capture_output=True, text=True)
+        payload = json.loads(result.stdout)
+        assert payload.get("verdict") == "PASS", "%s: probe %s did not pass: %s" % (
+            ecosystem, label, payload)
+        assert record.exists(), "%s: the probe record was never written" % ecosystem
+
+    code, err = gate_write()
+    assert code == _ALLOW, "%s still blocked the write after both probes verified: %s" % (
+        ecosystem, err)
+
+
+@pytest.mark.parametrize("ecosystem", _SHIPPED)
 def test_the_shipped_gate_allows_when_it_cannot_resolve_anything(tmp_path, ecosystem):
     """No registry, no state, no idea — and therefore no opinion. A hook that guessed here would
     block people whose projects it has never heard of."""

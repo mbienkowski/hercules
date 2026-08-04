@@ -15,7 +15,7 @@ roster (GATE: user accepts; G8) → advisor debate → draft & iterate → Plan 
 ### Design {#phase-design}
 
 session discovery → read requirements → scan constraints & read tier → design questions →
-roster (GATE: user accepts; G8) → advisor debate → draft specs → falsify assumptions (GATE) →
+roster (GATE: user accepts; G8) → advisor debate → draft specs → falsify assumptions (GATE; G10) →
 implementability (GATE) → coverage (GATE) → Plan approval (GATE) → write specs →
 independent review (GATE; G9)
 
@@ -47,6 +47,7 @@ prompt-only = discipline.
 | G6 | ship · preconditions | phase | Session Ship gates on build_complete; a spec-scoped ship skips only that gate, stages only the spec's files, omits the PR, and writes no session field. | state-checkable |
 | G7 | all · tier | phase | Tier scored once in Discover; never re-scored; only the user changes it. | state-checkable |
 | G9 | discover · write requirements, design · write specs | span → phase change | A delivery document is checked when written; the next phase is refused until every document it rests on carries a review saying proceed. The host runs both — no instruction asks for either. | hook |
+| G10 | design · falsify assumptions | write → step | A spec cannot be written until its session's tier-required probes exist and verify — the one step with no shell chokepoint of its own, so the host gates the write instead. | hook |
 | G8 | discover · roster, design · roster | step | No advisor spawns before the user accepts the roster; absent where the tier convenes none. A tier the user raises at Discover's roster gate reaches that phase's state write; Design persists no tier, so a raise there is surfaced to the user, never silently carried. | prompt-only |
 
 ## Delegation packet {#packet}

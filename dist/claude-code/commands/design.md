@@ -66,6 +66,11 @@ is **falsification, not proof**: it cannot show the plan will work — that woul
 result of executing it without executing it — but it does kill a plan that *cannot* work, for the
 price of a few minutes, before anyone reads it.
 
+This step has no shell command of its own to gate the way Plan approval does, so the host gates the
+*next* write instead: **writing a spec file is refused** until this session's tier-required probes
+exist and have verified (`G10`). Skipping this step is not a shortcut — it is a write that will not
+land.
+
 Name at most **three** load-bearing assumptions: the things where, if wrong, the design is not
 merely harder but different. Then for each, state what you expect to observe, show the user the
 command before it runs, and run it:

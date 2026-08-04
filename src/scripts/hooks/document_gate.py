@@ -11,6 +11,13 @@ calls the agent has to make anyway, so the standard is applied whether or not an
            specific shell command, so it is the chokepoint: the gate re-runs the checks HERE and
            refuses the call when the work has not actually been reviewed.
 
+  probes   PreToolUse, on the spec file itself. Design's falsification step (probe the assumptions
+           that would sink the plan) has no natural shell chokepoint of its own — presenting a draft
+           is chat, not a tool call — so nothing stopped it being skipped outright. The one real
+           chokepoint is earlier than a phase change: a spec cannot be WRITTEN until this session's
+           tier-required probes exist and verify. This is what makes falsification non-skippable
+           rather than a step an agent can quietly not do.
+
 `advance` deliberately keeps NO state of its own. It re-derives the verdict at the moment of the
 call rather than trusting a flag written earlier, so there is nothing to go stale and nothing for a
 hook to write — the house rule that a hook never writes `~/.hercules` stays intact.
@@ -185,12 +192,14 @@ def _phase_change(command: str):
     return phase or None
 
 
-def _session_documents(payload, phase, home):
-    """The documents the phase being entered depends on: Design rests on the requirements, Build on
-    the specs. Returns `(paths, session_id)`; an empty list means nothing to gate."""
+def _resolve_active_session(cwd, home):
+    """The registered project matching `cwd`, and its active session. Returns
+    `(directory, session_id, folder, session)` or `None` when nothing resolves — matched on the
+    registry's `directory` field, never guessed from a filename or a loose substring of a path, so a
+    coincidentally-named file in an unrelated repo is never mistaken for a Hercules session."""
     home_dir = Path(home) if home else Path.home()
     config = json.loads((home_dir / ".hercules" / "config.json").read_text(encoding="utf-8"))
-    cwd = os.path.abspath(payload.get("cwd") or os.getcwd())
+    cwd = os.path.abspath(cwd)
 
     for entry in (config.get("projects") or {}).values():
         directory = entry.get("directory")
@@ -198,22 +207,32 @@ def _session_documents(payload, phase, home):
             continue
         state_file = entry.get("state_file")
         if not state_file or os.path.basename(state_file) != state_file:
-            return [], None
+            return None
         state = json.loads((home_dir / ".hercules" / "state" / state_file)
                            .read_text(encoding="utf-8"))
         session_id = state.get("active_session")
         if not session_id:
-            return [], None
+            return None
         docs_root = entry.get("docs_root") or "docs"
         root = Path(docs_root)
         if not root.is_absolute():
             root = Path(directory) / docs_root
-        folder = root / session_id
-        if not folder.is_dir():
-            return [], session_id
-        pattern = "*-business-requirements.md" if phase == "design" else "*-spec-*.md"
-        return sorted(folder.glob(pattern)), session_id
-    return [], None
+        session = (state.get("sessions") or {}).get(session_id) or {}
+        return directory, session_id, root / session_id, session
+    return None
+
+
+def _session_documents(payload, phase, home):
+    """The documents the phase being entered depends on: Design rests on the requirements, Build on
+    the specs. Returns `(paths, session_id)`; an empty list means nothing to gate."""
+    resolved = _resolve_active_session(payload.get("cwd") or os.getcwd(), home)
+    if resolved is None:
+        return [], None
+    _directory, session_id, folder, _session = resolved
+    if not folder.is_dir():
+        return [], session_id
+    pattern = "*-business-requirements.md" if phase == "design" else "*-spec-*.md"
+    return sorted(folder.glob(pattern)), session_id
 
 
 def _verdict(doc_lint, doc_report, rules, path: Path, tier: str):
@@ -279,13 +298,16 @@ def advance(payload, home=None) -> tuple:
         doc_lint, doc_report = _load_checkers()
         rules = _rules(doc_lint)
         documents, session_id = _session_documents(payload, phase, home)
+        resolved = _resolve_active_session(payload.get("cwd") or os.getcwd(), home)
     except Exception:
         return ALLOW, ""
 
     if not documents:
         return ALLOW, ""
 
-    tier = _session_tier(Path(str(session_id or "")), home)
+    # The resolved session carries its own recorded tier — read that directly rather than
+    # re-deriving it, so the gate and the session agree on the same fact by construction.
+    tier = (resolved[3].get("tier") if resolved else None) or "medium"
     problems = []
     for path in documents:
         try:
@@ -299,10 +321,86 @@ def advance(payload, home=None) -> tuple:
     return BLOCK, _refusal(phase, problems)
 
 
+# ── probes: a spec cannot be written until its session's probes have verified ───────────────────
+
+
+def _load_prober():
+    module = "probe_run"
+    __import__(module)
+    return sys.modules[module]
+
+
+def _probes_refusal(spec_name, tier, why) -> str:
+    lines = [
+        "Hercules: %s cannot be written yet." % spec_name,
+        "",
+        "  - %s" % why,
+        "",
+        "This is Design's falsification step, not the phase gate: a spec is not written until the "
+        "assumptions it rests on have been probed for tier %s (`probe_run.py budget` prints how "
+        "many). Run the probes into docs/{session}/probes/, verify them, then write the spec again."
+        % tier,
+    ]
+    return "\n".join(lines)
+
+
+def probes(payload, home=None) -> tuple:
+    """Refuse to write a spec file until this session's tier-required probes exist and verify.
+
+    Fails OPEN whenever it cannot positively resolve a registered Hercules session for `cwd` — an
+    unregistered project, or a coincidentally spec-shaped filename in an unrelated repo, is not
+    evidence that anything was skipped."""
+    try:
+        doc_lint, _ = _load_checkers()
+        rules = _rules(doc_lint)
+        probe_run = _load_prober()
+        resolved = _resolve_active_session(payload.get("cwd") or os.getcwd(), home)
+    except Exception:
+        return ALLOW, ""
+    if resolved is None:
+        return ALLOW, ""
+    _directory, _session_id, folder, session = resolved
+
+    cwd = payload.get("cwd") or os.getcwd()
+    tier = session.get("tier") or "medium"
+    budget = rules.get("probes", {}).get("tiers", {}).get(tier)
+    if not budget or not budget.get("probes"):
+        return ALLOW, ""  # this tier asks for no probes — nothing to gate
+
+    for raw in _target_paths(payload.get("tool_input") or {}):
+        try:
+            path = Path(raw if os.path.isabs(str(raw)) else os.path.join(cwd, str(raw)))
+            # Positively confirm the target is INSIDE this session's own folder — resolving the
+            # project by cwd is not enough on its own if the write targets some other path entirely.
+            if folder.resolve() not in path.resolve().parents:
+                continue
+            if _is_delivery_document(doc_lint, rules, path) != "spec":
+                continue
+        except Exception:
+            continue
+
+        probes_dir = folder / "probes"
+        try:
+            class _Args:
+                pass
+            args = _Args()
+            args.into = str(probes_dir)
+            args.tier = tier
+            result, _ = probe_run.run_verify(rules, args)
+        except probe_run.Refused:
+            return BLOCK, _probes_refusal(
+                path.name, tier, "no probes have been run for this session yet")
+        except Exception:
+            continue
+        if result.get("decision") != "proceed":
+            return BLOCK, _probes_refusal(path.name, tier, "; ".join(result.get("reasons") or []))
+    return ALLOW, ""
+
+
 # ── entry point ─────────────────────────────────────────────────────────────────────────────────
 
 
-_MODES = {"review": review, "advance": advance}
+_MODES = {"review": review, "advance": advance, "probes": probes}
 
 
 def main(argv=None, stdin_text=None, home=None) -> int:

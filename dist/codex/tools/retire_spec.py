@@ -215,34 +215,54 @@ def _git_tracks(repo_dir: Path, name: str) -> bool:
         return False
 
 
-def delete_spec_file(spec_path: Path) -> str:
-    """Remove the spec file — `git rm` when git tracks it (staging the removal), a plain unlink
-    otherwise — and report which route was taken. Already absent counts as done, so a re-run resumes."""
-    if not spec_path.exists():
+def _delete_file(path: Path) -> str:
+    """Remove one file — `git rm` when git tracks it (staging the removal), a plain unlink
+    otherwise — and report which route was taken. Already absent counts as done, so a re-run
+    resumes. The shared body behind `delete_spec_file` and `delete_report_file`: the same file
+    can be the spec or its review, and the safety property is identical either way."""
+    if not path.exists():
         return "already_absent"
-    repo_dir = spec_path.parent
-    if _git_tracks(repo_dir, spec_path.name):
+    repo_dir = path.parent
+    if _git_tracks(repo_dir, path.name):
         try:
             result = subprocess.run(
-                ["git", "-C", str(repo_dir), "rm", "--quiet", "--", spec_path.name],
+                ["git", "-C", str(repo_dir), "rm", "--quiet", "--", path.name],
                 capture_output=True, text=True, timeout=_GIT_TIMEOUT_SECONDS,
             )
         except (OSError, subprocess.SubprocessError) as exc:
-            raise Internal(f"'git rm' could not run for {spec_path}. Nothing else was changed. "
+            raise Internal(f"'git rm' could not run for {path}. Nothing else was changed. "
                           f"{exc}") from exc
         if result.returncode != 0:
             raise Internal(
-                f"'git rm' failed for {spec_path}: {result.stderr.strip() or 'unknown error'}. "
+                f"'git rm' failed for {path}: {result.stderr.strip() or 'unknown error'}. "
                 "Nothing else was changed."
             )
         return "git_rm"
     try:
-        spec_path.unlink()
+        path.unlink()
     except OSError as exc:
         raise Internal(
-            f"Could not delete {spec_path}. Nothing else was changed. {exc.strerror or exc}"
+            f"Could not delete {path}. Nothing else was changed. {exc.strerror or exc}"
         ) from exc
     return "unlink"
+
+
+def delete_spec_file(spec_path: Path) -> str:
+    """Remove the spec file. Named apart from `_delete_file` because a test monkeypatches this
+    exact name to simulate an unclassified failure — keep the name stable even though the body
+    is shared."""
+    return _delete_file(spec_path)
+
+
+def delete_report_file(spec_path: Path) -> str:
+    """Remove the spec's review, `{stem}-report.json` beside it, regardless of `keep_specs`.
+
+    The report is transient working evidence for the falsification and coverage gates, never the
+    permanent artifact `keep_specs` protects — a report proves ONE draft was reviewed, and once that
+    draft is superseded (deleted, or refreshed under `keep_specs`), the report is not just stale, it
+    is actively misleading: it would keep saying `proceed` about a document it never actually read.
+    Absent counts as done, so a spec retired before review reports existed is not an error."""
+    return _delete_file(spec_path.with_name(spec_path.stem + "-report.json"))
 
 
 # ── Step 3 — patch state ──────────────────────────────────────────────────────────────────────
@@ -320,6 +340,7 @@ def build_plan(slug, entry, session_id, session, spec_name, spec_path, keep_spec
         "frozen_check": check_payload,
         "would_retire": {
             "delete_spec_file": not keep_specs,
+            "delete_report_file": True,
             "clears": ["frozen_test_files", "frozen_baseline", "frozen_override"],
             "drops_from_pending_specs": spec_name,
             "appends_to_delivered_specs": spec_name,
@@ -338,6 +359,7 @@ def apply_retire(home, slug, entry, session_id, session, spec_name, spec_path, k
             "deleted or changed. Inspect the drifted files, then run this again."
         )
     deletion = "kept" if keep_specs else delete_spec_file(spec_path)
+    report_deletion = delete_report_file(spec_path)
     path = state_path(home, entry, slug)
     before_state = read_json(path)
     updated_state = dict(before_state)
@@ -349,7 +371,7 @@ def apply_retire(home, slug, entry, session_id, session, spec_name, spec_path, k
     return {
         "project": {"slug": slug, "directory": entry.get("directory", "")},
         "session": {"id": session_id},
-        "spec": {"name": spec_name, "deletion": deletion},
+        "spec": {"name": spec_name, "deletion": deletion, "report_deletion": report_deletion},
         "frozen_check": check_payload,
         "verified": verified,
     }

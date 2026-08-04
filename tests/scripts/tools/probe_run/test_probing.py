@@ -149,6 +149,32 @@ def test_a_probe_can_be_written_where_the_caller_asks(tmp_path):
     assert saved["record"]["argv"] == ["true"]
 
 
+def test_the_probes_directory_does_not_need_to_exist_first(tmp_path):
+    """Design's own prose points a probe straight at `docs/{session}/probes/probe-{label}.json`
+    with nothing that creates that directory first. The first probe of a session must not fail on
+    that account — a missing directory is not a reason to call the plan unfalsifiable."""
+    into = tmp_path / "docs" / "2026-08-04-x" / "probes" / "probe-dependency.json"
+    assert not into.parent.exists()
+    code, payload = probe(command=("true",), into=into)
+    assert code == EXIT_OK, payload
+    assert payload["verdict"] == PASS
+    assert json.loads(into.read_text())["verdict"] == PASS
+
+
+def test_a_write_failure_is_refused_with_its_own_message_not_mislabeled_as_unreadable(tmp_path):
+    """A failed WRITE reported as 'cannot read' sends whoever debugs it looking in the wrong place.
+    Point --into at a path a file already occupies as a directory component, so the write is
+    guaranteed to fail regardless of platform, and check the message names the write."""
+    blocker = tmp_path / "not-a-directory"
+    blocker.write_text("occupied", encoding="utf-8")
+    into = blocker / "probe-dependency.json"
+    code, payload = probe(command=("true",), into=into)
+    assert code == EXIT_REFUSED
+    assert payload["error"] == "refused"
+    assert "write" in payload["message"].lower()
+    assert "cannot read" not in payload["message"].lower()
+
+
 # ── the budget, and UNPROVEN as an escape hatch ─────────────────────────────────────────────────
 
 

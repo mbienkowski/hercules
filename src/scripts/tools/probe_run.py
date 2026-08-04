@@ -146,7 +146,13 @@ def run_probe(rules: dict, args) -> tuple:
         "rules_version": rules["rules_version"],
     }
     if args.into:
-        Path(args.into).write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        destination = Path(args.into)
+        try:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        except OSError as unwritable:
+            raise Refused("could not write the probe record to %s: %s"
+                          % (destination, unwritable)) from unwritable
     return payload, EXIT_OK if verdict == PASS else EXIT_REFUSED
 
 

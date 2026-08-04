@@ -239,3 +239,84 @@ def test_review_never_reports_on_a_file_that_is_not_there(tmp_path, capsys):
              "tool_input": {"file_path": str(project / "docs" / SESSION / REQUIREMENTS_NAME)}}
     code, _ = run("review", event, home, capsys)
     assert code == ALLOW
+
+
+# ── probes: a spec cannot be written before its assumptions are falsified ───────────────────────
+
+
+def write_event(project: Path, filename: str) -> dict:
+    return {"tool_name": "Write", "cwd": str(project),
+            "tool_input": {"file_path": str(project / "docs" / SESSION / filename)}}
+
+
+def _probe_record(folder: Path, label: str, verdict: str) -> None:
+    (folder / "probes").mkdir(parents=True, exist_ok=True)
+    (folder / "probes" / ("probe-%s.json" % label)).write_text(
+        json.dumps({"label": label, "verdict": verdict, "record": {"argv": ["true"]}}))
+
+
+def test_a_spec_cannot_be_written_with_no_probes_run(tmp_path, capsys):
+    """The gap this fix exists to close: nothing else in the chain would have caught an agent that
+    skipped Design's falsification step entirely."""
+    home, project = build_project(tmp_path, documents={}, tier="medium")
+    code, err = run("probes", write_event(project, SPEC_NAME), home, capsys)
+    assert code == BLOCK
+    assert "cannot be written yet" in err
+    assert "no probes have been run" in err
+
+
+def test_a_spec_can_be_written_once_the_tier_s_probes_verify(tmp_path, capsys):
+    home, project = build_project(tmp_path, documents={}, tier="medium")
+    folder = project / "docs" / SESSION
+    _probe_record(folder, "one", "PASS")
+    _probe_record(folder, "two", "PASS")
+    code, err = run("probes", write_event(project, SPEC_NAME), home, capsys)
+    assert (code, err) == (ALLOW, "")
+
+
+def test_a_spec_is_still_refused_if_a_probe_contradicted_the_plan(tmp_path, capsys):
+    home, project = build_project(tmp_path, documents={}, tier="medium")
+    folder = project / "docs" / SESSION
+    _probe_record(folder, "one", "PASS")
+    _probe_record(folder, "two", "FAIL")
+    code, err = run("probes", write_event(project, SPEC_NAME), home, capsys)
+    assert code == BLOCK
+    assert "contradicted" in err
+
+
+def test_trivial_tier_needs_no_probes_at_all(tmp_path, capsys):
+    """Depth scales — a typo does not owe a feasibility pass."""
+    home, project = build_project(tmp_path, documents={}, tier="trivial")
+    code, err = run("probes", write_event(project, SPEC_NAME), home, capsys)
+    assert (code, err) == (ALLOW, "")
+
+
+def test_an_ordinary_document_is_not_gated_by_the_probe_check(tmp_path, capsys):
+    """Only spec files owe a probe — business requirements are Discover's business, not Design's."""
+    home, project = build_project(tmp_path, documents={}, tier="medium")
+    code, err = run("probes", write_event(project, REQUIREMENTS_NAME), home, capsys)
+    assert (code, err) == (ALLOW, "")
+
+
+def test_a_write_outside_the_session_folder_is_never_gated(tmp_path, capsys):
+    """A file that merely matches the spec filename pattern, but sits outside this session's own
+    folder, must not be treated as this session's spec — the resolver checks containment, not just
+    the name."""
+    home, project = build_project(tmp_path, documents={}, tier="medium")
+    (project / "elsewhere").mkdir()
+    event = {"tool_name": "Write", "cwd": str(project),
+             "tool_input": {"file_path": str(project / "elsewhere" / SPEC_NAME)}}
+    code, err = run("probes", event, home, capsys)
+    assert (code, err) == (ALLOW, "")
+
+
+def test_an_unregistered_project_is_never_gated_by_a_coincidental_filename(tmp_path, capsys):
+    """Fail open: a spec-shaped filename in a repository Hercules has never heard of is not
+    evidence that anything was skipped."""
+    home, _ = build_project(tmp_path, documents={})
+    elsewhere = tmp_path / "unrelated"
+    (elsewhere / "docs" / SESSION).mkdir(parents=True)
+    event = {"tool_name": "Write", "cwd": str(elsewhere),
+             "tool_input": {"file_path": str(elsewhere / "docs" / SESSION / SPEC_NAME)}}
+    code, err = run("probes", event, home, capsys)
+    assert (code, err) == (ALLOW, "")
