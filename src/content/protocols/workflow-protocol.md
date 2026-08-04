@@ -45,6 +45,7 @@ prompt-only = discipline.
 | G5 | build · cross-check | step | Improvement documented, reduction deferred, bug or regression is a Blocker; high-risk drift blocks. | prompt-only |
 | G6 | ship · preconditions | phase | Session Ship gates on build_complete; a spec-scoped ship skips only that gate, stages only the spec's files, omits the PR, and writes no session field. | state-checkable |
 | G7 | all · tier | phase | Tier scored once in Discover; never re-scored; only the user changes it. | state-checkable |
+| G9 | discover · write requirements, design · write specs | span → phase change | A delivery document is checked when written; the next phase is refused until every document it rests on carries a review saying proceed. The host runs both — no instruction asks for either. | hook |
 | G8 | discover · roster, design · roster | step | No advisor spawns before the user accepts the roster; absent where the tier convenes none. A tier the user raises at Discover's roster gate reaches that phase's state write; Design persists no tier, so a raise there is surfaced to the user, never silently carried. | prompt-only |
 
 ## Delegation packet {#packet}

@@ -20,8 +20,13 @@ _SHARED_HOOKS = _REPO_ROOT / "src" / "scripts" / "hooks"
 # Globbed, not listed, so a new hook script is picked up rather than silently skipped.
 _HOOK_SCRIPTS = sorted(_SHARED_HOOKS.glob("*.py"))
 
-# Sibling hook modules that are allowed to be imported by other hook scripts.
-_LOCAL_MODULES = {p.stem for p in _HOOK_SCRIPTS}
+# Sibling hook modules that are allowed to be imported by other hook scripts, plus the shipped
+# tools. Every distribution lays `hooks/` and `tools/` down as siblings, so a hook importing a tool
+# needs no install either — which is what this rule is actually protecting. Derived from the tree
+# rather than listed, so a tool renamed or deleted changes the allowance with it.
+_SHARED_TOOLS = _REPO_ROOT / "src" / "scripts" / "tools"
+_LOCAL_MODULES = ({p.stem for p in _HOOK_SCRIPTS}
+                  | {p.stem for p in sorted(_SHARED_TOOLS.glob("*.py"))})
 
 _PLUGIN_ROOT = _REPO_ROOT / "dist" / "claude-code"
 

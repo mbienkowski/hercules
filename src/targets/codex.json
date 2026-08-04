@@ -53,6 +53,11 @@
         "src/content/targets/codex/CAPABILITIES.md"
       ]
     },
+    "hooks/document_gate.py": {
+      "sources": [
+        "src/scripts/hooks/document_gate.py"
+      ]
+    },
     "hooks/frozen_tests.py": {
       "sources": [
         "src/scripts/hooks/frozen_tests.py"
