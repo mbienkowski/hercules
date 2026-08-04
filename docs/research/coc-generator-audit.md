@@ -425,7 +425,10 @@ a program we ship.
    citations in the output, and whether dead conventions surface. Until this exists, the redesign rests
    on principle. If the baseline turns out good, the cheap fixes in § 7.2 (prose changes for C4/C5) may
    be the whole job.
-2. **The owner decision in BR-2** — keep "always ask" on split patterns, or default to recent-dominant.
+2. ~~**The owner decision in BR-2** — keep "always ask" on split patterns, or default to
+   recent-dominant.~~ **Resolved: always ask.** The scan reports `conflicts` with both shares and
+   names no winner; see the spec's § 11 and `coc_scan.py`'s `conflicts_from_idioms`/
+   `conflicts_from_config`.
 3. **Whether churn proxies for "conventions worth codifying"** — the C8 assumption, untested.
 4. **Catalogue accuracy off the home repo** — validate against repos with ESLint/Prettier/YAML CI.
 5. **A token baseline** for the current skill, so BR-8's "net gain" has a comparator.
