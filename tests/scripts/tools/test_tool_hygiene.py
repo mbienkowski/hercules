@@ -16,7 +16,10 @@ from tests.repo.hygiene_rules import NETWORK_MODULES as _NETWORK_MODULES
 from tests.repo.hygiene_rules import top_level_import_roots as _imported_roots
 
 _TOOLS_DIR = Path(__file__).resolve().parents[3] / "src" / "scripts" / "tools"
-_TOOL_SCRIPTS = sorted(_TOOLS_DIR.glob("*.py"))
+# Recursive: tools are grouped into a directory per feature, so a flat glob would
+# silently stop scanning the moment one moved into a group.
+_TOOL_SCRIPTS = sorted(p for p in _TOOLS_DIR.rglob("*.py") if "__pycache__" not in p.parts)
+_NAME = {p: p.relative_to(_TOOLS_DIR).as_posix() for p in _TOOL_SCRIPTS}
 
 # DECLARATIONS, not permissions: a syntax scan cannot know which trees a program writes to.
 # `git_subcommands` is per tool, never shared: the verbs a tool needs are part of what it is, and one
@@ -27,16 +30,19 @@ _TOOLS = {
     "retire_spec.py": {"writes": True, "fails": "closed", "shells_to_git": True,
                        "git_subcommands": {"ls-files", "rm"}},
     "registry_sync.py": {"writes": True, "fails": "closed", "shells_to_git": False},
-    "coc_audit.py": {"writes": False, "fails": "closed", "shells_to_git": True,
-                     "git_subcommands": {"ls-files", "ls-tree"}},
-    "coc_scan.py": {"writes": False, "fails": "closed", "shells_to_git": True,
-                    "git_subcommands": {"ls-files", "ls-tree", "log", "tag", "rev-parse"}},
+    "code_of_conduct/coc_audit.py": {"writes": False, "fails": "closed",
+                                    "shells_to_git": False},
+    "code_of_conduct/coc_lint.py": {"writes": False, "fails": "closed", "shells_to_git": True,
+                                   "git_subcommands": {"ls-files", "ls-tree"}},
+    "code_of_conduct/coc_scan.py": {"writes": False, "fails": "closed", "shells_to_git": True,
+                                   "git_subcommands": {"ls-files", "ls-tree", "log", "tag",
+                                                       "rev-parse"}},
 }
 
 
 def test_the_capability_table_covers_every_shipped_tool():
     """A tool with no entry would be scanned against nothing and pass silently."""
-    assert {p.name for p in _TOOL_SCRIPTS} == set(_TOOLS)
+    assert set(_NAME.values()) == set(_TOOLS)
 
 
 def test_at_least_one_tool_ships():
@@ -59,7 +65,7 @@ def _needs_installing(root: str) -> bool:
     return "site-packages" in origin or "dist-packages" in origin
 
 
-@pytest.mark.parametrize("script", _TOOL_SCRIPTS, ids=lambda p: p.name)
+@pytest.mark.parametrize("script", _TOOL_SCRIPTS, ids=lambda p: p.relative_to(_TOOLS_DIR).as_posix())
 def test_a_shipped_tool_needs_no_installed_package(script: Path):
     """A consumer installs the plugin, not a dependency tree."""
     local = {p.stem for p in _TOOL_SCRIPTS}
@@ -75,36 +81,36 @@ def test_the_installed_package_check_can_actually_fail():
     assert _needs_installing("json") is False
 
 
-@pytest.mark.parametrize("script", _TOOL_SCRIPTS, ids=lambda p: p.name)
+@pytest.mark.parametrize("script", _TOOL_SCRIPTS, ids=lambda p: p.relative_to(_TOOLS_DIR).as_posix())
 def test_a_shipped_tool_opens_no_network_channel(script: Path):
     """The plugin tells people it talks to nothing, wherever that claim is printed."""
     roots = set(_imported_roots(ast.parse(script.read_text())))
     assert not (roots & _NETWORK_MODULES), f"{script.name} imports a network module"
 
 
-@pytest.mark.parametrize("script", _TOOL_SCRIPTS, ids=lambda p: p.name)
+@pytest.mark.parametrize("script", _TOOL_SCRIPTS, ids=lambda p: p.relative_to(_TOOLS_DIR).as_posix())
 def test_a_tool_that_deletes_declares_that_it_fails_closed(script: Path):
     """A tool permitted to write must resolve every unclassified error by doing nothing."""
-    declared = _TOOLS[script.name]
+    declared = _TOOLS[_NAME[script]]
     if declared["writes"]:
         assert declared["fails"] == "closed"
 
 
-@pytest.mark.parametrize("script", _TOOL_SCRIPTS, ids=lambda p: p.name)
+@pytest.mark.parametrize("script", _TOOL_SCRIPTS, ids=lambda p: p.relative_to(_TOOLS_DIR).as_posix())
 def test_a_tool_declared_read_only_performs_no_write(script: Path):
     """Write-capable tools are contained by their refusal rules instead."""
-    if _TOOLS[script.name]["writes"]:
+    if _TOOLS[_NAME[script]]["writes"]:
         pytest.skip(f"{script.name} declares writes; containment is proven by its refusal tests")
     source = script.read_text()
     assert "shutil" not in source
     assert not any(a in source for a in ("write_text", "write_bytes", "os.replace", "unlink"))
 
 
-@pytest.mark.parametrize("script", _TOOL_SCRIPTS, ids=lambda p: p.name)
+@pytest.mark.parametrize("script", _TOOL_SCRIPTS, ids=lambda p: p.relative_to(_TOOLS_DIR).as_posix())
 def test_a_shipped_tool_never_invokes_version_control(script: Path):
     """The record is the tool's business; a person's history is not, and git could rewrite work the
     tool was never asked to touch. The one declared exception is scoped by the test below."""
-    if _TOOLS[script.name]["shells_to_git"]:
+    if _TOOLS[_NAME[script]]["shells_to_git"]:
         pytest.skip(f"{script.name} declares shells_to_git; scope is proven by "
                     "test_a_git_capable_tool_never_runs_an_uncontained_git_subcommand")
     source = script.read_text()
@@ -164,12 +170,12 @@ def _literal_subcommands(call) -> list:
     return []
 
 
-@pytest.mark.parametrize("script", [p for p in _TOOL_SCRIPTS if _TOOLS[p.name]["shells_to_git"]],
-                        ids=lambda p: p.name)
+@pytest.mark.parametrize("script", [p for p in _TOOL_SCRIPTS if _TOOLS[_NAME[p]]["shells_to_git"]],
+                        ids=lambda p: p.relative_to(_TOOLS_DIR).as_posix())
 def test_a_git_capable_tool_never_runs_an_uncontained_git_subcommand(script: Path):
     """Every git argv names only a subcommand THIS tool declared, and never `shell=True` — which
     would let an argument be reinterpreted by a shell."""
-    allowed = _TOOLS[script.name].get("git_subcommands")
+    allowed = _TOOLS[_NAME[script]].get("git_subcommands")
     assert allowed, f"{script.name} declares shells_to_git but no git_subcommands"
     source = script.read_text()
     argv_calls = _git_argv_calls(source)

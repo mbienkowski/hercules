@@ -131,13 +131,13 @@ describe('the code-of-conduct generator keeps its promises to whoever runs it', 
   it('decides the gate with a program rather than asking an agent to be careful', () => {
     // The whole point of the gate: a rule an agent cannot justify to a validator does not ship.
     const text = flat(GENERATOR);
-    expect(text).toContain('tools/coc_audit.py draft --contract 1');
+    expect(text).toContain('tools/code_of_conduct/coc_audit.py draft --contract 1');
     expect(text).toContain('Exit 0 ships');
   });
 
   it('gathers its evidence with a program before it reasons about any of it', () => {
     const text = flat(GENERATOR);
-    expect(text).toContain('tools/coc_scan.py all --root');
+    expect(text).toContain('tools/code_of_conduct/coc_scan.py all --root');
     expect(text).toContain('never hand-scan around a refusal');
   });
 
@@ -170,13 +170,16 @@ describe('the code-of-conduct generator keeps its promises to whoever runs it', 
       .toContain('capped at one of each per group');
   });
 
-  it('checks the shape of the file it emits, not only the rules behind it', () => {
-    expect(flat(GENERATOR)).toContain('coc_audit.py lint --contract 1');
+  it('checks the shape of the file it emits, and again once it is on disk', () => {
+    // The draft that passed is not evidence about the bytes that landed.
+    const text = flat(GENERATOR);
+    expect(text).toContain('tools/code_of_conduct/coc_lint.py');
+    expect(text).toContain('re-run the linter against the file on disk');
   });
 
   it('reads an existing document mechanically before proposing a single change to it', () => {
     const text = flat(GENERATOR);
-    expect(text).toContain('coc_audit.py existing --contract 1');
+    expect(text).toContain('coc_lint.py --contract 1 --file <coc> --root <root>');
     expect(text).toContain('never an edit');
   });
 

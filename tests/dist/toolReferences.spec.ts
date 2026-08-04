@@ -13,7 +13,7 @@ const DIST = join(repoRoot, 'dist');
 const ECOSYSTEMS = readdirSync(DIST).filter((name) => statSync(join(DIST, name)).isDirectory());
 
 // `tools/<name>.py` wherever it appears in prose, however the host spells its plugin root.
-const REFERENCE = /tools\/([a-z0-9_]+\.py)/g;
+const REFERENCE = /tools\/((?:[a-z0-9_]+\/)*[a-z0-9_]+\.py)/g;
 
 // Prose, in whatever a host spells it: markdown for most, TOML command files for gemini-cli. The
 // `tools/` directory is excluded so a tool mentioning its own name never counts as a caller.
@@ -47,11 +47,22 @@ function referencedTools(root: string): Map<string, string> {
 }
 
 function shippedTools(root: string): string[] {
+  // Recursive: tools are grouped by the feature they serve, so a flat listing would report every
+  // grouped tool as unshipped and every reference to one as dangling.
+  const found: string[] = [];
+  const walk = (dir: string, prefix: string) => {
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) walk(path, `${prefix}${entry}/`);
+      else if (entry.endsWith('.py')) found.push(`${prefix}${entry}`);
+    }
+  };
   try {
-    return readdirSync(join(root, 'tools')).filter((name) => name.endsWith('.py'));
+    walk(join(root, 'tools'), '');
   } catch {
     return [];
   }
+  return found;
 }
 
 describe('every ecosystem ships the tools its own prose invokes', () => {

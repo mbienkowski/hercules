@@ -37,7 +37,7 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
      engineering standard: treat it as none and create a separate file.
    - More than one → **never silently pick**; list every match and confirm the target.
    - None → default `code-of-conduct.md` in the root.
-3. **Scan** — `python3 tools/coc_scan.py all --root <root> --contract 1`.
+3. **Scan** — `python3 tools/code_of_conduct/coc_scan.py all --root <root> --contract 1`.
    - It reports what the repo declares, what its history shows, which directories are alive, cooling,
      dormant or generated, and a ranked file list to read from.
    - Non-zero exit: relay its message and stop — never hand-scan around a refusal.
@@ -66,20 +66,23 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
 7. **Gate & present** — the gate is a program, not a promise.
    - Build the envelope: each rule as `{id, section, tag, text, check, citations}` plus the `facts`
      and `answers` it may cite (**§ Rules envelope**).
-   - Pipe it to `python3 tools/coc_audit.py draft --contract 1`.
+   - Pipe it to `python3 tools/code_of_conduct/coc_audit.py draft --contract 1`.
    - **Exit 0 ships.** Any other exit: fix or drop what its `findings` name and re-run — never argue
      past it, never hand-wave a rule it refused.
    - It judges tag, check, citations, unique id, and the directive count. The rest stays yours: each
      rule reads exactly one way and conflicts with no other.
-   - Lay the rules out as markdown, then `… coc_audit.py lint --contract 1` with
-     `{"contract":1,"markdown":"…"}` on stdin for the shape.
+   - Lay the rules out as markdown, then `python3 tools/code_of_conduct/coc_lint.py
+     --contract 1` with `{"contract":1,"markdown":"…"}` on stdin — it reports what to fix, it never
+     fixes it. Apply its findings and re-run until clean.
    - Present with a short summary (top standards, added, conflicts, dropped, and the band when past
      `intended`), surfacing only the ~5 genuine decisions — never a long list to curate.
    - Feedback applies **surgically** with a diff; regenerate wholesale only if the user reopens the
      scope, and re-gate only what changed.
 8. **Approve & write** — on approval: leave plan mode → write atomically (temp + rename) → add a
    deduplicated `@`-reference (default `@./code-of-conduct.md`) to the **target** repo's `AGENTS.md`,
-   creating it when missing.
+   creating it when missing. Then **re-run the linter against the file on disk**
+   (`… coc_lint.py --contract 1 --file <coc> --root <root>`): the draft that passed is not proof about
+   the bytes that landed. Fix and re-run until clean.
 9. **Review & commit** — show the file and ask the user to review it. On their go-ahead, **stage then
    commit** exactly the code-of-conduct file plus `AGENTS.md` when touched — `git add -- <paths>` then
    `git commit -m … -- <paths>` — so an untracked new file commits cleanly and the user's other staged
@@ -89,9 +92,10 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
 
 ## Update mode
 
-- **Read it mechanically first:** `python3 tools/coc_audit.py existing --contract 1
-  --file <coc> --root <root>` reports each backticked reference `verified`, `dangling` or `unparsed`,
-  and says which third of the document it could check.
+- **Read it mechanically first:** `python3 tools/code_of_conduct/coc_lint.py
+  --contract 1 --file <coc> --root <root>`. Its `findings` are rotted references — wrong whoever
+  wrote them. Its `shape_notes` are **not a task list**: reformatting an existing bullet is the edit
+  additions-only forbids.
 - A `dangling` entry is a **question for the user, never an edit** — the rule may be right and the
   path merely moved.
 - Where the state file holds a previous run's envelope (`schema_version` 1), re-verify those citations

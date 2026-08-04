@@ -18,11 +18,20 @@ from pathlib import Path
 TOOLS_DIR = Path(__file__).resolve().parents[3] / "src" / "scripts" / "tools"
 
 
+def tool_directories() -> list:
+    """Every directory a shipped tool lives in. Tools are grouped by the feature they serve, and a
+    host reaches one by path, so a test resolves them the same way rather than assuming one flat
+    directory."""
+    return [TOOLS_DIR] + sorted(p for p in TOOLS_DIR.rglob("*") if p.is_dir()
+                                and p.name != "__pycache__")
+
+
 def load_tool(module_name: str):
     """The shipped tool's ``main``, reached by putting its directory on the path — single-file
     programs with no package around them, the same way a host reaches one."""
-    if str(TOOLS_DIR) not in sys.path:
-        sys.path.insert(0, str(TOOLS_DIR))
+    for directory in tool_directories():
+        if str(directory) not in sys.path:
+            sys.path.insert(0, str(directory))
     return importlib.import_module(module_name).main
 
 

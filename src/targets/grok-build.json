@@ -233,14 +233,19 @@
         "src/content/skills/write-test-scenarios/SKILL.md"
       ]
     },
-    "tools/coc_audit.py": {
+    "tools/code_of_conduct/coc_audit.py": {
       "sources": [
-        "src/scripts/tools/coc_audit.py"
+        "src/scripts/tools/code_of_conduct/coc_audit.py"
       ]
     },
-    "tools/coc_scan.py": {
+    "tools/code_of_conduct/coc_lint.py": {
       "sources": [
-        "src/scripts/tools/coc_scan.py"
+        "src/scripts/tools/code_of_conduct/coc_lint.py"
+      ]
+    },
+    "tools/code_of_conduct/coc_scan.py": {
+      "sources": [
+        "src/scripts/tools/code_of_conduct/coc_scan.py"
       ]
     },
     "tools/project_reset.py": {
