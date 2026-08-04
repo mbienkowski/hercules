@@ -106,4 +106,31 @@ describe('the OpenCode plugin serves exactly the files shipped beside it', () =>
     }
     expect(gateConfig.skills?.paths).toContain(join(root, 'skills'));
   });
+
+  it('publishes its own directory so a shipped tool is never run from the user repository', () => {
+    // OpenCode names no plugin-root variable of its own, so the plugin exports one. Without it the
+    // prose would say `python3 tools/<name>.py`, resolved against the repository being worked on —
+    // and a checkout carrying that path would have its own file executed with the user's authority.
+    const root = realpathSync(out);
+    expect(realpathSync(process.env['HERCULES_PLUGIN_ROOT'] as string)).toBe(root);
+  });
+
+  it('names that variable in the recipe, so the builder leaves it for the host to resolve', () => {
+    // A variable the recipe substitutes would be baked in at build time and point at this machine.
+    const recipe = loadRecipe(RECIPE_FILE, repoRoot);
+    expect(recipe.runtime_variables).toContain('HERCULES_PLUGIN_ROOT');
+    expect(recipe.variables['plugin_root']).toBe('${HERCULES_PLUGIN_ROOT}/');
+  });
+
+  it('anchors every invocation of a shipped program in what it actually serves', () => {
+    // Read from the REGISTERED command bodies rather than the files, so this covers what an agent is
+    // really handed. An unanchored call is the whole defect, not a formatting preference.
+    const served = Object.values(gateConfig.command ?? {}).map((entry) => entry.template ?? '');
+    expect(served.length).toBeGreaterThan(0);
+    const offenders = served.flatMap((text) =>
+      [...text.matchAll(/python3?\s+("?)([^\s"']+\.py)\1/g)]
+        .map(([, , target]) => target ?? '')
+        .filter((target) => /(?:^|\/)(tools|hooks)\//.test(target) && !target.startsWith('$')));
+    expect(offenders).toEqual([]);
+  });
 });

@@ -44,7 +44,7 @@ Ask 2–3 follow-ups within a group if the answer is thin. Move on only when the
 
 ## Step 3 — Paraphrase, classify complexity & confirm
 
-Paraphrase what you heard in 2–3 sentences so the user can correct any misunderstanding before scoring. Score against `protocols/debate-consensus-protocol.md` § complexity — both signal columns, then the higher of the two — and never restate its numbers here. Then show the judgement together with the choices open to the user:
+Paraphrase what you heard in 2–3 sentences so the user can correct any misunderstanding before scoring. Score against `${HERCULES_PLUGIN_ROOT}/protocols/debate-consensus-protocol.md` § complexity — both signal columns, then the higher of the two — and never restate its numbers here. Then show the judgement together with the choices open to the user:
 > "I'm classifying this as **{tier} complexity** because [one sentence rationale]."
 > "That convenes {n} advisors and allows {r}. Your call:"
 > **keep it** at {tier} (recommended) · **lower it** to {next-lower} · **raise it** to {next-higher} · **answer freely**
@@ -61,7 +61,7 @@ Every tier continues through Steps 4–7; the tier sets how many advisors run pl
 
 ## Step 4 — Advisor debate
 
-Advisors and debate depth both scale with the tier — the rubric is `protocols/debate-consensus-protocol.md` § complexity: `trivial` runs none, so skip to Step 5; `low` runs a reduced set that returns findings without cross-examining them; `medium` and up run the fuller set, with a later round only where the one before it left a topic contested. Read every count from the rubric; none is restated here. When advisors apply, follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **business-analyst, challenger, simplicity-advocate**) — choose deliberately different, even opposing, perspectives so they argue, not echo. Productive disagreement beats easy consensus. On the user's go-ahead, run the debate per `protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
+Advisors and debate depth both scale with the tier — the rubric is `protocols/debate-consensus-protocol.md` § complexity: `trivial` runs none, so skip to Step 5; `low` runs a reduced set that returns findings without cross-examining them; `medium` and up run the fuller set, with a later round only where the one before it left a topic contested. Read every count from the rubric; none is restated here. When advisors apply, follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **business-analyst, challenger, simplicity-advocate**) — choose deliberately different, even opposing, perspectives so they argue, not echo. Productive disagreement beats easy consensus. On the user's go-ahead, run the debate per `${HERCULES_PLUGIN_ROOT}/protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`${HERCULES_PLUGIN_ROOT}/protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
 
 ## Step 5 — Draft & feedback loop
 
@@ -116,7 +116,7 @@ File structure:
 
 **Business language only** — committed and read by stakeholders. No class/method names, code, or file paths; implementation detail belongs in the spec. Design references hold visual-artifact links (Figma, wireframes), never implementation detail.
 
-Write the session-init state under `~/.hercules/` (see `hercules-reference § Machine-local state`), never the repo. First, create or update the registry entry if needed (`directory`, `docs_root`, `state_file`), preserving `repositories`, `frozen_hook`, `keep_specs` on existing entries. Then run `python3 tools/state_patch.py apply --project-slug {slug} --session-id {new-session-id} --set active_session={new-session-id} --set current_phase=discover --set tier={tier} --set tier_rationale={rationale} --confirm` to write the state file's session atomically. Non-zero exit: relay the output and stop. Preserve other entries/sessions.
+Write the session-init state under `~/.hercules/` (see `hercules-reference § Machine-local state`), never the repo. First, create or update the registry entry if needed (`directory`, `docs_root`, `state_file`), preserving `repositories`, `frozen_hook`, `keep_specs` on existing entries. Then run `python3 ${HERCULES_PLUGIN_ROOT}/tools/state_patch.py apply --project-slug {slug} --session-id {new-session-id} --set active_session={new-session-id} --set current_phase=discover --set tier={tier} --set tier_rationale={rationale} --confirm` to write the state file's session atomically. Non-zero exit: relay the output and stop. Preserve other entries/sessions.
 
 Append a new row to `docs/INDEX.md` (create if absent) with `tier`, `discover` status,
 and a one-line goal summary.

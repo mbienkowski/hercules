@@ -14,9 +14,10 @@ reshaped them (§ 7). Spike code is throwaway and intentionally not committed; o
 appear here. The next phase turns § 6 into technical specs; nothing in this document changes shipped
 content.
 
-**One finding does not wait for the spec phase.** § 7.1 records a shipped-today vulnerability in the
-opencode target, found while threat-modelling this redesign and confirmed by inspection. It is
-independent of this work and needs its own fix.
+**One finding did not wait for the spec phase.** § 7.1 records a shipped-today vulnerability in the
+opencode target, found while threat-modelling this redesign. It is fixed: the plugin publishes its
+own absolute directory as `HERCULES_PLUGIN_ROOT`, every shipped invocation resolves through it, and a
+universal guard refuses any ecosystem that ships a relative one.
 
 ## 1. What makes a good code-of-conduct (criteria checklist)
 
@@ -363,8 +364,16 @@ cwd-relative invocations — `python3 tools/project_reset.py`, `python3 tools/st
 Those commands already run with the user's project directory as cwd, so a repository that ships its
 own `tools/state_patch.py` has it executed with the user's authority. This is a defect in shipped code
 today, not one this redesign introduces; the redesign only makes it fatal rather than incidental,
-since steps 3/5/7 would become tool invocations. **It needs its own fix on its own branch**, and the
-spec phase must require working invocation on all seven targets, not merely a recipe entry.
+since steps 3/5/7 become tool invocations.
+
+**Fixed on this branch.** The plugin already resolved its own directory for the instruction and skill
+paths it injects; it now publishes that as `HERCULES_PLUGIN_ROOT`, and the recipe defers the variable
+to the host rather than substituting it. Twelve invocations across seven files became absolute.
+Demonstrated both ways against a repository carrying its own `tools/state_patch.py`: the shipped
+invocation ran that file before the change and the real tool after it. An unset variable now yields
+`/tools/…` and fails loudly rather than resolving into the checkout, and
+`tests/dist/interpreterInvocations.spec.ts` refuses any ecosystem that ships a relative invocation of
+a program we ship.
 
 ### 7.2 Accepted, with the evidence they forced
 

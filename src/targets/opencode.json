@@ -29,12 +29,14 @@
     "plan_exit": "approval",
     "plan_mode": "prose",
     "plugin_manifest_dir": false,
-    "plugin_root": "",
+    "plugin_root": "${HERCULES_PLUGIN_ROOT}/",
     "product": "OpenCode",
     "version_manifest": "package_root",
     "write_backstop": "settable_permission"
   },
-  "runtime_variables": [],
+  "runtime_variables": [
+    "HERCULES_PLUGIN_ROOT"
+  ],
   "targets": {
     "CAPABILITIES.md": {
       "sources": [

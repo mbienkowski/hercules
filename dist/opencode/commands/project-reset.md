@@ -18,7 +18,7 @@ This command does not read or edit the record itself. A shipped program does tha
 Run the program in plan mode from the project you are in:
 
 ```
-python3 tools/project_reset.py plan --contract 1
+python3 ${HERCULES_PLUGIN_ROOT}/tools/project_reset.py plan --contract 1
 ```
 
 Everything below is rendered from that reply and nothing else. Do not read `~/.hercules` yourself, and do not describe anything the reply does not contain.
@@ -106,7 +106,7 @@ Say "the last account of what was built" only for a feature whose stage is `ship
 The person says yes. Any other reply is feedback — show the choices again, never proceed. On approval, run the same selection with `apply`:
 
 ```
-python3 tools/project_reset.py apply --contract 1 --confirm --documents --feature 2026-07-29-one-dynamic-workflow
+python3 ${HERCULES_PLUGIN_ROOT}/tools/project_reset.py apply --contract 1 --confirm --documents --feature 2026-07-29-one-dynamic-workflow
 ```
 
 ## Step 5 — Say what happened

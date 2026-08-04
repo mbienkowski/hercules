@@ -37,7 +37,7 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
      engineering standard: treat it as none and create a separate file.
    - More than one → **never silently pick**; list every match and confirm the target.
    - None → default `code-of-conduct.md` in the root.
-3. **Scan** — `python3 tools/code_of_conduct/coc_scan.py all --root <root> --contract 1`.
+3. **Scan** — `python3 ${HERCULES_PLUGIN_ROOT}/tools/code_of_conduct/coc_scan.py all --root <root> --contract 1`.
    - It reports what the repo declares, what its history shows, which directories are alive, cooling,
      dormant or generated, and a ranked file list to read from.
    - Non-zero exit: relay its message and stop — never hand-scan around a refusal.
@@ -70,12 +70,12 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
 7. **Gate & present** — the gate is a program, not a promise.
    - Build the envelope: each rule as `{id, section, tag, text, check, citations}` plus the `facts`
      and `answers` it may cite (**§ Rules envelope**).
-   - Pipe it to `python3 tools/code_of_conduct/coc_audit.py draft --contract 1`.
+   - Pipe it to `python3 ${HERCULES_PLUGIN_ROOT}/tools/code_of_conduct/coc_audit.py draft --contract 1`.
    - **Exit 0 ships.** Any other exit: fix or drop what its `findings` name and re-run — never argue
      past it, never hand-wave a rule it refused.
    - It judges tag, check, citations, unique id, and the directive count. The rest stays yours: each
      rule reads exactly one way and conflicts with no other.
-   - Lay the rules out as markdown, then `python3 tools/code_of_conduct/coc_lint.py
+   - Lay the rules out as markdown, then `python3 ${HERCULES_PLUGIN_ROOT}/tools/code_of_conduct/coc_lint.py
      --contract 1` with `{"contract":1,"markdown":"…"}` on stdin — it reports what to fix, it never
      fixes it. Apply its findings and re-run until clean.
    - Present with a short summary (top standards, added, conflicts, dropped, and the band when past
@@ -96,7 +96,7 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
 
 ## Update mode
 
-- **Read it mechanically first:** `python3 tools/code_of_conduct/coc_lint.py
+- **Read it mechanically first:** `python3 ${HERCULES_PLUGIN_ROOT}/tools/code_of_conduct/coc_lint.py
   --contract 1 --file <coc> --root <root>`. Its `findings` are rotted references — wrong whoever
   wrote them. Its `shape_notes` are **not a task list**: reformatting an existing bullet is the edit
   additions-only forbids.

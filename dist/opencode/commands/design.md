@@ -46,7 +46,7 @@ Ask only what is needed — only what the Step 3 scan and `*-business-requiremen
 
 ## Step 5 — Advisor debate
 
-Advisor count and debate depth both come from the tier read forward from Discover, scored against § complexity of the debate protocol cited below; its numbers are never restated here. Follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **lead-architect, security-expert, senior-qa-engineer**). On the user's go-ahead, run the debate per `protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
+Advisor count and debate depth both come from the tier read forward from Discover, scored against § complexity of the debate protocol cited below; its numbers are never restated here. Follow the **Sub-agent consent** flow and pick the advisors the task needs (default: **lead-architect, security-expert, senior-qa-engineer**). On the user's go-ahead, run the debate per `${HERCULES_PLUGIN_ROOT}/protocols/debate-consensus-protocol.md`, scaled to the tier — each spawn carries the delegation packet (`${HERCULES_PLUGIN_ROOT}/protocols/workflow-protocol.md#packet`); fold the synthesis into the draft and flag contested points.
 
 ## Step 6 — Draft & feedback loop
 
@@ -61,7 +61,7 @@ Iterate: apply every change, show the updated draft, ask again, until the user i
 
 Implementability check — every file named in a spec's `## Affected code` must already exist or be explicitly marked new; every `satisfies:` header must resolve to a real `*-business-requirements.md` section. Block on any mismatch — do not paper over it.
 
-Requirements coverage is an **independent review** (`hercules-reference § Independent review`), never a self-check: spawn `cynical-reviewer` with the delegation packet (`protocols/workflow-protocol.md#packet`). It reads `*-business-requirements.md` and the spec drafts **directly** (never a slice you pre-select) and, for every requirement item, cites the specific spec sentence that addresses it — no coverage by assumption or paraphrase. It returns the coverage matrix:
+Requirements coverage is an **independent review** (`hercules-reference § Independent review`), never a self-check: spawn `cynical-reviewer` with the delegation packet (`${HERCULES_PLUGIN_ROOT}/protocols/workflow-protocol.md#packet`). It reads `*-business-requirements.md` and the spec drafts **directly** (never a slice you pre-select) and, for every requirement item, cites the specific spec sentence that addresses it — no coverage by assumption or paraphrase. It returns the coverage matrix:
 ```
 Requirements coverage:
   ✓ [requirement text]
@@ -135,6 +135,6 @@ If the feature is single-track (no meaningful split), emit one spec file (`spec-
 Update `docs/INDEX.md`: set this session's `Status` to `design` if creating the row,
 or update it in place if the row exists.
 
-Update the active session in the project's state file by running `python3 tools/state_patch.py apply --project-slug {slug} --session-id {id} --set current_phase=design --set pending_specs={spec-filenames-in-order} --confirm` to write atomically; Non-zero exit: relay the output and stop.
+Update the active session in the project's state file by running `python3 ${HERCULES_PLUGIN_ROOT}/tools/state_patch.py apply --project-slug {slug} --session-id {id} --set current_phase=design --set pending_specs={spec-filenames-in-order} --confirm` to write atomically; Non-zero exit: relay the output and stop.
 
 Show the saved spec paths in delivery order. Then say: "The specs and delivery sequence are locked. Ready to **Build**? Run `/hercules:build` — I'll present a delivery plan first, then deliver the specs."
