@@ -53,11 +53,49 @@ Advisor count and debate depth both come from the tier read forward from Discove
 Present the complete draft inline. Then ask:
 > This is the draft. Review it and tell me what to change, add, or remove.
 
-Iterate: apply every change, show the updated draft, ask again, until the user is satisfied. Then run the Step 7 validation gates — the user gives formal **Plan approval** only in Step 8, after the draft is validated.
+Iterate: apply every change, show the updated draft, ask again, until the user is satisfied. Then run the Step 8 validation gates — the user gives formal **Plan approval** only in Step 9, after the draft is validated.
 
 (medium+) Share this draft with stakeholders before locking. Say **"stakeholders approved"** or **"skip stakeholder review"** to continue.
 
-## Step 7 — Validation gates (implementability, then coverage)
+## Step 7 — Falsify the assumptions this plan rests on
+
+Before the plan is shown as approvable, check the few assumptions whose falsity would sink it. This
+is **falsification, not proof**: it cannot show the plan will work — that would mean knowing the
+result of executing it without executing it — but it does kill a plan that *cannot* work, for the
+price of a few minutes, before anyone reads it.
+
+Name at most **three** load-bearing assumptions: the things where, if wrong, the design is not
+merely harder but different. Then for each, state what you expect to observe, show the user the
+command before it runs, and run it:
+
+```
+python3 ${CURSOR_PLUGIN_ROOT}/tools/probe_run.py run --label {assumption} --tier {tier} \
+  --expect "{what you expect to see}" --faked "{unwritten internals stood in for}" \
+  --into docs/{session}/probes/probe-{label}.json -- {the command}
+```
+
+The tier sets how many probes and how long they may take (`probe_run.py budget` prints both; never
+restate those numbers here). Probe classes in rank order: the dependency exists · the API has the
+shape assumed · the external endpoint answers · the runtime supports the mechanism · the data
+supports the requirement · the **seam** — walk the main and negative scenario end to end with real
+external dependencies and hand-written stand-ins for internals that do not exist yet. The seam probe
+is what makes this work on a greenfield codebase, where there is nothing else to run.
+
+Two rules decide whether a verdict means anything, and both are enforced:
+
+- **The expectation is stated before the run.** A command that asserts nothing can always be made to
+  exit zero, so a probe with no pre-stated expectation is `UNPROVEN` however cleanly it exits.
+- **A probe never fakes what it exists to check.** Standing in for an unwritten internal is the
+  point; standing in for the dependency, the API or the data makes it green exactly where production
+  fails, and is recorded as a failure.
+
+`FAIL` means the plan is contradicted — return to Step 6 with the contradiction quoted, do not carry
+it to approval. `UNPROVEN` means it could not be checked here: carry it to Step 9 verbatim as a named
+risk, with an owner and the build step that will settle it. Run
+`probe_run.py verify --tier {tier} --into docs/{session}/probes/` to confirm the tier's probes ran
+and that `UNPROVEN` has not become the answer to everything.
+
+## Step 8 — Validation gates (implementability, then coverage)
 
 Implementability check — every file named in a spec's `## Affected code` must already exist or be explicitly marked new; every `satisfies:` header must resolve to a real `*-business-requirements.md` section. Block on any mismatch — do not paper over it.
 
@@ -78,13 +116,13 @@ Sub-spec ownership — every requirement must map to at least one spec via that 
 
 Note on n-1 — `*-business-requirements.md` is both the validation source and the only prior artifact (n-1); one read suffices.
 
-Synthesise the reviewer's findings (that synthesis is the terminal judgment): if any requirement is uncovered or partially covered, do not write the specs — surface the matrix to the user at Step 8 as input and ask whether to extend the specs to cover them, or mark them explicitly out of scope (with a reason); a fix is re-checked by a fresh reviewer. Only proceed to Plan approval once every requirement is covered (with a quote) and owned by a spec, or explicitly out of scope.
+Synthesise the reviewer's findings (that synthesis is the terminal judgment): if any requirement is uncovered or partially covered, do not write the specs — surface the matrix to the user at Step 9 as input and ask whether to extend the specs to cover them, or mark them explicitly out of scope (with a reason); a fix is re-checked by a fresh reviewer. Only proceed to Plan approval once every requirement is covered (with a quote) and owned by a spec, or explicitly out of scope.
 
-## Step 8 — Plan approval
+## Step 9 — Plan approval
 
-This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback, not approval. **Do not write the specs until the user approves.** On approval, leave plan mode, then write (Step 9).
+This is the single **Plan approval** gate — *you approve the phase after reviewing the plan*, the same gate every phase ends on. The implementability and coverage gates have already run, so what you approve is an already-validated plan. Present the validated specs + delivery order. The gate accepts the canonical Plan-approval trigger words defined in `persona.md § Delivery workflow` — any other utterance is feedback, not approval. **Do not write the specs until the user approves.** On approval, leave plan mode, then write (Step 10).
 
-## Step 9 — Output
+## Step 10 — Output
 
 After Plan approval, create one file per spec under the artifact root
 (default `docs/`), numbered in delivery order — there is no separate design file:
@@ -170,7 +208,7 @@ Update the active session in the project's state file by running `python3 ${CURS
 
 Show the saved spec paths in delivery order.
 
-## Step 10 — Review
+## Step 11 — Review
 
 Each spec is reviewed by someone who did not write it — an **independent review**
 (`hercules-reference § Independent review`), never a self-check.

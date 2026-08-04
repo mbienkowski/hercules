@@ -34,7 +34,9 @@ const BUDGETS: ReadonlyArray<readonly [string, string, number]> = [
   // Raised from 2200 alongside Discover: the spec template gained the sections that make a spec
   // unambiguous — challenge, decision record, patterns, naming, DO/DON'T, risks — and the
   // independent review Build's gate will not open without.
-  ['the design command', 'commands/design.md', 2800],
+  // Raised again for the falsification step. It is the longest single addition here and the one
+  // that earns its length: it exists to stop a plan being approved and only then found impossible.
+  ['the design command', 'commands/design.md', 3350],
   // Raised from 3260 when traceability became a search for a scenario identifier
   // rather than a judgement about whether two sentences mean the same thing.
   ['the build command', 'commands/build.md', 3320],

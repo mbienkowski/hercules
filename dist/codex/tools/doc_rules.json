@@ -649,5 +649,74 @@
         }
       ]
     }
+  },
+  "probes": {
+    "note": "Falsification, not proof. A probe kills a plan that cannot work; it never certifies one that can, because that would mean knowing the result of executing a plan without executing it. Budgets are deliberately small: an assumption too expensive to check cheaply is itself a finding, recorded as UNPROVEN rather than chased.",
+    "verdicts": {
+      "PASS": "ran clean against an expectation stated before the run",
+      "FAIL": "contradicted the plan \u2014 the draft goes back, and this is the whole point",
+      "UNPROVEN": "not checkable here; carried to approval as a named risk with an owner"
+    },
+    "never_fake": [
+      "dependency",
+      "api",
+      "endpoint",
+      "database",
+      "data",
+      "runtime",
+      "credentials",
+      "network",
+      "provider"
+    ],
+    "never_fake_note": "A probe may stand in for internal units that do not exist yet. Faking the thing it exists to check makes it green exactly where production fails.",
+    "unproven_ceiling": 0.5,
+    "classes": [
+      {
+        "id": "dependency",
+        "checks": "the library exists and installs at the version named"
+      },
+      {
+        "id": "symbol",
+        "checks": "the API has the shape the plan assumes"
+      },
+      {
+        "id": "contract",
+        "checks": "the external endpoint is real and answers"
+      },
+      {
+        "id": "runtime",
+        "checks": "the mechanism exists on this runtime"
+      },
+      {
+        "id": "data",
+        "checks": "the data supports the requirement \u2014 column, nullability, volume"
+      },
+      {
+        "id": "seam",
+        "checks": "the main and negative paths connect end to end, with real external dependencies and hand-written stand-ins for unwritten internals"
+      }
+    ],
+    "tiers": {
+      "trivial": {
+        "probes": 0,
+        "seconds": 0
+      },
+      "low": {
+        "probes": 1,
+        "seconds": 60
+      },
+      "medium": {
+        "probes": 2,
+        "seconds": 180
+      },
+      "high": {
+        "probes": 4,
+        "seconds": 360
+      },
+      "critical": {
+        "probes": 5,
+        "seconds": 600
+      }
+    }
   }
 }

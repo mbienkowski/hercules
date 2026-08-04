@@ -25,6 +25,12 @@ _TOOLS = {
     "doc_lint.py": {"writes": False, "fails": "closed", "shells_to_git": False},
     # Judges a review it is handed; forms no opinion and keeps no record of its own.
     "doc_report.py": {"writes": False, "fails": "closed", "shells_to_git": False},
+    # Runs a probe command the user was shown first, and writes its record where told. `runs_commands`
+    # is its own capability, deliberately NOT folded into shells_to_git: that flag means "this program
+    # drives version control", which carries a scope check naming the subcommands it may use. This one
+    # drives whatever the probe is, and version control is exactly what it must never touch.
+    "probe_run.py": {"writes": True, "fails": "closed", "shells_to_git": False,
+                     "runs_commands": True},
     "project_reset.py": {"writes": True, "fails": "closed", "shells_to_git": False},
     "state_patch.py": {"writes": True, "fails": "closed", "shells_to_git": False},
     "retire_spec.py": {"writes": True, "fails": "closed", "shells_to_git": True},
@@ -107,7 +113,10 @@ def test_a_shipped_tool_never_invokes_version_control(script: Path):
                     "test_a_git_capable_tool_never_runs_an_uncontained_git_subcommand")
     source = script.read_text()
     roots = set(_imported_roots(ast.parse(source)))
-    assert "subprocess" not in roots, f"{script.name} imports subprocess"
+    # A command runner needs subprocess by definition; what it must still never do is drive version
+    # control, which the whole-word scan below continues to enforce for it.
+    if not _TOOLS[script.name].get("runs_commands"):
+        assert "subprocess" not in roots, f"{script.name} imports subprocess"
     # Whole word only: "legitimate" and "digit" are not invocations of git.
     calls = [line for line in source.splitlines()
              if re.search(r"\bgit\b", line) and not line.lstrip().startswith(("#", '"', "'"))]

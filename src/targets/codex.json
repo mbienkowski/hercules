@@ -273,6 +273,11 @@
         "src/scripts/tools/doc_rules.json"
       ]
     },
+    "tools/probe_run.py": {
+      "sources": [
+        "src/scripts/tools/probe_run.py"
+      ]
+    },
     "tools/project_reset.py": {
       "sources": [
         "src/scripts/tools/project_reset.py"

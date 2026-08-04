@@ -32,13 +32,24 @@ describe('design', () => {
     expect(readFile(DESIGN)).toContain('/hercules:build');
   });
 
+  it('tests the plan against reality before it is ever shown as approvable', () => {
+    // The promise, not the wording: nothing is offered for approval until the assumptions it rests
+    // on have been checked. A plan approved and THEN found impossible is the failure this prevents.
+    const lower = readFile(DESIGN).toLowerCase();
+    const probe = lower.indexOf('## step 7');
+    const approval = lower.indexOf('## step 9 — plan approval');
+    expect(probe > 0 && probe < approval, 'assumptions are falsified before approval is asked').toBe(true);
+    expect(lower).toContain('falsification, not proof');
+    expect(lower).toContain('probe_run.py');
+  });
+
   it('validates the plan is sound before asking for approval, and never writes specs before that approval', () => {
     const lower = readFile(DESIGN).toLowerCase();
-    const i7 = lower.indexOf('## step 7');
-    const i8 = lower.indexOf('## step 8 — plan approval');
-    const i9 = lower.indexOf('## step 9');
-    expect(i7 < i8 && i8 < i9, 'order must be validation gates (7) -> Plan approval (8) -> write specs (9)').toBe(true);
-    const approval = section(readFile(DESIGN), '## Step 8 — Plan approval', '## Step 9', DESIGN);
+    const i8 = lower.indexOf('## step 8');
+    const i9 = lower.indexOf('## step 9 — plan approval');
+    const i10 = lower.indexOf('## step 10');
+    expect(i8 < i9 && i9 < i10, 'order must be validation gates (8) -> Plan approval (9) -> write specs (10)').toBe(true);
+    const approval = section(readFile(DESIGN), '## Step 9 — Plan approval', '## Step 10', DESIGN);
     expect(approval).toContain('**Do not write the specs until the user approves.**');
   });
 });
