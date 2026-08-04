@@ -107,7 +107,7 @@ Hercules installs natively in each supported ecosystem — **pick yours**. At a 
 |---|---|---|---|
 | [Claude Code](#install-claude-code) | marketplace (`/plugin`) | `/hercules:workflow` | ✅ real pre-write veto (`PreToolUse`) |
 | [Codex](#install-codex) | marketplace (`codex plugin`) | `$hercules-workflow` | ⚠️ guardrail over `apply_patch` + `Bash` — not a sandbox |
-| [Cursor](#install-cursor) | copy `dist/cursor/` | `/workflow` | ⚠️ best-effort: shell/MCP deny + advisory on IDE edits |
+| [Cursor](#install-cursor) | marketplace (repo URL import) | `/workflow` | ⚠️ best-effort: shell/MCP deny + advisory on IDE edits |
 | [Gemini CLI](#install-gemini-cli) | `gemini extensions install` | `/workflow` | ✅ real pre-write veto (`BeforeTool`) |
 | [GitHub Copilot CLI](#install-github-copilot-cli) | marketplace (`copilot plugin`) | `/workflow` | ✅ real pre-write veto (`preToolUse`) |
 | [Grok Build](#install-grok-build) | marketplace (`/marketplace`) | `/hercules:workflow` | ✅ real pre-write veto (`PreToolUse`) |
@@ -170,8 +170,9 @@ codex plugin add hercules@mbienkowski
 <details id="install-cursor">
 <summary><b>Cursor</b></summary>
 
-- **Requires** [Cursor](https://cursor.com) **≥ 2.5** (plugin packaging; isolated advisor subagents landed in 2.4).
-- **Install** — copy the built `dist/cursor/` into `~/.cursor/plugins/local/hercules/`, then restart Cursor.
+- **Requires** [Cursor](https://cursor.com) **≥ 2.6** for the marketplace import (plugin packaging landed in 2.5, isolated advisor subagents in 2.4).
+- **Install (marketplace)** — **Dashboard → Settings → Plugins → Import**, paste `https://github.com/mbienkowski/hercules`, enable **hercules**. No clone or build — Cursor parses the repo's `.cursor-plugin/marketplace.json` directly.
+- **Install (local / offline)** — copy the built `dist/cursor/` into `~/.cursor/plugins/local/hercules/`, then restart Cursor.
 - **Verify** — **Customize → Plugins**: the persona rule always applies, the `/discover … /workflow` commands appear, advisors run as isolated subagents.
 - **Start** — `/workflow`.
 - **Enforcement — best-effort tier** (Cursor can't block an edit before it lands, so the frozen-test lock is weaker than the pre-write veto elsewhere):
@@ -422,7 +423,8 @@ Hercules makes it easier to do that well.
 <details>
 <summary><b>Cursor</b></summary>
 
-- Re-copy the freshly built `dist/cursor/` over `~/.cursor/plugins/local/hercules/`, then restart Cursor.
+- **Marketplace install** — re-import the repo URL under **Dashboard → Settings → Plugins** to pull the latest.
+- **Local install** — re-copy the freshly built `dist/cursor/` over `~/.cursor/plugins/local/hercules/`, then restart Cursor.
 
 </details>
 
@@ -478,7 +480,8 @@ Hercules makes it easier to do that well.
 <details>
 <summary><b>Cursor</b></summary>
 
-- Delete `~/.cursor/plugins/local/hercules/`, then restart Cursor.
+- **Marketplace install** — remove the plugin (and the marketplace) under **Dashboard → Settings → Plugins**.
+- **Local install** — delete `~/.cursor/plugins/local/hercules/`, then restart Cursor.
 
 </details>
 
