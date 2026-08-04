@@ -9,6 +9,7 @@ import stat
 import pytest
 
 from tests.scripts.tools.project_reset.conftest import apply, build_home
+from tests.scripts.tools.tool_harness import read_only_directories_are_enforced
 
 
 @pytest.mark.parametrize("cleared,expected_pointer", [
@@ -58,8 +59,10 @@ def test_another_projects_registry_entry_is_never_touched(tmp_path):
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX permission semantics")
-def test_a_record_that_cannot_be_written_leaves_the_original_intact(fx):
+def test_a_record_that_cannot_be_written_leaves_the_original_intact(fx, tmp_path):
     """When the rewrite cannot land, the original must still be there — never a truncated file."""
+    if not read_only_directories_are_enforced(tmp_path):
+        pytest.skip("this machine writes into read-only directories, so no write here can fail")
     original = fx.state_path.read_text()
     os.chmod(fx.state_path.parent, 0o500)
     try:

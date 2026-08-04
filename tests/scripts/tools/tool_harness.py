@@ -11,6 +11,7 @@ import contextlib
 import importlib
 import io
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -102,6 +103,24 @@ def write_hercules_home(
         })
     )
     return ToolHome(tmp_path, project, slug, docs)
+
+
+def read_only_directories_are_enforced(tmp_path: Path) -> bool:
+    """Whether stripping write permission from a directory actually stops a write here — measured,
+    not inferred from the user id. A test that a failed write leaves the original intact needs the
+    write to fail; run as root, or on a filesystem that ignores the mode, it never does, and the test
+    would report a defect in the tool that is really a property of the machine."""
+    probe = tmp_path / "permission-probe"
+    probe.mkdir()
+    (probe / "existing.txt").write_text("x")
+    os.chmod(probe, 0o500)
+    try:
+        (probe / "new.txt").write_text("x")
+        return False
+    except OSError:
+        return True
+    finally:
+        os.chmod(probe, 0o700)
 
 
 def invoke(main, home: Path, argv, **extra):

@@ -37,8 +37,10 @@ function referencedTools(root: string): Map<string, string> {
   const cited = new Map<string, string>();
   for (const file of proseUnder(root)) {
     const text = readFileSync(file, 'utf-8');
-    for (const [, name] of text.matchAll(REFERENCE)) {
-      if (!cited.has(name)) cited.set(name, relative(repoRoot, file));
+    for (const match of text.matchAll(REFERENCE)) {
+      // The capture group is what names the tool; a match without one means the pattern changed.
+      const name = match[1];
+      if (name && !cited.has(name)) cited.set(name, relative(repoRoot, file));
     }
   }
   return cited;
