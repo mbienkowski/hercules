@@ -1,3 +1,7 @@
+## v1.18.0 (2026-08-04)
+
+* docs: restructure README — explain the workflow once, fix spec-retention claim, alphabetize ecosystems (#43)
+
 ## v1.17.0 (2026-08-03)
 
 * chore: bump the actions group across 1 directory with 4 updates (#42)
