@@ -307,3 +307,26 @@ holds: nothing existing is cut, merged, reordered, or retro-fitted with annotati
 4. **Not in this work:** every opencode command invokes tools cwd-relative (`python3 tools/….py`)
    while the other six targets emit an absolute plugin root, and those commands run with the user's
    project as cwd. That is a shipped defect needing its own branch.
+
+## 11. What shipped differently from this specification
+
+Recorded here rather than edited into the sections above, which stay a dated record of what was
+planned. Each of these was decided while building, for a reason the plan could not have known.
+
+- **Three tools, not two, grouped in a directory.** `tools/code_of_conduct/` holds `coc_scan.py`,
+  `coc_audit.py` and `coc_lint.py`. § 6.1's `lint` and § 6.2's `existing` became one tool: both
+  answer *what is wrong with this document*, and splitting them across two modes of the gate meant a
+  reader had to run two things to find out. The gate keeps one job — may this draft be written at all.
+- **Shape binds a draft, and only informs about a document that already exists.** Running the linter
+  against this repository's own code-of-conduct reported 100+ untagged bullets: a list of edits that
+  § 9's additions-only rule forbids. Shape findings on an existing file now sit in `shape_notes`,
+  outside `findings`, and do not decide the exit code. A rotted citation is a finding either way.
+- **The linter runs again after the write**, against the file on disk. § 6.1 checked the draft only,
+  which is not evidence about the bytes that landed.
+- **`coc_audit` stayed pure; `coc_lint` carries the git surface.** § 5's purity claim survives on the
+  gate alone — the tool that reads a repository is the one that needed `ls-files`.
+- **The ghost-path figures in § 2.3 were withdrawn and re-measured** against the shipped scanner; the
+  exploratory spike had mis-parsed git's output. The section carries the corrected numbers.
+- **Per-tool git allowlists** (§ 7.1) landed as planned, and the hygiene scan additionally learned to
+  follow a tool's hardened git wrapper — routing every call through one place is the better shape, and
+  a scan that only understood argv-at-the-call-site would have pushed tools away from it.
