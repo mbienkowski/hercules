@@ -154,9 +154,35 @@ def resolve_session(state: dict, session_id: str):
                     "sessions listed.")
 
 
+def _resolved_docs_root(entry: dict):
+    """This project's documents root as a real, comparable path.
+
+    `docs_root` in the registry defaults to `"docs"` and is usually RELATIVE — same-repo docs live
+    under the project's own `directory` (see `hercules-reference § Artifact root resolution`). A
+    bare `canon()` of a relative string resolves it against whatever directory THIS PROCESS happens
+    to be running in, which is only ever correct by coincidence; join it to `directory` explicitly
+    instead, so containment is fixed by the registry, never by the caller's shell state. A
+    separate-repo `docs_root` is already an absolute, user-confirmed path by the time it reaches the
+    registry (resolved once, interactively, at Discover) and passes through unchanged.
+
+    Returns `None` only when `docs_root` is relative and `directory` is not on record — the one
+    genuinely unresolvable case. This tool cannot prompt interactively; the caller turns that `None`
+    into a refusal whose message tells the AGENT to ask the user, the same indirection every other
+    refusal here already uses."""
+    docs_root = entry.get("docs_root") or "docs"
+    root = Path(docs_root).expanduser()
+    if root.is_absolute():
+        return root
+    directory = entry.get("directory")
+    if not directory:
+        return None
+    return Path(directory).expanduser() / docs_root
+
+
 def resolve_spec(entry: dict, session: dict, spec_file_arg: str):
     """The spec's basename and on-disk path, matched against the session's OWN record rather than
-    trusted from the argument. Refuses a blank name, an unrecognised spec, or a path outside docs."""
+    trusted from the argument. Refuses a blank name, an unrecognised spec, an unresolvable documents
+    root, or a path outside it."""
     if not str(spec_file_arg).strip():
         raise Refused("spec_file_blank",
                       "No spec file was named. Nothing was changed. Pass --spec-file, then run "
@@ -168,8 +194,14 @@ def resolve_spec(entry: dict, session: dict, spec_file_arg: str):
         raise Refused("unknown_spec",
                       f"'{spec_name}' is not this session's current spec or one of its pending "
                       "specs. Nothing was changed. Name a recognised spec, then run this again.")
-    docs_root = entry.get("docs_root")
-    if docs_root and not is_within(canon(spec_path), canon(docs_root)):
+    docs_root = _resolved_docs_root(entry)
+    if docs_root is None:
+        raise Refused("docs_root_unresolvable",
+                      "This project's documents root could not be resolved automatically — "
+                      "docs_root is relative and no directory is on record for it. Nothing was "
+                      "changed. Ask the user for the documents-root path, record it in the "
+                      "project's registry entry, then run this again.")
+    if not is_within(canon(spec_path), canon(docs_root)):
         raise Refused("spec_outside_docs_root",
                       f"'{spec_file_arg}' resolves outside this project's documents root. Nothing "
                       "was changed. Pass a path inside the documents root, then run this again.")

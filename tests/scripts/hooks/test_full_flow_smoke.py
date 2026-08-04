@@ -54,15 +54,14 @@ class Session:
         self.folder = self.repo / "docs" / _SESSION
         self.folder.mkdir(parents=True)
         (self.home / ".hercules" / "state").mkdir(parents=True)
-        # docs_root is absolute here deliberately: retire_spec.py's own containment check
-        # (resolve_spec -> is_within(canon(spec_path), canon(docs_root))) resolves a RELATIVE
-        # docs_root against the retire_spec PROCESS's cwd at invocation, not against `directory` —
-        # confirmed separately and reported upstream. document_gate.py's own resolver (written this
-        # session) does join a relative docs_root to `directory`; retire_spec.py's older one does
-        # not. Using an absolute path here keeps this test testing the NEW flow, not that gap.
+        # docs_root is the documented default here — relative, "docs" — deliberately, now that
+        # retire_spec.py's own containment check joins a relative docs_root to `directory` rather
+        # than resolving it against whatever the calling process's cwd happens to be. This is the
+        # ordinary, most common project shape; using it here proves the fix rather than routing
+        # around the case it was written for.
         (self.home / ".hercules" / "config.json").write_text(json.dumps({
             "schema_version": 1,
-            "projects": {_SLUG: {"directory": str(self.repo), "docs_root": str(self.repo / "docs"),
+            "projects": {_SLUG: {"directory": str(self.repo), "docs_root": "docs",
                                 "state_file": "%s.json" % _SLUG, "repositories": {}}}}))
         self.state_path = self.home / ".hercules" / "state" / ("%s.json" % _SLUG)
         self._write_state(tier=tier, phase="design")
