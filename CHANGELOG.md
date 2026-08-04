@@ -1,3 +1,7 @@
+## v1.19.0 (2026-08-04)
+
+* Claude/hercules agent clarity c45oy3 (#44)
+
 ## v1.18.0 (2026-08-04)
 
 * docs: restructure README — explain the workflow once, fix spec-retention claim, alphabetize ecosystems (#43)
