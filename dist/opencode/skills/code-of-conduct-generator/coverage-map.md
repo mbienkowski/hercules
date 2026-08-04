@@ -43,10 +43,18 @@ The emitted CoC is enforced-only and formatted for an AI reader:
   scan order (Architecture with design patterns and why, Development, Testing, Quality Gates incl.
   mutation, Security & Data, Delivery), most load-bearing first.
 - **One atomic imperative per rule**, tagged **MUST** or **SHOULD**, naming its **mechanical check**
-  inline — a grep, a lint rule, a CI job, or a numeric threshold. Explain a rule's *why* only where it
-  changes interpretation; a section may open with one evidence-grounded WHY sentence.
-- **Ground every number** — a threshold quotes a user answer or a computed repo statistic, never a padded
-  default. Scale to evidence: a thin repo ships a small, clearly-labelled seed, never padded.
+  inline — a grep, a lint rule, a CI job, or a numeric threshold. A rule needing a paragraph is two
+  rules or none.
+- **Open every group with one `**WHY:**` line**, grounded in an observation or answer — it is what
+  lets an agent apply the rule to a case the list never named, instead of obeying it literally.
+- **Add a `**DON'T:**` / `**DO:**` pair where local idiom decides the rule**, not everywhere: mine
+  both sides from the repo (≤3 lines a side, cited), since a contrastive example pins a rule to *this*
+  codebase as prose cannot. A rule that reads the same in any repo needs no pair.
+- **Annotations cost no directive, and are capped at one of each per group** — the exemption is
+  because they teach a rule already counted; the cap is what stops it doubling the file.
+- **Ground every number** — a threshold quotes a user answer or a computed repo statistic (the scan
+  reports module-size percentiles and marker densities for exactly this), never a padded default.
+  Scale to evidence: a thin repo ships a small, clearly-labelled seed, never padded.
 - **Gate (Step 6b) — every rule clears all four**: reads exactly one way; conflicts with no other; is
   backed by a captured observation or a user answer ("it looks nice", or an answer that just restates the
   rule, is not proof); names an **objective** mechanical check (reviewer-judgment-only is rejected unless

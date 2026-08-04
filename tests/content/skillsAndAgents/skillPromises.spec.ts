@@ -135,6 +135,21 @@ describe('the code-of-conduct generator keeps its promises to whoever runs it', 
     expect(text).toContain('Exit 0 ships');
   });
 
+  it('makes every group teach its rules, not just state them', () => {
+    // A rule without its reason is generalised wrongly; a rule without an example is read
+    // generically. Both were optional before, which meant absent.
+    const map = flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md');
+    expect(map).toContain('Open every group with one');
+    expect(map).toMatch(/DON'T.{0,40}DO.{0,40}pair where local idiom/);
+  });
+
+  it('caps the annotations that the directive budget exempts', () => {
+    // Exempting WHY and example lines from the count is what makes them affordable; capping them is
+    // what stops the exemption from doubling a file the budget exists to keep short.
+    expect(flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md'))
+      .toContain('capped at one of each per group');
+  });
+
   it('tells the drafting agent where the envelope it must fill is specified', () => {
     // A gate whose input shape is undocumented is a gate the agent guesses its way past.
     expect(flat(GENERATOR)).toContain('§ Rules envelope');

@@ -53,8 +53,10 @@ and git command against that root (`git -C <root>`), never bare `.`.
 5. **Draft** — draft rules only from scan observations and user answers, formatted per **§ Output
    format** in `coverage-map.md`: lead with a `## Non-negotiables (MUST)` block, then themed sections —
    Architecture (design patterns in use, and why), Development, Testing, Quality Gates (coverage;
-   mutation), Security & Data, Delivery — each rule naming its check inline and tagged MUST/SHOULD;
-   explain a rule's *why* only where it changes interpretation.
+   mutation), Security & Data, Delivery — each rule naming its check inline and tagged MUST/SHOULD.
+   Open each group with one **WHY** line, and give it a **DON'T/DO** pair mined from the repo wherever
+   local idiom is what the rule turns on — one pair per group, ≤3 lines a side, cited like any other
+   observation. Both are annotations: they cost no directive, and the caps are what keeps that true.
 6. **Gap pass & critical review** (Thorough) — run `coverage-map.md` once as a stack-gated gap detector: each
    load-bearing omission is a chat recommendation (accept → rule, decline → absent), offered
    highest-value first and never past the directive budget. Then one `challenger` critically reviews the draft
