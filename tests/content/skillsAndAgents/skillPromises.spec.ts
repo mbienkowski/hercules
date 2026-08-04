@@ -170,6 +170,24 @@ describe('the code-of-conduct generator keeps its promises to whoever runs it', 
       .toContain('capped at one of each per group');
   });
 
+  it('checks the shape of the file it emits, not only the rules behind it', () => {
+    expect(flat(GENERATOR)).toContain('coc_audit.py lint --contract 1');
+  });
+
+  it('reads an existing document mechanically before proposing a single change to it', () => {
+    const text = flat(GENERATOR);
+    expect(text).toContain('coc_audit.py existing --contract 1');
+    expect(text).toContain('never an edit');
+  });
+
+  it('exempts the bullets that predate the gate rather than refusing every update', () => {
+    // Rules written before the envelope existed carry no tags or citations. Submitting them would
+    // make a passing update impossible, which is how an additions-only promise gets quietly broken.
+    const text = flat(GENERATOR);
+    expect(text).toContain('never submitted to the gate');
+    expect(text).toContain('New rules and new sections meet the full bar');
+  });
+
   it('tells the drafting agent where the envelope it must fill is specified', () => {
     // A gate whose input shape is undocumented is a gate the agent guesses its way past.
     expect(flat(GENERATOR)).toContain('§ Rules envelope');

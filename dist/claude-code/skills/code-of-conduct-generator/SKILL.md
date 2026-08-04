@@ -70,7 +70,10 @@ and git command against that root (`git -C <root>`), never bare `.`.
    it refused. It judges what a program can: tagged MUST/SHOULD, names a check, cites evidence the
    envelope carries, unique id, and the directive count against the bands (only the ceiling refuses).
    The judgements it cannot make stay yours — each rule reads exactly one way and conflicts with no
-   other. Then present it with a short summary (top standards, added, conflicts, dropped, plus the
+   other. Then lay the rules out as markdown and check the shape the same way:
+   `… coc_audit.py lint --contract 1` with `{"contract":1,"markdown":"…"}` on stdin — Non-negotiables
+   first, every bullet tagged, one WHY per group, examples paired and within their caps. Then present
+   it with a short summary (top standards, added, conflicts, dropped, plus the
    reported band when it is past `intended`), surfacing only the ~5 genuine decisions ranked by
    marginal information — never a long list to curate. Feedback applies **surgically** with a diff of
    what changed; regenerate wholesale only when the user reopens the scope, and re-gate only what
@@ -87,11 +90,21 @@ and git command against that root (`git -C <root>`), never bare `.`.
 
 ## Update mode
 
+Start by reading the file mechanically:
+`python3 ${CLAUDE_PLUGIN_ROOT}/tools/coc_audit.py existing --contract 1 --file <coc> --root <root>` reports
+each backticked reference as `verified`, `dangling` or `unparsed` — roughly a third of a document is
+checkable, and it says which third. A `dangling` entry is a **question for the user**, never an edit:
+the rule may be right and the path merely moved. Where the state file holds a previous run's envelope
+(`schema_version` 1), re-verify those citations exactly instead; an unreadable or older envelope says
+so in chat and falls back to this report rather than silently claiming less.
+
 Never rename, reorder, delete, or restructure existing sections or bullets on the generator's own
 initiative — additions only. Exceptions: a critical-review-proposed drop after the user's explicit yes, and any
-edit the user directs. Gap analysis surfaces missing items, conflicts (the CoC says X, the code does Y —
-a question, never auto-resolved), and missing sections; present an additions-only diff plus any drop
-questions, insert bullets in place, and append new sections at the end.
+edit the user directs. Existing bullets are never retro-fitted with tags, WHY lines or examples, and
+never submitted to the gate: they predate it, so validating them would refuse every legitimate
+update. New rules and new sections meet the full bar. Gap analysis surfaces missing items, conflicts
+(the CoC says X, the code does Y — a question, never auto-resolved), and missing sections; present an
+additions-only diff plus any drop questions, insert bullets in place, and append new sections at the end.
 
 ## Output budget
 

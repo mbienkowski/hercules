@@ -27,7 +27,8 @@ _TOOLS = {
     "retire_spec.py": {"writes": True, "fails": "closed", "shells_to_git": True,
                        "git_subcommands": {"ls-files", "rm"}},
     "registry_sync.py": {"writes": True, "fails": "closed", "shells_to_git": False},
-    "coc_audit.py": {"writes": False, "fails": "closed", "shells_to_git": False},
+    "coc_audit.py": {"writes": False, "fails": "closed", "shells_to_git": True,
+                     "git_subcommands": {"ls-files", "ls-tree"}},
     "coc_scan.py": {"writes": False, "fails": "closed", "shells_to_git": True,
                     "git_subcommands": {"ls-files", "ls-tree", "log", "tag", "rev-parse"}},
 }
