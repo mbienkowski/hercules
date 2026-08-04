@@ -239,8 +239,12 @@ def _verdict(doc_lint, doc_report, rules, path: Path, tier: str):
     args.round = ""
     try:
         result, _ = doc_report.run_judge(rules, args)
+    except doc_report.Refused as refusal:
+        # Name the gaps, not the count: "4 gaps to close" tells nobody which four.
+        detail = "; ".join(refusal.detail[:4]) if refusal.detail else refusal.message
+        return False, "%s: %s (%s)" % (report_path.name, refusal.message, detail)
     except Exception as exc:
-        return False, "%s: the review is not answerable — %s" % (report_path.name, exc)
+        return False, "%s: the review could not be judged — %s" % (report_path.name, exc)
     if result.get("decision") != "proceed":
         return False, "%s: the review says %s — %s" % (
             report_path.name, result.get("decision"), "; ".join(result.get("reasons") or []))
