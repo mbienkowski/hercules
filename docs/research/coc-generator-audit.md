@@ -44,20 +44,42 @@ instruction-following problem, not a documentation-style preference. Criteria, e
 
 ### 1.1 External sources
 
-- **agents.md (OpenAI et al.)** frames the agent instruction file as "a README for agents": standard
-  Markdown, focused sections (commands, style, testing), kept short enough to be loaded whole.
-- **Anthropic's Claude Code best-practices guidance** recommends keeping `CLAUDE.md`-class files
-  concise, human-readable, iterated like any prompt, and using emphasis sparingly for the rules that
-  matter most — supporting C2/C3.
-- **Instruction-capacity research** (many-instruction benchmarks; "lost in the middle" positional
-  effects on long contexts) shows compliance drops as simultaneous constraints grow and mid-document
-  content is recalled worst — supporting C3 and the Non-negotiables-first ordering of C1.
-- **Few-shot/contrastive prompting literature** shows examples — including explicit negative examples —
-  improve conformance over instructions alone, supporting C5.
-- **Structured-output guidance** (JSON-schema-constrained generation) shows schema-forced intermediate
-  steps remove format drift, supporting C9.
-- **Google's engineering style guides** attach a rationale to rules and mark rules vs guidance
-  normatively, supporting C4 and the MUST/SHOULD split of C2.
+- **agents.md** defines the agent instruction file as "a README for agents": plain Markdown, focused
+  sections of short imperative bullets with exact commands, no schema
+  (https://agents.md/, https://github.com/agentsmd/agents.md). OpenAI's Codex guide warns that "a huge
+  file buries the rules that actually matter"
+  (https://developers.openai.com/codex/guides/agents-md), and OpenAI's own `AGENTS.md` is a flat
+  imperative list with explicit negative rules and inline preferred code shapes
+  (https://github.com/openai/codex/blob/main/AGENTS.md) — supporting C1/C2/C5.
+- **Anthropic's Claude Code guidance**: "keep it short and human-readable"; per line, "Would removing
+  this cause Claude to make mistakes? If not, cut it. Bloated CLAUDE.md files cause Claude to ignore
+  your actual instructions"; include only what the model cannot infer from the code; target under
+  ~200 lines; contradictory rules get picked between arbitrarily
+  (https://code.claude.com/docs/en/best-practices, https://code.claude.com/docs/en/memory) —
+  supporting C2/C3/C6, and the gate's no-conflicts check.
+- **Instruction-capacity research**: prompt-level compliance declines roughly exponentially with the
+  number of simultaneous instructions ("Curse of Instructions",
+  https://openreview.net/forum?id=R6q67CDBCH); at high instruction density even top models drop to
+  ~68% adherence (IFScale, https://arxiv.org/abs/2507.11538); mid-context content is recalled worst
+  ("Lost in the Middle", https://arxiv.org/abs/2307.03172) — quantitative backing for C3's counted
+  budget and C1's Non-negotiables-first ordering.
+- **Few-shot and contrastive examples**: examples reliably steer output beyond instructions alone
+  (https://arxiv.org/abs/2005.14165; Anthropic recommends 3–5 relevant, diverse examples,
+  https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview); pairing valid
+  with *invalid* demonstrations outperforms positive-only prompting (Contrastive CoT,
+  https://arxiv.org/abs/2311.09277) — direct evidence for C5's DO/DON'T pairs.
+- **Structured outputs**: schema-constrained generation removes malformed/missing-field drift that
+  prompting alone cannot (https://platform.claude.com/docs/en/build-with-claude/structured-outputs;
+  https://openai.com/index/introducing-structured-outputs-in-the-api/) — supporting C9's
+  structured-before-prose pipeline. Caveat worth designing around: rigid format constraints can
+  degrade reasoning-heavy steps unless the schema leaves room to reason before answering
+  (https://arxiv.org/abs/2408.02442, with replications at https://blog.dottxt.ai/say-what-you-mean.html
+  and https://dylancastillo.co/posts/say-what-you-mean-sometimes.html) — so the envelope constrains
+  rule *shape*, while scanning and judgment happen before schema-filling.
+- **Human style-guide practice**: Google's style guide requires each rule to "pull its weight" and
+  attaches explicit rationale blocks to every non-obvious rule
+  (https://google.github.io/styleguide/cppguide.html); PEP 8 grounds rules in readability and licenses
+  documented exceptions (https://peps.python.org/pep-0008/) — supporting C4 and C2's normative split.
 
 ## 2. Gap audit: the current skill against § 1
 
