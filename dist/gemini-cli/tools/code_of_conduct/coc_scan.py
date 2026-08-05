@@ -23,7 +23,8 @@ import sys
 
 # Bumped only when the document shape or the argument surface breaks; the skill passes the version it
 # was written against, and a mismatch refuses rather than being read against the wrong grammar.
-CONTRACT_VERSION = 1
+# Version 2: the architecture facts — families, import graph, chokepoints, entrypoints, consumers.
+CONTRACT_VERSION = 2
 
 EXIT_OK = 0
 EXIT_REFUSED = 1
@@ -166,6 +167,30 @@ CONFIG_RIVALS = (
 
 # More than one of these means two package managers are both claiming to pin the same dependencies.
 RIVAL_LOCKFILES = ("package-lock.json", "yarn.lock", "pnpm-lock.yaml")
+
+# ── Architecture: what the valuable rules stand on ────────────────────────────────────────────
+# The quality-bearing facts of a repository are architectural — the engine everything renders
+# through, the directory that grows by one-more-file-of-a-kind — and none of them is a config probe.
+# Everything here is derived by regex over import lines and file lists: deterministic, bounded, and
+# honest about being INFERRED, never measured. A rule citing these can see that.
+
+MAX_IMPORTS_PER_FILE = 200
+MAX_IMPORT_CHARS = 120      # a longer specifier is generated or hostile, never an architecture
+MAX_EDGES = 40
+MAX_CHOKEPOINTS = 12
+MIN_CHOKEPOINT_FAN_IN = 3
+MIN_FAMILY_FILES = 4
+MAX_FAMILIES = 12
+MAX_ENTRYPOINT_FILES = 20
+
+FAMILY_SUFFIXES = CODE_SUFFIXES + (".md", ".json", ".yml", ".yaml", ".toml")
+CONFIG_FAMILY_SUFFIXES = (".json", ".yml", ".yaml", ".toml")
+JS_SUFFIXES = (".ts", ".tsx", ".mts", ".js", ".jsx", ".mjs")
+
+PYTHON_IMPORT = re.compile(r"^\s*(?:from\s+([\w.]+)\s+import|import\s+([\w.]+))", re.M)
+JS_IMPORT = re.compile(
+    r"""(?:from\s+|require\(\s*|import\(\s*|^import\s+)['"]([^'"\n]{1,200})['"]""", re.M)
+MAIN_GUARD = re.compile(r"""^if __name__ == ['"]__main__['"]""", re.M)
 
 CONVENTIONAL_SUBJECT = re.compile(
     r"^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?!?: ")
@@ -560,23 +585,192 @@ def conflicts_from_config(facts: list) -> list:
     return found
 
 
-def read_code_sample(root, files: list) -> tuple:
+def code_families(files: list) -> list:
+    """Directories that grow by adding one more file of a kind. A family is an extension point —
+    the standard way this repository grows — and the thing a worked example teaches. Read from the
+    file list alone, so it holds even where the sample was bounded."""
+    groups = {}
+    for path in files:
+        if is_generated(path) or "/" not in path:
+            continue
+        directory, name = path.rsplit("/", 1)
+        dot = name.rfind(".")
+        suffix = name[dot:] if dot > 0 else ""
+        if suffix in FAMILY_SUFFIXES:
+            groups.setdefault((directory, suffix), []).append(path)
+    families = [{"path": directory, "suffix": suffix, "files": len(members),
+                 "examples": sorted(members)[:3]}
+                for (directory, suffix), members in groups.items()
+                if len(members) >= MIN_FAMILY_FILES]
+    families.sort(key=lambda entry: (-entry["files"], entry["path"], entry["suffix"]))
+    return families[:MAX_FAMILIES]
+
+
+def _join_relative(directory: str, spec: str):
+    """A relative import specifier resolved against its importer's directory, inside the repository
+    or not at all — a specifier is repository-authored text, and one that climbs out resolves to
+    nothing rather than to a path this document would then carry."""
+    parts = directory.split("/") if directory else []
+    for piece in spec.split("/"):
+        if piece in ("", "."):
+            continue
+        if piece == "..":
+            if not parts:
+                return None
+            parts.pop()
+        else:
+            parts.append(piece)
+    return "/".join(parts)
+
+
+def _import_specs(relative: str, text: str) -> list:
+    if relative.endswith(".py"):
+        matches = [first or second for first, second in PYTHON_IMPORT.findall(text)]
+    elif relative.endswith(JS_SUFFIXES):
+        matches = JS_IMPORT.findall(text)
+    else:
+        matches = []
+    return matches[:MAX_IMPORTS_PER_FILE]
+
+
+def _resolve_import(spec: str, importer: str, at_head: set):
+    """The file a specifier names, by membership at HEAD, or None. Python resolves dotted names
+    from the repository root; JavaScript resolves only relative specifiers — a bare one names a
+    dependency, which is outside the repository and outside this graph."""
+    if not spec or len(spec) > MAX_IMPORT_CHARS:
+        return None
+    if importer.endswith(".py"):
+        base = spec.replace(".", "/")
+        candidates = [base + ".py", base + "/__init__.py"]
+    else:
+        if not spec.startswith("."):
+            return None
+        directory = importer.rsplit("/", 1)[0] if "/" in importer else ""
+        base = _join_relative(directory, spec)
+        if base is None:
+            return None
+        dot, slash = base.rfind("."), base.rfind("/")
+        stem = base[:dot] if dot > slash else base
+        candidates = ([base] + [stem + suffix for suffix in JS_SUFFIXES]
+                      + [stem + "/index" + suffix for suffix in JS_SUFFIXES])
+    for candidate in candidates:
+        if candidate in at_head:
+            return candidate
+    return None
+
+
+def read_code_sample(root, files: list, config_dirs: list, depth: int) -> dict:
     """One bounded pass over the repository's own code, answering everything that needs the file
-    contents: how long its modules run, how many markers they carry, and which side of a competing
-    idiom each file takes. One pass because each of those alone would not justify the reads."""
+    contents: how long its modules run, how many markers they carry, which side of a competing idiom
+    each file takes, what it imports, where execution enters, and which modules read the
+    configuration families. One pass because each of those alone would not justify the reads."""
     code = [f for f in sorted(files)
             if f.endswith(CODE_SUFFIXES) and not is_generated(f) and not is_secret_path(f)]
-    lengths, markers, read, idioms = [], 0, 0, {}
+    at_head = set(files)
+    sample = {"lengths": [], "markers": 0, "read": 0, "total": len(code), "idioms": {},
+              "imported_by": {}, "edges": {}, "resolved_imports": 0, "main_guards": [],
+              "config_consumers": {}}
     for relative in code[:MAX_FILES_READ]:
         text = read_file(root, relative)
         if text is None:
             continue
-        read += 1
-        lengths.append(len(text.splitlines()))
-        markers += len(MARKER.findall(text))
+        sample["read"] += 1
+        sample["lengths"].append(len(text.splitlines()))
+        sample["markers"] += len(MARKER.findall(text))
         for concern, side in classify_idioms(relative, text).items():
-            idioms.setdefault(concern, {}).setdefault(side, []).append(relative)
-    return sorted(lengths), markers, read, len(code), idioms
+            sample["idioms"].setdefault(concern, {}).setdefault(side, []).append(relative)
+        for spec in _import_specs(relative, text):
+            target = _resolve_import(spec, relative, at_head)
+            if target is None or target == relative:
+                continue
+            sample["resolved_imports"] += 1
+            sample["imported_by"].setdefault(target, set()).add(relative)
+            edge = (directory_of(relative, depth), directory_of(target, depth))
+            if edge[0] != edge[1]:
+                sample["edges"][edge] = sample["edges"].get(edge, 0) + 1
+        if relative.endswith(".py") and MAIN_GUARD.search(text):
+            sample["main_guards"].append(relative)
+        for config_dir in config_dirs:
+            if config_dir in text:
+                sample["config_consumers"].setdefault(config_dir, set()).add(relative)
+    sample["lengths"].sort()
+    return sample
+
+
+def architecture_facts(files: list, families: list, sample: dict, manifest_bins: list) -> list:
+    """The architecture the sample can show. Absent evidence yields no fact — an empty graph would
+    read as 'measured: independent' when nothing was resolved at all."""
+    found = []
+    count_citation = [{"kind": "count", "pattern": "internal imports resolved",
+                      "matched": sample["resolved_imports"], "sampled": sample["read"]}]
+    if families:
+        found.append(fact(
+            "arch.families", "Directories that grow by adding one more file of a kind", families,
+            [{"kind": "file", "path": entry["examples"][0]} for entry in families[:3]]))
+    edges = [{"from": source, "to": target, "imports": count}
+             for (source, target), count in sample["edges"].items()]
+    edges.sort(key=lambda entry: (-entry["imports"], entry["from"], entry["to"]))
+    if edges:
+        mutual = sorted({tuple(sorted((entry["from"], entry["to"]))) for entry in edges
+                         if any(other["from"] == entry["to"] and other["to"] == entry["from"]
+                                for other in edges)})
+        found.append(fact(
+            "arch.graph", "Import dependencies between areas, read from import lines",
+            {"edges": edges[:MAX_EDGES], "mutual": [list(pair) for pair in mutual]},
+            count_citation, "inferred-medium"))
+    chokepoints = [{"path": target, "fan_in": len(importers)}
+                   for target, importers in sample["imported_by"].items()
+                   if len(importers) >= MIN_CHOKEPOINT_FAN_IN]
+    chokepoints.sort(key=lambda entry: (-entry["fan_in"], entry["path"]))
+    if chokepoints:
+        found.append(fact(
+            "arch.chokepoints", "Modules that many files import — the paths every change flows through",
+            chokepoints[:MAX_CHOKEPOINTS],
+            [{"kind": "file", "path": entry["path"]}
+             for entry in chokepoints[:3]], "inferred-medium"))
+    bin_files = sorted(f for f in files if f.startswith("bin/")
+                       and not is_generated(f))[:MAX_ENTRYPOINT_FILES]
+    main_guards = sorted(sample["main_guards"])[:MAX_ENTRYPOINT_FILES]
+    if bin_files or main_guards or manifest_bins:
+        cited = (bin_files or main_guards or manifest_bins)[0]
+        found.append(fact(
+            "arch.entrypoints", "Where execution enters the repository",
+            {"bin_files": bin_files, "main_guards": main_guards, "manifest": manifest_bins},
+            [{"kind": "file", "path": cited}], "inferred-medium"))
+    consumers = [{"family": config_dir, "consumers": sorted(readers)[:3]}
+                 for config_dir, readers in sample["config_consumers"].items() if readers]
+    consumers.sort(key=lambda entry: entry["family"])
+    if consumers:
+        found.append(fact(
+            "arch.config_consumers",
+            "Modules that name a configuration family — the code its files are read by",
+            consumers, [{"kind": "file", "path": consumers[0]["consumers"][0]}],
+            "inferred-medium"))
+    return found
+
+
+def manifest_entrypoints(root, files: list) -> list:
+    """The entry points the Node manifest declares. Values are repository-authored text, cleaned
+    and bounded like every other."""
+    if "package.json" not in files:
+        return []
+    text = read_file(root, "package.json")
+    try:
+        data = json.loads(text or "")
+    except ValueError:
+        return []
+    if not isinstance(data, dict):
+        return []
+    declared = []
+    bins = data.get("bin")
+    if isinstance(bins, str):
+        declared.append(bins)
+    elif isinstance(bins, dict):
+        declared.extend(value for value in bins.values() if isinstance(value, str))
+    if isinstance(data.get("main"), str):
+        declared.append(data["main"])
+    cleaned = {clean_text(re.sub(r"^\./", "", value), 200) for value in declared}
+    return sorted(entry for entry in cleaned if entry)[:MAX_ENTRYPOINT_FILES]
 
 
 def shape_facts(lengths: list, markers: int, read: int, total: int) -> tuple:
@@ -607,19 +801,25 @@ def scan(root, months: float, recent_months: float, depth: int, commits: int) ->
     files, root_kind = head_files(root)
     truncated = len(files) >= MAX_PATHS
     probes, attempted, matched = probe_facts(files)
-    lengths, markers, read, total_code, idioms = read_code_sample(root, files)
-    shape, shape_unknowns = shape_facts(lengths, markers, read, total_code)
+    families = code_families(files)
+    config_dirs = sorted({entry["path"] for entry in families
+                          if entry["suffix"] in CONFIG_FAMILY_SUFFIXES})
+    sample = read_code_sample(root, files, config_dirs, depth)
+    shape, shape_unknowns = shape_facts(sample["lengths"], sample["markers"],
+                                        sample["read"], sample["total"])
+    architecture = architecture_facts(files, families, sample,
+                                      manifest_entrypoints(root, files))
 
     collected = {}
     for entry in (probes + pyproject_facts(root, files) + package_json_facts(root, files)
-                  + history_facts(root, commits) + shape):
+                  + history_facts(root, commits) + shape + architecture):
         collected.setdefault(entry["id"], entry)
     facts = sorted(collected.values(), key=lambda entry: entry["id"])
 
     alive = liveness(root, files, months, recent_months, depth, commits)
     unknowns = sorted(set(shape_unknowns) | ({"liveness.complete"} if truncated else set()))
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "head": git(root, ["rev-parse", "HEAD"]).strip(),
         "root_kind": root_kind,
         "files_at_head": len(files),
@@ -628,7 +828,7 @@ def scan(root, months: float, recent_months: float, depth: int, commits: int) ->
         "facts": facts,
         "liveness": alive,
         "conflicts": conflicts_from_config(facts)
-                     + conflicts_from_idioms(idioms, alive["directories"], depth),
+                     + conflicts_from_idioms(sample["idioms"], alive["directories"], depth),
         "unknowns": unknowns,
         "truncated": truncated,
     }

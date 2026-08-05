@@ -15,7 +15,7 @@ import pytest
 
 from tests.scripts.tools.tool_harness import invoke, load_tool
 
-CONTRACT = 1
+CONTRACT = 2
 
 # Ages in days before the fixture's final commit, which becomes the scan's anchor.
 AGE_PREHISTORY = 800     # before a 12-month window: its files are present but dormant

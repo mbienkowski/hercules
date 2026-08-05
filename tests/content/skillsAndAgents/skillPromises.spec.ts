@@ -131,8 +131,29 @@ describe('the code-of-conduct generator keeps its promises to whoever runs it', 
   it('decides the gate with a program rather than asking an agent to be careful', () => {
     // The whole point of the gate: a rule an agent cannot justify to a validator does not ship.
     const text = flat(GENERATOR);
-    expect(text).toContain('tools/code_of_conduct/coc_audit.py draft --contract 1');
+    expect(text).toContain('tools/code_of_conduct/coc_audit.py draft --contract 2');
     expect(text).toContain('Exit 0 ships');
+  });
+
+  it('records what it reads in the code as citable, path-verified observations', () => {
+    // The valuable rules are architectural, and architecture is read, not measured. Without a
+    // recorded observation the only way such a rule passes the gate is disguised as a fact
+    // nothing produced — the exact invented-evidence shape the gate exists to refuse.
+    const text = flat(GENERATOR);
+    expect(text).toContain('observation');
+    expect(text).toMatch(/code:<observation/i);
+    const map = flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md');
+    expect(map).toContain('"observations"');
+    expect(map).toMatch(/code:<observation/i);
+  });
+
+  it('never creates or edits any file besides the code-of-conduct itself', () => {
+    // The divergence the first real run surfaced: step 8 used to add an @-reference to the
+    // instructions file, creating it when missing. The owner's rule is absolute — the reference
+    // line is offered in chat, and adding it is the user's edit.
+    const text = flat(GENERATOR);
+    expect(text).toMatch(/never creates? or edits? any (other )?file/i);
+    expect(text).not.toContain('creating it when missing');
   });
 
   it('gathers its evidence with a program before it reasons about any of it', () => {
@@ -165,19 +186,21 @@ describe('the code-of-conduct generator keeps its promises to whoever runs it', 
       .toContain('a question, never majority rule');
   });
 
-  it('makes every group teach its rules, not just state them', () => {
-    // A rule without its reason is generalised wrongly; a rule without an example is read
-    // generically. Both were optional before, which meant absent.
+  it('formats the file the way its owner reads: rules first, reasons last, plain text', () => {
+    // A reader wants the requirement, then the argument; markup tokens are spent from every
+    // agent's context on every task, forever.
     const map = flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md');
-    expect(map).toContain('Open every group with one');
-    expect(map).toMatch(/DON'T.{0,40}DO.{0,40}pair where local idiom/);
+    expect(map).toContain('Rules first, reasons last');
+    expect(map).toMatch(/MUST.{0,80}SHOULD.{0,160}AVOID.{0,160}NEVER_DO/);
+    expect(map).toContain('no bold, no italics');
   });
 
-  it('caps the annotations that the directive budget exempts', () => {
-    // Exempting WHY and example lines from the count is what makes them affordable; capping them is
-    // what stops the exemption from doubling a file the budget exists to keep short.
-    expect(flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md'))
-      .toContain('capped at one of each per group');
+  it('teaches how the repository grows, not just what it forbids', () => {
+    // A family is an extension point: the standard way this repository grows is one more file
+    // there, in that shape — which is exactly what a worked example demonstrates.
+    const map = flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md');
+    expect(map).toContain('worked example');
+    expect(map).toContain('arch.families');
   });
 
   it('checks the shape of the file it emits, and again once it is on disk', () => {
@@ -189,7 +212,7 @@ describe('the code-of-conduct generator keeps its promises to whoever runs it', 
 
   it('reads an existing document mechanically before proposing a single change to it', () => {
     const text = flat(GENERATOR);
-    expect(text).toContain('coc_lint.py --contract 1 --file <coc> --root <root>');
+    expect(text).toContain('coc_lint.py --contract 2 --file <coc> --root <root>');
     expect(text).toContain('never an edit');
   });
 

@@ -11,10 +11,15 @@ import pytest
 
 from tests.scripts.tools.tool_harness import invoke, load_tool
 
-CONTRACT = 1
+CONTRACT = 2
 
 FACT_IDS = ("cfg.lint.formatter", "cfg.test.runner", "hist.commit.convention")
 ANSWER_IDS = ("q1", "q3")
+
+# What the drafting agent saw with its own eyes: each observation names the file that shows it.
+OBSERVATIONS = (
+    {"id": "obs.engine-strictness", "path": "internal/builder/template-engine.mts"},
+)
 
 
 def a_rule(**overrides) -> dict:
@@ -31,11 +36,15 @@ def a_rule(**overrides) -> dict:
     return rule
 
 
-def an_envelope(rules=None, facts=None, answers=None, **overrides) -> dict:
+def an_envelope(rules=None, facts=None, answers=None, observations=None, **overrides) -> dict:
     envelope = {
         "contract": CONTRACT,
         "facts": [{"id": fid} for fid in (FACT_IDS if facts is None else facts)],
         "answers": [{"id": aid} for aid in (ANSWER_IDS if answers is None else answers)],
+        "observations": ([dict(entry) for entry in OBSERVATIONS] if observations is None
+                         else [dict(entry) if isinstance(entry, dict) else entry
+                               for entry in observations]
+                         if isinstance(observations, (list, tuple)) else observations),
         "rules": [a_rule()] if rules is None else list(rules),
     }
     envelope.update(overrides)

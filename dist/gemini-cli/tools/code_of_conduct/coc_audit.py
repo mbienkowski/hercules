@@ -1,7 +1,8 @@
 """Decide whether a drafted code-of-conduct (CoC) may be written at all — the gate behind the
 generator's draft step, and the only thing standing between a rule an agent liked and a rule the
 repository can be held to. Every rule is tagged, names a mechanical check, and cites evidence this
-draft carries; the whole draft is counted against the directive budget.
+draft carries — a scanned fact, a user answer, or a recorded observation of the code itself; the
+whole draft is counted against the directive budget.
 
 It judges STRUCTURE, before any markdown exists. What the resulting document reads like is
 `coc_lint.py`'s question, asked after this one is settled.
@@ -15,11 +16,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 
 # Bumped only when the envelope shape or the argument surface breaks; the skill passes the version it
 # was written against, and a mismatch refuses rather than judging against a grammar nobody meant.
-CONTRACT_VERSION = 1
+# Version 2: the four-tier tag vocabulary, and observations as a third evidence stream.
+CONTRACT_VERSION = 2
 
 EXIT_OK = 0
 EXIT_REFUSED = 1
@@ -29,9 +32,11 @@ EXIT_INTERNAL = 4
 # A submission larger than this is a defect or an attack, never a code-of-conduct draft.
 MAX_INPUT_BYTES = 1024 * 1024
 
-# MUST blocks in continuous integration, SHOULD is enforced by a reviewer. A rule outside this pair
-# carries no enforcement meaning, so its tag would tell a reader nothing.
-NORMATIVE_TAGS = ("MUST", "SHOULD")
+# Four postures, each one behaviour: MUST is enforced by a gate or test, SHOULD is a strong
+# convention with nothing behind it, AVOID names a tempting path that has a better one, NEVER_DO is
+# a hard stop. A rule outside this vocabulary carries no enforcement meaning, so its tag would tell
+# a reader nothing.
+NORMATIVE_TAGS = ("MUST", "SHOULD", "AVOID", "NEVER_DO")
 
 # Where a draft sits against the budget. Only the ceiling refuses: a hard gate at the intended band
 # would be answered by merging two rules into one longer bullet, buying a number and costing a reader.
@@ -39,8 +44,15 @@ BAND_INTENDED = 40
 BAND_LARGE = 50
 BAND_CEILING = 70
 
-# The evidence kinds a citation may name: something the scan observed, or something the user said.
-CITATION_KINDS = ("fact", "answer")
+# The evidence kinds a citation may name: something the scan measured, something the user said, or
+# something the drafting agent read in the code and recorded with the file that shows it. The third
+# is what lets an architectural rule be cited at all — without it, a rule drawn from reading the
+# code could only pass this gate disguised as a fact nothing produced.
+CITATION_KINDS = ("fact", "answer", "code")
+
+# What an observation's path may look like. The gate is pure and cannot resolve one, but it can see
+# a path that points outside the repository — and nothing outside the repository is evidence about it.
+OBSERVATION_PATH = re.compile(r"^[\w./@ -]+$")
 
 
 class Refused(Exception):
@@ -95,6 +107,35 @@ def evidence_ids(envelope: dict, key: str) -> set:
     for entry in entries:
         if isinstance(entry, dict) and isinstance(entry.get("id"), str) and entry["id"].strip():
             found.add(entry["id"].strip())
+    return found
+
+
+def observation_findings(envelope: dict) -> list:
+    """Whether each recorded observation could ever be verified: it names a repository-relative
+    path, because the linter will hold that path against the file list before anything is written.
+    An entry with no id is passed over, as everywhere — the rule citing it fails, naming the
+    defect."""
+    found = []
+    entries = envelope.get("observations")
+    for entry in (entries if isinstance(entries, list) else []):
+        if not (isinstance(entry, dict) and isinstance(entry.get("id"), str)
+                and entry["id"].strip()):
+            continue
+        observation_id = entry["id"].strip()
+        path = entry.get("path")
+        if not (isinstance(path, str) and path.strip()):
+            found.append(finding(
+                "observation_pathless", observation_id,
+                f"Observation '{observation_id}' names no repository path. What was read, where? "
+                "An observation with no file behind it is an opinion wearing an id."))
+            continue
+        clean = path.strip()
+        if (clean.startswith("/") or "\\" in clean or ".." in clean.split("/")
+                or not OBSERVATION_PATH.match(clean)):
+            found.append(finding(
+                "observation_path_escapes", observation_id,
+                f"Observation '{observation_id}' points at '{clean}', which is not a "
+                "repository-relative path. Nothing outside the repository is evidence about it."))
     return found
 
 
@@ -202,7 +243,8 @@ def judge(envelope: dict) -> dict:
     """The whole verdict: the findings that must clear, what the draft costs, and which evidence it
     left on the table — the last being where the next question comes from, never a failure."""
     known = {"fact": evidence_ids(envelope, "facts"),
-             "answer": evidence_ids(envelope, "answers")}
+             "answer": evidence_ids(envelope, "answers"),
+             "code": evidence_ids(envelope, "observations")}
     rules = rules_of(envelope)
     if not rules:
         raise Refused("draft_empty",
@@ -210,7 +252,7 @@ def judge(envelope: dict) -> dict:
                       "every check by having nothing to check.")
 
     seen_ids = set()
-    findings = []
+    findings = observation_findings(envelope)
     cited = set()
     for rule in rules:
         findings.extend(rule_findings(rule, known, seen_ids))
@@ -227,7 +269,7 @@ def judge(envelope: dict) -> dict:
         "band": band,
         "bands": {"intended": BAND_INTENDED, "large": BAND_LARGE, "ceiling": BAND_CEILING},
         "message": band_message(band, directives),
-        "unused_evidence": sorted((known["fact"] | known["answer"]) - cited),
+        "unused_evidence": sorted((known["fact"] | known["answer"] | known["code"]) - cited),
     }
 
 

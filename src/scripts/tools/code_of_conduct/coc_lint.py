@@ -1,7 +1,8 @@
 """Report what is wrong with a code-of-conduct (CoC) document, so it can be fixed. It answers one
 question — *what would a reader trip over here?* — in two halves that a document fails independently:
-its SHAPE (non-negotiables first, every rule tagged, one reason per group, examples paired and short)
-and its CITATIONS (a path or make target it names that the repository no longer has).
+its SHAPE (orientation first, every section summarised before it rules, every rule tagged from the
+four-tier vocabulary, the reasons gathered last) and its CITATIONS (a path or make target it names
+that the repository no longer has, including the paths the draft's observations were justified by).
 
 It reports; it never edits. The fix belongs to whoever can weigh whether a rule is now wrong or its
 path merely moved, and a best-effort parse of prose is not the ground to rewrite prose from. So this
@@ -28,7 +29,8 @@ import sys
 
 # Bumped only when the report shape or the argument surface breaks; the skill passes the version it
 # was written against, and a mismatch refuses rather than being read against the wrong grammar.
-CONTRACT_VERSION = 1
+# Version 2: the owner's document grammar — orientation, summaries, four plain-text tiers, Why last.
+CONTRACT_VERSION = 2
 
 EXIT_OK = 0
 EXIT_REFUSED = 1
@@ -59,16 +61,21 @@ class Internal(Exception):
 
 # ── The emitted file's shape ──────────────────────────────────────────────────────────────────
 
-# The lead block: the rules never violated, first, because that is where a long context is read best.
-LEAD_HEADING = "Non-negotiables"
-
 SECTION = re.compile(r"^##\s+(.*\S)\s*$")
-BULLET = re.compile(r"^\s*[-*]\s+(.*)$")
-TAGGED = re.compile(r"\*\*(MUST|SHOULD)\*\*")
-ANNOTATION = re.compile(r"^\s*\*\*(WHY|DON'T|DO):\*\*")
+BULLET = re.compile(r"^[-*]\s+(.*)$")
+# Four postures, plain text at the head of the bullet: MUST is gated, SHOULD is convention, AVOID
+# names a tempting path with a better one, NEVER_DO is a hard stop. Plain because markup tokens are
+# spent from every agent's context on every task, and a tagged rule carries its own emphasis.
+TAGGED = re.compile(r"^(MUST|SHOULD|AVOID|NEVER_DO):\s")
+BOLD = re.compile(r"\*\*")
+# The reasons live together at the end, after every requirement: a reader wants the rule first and
+# the argument only when they need to argue with one.
+WHY_HEADING = re.compile(r"\bwhy\b", re.IGNORECASE)
+INDENTED = re.compile(r"^(?:\t| {4})")
 
-# A fragment pins a rule to the local idiom at a glance; past this it is a program to be read.
-MAX_FRAGMENT_LINES = 3
+# Orientation is a paragraph, not a chapter; an example is glanced at, not maintained as a program.
+MAX_ORIENTATION_LINES = 15
+MAX_EXAMPLE_LINES = 12
 
 
 def _sections(markdown: str) -> list:
@@ -87,10 +94,87 @@ def _sections(markdown: str) -> list:
     return [entry for entry in found if entry[0] is not None or entry[2]]
 
 
-def _fragment_lines(text: str) -> int:
-    """How many lines a DO/DON'T fragment stands for, counting the escape a single-line example
-    uses to show a multi-line shape."""
-    return text.count("\\n") + text.count("\n") + 1
+def _orientation_findings(preamble_lines: list) -> list:
+    """The document must open by orienting: what this repository is and what the loop is, in prose,
+    before any heading. A file that opens cold with rules orients nobody; one that opens with an
+    essay is a section wearing no heading."""
+    prose = [(number, line) for number, line in preamble_lines if line.strip()]
+    if not prose:
+        return [{"rule": "orientation_missing", "line": 1,
+                 "message": "The file opens with no orientation. Say in a few plain lines what this "
+                            "repository is and what the edit-verify loop is, before any heading."}]
+    if len(prose) > MAX_ORIENTATION_LINES:
+        return [{"rule": "orientation_oversized", "line": prose[MAX_ORIENTATION_LINES][0],
+                 "message": f"The orientation runs past {MAX_ORIENTATION_LINES} lines. Orientation "
+                            "is a paragraph; anything longer is a section and needs its heading."}]
+    return []
+
+
+def _why_findings(headed: list) -> list:
+    """One Why section, last. Rules first and reasons last is the agreed reading order: a reader
+    wants the requirement, then the argument — and every reason in one place is what lets a rule
+    stay one line."""
+    why_indices = [index for index, (heading, _, _) in enumerate(headed)
+                   if WHY_HEADING.search(heading)]
+    if not why_indices:
+        line = headed[-1][1] if headed else 1
+        return [{"rule": "why_missing", "line": line,
+                 "message": "The document closes with no Why section. The reasons live together at "
+                            "the end — without them every rule is obeyed literally."}]
+    return [{"rule": "why_misplaced", "line": headed[index][1],
+             "message": f"The Why section '{headed[index][0]}' is not the last section. Rules "
+                        "first, reasons last — a Why in the middle splits both."}
+            for index in why_indices if index != len(headed) - 1]
+
+
+def _section_findings(heading: str, start: int, body: list, is_why: bool) -> tuple:
+    """One section's findings and its rule count. Bullets are rules and must open with a tier tag;
+    the first content must be the summary the rules are generalised from; indented lines are worked
+    examples, bounded but otherwise left alone; Why-section bullets are rationale, not rules."""
+    findings, rules, first_is_bullet, example_run, saw_bullet = [], 0, None, 0, False
+    for number, line in body:
+        if INDENTED.match(line) and line.strip():
+            example_run += 1
+            if example_run == MAX_EXAMPLE_LINES + 1:
+                findings.append({
+                    "rule": "example_too_long", "line": number,
+                    "message": f"A worked example in '{heading}' runs past {MAX_EXAMPLE_LINES} "
+                               "lines. An example is glanced at; cut it to the shape it "
+                               "demonstrates."})
+            continue
+        if not line.strip():
+            continue  # a blank line inside an example block does not end the block
+        example_run = 0
+        if BOLD.search(line):
+            findings.append({
+                "rule": "emphasis_used", "line": number,
+                "message": f"A line in '{heading}' uses bold markup. The format is plain text: "
+                           "markup tokens are spent from every agent's context on every task, and "
+                           "a tagged rule already carries its own emphasis."})
+        bullet = BULLET.match(line)
+        if bullet:
+            if first_is_bullet is None:
+                first_is_bullet = number
+            saw_bullet = True
+            if is_why:
+                continue  # rationale, not a rule: tagging it would tax arguments as directives
+            rules += 1
+            if not TAGGED.match(bullet.group(1)):
+                findings.append({
+                    "rule": "bullet_untagged", "line": number,
+                    "message": f"A rule in '{heading}' opens with no tier tag. Write "
+                               "MUST:, SHOULD:, AVOID: or NEVER_DO: so a reader can tell what "
+                               "enforces it."})
+            continue
+        if first_is_bullet is None:
+            first_is_bullet = False  # prose arrived before any bullet: the summary exists
+    if saw_bullet and first_is_bullet and not is_why:
+        findings.append({
+            "rule": "group_unsummarized", "line": start,
+            "message": f"The section '{heading}' starts ruling with no summary. One to three "
+                       "sentences of intent are what a rule is generalised from; without them it "
+                       "is obeyed literally."})
+    return findings, rules
 
 
 def lint_markdown(markdown) -> dict:
@@ -98,61 +182,17 @@ def lint_markdown(markdown) -> dict:
         raise Internal("`markdown` must be the emitted document as a string.")
     sections = _sections(markdown)
     headed = [entry for entry in sections if entry[0]]
-    findings, rules = [], 0
+    preamble = [entry for entry in sections if entry[0] is None]
 
-    if not headed or LEAD_HEADING.lower() not in headed[0][0].lower():
-        findings.append({
-            "rule": "lead_missing", "line": headed[0][1] if headed else 1,
-            "message": f"The file must open with a `## {LEAD_HEADING} (MUST)` block. The rules never "
-                       "violated go first, where a long document is read most reliably."})
-
-    for index, (heading, start, body) in enumerate(headed):
-        is_lead = index == 0 and heading and LEAD_HEADING.lower() in heading.lower()
-        tagged_here, whys, donts, dos = 0, [], [], []
-        for number, line in body:
-            annotation = ANNOTATION.match(line)
-            if annotation:
-                kind = annotation.group(1)
-                (whys if kind == "WHY" else donts if kind == "DON'T" else dos).append((number, line))
-                if kind in ("DON'T", "DO") and _fragment_lines(line) > MAX_FRAGMENT_LINES:
-                    findings.append({
-                        "rule": "example_too_long", "line": number,
-                        "message": f"The {kind} fragment in '{heading}' runs past "
-                                   f"{MAX_FRAGMENT_LINES} lines. Cut it to the shape it is "
-                                   "demonstrating."})
-                continue
-            bullet = BULLET.match(line)
-            if not bullet:
-                continue
-            rules += 1
-            if TAGGED.search(bullet.group(1)):
-                tagged_here += 1
-            else:
-                findings.append({
-                    "rule": "bullet_untagged", "line": number,
-                    "message": f"A rule in '{heading}' is tagged neither MUST nor SHOULD, so a "
-                               "reader cannot tell what enforces it."})
-        if tagged_here and not whys and not is_lead:
-            findings.append({
-                "rule": "group_unexplained", "line": start,
-                "message": f"The group '{heading}' states rules with no WHY line. Without one a rule "
-                           "is obeyed literally and generalised wrongly."})
-        if len(whys) > 1:
-            findings.append({
-                "rule": "why_repeated", "line": whys[1][0],
-                "message": f"The group '{heading}' carries {len(whys)} WHY lines; annotations are "
-                           "capped at one of each per group."})
-        if len(donts) != len(dos):
-            findings.append({
-                "rule": "example_unpaired", "line": (donts or dos)[0][0],
-                "message": f"The group '{heading}' has {len(donts)} DON'T and {len(dos)} DO lines. "
-                           "An example shows both sides or neither."})
-        if len(donts) > 1 or len(dos) > 1:
-            findings.append({
-                "rule": "example_repeated", "line": (donts + dos)[1][0],
-                "message": f"The group '{heading}' carries more than one example pair; annotations "
-                           "are capped at one of each per group."})
-
+    findings = _orientation_findings(preamble[0][2] if preamble else [])
+    findings.extend(_why_findings(headed))
+    rules = 0
+    for heading, start, body in headed:
+        section_findings, section_rules = _section_findings(
+            heading, start, body, bool(WHY_HEADING.search(heading)))
+        findings.extend(section_findings)
+        rules += section_rules
+    findings.sort(key=lambda entry: (entry["line"], entry["rule"]))
     return {"findings": findings, "sections": len(headed), "rules": rules}
 
 
@@ -163,10 +203,10 @@ PATH_SHAPED = re.compile(r"^[\w.@/-]+$")
 PATH_SUFFIXES = (".md", ".py", ".json", ".ts", ".tsx", ".mts", ".js", ".yml", ".yaml", ".toml",
                  ".txt", ".cfg", ".ini", ".go", ".rs", ".java", ".rb", ".sh")
 
-# Names that look like citations and are not. Measured on a real document, these three classes were
-# every single false alarm: a deliberately-wrong name in an example, a dependency's entry point, and
-# a placeholder standing in for whatever the reader substitutes.
-EXAMPLE_LINE = re.compile(r"^\s*\*\*(DON'T|DO):\*\*")
+# Names that look like citations and are not. Measured on a real document, these classes were the
+# false alarms: a dependency's entry point, and a placeholder standing in for whatever the reader
+# substitutes. Worked examples are NOT excluded — the owner's format demonstrates with real paths,
+# and an example walking a reader through a file the repository no longer has is a rotted citation.
 PLACEHOLDER = re.compile(r"[<>{}]")
 
 
@@ -273,17 +313,12 @@ def review_citations(text: str, root: str) -> dict:
     targets = make_targets(root, paths)
     seen, entries = set(), []
     for number, line in enumerate(text.splitlines(), 1):
-        # A name inside an example pair is chosen to be wrong; treating it as a citation was the
-        # largest source of false alarms when this was measured against a real document.
-        in_example = bool(EXAMPLE_LINE.match(line))
         for match in BACKTICKED.finditer(line):
             token = match.group(1)
             if token in seen:
                 continue
             seen.add(token)
             kind, state, resolved = classify_token(token, paths, targets)
-            if in_example and state == "dangling":
-                kind, state = "example", "unparsed"
             entries.append({"token": token[:200], "kind": kind, "state": state,
                             "resolved": resolved[:200], "line": number})
     entries.sort(key=lambda entry: (entry["state"], entry["kind"], entry["token"]))
@@ -310,10 +345,32 @@ def review_citations(text: str, root: str) -> dict:
     }
 
 
+def verify_declared_paths(declared, paths: set) -> dict:
+    """The observation paths the draft's evidence was justified by, held against the file list. The
+    draft gate is pure and can only judge an observation's shape; this is where its path meets the
+    repository — by membership, exactly as every other citation, so a rule justified by a file that
+    is not there is caught before the document is written."""
+    if not isinstance(declared, list) or not all(isinstance(p, str) for p in declared):
+        raise Internal("`paths` must be a list of repository-relative path strings.")
+    entries, findings = [], []
+    for declared_path in sorted({p.strip().rstrip("/") for p in declared if p.strip()}):
+        known = (declared_path in paths
+                 or any(p.startswith(declared_path + "/") for p in paths))
+        entries.append({"path": declared_path, "state": "verified" if known else "dangling"})
+        if not known:
+            findings.append({
+                "rule": "observation_dangling", "line": 0,
+                "message": f"An observation was justified by `{declared_path}`, which the "
+                           "repository does not have. A rule standing on it stands on nothing — "
+                           "re-read the code or drop the rule."})
+    return {"declared_paths": entries, "findings": findings}
+
+
 # ── Command surface ───────────────────────────────────────────────────────────────────────────
 
-def read_stdin_markdown(stream) -> str:
-    """A draft submitted before it exists on disk, as `{"contract": 1, "markdown": "…"}`."""
+def read_stdin_envelope(stream) -> dict:
+    """A draft submitted before it exists on disk, as `{"contract": 2, "markdown": "…"}`, with the
+    optional `paths` its observations were justified by."""
     try:
         text = stream.read(MAX_INPUT_BYTES + 1)
     except Exception as exc:
@@ -328,7 +385,7 @@ def read_stdin_markdown(stream) -> str:
         raise Internal(f"The draft is not valid JSON. {exc}") from exc
     if not isinstance(envelope, dict):
         raise Internal("The draft must be one JSON object carrying `markdown`.")
-    return envelope.get("markdown")
+    return envelope
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -346,11 +403,12 @@ def emit(payload: dict, code: int) -> int:
     return code
 
 
-def review(markdown: str, file_path, root) -> dict:
+def review(markdown: str, file_path, root, declared=None) -> dict:
     """Both halves of the answer. Shape binds a draft and only informs about a document that already
     exists: an existing bullet is never retro-fitted with a tag or a reason, so listing its shape as
     something to fix would invite exactly the edit the additions-only rule forbids. A rotted citation
-    is a finding either way — it is wrong no matter who wrote it."""
+    is a finding either way — it is wrong no matter who wrote it. Declared observation paths are
+    verified only when a repository is in reach; skipping them silently would read as verification."""
     report = lint_markdown(markdown)
     if file_path:
         report["shape_notes"] = report.pop("findings")
@@ -359,6 +417,10 @@ def review(markdown: str, file_path, root) -> dict:
         citations = review_citations(markdown, root)
         report["findings"] = report["findings"] + citations.pop("findings")
         report.update(citations)
+        if declared is not None:
+            observations = verify_declared_paths(declared, head_paths(root))
+            report["findings"] = report["findings"] + observations.pop("findings")
+            report.update(observations)
     report["checked"] = "shape+citations" if root else "shape"
     report["shape_binds"] = not file_path
     return report
@@ -381,9 +443,12 @@ def main(argv=None, home=None, stdin=None) -> int:
                                 f"{args.contract}. Update the plugin, then run this again."},
                     EXIT_CONTRACT)
     try:
-        markdown = (read_document(args.file) if args.file
-                    else read_stdin_markdown(stdin if stdin is not None else sys.stdin))
-        report = review(markdown, args.file, args.root)
+        if args.file:
+            markdown, declared = read_document(args.file), None
+        else:
+            envelope = read_stdin_envelope(stdin if stdin is not None else sys.stdin)
+            markdown, declared = envelope.get("markdown"), envelope.get("paths")
+        report = review(markdown, args.file, args.root, declared)
     except Refused as exc:
         return emit({"error": "refused", "rule": exc.rule, "message": exc.message}, EXIT_REFUSED)
     except Internal as exc:

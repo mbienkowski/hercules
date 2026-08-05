@@ -20,8 +20,24 @@ def test_a_rule_carrying_no_normative_tag_is_refused(gate):
 
 
 def test_a_rule_tagged_outside_the_normative_vocabulary_is_refused(gate):
-    """MUST and SHOULD carry the CI-blocking vs reviewer-enforced split; "SHALL" carries nothing."""
+    """The four tiers each mean one enforcement posture; "SHALL" carries nothing."""
     code, report = gate(an_envelope(rules=[a_rule(tag="SHALL")]))
+    assert code == 1
+    assert findings_of(report, "rule_untagged")
+
+
+def test_every_tier_of_the_vocabulary_is_accepted(gate):
+    """MUST is gated, SHOULD is convention, AVOID names a tempting path with a better one, and
+    NEVER_DO is a hard stop. Each is a posture a reader maps to one behaviour."""
+    for tag in ("MUST", "SHOULD", "AVOID", "NEVER_DO"):
+        code, report = gate(an_envelope(rules=[a_rule(tag=tag)]))
+        assert code == 0, f"{tag} was refused: {report.get('findings')}"
+
+
+def test_the_retired_nice_to_have_tier_is_refused(gate):
+    """The owner folded it: one rule in a hundred lines does not earn a fifth mapping, and an
+    optional-and-cheap rule is a SHOULD."""
+    code, report = gate(an_envelope(rules=[a_rule(tag="NICE TO HAVE")]))
     assert code == 1
     assert findings_of(report, "rule_untagged")
 

@@ -11,7 +11,7 @@ import pytest
 
 from tests.scripts.tools.tool_harness import invoke, load_tool
 
-CONTRACT = 1
+CONTRACT = 2
 
 
 @pytest.fixture
@@ -32,9 +32,12 @@ def lint():
     """A draft checked for shape alone, submitted on stdin before it exists on disk."""
     main = load_tool("coc_lint")
 
-    def run(markdown, argv=None):
-        body = json.dumps({"contract": CONTRACT, "markdown": markdown})
-        return invoke(main, None, argv or ["--contract", str(CONTRACT)], stdin=io.StringIO(body))
+    def run(markdown, argv=None, paths=None):
+        body = {"contract": CONTRACT, "markdown": markdown}
+        if paths is not None:
+            body["paths"] = paths
+        return invoke(main, None, argv or ["--contract", str(CONTRACT)],
+                      stdin=io.StringIO(json.dumps(body)))
 
     return run
 
@@ -53,14 +56,21 @@ def review(repo, tmp_path):
     return run, repo
 
 
-VALID_SHAPE = """## Non-negotiables (MUST)
-
-- **MUST** Never commit a credential — the scanner runs in CI.
+# The agreed document shape: orientation first, each section a summary then tagged rules, and the
+# reasons in one Why section at the end — rules first because a reader wants the requirement, then
+# the argument.
+VALID_SHAPE = """A rule's prefix says what it is: MUST is gated, SHOULD is convention, AVOID names
+a tempting path, NEVER_DO is a hard stop. The reasons sit at the end.
 
 ## Development
 
-**WHY:** Standards drawn from the code are the ones people already follow.
+Standards drawn from the code are the ones people already follow.
 
+- MUST: Never commit a credential — the scanner runs in CI.
+
+## Why this is the way it is
+
+- A credential that lands in history stays there for every future clone.
 """
 
 
