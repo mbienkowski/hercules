@@ -54,6 +54,44 @@ def test_a_directory_of_same_shaped_files_is_reported_as_a_family(scan, arch_rep
     assert by_path["src/targets"]["suffix"] == ".json"
 
 
+def build_many_families_repo(root, base_epoch: int = 1_900_000_000):
+    """A repository with more real families (>=4 files each) than any reasonable cap should silently
+    drop. Hercules itself has 24; this fixture builds 30 to prove the cap is not tuned to one repo."""
+    build_repo(root, base_epoch)
+    for group in range(30):
+        for member in range(4):
+            _write(root, f"src/group{group:02d}/file{member}.py", f"x = {member}\n")
+    _commit(root, "feat: thirty families", AGE_RECENT, base_epoch)
+    return root
+
+
+@pytest.fixture
+def many_families_repo(tmp_path):
+    return build_many_families_repo(tmp_path / "many")
+
+
+def test_a_repository_with_more_families_than_the_cap_says_so(scan, many_families_repo):
+    """Silently dropping a family drops its worked example with it — the drafting agent never learns
+    the extension point existed. A cap that truncates must say so, not just return fewer entries."""
+    code, document = scan(many_families_repo)
+    assert code == 0
+    assert "arch.families_truncated" in document["unknowns"]
+
+
+def test_a_repository_within_the_cap_reports_no_truncation(scan, arch_repo):
+    code, document = scan(arch_repo)
+    assert "arch.families_truncated" not in document["unknowns"]
+
+
+def test_the_cap_is_not_tuned_to_a_single_small_repository(scan, many_families_repo):
+    """A cap of 12 was measured, on this project alone, to drop `src/content/commands` — one of the
+    most load-bearing extension points a user actually invokes. The cap must clear a repository with
+    materially more real families than that without dropping the largest ones."""
+    code, document = scan(many_families_repo)
+    families = fact(document, "arch.families")["value"]
+    assert len(families) >= 20
+
+
 def test_a_generated_tree_joins_no_family(scan, arch_repo):
     """dist/ grows by rebuild, not by hand; a family there would teach editing build output."""
     code, document = scan(arch_repo)

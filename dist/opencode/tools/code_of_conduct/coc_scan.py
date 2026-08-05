@@ -179,8 +179,12 @@ MAX_IMPORT_CHARS = 120      # a longer specifier is generated or hostile, never 
 MAX_EDGES = 40
 MAX_CHOKEPOINTS = 12
 MIN_CHOKEPOINT_FAN_IN = 3
+# Measured against Hercules's own tree: 24 real families (>=4 files) exist, and a cap of 12 dropped
+# src/content/commands — the extension point a user actually invokes — with no signal that anything
+# was cut. 24 clears that with headroom without being tuned to this one repository's exact count;
+# a repository with more still gets a truncation signal rather than a silently shorter list.
 MIN_FAMILY_FILES = 4
-MAX_FAMILIES = 12
+MAX_FAMILIES = 24
 MAX_ENTRYPOINT_FILES = 20
 
 FAMILY_SUFFIXES = CODE_SUFFIXES + (".md", ".json", ".yml", ".yaml", ".toml")
@@ -585,10 +589,11 @@ def conflicts_from_config(facts: list) -> list:
     return found
 
 
-def code_families(files: list) -> list:
+def code_families(files: list) -> tuple:
     """Directories that grow by adding one more file of a kind. A family is an extension point —
     the standard way this repository grows — and the thing a worked example teaches. Read from the
-    file list alone, so it holds even where the sample was bounded."""
+    file list alone, so it holds even where the sample was bounded. Returns `(families, truncated)`:
+    silently dropping a family drops its worked example with it, so a cut list says it was cut."""
     groups = {}
     for path in files:
         if is_generated(path) or "/" not in path:
@@ -603,7 +608,7 @@ def code_families(files: list) -> list:
                 for (directory, suffix), members in groups.items()
                 if len(members) >= MIN_FAMILY_FILES]
     families.sort(key=lambda entry: (-entry["files"], entry["path"], entry["suffix"]))
-    return families[:MAX_FAMILIES]
+    return families[:MAX_FAMILIES], len(families) > MAX_FAMILIES
 
 
 def _join_relative(directory: str, spec: str):
@@ -801,7 +806,7 @@ def scan(root, months: float, recent_months: float, depth: int, commits: int) ->
     files, root_kind = head_files(root)
     truncated = len(files) >= MAX_PATHS
     probes, attempted, matched = probe_facts(files)
-    families = code_families(files)
+    families, families_truncated = code_families(files)
     config_dirs = sorted({entry["path"] for entry in families
                           if entry["suffix"] in CONFIG_FAMILY_SUFFIXES})
     sample = read_code_sample(root, files, config_dirs, depth)
@@ -817,7 +822,8 @@ def scan(root, months: float, recent_months: float, depth: int, commits: int) ->
     facts = sorted(collected.values(), key=lambda entry: entry["id"])
 
     alive = liveness(root, files, months, recent_months, depth, commits)
-    unknowns = sorted(set(shape_unknowns) | ({"liveness.complete"} if truncated else set()))
+    unknowns = sorted(set(shape_unknowns) | ({"liveness.complete"} if truncated else set())
+                      | ({"arch.families_truncated"} if families_truncated else set()))
     return {
         "schema_version": 2,
         "head": git(root, ["rev-parse", "HEAD"]).strip(),
