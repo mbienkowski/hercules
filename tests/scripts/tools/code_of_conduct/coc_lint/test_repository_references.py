@@ -78,11 +78,13 @@ def test_a_placeholder_is_never_reported_as_missing(review):
 
 def test_prose_that_cites_nothing_verifiable_is_counted_rather_than_guessed_at(review):
     """Most of a real document's backticked tokens are concepts and commands. Reporting them as
-    findings would bury the handful that matter."""
+    findings would bury the handful that matter. Asserted by naming the concepts rather than by a
+    total, so adding a citation to the shared fixture cannot silently pass this test."""
     run, _ = review
     code, report = run(document("- MUST: Prefer `composition` over `inheritance` when `it depends`.\n"))
     assert code == 0
-    assert report["tally"]["unparsed"] == 3
+    unparsed = {e["token"] for e in entries(report, "unparsed")}
+    assert {"composition", "inheritance", "it depends"} <= unparsed
 
 
 def test_the_report_says_how_much_of_the_document_it_could_check(review):
@@ -90,8 +92,10 @@ def test_the_report_says_how_much_of_the_document_it_could_check(review):
     clean bill of health for the whole file."""
     run, _ = review
     code, report = run(document("- MUST: `src/engine.py` and `some concept` and `make build`.\n"))
-    assert report["citations_resolvable"] == 2
-    assert report["tokens"] == 3
+    resolvable = {e["token"] for e in entries(report, "verified") + entries(report, "dangling")}
+    assert {"src/engine.py", "make build"} <= resolvable
+    assert "some concept" not in resolvable
+    assert report["citations_resolvable"] < report["tokens"]
 
 
 def test_a_document_that_cannot_be_read_is_refused(repo, tmp_path):

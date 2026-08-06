@@ -6,7 +6,7 @@ shape here, and the linter holds its path against the repository's file list."""
 
 from __future__ import annotations
 
-from tests.scripts.tools.code_of_conduct.coc_audit.conftest import (
+from tests.scripts.tools.code_of_conduct.coc_gate.conftest import (
     a_rule, an_envelope, findings_of)
 
 

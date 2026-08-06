@@ -25,14 +25,17 @@ def _prefixes() -> list[str]:
         raw = raw.lstrip("^")
         # A literal dot, unescaped before splitting, or `^package\.json$` truncates to a fake directory.
         raw = raw.replace("\\.", ".")
-        head = re.split(r"[\[$\\]", raw)[0]
+        # Stop at the first WILDCARD, whichever spelling the hook uses. Splitting on `[` alone tied
+        # this guard to one metacharacter: rewriting `[^/]+\.py` as `.*\.py` — the same intent, one
+        # directory deeper — left `src/scripts/hooks/.*.py` looking like a path nobody has.
+        head = re.split(r"[\[$\\*]", raw)[0]
         group = re.search(r"\(([^)]+)\)", head)
         if group:
             before, after = head.split(group.group(0), 1)
             found.extend(f"{before}{option}{after}" for option in group.group(1).split("|"))
         else:
             found.append(head)
-    return [p for p in (f.rstrip("/") for f in found) if p]
+    return [p for p in (f.rstrip("/.") for f in found) if p]
 
 
 def test_every_path_the_hook_watches_is_a_path_that_exists():

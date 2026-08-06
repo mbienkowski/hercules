@@ -52,14 +52,18 @@ def an_envelope(rules=None, facts=None, answers=None, observations=None, **overr
 
 
 def rules_numbering(count: int, **overrides) -> list:
-    """`count` distinct valid rules — the shape every budget-band test needs."""
-    return [a_rule(id=f"rule.{index:03d}", **overrides) for index in range(count)]
+    """`count` distinct valid rules — the shape every budget-band test needs. Spread a few at a
+    time across sub-headings, because the DIRECTIVE budget and the per-heading cap are different
+    limits: a band test that piled every rule under one heading would trip the cap and never reach
+    the band it meant to exercise."""
+    return [a_rule(id=f"rule.{index:03d}", subsection=f"Group {index // 4}", **overrides)
+            for index in range(count)]
 
 
 @pytest.fixture
 def gate():
     """Run the draft gate over an envelope, returning `(exit_code, report)`."""
-    main = load_tool("coc_audit")
+    main = load_tool("coc_gate")
 
     def run(envelope, argv=None, raw=None):
         text = raw if raw is not None else json.dumps(envelope)

@@ -16,60 +16,62 @@ Each point: `name [tier][stack] — scan signal → rule shape.`
 The tool reports what the repo declares, what its history shows, and which directories are still
 worked on. It resolves under a fifth of the points below; the rest is yours:
 
-- **Read from `liveness.top_files`, never the tree** — take ~20–30 from the head of that ranked list
-  and name the design patterns, test conventions, and idioms in them; the list is ranked because
-  alive code is the standard.
-- **Verify the `arch.*` facts in the sample, then record each confirmed reading as an observation**
-  `{id, path, note}` — families are the extension points a worked example teaches, chokepoints the
-  modules a rule must name, the graph's direction the layering rule. Regex-inferred: confirm
-  first. The gate accepts `code:<observation-id>` only for ids the envelope carries; the linter
-  holds each path against HEAD. A pattern with no file to show is a question, not evidence.
-- **Weigh by `status`** — `alive` is the standard the repo is converging on; `cooling` is current,
-  not frontier; `dormant` describes what nobody maintains — rules from it bind work nobody does.
-  A `generated: true` directory is build output; it states nothing.
+- **Read from `liveness.top_files`, never the tree** — take ~20–30 from its head and name the
+  design patterns, test conventions and idioms in them; it is ranked because alive code is the
+  standard.
+- **Verify the `arch.*` facts, then record each confirmed reading as an observation** `{id, path}`
+  — families are the extension points a worked example teaches, chokepoints the modules a rule must
+  name, the graph's direction the layering rule. Regex-inferred: confirm first.
+- **The facts are a head start, never the ceiling.** `arch.import_coverage` names the languages the
+  extractor could not parse (`arch.graph.partial` in `unknowns`): there, and wherever the graph is
+  silent, derive the areas, dependencies, chokepoints and entrypoints YOURSELF, whatever the
+  language. An observation is as citable as a parsed fact — the gate accepts `code:<id>` for ids the
+  envelope carries, the linter holds each path against HEAD. A pattern with no file is a question.
+- **Weigh by `status`** — `alive` is what the repo converges on; `cooling` is current, not
+  frontier; `dormant` describes what nobody maintains, so rules from it bind work nobody does.
+  A `generated: true` directory states nothing.
 - **Reconcile config against code** — a rule the config states but the code visibly violates is a
   Step-4 question, never an enforced rule.
 - **Two live patterns for one concern → a question, never majority rule.** The scan reports both
-  shares under `conflicts` and names no winner; neither do you — a pattern is edited while being
-  adopted and while being torn out.
+  shares and names no winner; neither do you — a pattern is edited while being adopted and while
+  being torn out.
 - **Anything marked `unknown`, or not locally observable** — branch protection, required reviewers,
   self-merge policy live in the forge, not the repo — is a Step-4 question.
 - **Determinism & resume** — the document is byte-identical per commit; a fixed question order
-  carries the rest. Plan mode blocks writes: hold results in memory; after the write step the
-  draft/answers/mode persist to `~/.hercules/state/{slug}-coc.json`.
+  carries the rest. Plan mode blocks writes, so hold results in memory; after the write step the
+  draft, answers and mode persist to `~/.hercules/state/{slug}-coc.json`.
 
 ## § Output format (SKILL Step 5 formats per this; Step 6b gate checks it)
 
 The emitted CoC is enforced-only, plain text — no bold, no italics; markup spends every agent's
 context — ordered rule-before-argument:
 
-- **Open with orientation** (prose before any heading, ≤15 lines): what this repository is, the
-  edit→verify loop, what each tag means. Then themed sections in scan order — Architecture naming
-  the real mechanisms (the engine, the chokepoints, the families), how the repo is extended,
-  Testing, Quality Gates, Security & Data, Delivery.
-- **Each section: a 1–3 sentence summary, then its rules.** One atomic imperative per rule, opening
-  with its tier — `MUST:` enforced by a gate or test, `SHOULD:` a strong convention with no gate,
-  `AVOID:` a tempting path with a better one, `NEVER_DO:` a hard stop — and naming its
-  **mechanical check** inline (grep, lint rule, CI job, threshold). A rule needing a paragraph is
-  two rules or none.
-- **Rules first, reasons last**: one closing `## Why this is the way it is` section carries every
-  rationale, each naming the failure mode its rule prevents — what lets a rule generalise to the
-  case the list never named.
-- **A worked example per extension point** named by `arch.families` (≤12 indented lines): the files
-  one more addition touches, its owning test named. Plus one symptom→cause line per gate: what a
-  red check means, which edit fixes it.
-- **Orientation, summaries, examples and the Why section cost no directive** — they teach rules
-  already counted; the linter's caps stop the exemption doubling the file.
-- **Ground every number** — a threshold quotes a user answer or a computed repo statistic (the
-  module-size percentiles and marker densities exist for this), never a padded default; a thin
-  repo ships a small labelled seed.
-- **Gate (Step 6b) — every rule clears all four**: reads exactly one way; conflicts with no other; is
-  backed by a fact, an answer or a recorded observation ("it looks nice" is not proof); names an
-  **objective** mechanical check (reviewer-judgment alone is rejected). The last three are decided
-  by `coc_audit.py draft` (Step 7); the first stays a reading. Citations live in the envelope,
-  never as an appendix — an appendix spends every agent's tokens on every task, forever.
+- **Section order** follows the scan: Architecture naming the real mechanisms, how the repo is
+  extended, Testing, Quality Gates, Security & Data, Delivery. SKILL Step 5 carries the shape
+  itself — orientation, summaries, tier headers over numbered runs, multi-line directives, the
+  eight-per-heading cap. What follows is what the spine does not say.
+- **Why numbering and grouping.** A number is how a review cites one rule; a tier header states the
+  posture once instead of on every line.
+- **Why a code block.** A fragment of the real thing pins a rule to THIS codebase as prose cannot,
+  and it is exempt from the prose checks because it quotes the file.
+- **Ground every number, and ship none that rots** — a threshold quotes an answer or a computed
+  statistic, never a padded default. A measured tally justifies a rule in the envelope and never
+  enters the file: "17 files today" is stale on the next addition. Name the mechanism and the
+  directory, never today's count or a version literal.
+- **A `Check:` names something a reader can run or open**, in backticks — or says plainly that
+  nothing enforces the rule. Prose in that position reads as verification and supplies none.
+- **Never claim a universal you did not verify** — "the only X anywhere", "on every host",
+  "nowhere else". A path check proves existence and can NEVER prove an absence, so these clear every
+  gate while being false; blind review found them the largest source of wrong statements. Say what
+  you read. A requirement may sweep; evidence may not.
+- **Cover every `arch.families` entry the scan reported, or record that you are skipping it.** Each
+  is a way this repository grows; one left unnamed is an extension path the next reader guesses at.
+- **Gate (Step 6b) — every rule clears all four**: reads exactly one way; conflicts with no other;
+  is backed by a fact, an answer or an observation; names an **objective** check. The last three are
+  decided by `coc_gate.py draft`; the first stays a reading. Citations live in the envelope, never
+  as an appendix — that would spend every agent's tokens on every task, forever.
 
-## § Rules envelope (Step 7 submits this; `coc_audit.py draft` judges it)
+## § Rules envelope (Step 7 submits this; `coc_gate.py draft` judges it)
 
 One JSON object on stdin; rule sentences are the only free text:
 
@@ -78,7 +80,8 @@ One JSON object on stdin; rule sentences are the only free text:
   "facts":   [{"id": "cfg.lint.formatter"}],
   "answers": [{"id": "q3"}],
   "observations": [{"id": "obs.engine-strict", "path": "internal/builder/engine.mts"}],
-  "rules":   [{"id": "style.formatter", "section": "Development", "tag": "MUST",
+  "rules":   [{"id": "style.formatter", "section": "Development",
+               "subsection": "Formatting", "tag": "MUST",
                "text": "Format every file with the repository formatter before committing.",
                "check": "CI runs the formatter in check mode",
                "citations": ["fact:cfg.lint.formatter", "answer:q3"]}] }
@@ -90,6 +93,8 @@ One JSON object on stdin; rule sentences are the only free text:
   the envelope carries — an id nothing produced is a rule invented and justified afterwards.
 - Every observation names the repository-relative path that shows it; the gate refuses one pointing
   outside, and the linter verifies each against HEAD (`"paths"` on its stdin, beside the draft).
+- `subsection` names the concern inside its section; the gate refuses a group past eight
+  directives, so it is what a split is expressed in.
 - `id` is unique and stable: how an update run re-verifies the rule later.
 - The reply carries `findings` (each naming its `rule_id`), `directives`, `band`, and
   `unused_evidence` — where the next question comes from.
@@ -156,8 +161,8 @@ One JSON object on stdin; rule sentences are the only free text:
 - Query cost/timeout guard [P2][data] — statement timeout → kill runaway queries. (conv)
 
 ## H. Security  (OWASP ASVS 5.0 — owasp.org/ASVS)
-- Secrets management [P0] — hardcoded secrets, vault/env, scanner → no literals; env/vault; scanner gates CI. 12-Factor III (12factor.net)
-- Input validation & output encoding [P0] — injection sinks, sanitizers → allowlist/schema at edge; parameterized queries; contextual encoding. ASVS
+- Secrets management [P0] — hardcoded secrets, vault/env, scanner → no literals; env/vault; scanner gates CI. 12-Factor III
+- Input validation & output encoding [P0] — injection sinks, sanitizers → allowlist/schema at edge; parameterized queries; contextual encoding.
 - AuthN/AuthZ model [P0][be] — route guards, per-endpoint checks → every non-public endpoint enforces authz. ASVS
 - Dependency/vuln scanning (SCA) [P0] — SCA config, lockfile → SCA gate; no known high/critical CVEs. (conv)
 - Crypto standards [P1] — MD5/SHA1/custom crypto → vetted lib + current algs; no homemade. ASVS
@@ -192,7 +197,7 @@ One JSON object on stdin; rule sentences are the only free text:
 - Test-data management [P1] — fixtures/factories → no prod data; factories over shared fixtures. (conv)
 - Property/fuzz [P2][be] — parsers/untrusted input → property-based/fuzz on parsers. (conv)
 - Contract/load/visual [P2] — pact/k6/snapshot → per surface as applicable. (conv)
-- Architecture/dependency rules [P1] — arch-rule tool present → narrow package patterns only; broad wildcards (`(*)..`) catch cross-cutting packages (config/admin/commons) that legitimately interdepend. Exclude dto/entity/exception/config subpackages or baseline pre-existing violations. (conv)
+- Architecture/dependency rules [P1] — arch-rule tool present → narrow package patterns only; broad wildcards catch cross-cutting packages that legitimately interdepend. Exclude dto/entity/config subpackages or baseline existing violations. (conv)
 
 ## K. Observability  (Google SRE Workbook — sre.google/workbook/monitoring)
 - Structured logging [P0] — logger vs print, JSON config → one JSON object per line; required fields. 12-Factor XI + SRE

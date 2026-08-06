@@ -81,6 +81,9 @@ FILE_PROBES = {
     "cfg.ci.github": ([".github/workflows/*"], "GitHub Actions workflows present"),
     "cfg.ci.gitlab": ([".gitlab-ci.yml"], "GitLab CI configuration present"),
     "cfg.build.makefile": (["Makefile"], "Makefile present"),
+    "cfg.build.maven": (["pom.xml"], "Maven build present"),
+    "cfg.build.gradle": (["build.gradle", "build.gradle.kts", "settings.gradle",
+                          "settings.gradle.kts"], "Gradle build present"),
     "cfg.container.dockerfile": (["Dockerfile", "*/Dockerfile"], "Dockerfile present"),
     "cfg.review.codeowners": (["CODEOWNERS", ".github/CODEOWNERS", "docs/CODEOWNERS"],
                               "CODEOWNERS present"),
@@ -148,6 +151,16 @@ IDIOM_PAIRS = {
         ("vitest", re.compile(r"""from ['"]vitest['"]""")),
         ("jest", re.compile(r"""from ['"]@jest/globals['"]""")),
     ]),
+    "test.framework.jvm": ("Which JUnit generation JVM tests import",
+                           ("*Test.java", "*Tests.java", "*Test.kt"), [
+        ("junit5", re.compile(r"\borg\.junit\.jupiter\b")),
+        ("junit4", re.compile(r"\borg\.junit\.Test\b")),
+    ]),
+    "test.framework.ruby": ("Which Ruby test framework the suite uses",
+                            ("*_spec.rb", "*_test.rb", "test_*.rb"), [
+        ("rspec", re.compile(r"\bRSpec\.describe\b")),
+        ("minitest", re.compile(r"\bMinitest::Test\b")),
+    ]),
 }
 
 # Tools that genuinely compete for one job, named explicitly rather than grouped by the middle of
@@ -163,6 +176,7 @@ CONFIG_RIVALS = (
     ("Which Python formatter is authoritative", ("cfg.format.black", "cfg.format.isort")),
     ("Which Python type checker is authoritative", ("cfg.types.mypy", "cfg.types.pyright")),
     ("Which end-to-end runner is authoritative", ("cfg.test.e2e",)),
+    ("Which JVM build is authoritative", ("cfg.build.maven", "cfg.build.gradle")),
 )
 
 # More than one of these means two package managers are both claiming to pin the same dependencies.
@@ -184,17 +198,42 @@ MIN_CHOKEPOINT_FAN_IN = 3
 # was cut. 24 clears that with headroom without being tuned to this one repository's exact count;
 # a repository with more still gets a truncation signal rather than a silently shorter list.
 MIN_FAMILY_FILES = 4
-MAX_FAMILIES = 24
+MAX_FAMILIES = 32
 MAX_ENTRYPOINT_FILES = 20
 
 FAMILY_SUFFIXES = CODE_SUFFIXES + (".md", ".json", ".yml", ".yaml", ".toml")
 CONFIG_FAMILY_SUFFIXES = (".json", ".yml", ".yaml", ".toml")
 JS_SUFFIXES = (".ts", ".tsx", ".mts", ".js", ".jsx", ".mjs")
+JVM_SUFFIXES = (".java", ".kt")
 
+# One extraction pattern per language the resolver can place. These are a HEAD START, never the
+# ceiling: a language with no pattern contributes no edges, and the scan SAYS SO — per-suffix parse
+# coverage is reported and `arch.graph.partial` lands in `unknowns`, so the drafting agent derives
+# the missing architecture by reading and records it as observations. The pipeline is complete for
+# every language; the parser only decides how much of the work arrives pre-measured.
 PYTHON_IMPORT = re.compile(r"^\s*(?:from\s+([\w.]+)\s+import|import\s+([\w.]+))", re.M)
 JS_IMPORT = re.compile(
     r"""(?:from\s+|require\(\s*|import\(\s*|^import\s+)['"]([^'"\n]{1,200})['"]""", re.M)
-MAIN_GUARD = re.compile(r"""^if __name__ == ['"]__main__['"]""", re.M)
+GO_IMPORT_SINGLE = re.compile(r'^import\s+(?:\w+\s+)?"([^"\n]{1,200})"', re.M)
+GO_IMPORT_BLOCK = re.compile(r"^import\s+\(([^)]{0,4000})\)", re.M)
+GO_QUOTED = re.compile(r'"([^"\n]{1,200})"')
+JVM_IMPORT = re.compile(r"^import\s+(?:static\s+)?([\w.]+?)(\.\*)?\s*;?\s*$", re.M)
+RUBY_RELATIVE = re.compile(r"""require_relative\s+['"]([^'"\n]{1,200})['"]""")
+RUST_USE = re.compile(r"^\s*use\s+crate::([\w:]+)", re.M)
+GO_MODULE = re.compile(r"^module\s+(\S+)", re.M)
+
+# Where execution enters, per language. Go demands both marks: `func main` inside `package main`.
+MAIN_PATTERNS = (
+    ((".py",), re.compile(r"""^if __name__ == ['"]__main__['"]""", re.M)),
+    ((".go",), re.compile(r"^func main\(\)", re.M)),
+    ((".java", ".kt"), re.compile(r"\bstatic\s+void\s+main\s*\(|^fun\s+main\s*\(", re.M)),
+    ((".rs",), re.compile(r"^fn main\(\)", re.M)),
+)
+GO_PACKAGE_MAIN = re.compile(r"^package main\b", re.M)
+
+# The suffixes the import extractor and the entrypoint patterns actually understand. Everything
+# else that was sampled is reported as unparsed rather than silently contributing nothing.
+IMPORT_PARSED_SUFFIXES = (".py",) + JS_SUFFIXES + JVM_SUFFIXES + (".go", ".rb", ".rs")
 
 CONVENTIONAL_SUBJECT = re.compile(
     r"^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?!?: ")
@@ -590,11 +629,13 @@ def conflicts_from_config(facts: list) -> list:
 
 
 def code_families(files: list) -> tuple:
-    """Directories that grow by adding one more file of a kind. A family is an extension point —
-    the standard way this repository grows — and the thing a worked example teaches. Read from the
+    """The extension points — the standard ways this repository grows — in both shapes that exist:
+    a directory of same-suffixed FILES (`agents/*.md`: add one more file), and sibling DIRECTORIES
+    each holding one same-named file (`skills/*/SKILL.md`: add one more directory). Missing the
+    second shape hid a real extension point on the very repository this shipped from. Read from the
     file list alone, so it holds even where the sample was bounded. Returns `(families, truncated)`:
     silently dropping a family drops its worked example with it, so a cut list says it was cut."""
-    groups = {}
+    file_groups, directory_groups = {}, {}
     for path in files:
         if is_generated(path) or "/" not in path:
             continue
@@ -602,11 +643,23 @@ def code_families(files: list) -> tuple:
         dot = name.rfind(".")
         suffix = name[dot:] if dot > 0 else ""
         if suffix in FAMILY_SUFFIXES:
-            groups.setdefault((directory, suffix), []).append(path)
-    families = [{"path": directory, "suffix": suffix, "files": len(members),
+            file_groups.setdefault((directory, suffix), []).append(path)
+        # The item is the directory, identified by the file every sibling carries under the same
+        # name. Scaffolding names (`__init__.py`, `conftest.py`) would make every package tree a
+        # family, so they identify nothing.
+        if "/" in directory and suffix in FAMILY_SUFFIXES \
+                and not name.startswith("_") and name != "conftest.py":
+            parent, item = directory.rsplit("/", 1)
+            directory_groups.setdefault((parent, name), {})[item] = path
+    families = [{"path": directory, "unit": "file", "suffix": suffix, "files": len(members),
                  "examples": sorted(members)[:3]}
-                for (directory, suffix), members in groups.items()
+                for (directory, suffix), members in file_groups.items()
                 if len(members) >= MIN_FAMILY_FILES]
+    families.extend(
+        {"path": parent, "unit": "directory", "suffix": "/" + name, "files": len(items),
+         "examples": [items[key] for key in sorted(items)][:3]}
+        for (parent, name), items in directory_groups.items()
+        if len(items) >= MIN_FAMILY_FILES)
     families.sort(key=lambda entry: (-entry["files"], entry["path"], entry["suffix"]))
     return families[:MAX_FAMILIES], len(families) > MAX_FAMILIES
 
@@ -633,21 +686,52 @@ def _import_specs(relative: str, text: str) -> list:
         matches = [first or second for first, second in PYTHON_IMPORT.findall(text)]
     elif relative.endswith(JS_SUFFIXES):
         matches = JS_IMPORT.findall(text)
+    elif relative.endswith(".go"):
+        matches = GO_IMPORT_SINGLE.findall(text)
+        for block in GO_IMPORT_BLOCK.findall(text):
+            matches.extend(GO_QUOTED.findall(block))
+    elif relative.endswith(JVM_SUFFIXES):
+        matches = [dotted + (star or "") for dotted, star in JVM_IMPORT.findall(text)]
+    elif relative.endswith(".rb"):
+        matches = RUBY_RELATIVE.findall(text)
+    elif relative.endswith(".rs"):
+        matches = RUST_USE.findall(text)
     else:
         matches = []
     return matches[:MAX_IMPORTS_PER_FILE]
 
 
-def _resolve_import(spec: str, importer: str, at_head: set):
-    """The file a specifier names, by membership at HEAD, or None. Python resolves dotted names
-    from the repository root; JavaScript resolves only relative specifiers — a bare one names a
-    dependency, which is outside the repository and outside this graph."""
+def build_import_indexes(root, files: list) -> dict:
+    """Everything resolution needs precomputed once, so no import pays a scan over the whole file
+    list: Go's module prefix and package directories, and the JVM's basename-to-paths map — a
+    dotted Java import only ever matches by its tail, and the basename shrinks the candidates to a
+    handful."""
+    indexes = {"go_module": None, "go_dirs": set(), "jvm_names": {}}
+    if any(f.endswith(".go") for f in files):
+        text = read_file(root, "go.mod") if "go.mod" in files else None
+        match = GO_MODULE.search(text) if text else None
+        if match:
+            indexes["go_module"] = match.group(1).rstrip("/")
+        indexes["go_dirs"] = {f.rsplit("/", 1)[0] for f in files
+                              if f.endswith(".go") and "/" in f}
+    for path in files:
+        if path.endswith(JVM_SUFFIXES):
+            indexes["jvm_names"].setdefault(path.rsplit("/", 1)[-1], []).append(path)
+    return indexes
+
+
+def _resolve_import(spec: str, importer: str, at_head: set, indexes: dict):
+    """The file (or, for Go and star imports, the package directory) a specifier names, by
+    membership at HEAD, or None. Python and Rust resolve from the repository root, JavaScript and
+    Ruby resolve relative specifiers only, Go resolves under its own module prefix, and JVM dotted
+    names resolve by their path tail — a specifier none of those place names a dependency, which is
+    outside the repository and outside this graph."""
     if not spec or len(spec) > MAX_IMPORT_CHARS:
         return None
     if importer.endswith(".py"):
         base = spec.replace(".", "/")
         candidates = [base + ".py", base + "/__init__.py"]
-    else:
+    elif importer.endswith(JS_SUFFIXES) or importer.endswith(".rb"):
         if not spec.startswith("."):
             return None
         directory = importer.rsplit("/", 1)[0] if "/" in importer else ""
@@ -656,12 +740,78 @@ def _resolve_import(spec: str, importer: str, at_head: set):
             return None
         dot, slash = base.rfind("."), base.rfind("/")
         stem = base[:dot] if dot > slash else base
-        candidates = ([base] + [stem + suffix for suffix in JS_SUFFIXES]
-                      + [stem + "/index" + suffix for suffix in JS_SUFFIXES])
+        if importer.endswith(".rb"):
+            candidates = [base, stem + ".rb"]
+        else:
+            candidates = ([base] + [stem + suffix for suffix in JS_SUFFIXES]
+                          + [stem + "/index" + suffix for suffix in JS_SUFFIXES])
+    elif importer.endswith(".go"):
+        module = indexes.get("go_module")
+        if not module or not spec.startswith(module + "/"):
+            return None
+        package = spec[len(module) + 1:]
+        return package if package in indexes["go_dirs"] else None
+    elif importer.endswith(JVM_SUFFIXES):
+        if spec.endswith(".*"):
+            tail = spec[:-2].replace(".", "/")
+            matches = sorted(d for d in {p.rsplit("/", 1)[0]
+                                         for paths in indexes["jvm_names"].values()
+                                         for p in paths}
+                             if d == tail or d.endswith("/" + tail))
+            return matches[0] if matches else None
+        tail = spec.replace(".", "/")
+        for extension in JVM_SUFFIXES:
+            name = tail.rsplit("/", 1)[-1] + extension
+            matches = sorted(p for p in indexes["jvm_names"].get(name, [])
+                             if p == tail + extension or p.endswith("/" + tail + extension))
+            if matches:
+                return matches[0]
+        return None
+    elif importer.endswith(".rs"):
+        base = spec.replace("::", "/")
+        candidates = ["src/" + base + ".rs", "src/" + base + "/mod.rs", base + ".rs"]
+    else:
+        return None
     for candidate in candidates:
         if candidate in at_head:
             return candidate
     return None
+
+
+def _containing_directory(path: str) -> str:
+    """The directory a resolved target lives in — or the target itself where resolution already
+    returned a directory (a Go package, a JVM star import), told apart by the last segment carrying
+    no suffix dot."""
+    last = path.rsplit("/", 1)[-1]
+    if "." not in last:
+        return path
+    return path.rsplit("/", 1)[0] if "/" in path else "."
+
+
+def _edge_between(importer: str, target: str):
+    """The dependency edge at the level where the two paths actually diverge — one segment past
+    their common prefix. A fixed depth is a property of one repository's layout: depth two reads a
+    Maven tree as `src/main` importing `src/main`, and every real edge vanishes into a self-loop."""
+    from_parts = _containing_directory(importer).split("/")
+    to_parts = _containing_directory(target).split("/")
+    shared = 0
+    while (shared < len(from_parts) and shared < len(to_parts)
+           and from_parts[shared] == to_parts[shared]):
+        shared += 1
+    if shared == len(from_parts) and shared == len(to_parts):
+        return None  # one directory — a local import, not an edge between areas
+    source = "/".join(from_parts[:shared + 1]) if shared < len(from_parts) else "/".join(from_parts)
+    destination = "/".join(to_parts[:shared + 1]) if shared < len(to_parts) else "/".join(to_parts)
+    if source == destination:
+        return None
+    return source, destination
+
+
+def _is_entrypoint(relative: str, text: str) -> bool:
+    for suffixes, pattern in MAIN_PATTERNS:
+        if relative.endswith(suffixes) and pattern.search(text):
+            return not relative.endswith(".go") or bool(GO_PACKAGE_MAIN.search(text))
+    return False
 
 
 def read_code_sample(root, files: list, config_dirs: list, depth: int) -> dict:
@@ -672,28 +822,31 @@ def read_code_sample(root, files: list, config_dirs: list, depth: int) -> dict:
     code = [f for f in sorted(files)
             if f.endswith(CODE_SUFFIXES) and not is_generated(f) and not is_secret_path(f)]
     at_head = set(files)
+    indexes = build_import_indexes(root, files)
     sample = {"lengths": [], "markers": 0, "read": 0, "total": len(code), "idioms": {},
               "imported_by": {}, "edges": {}, "resolved_imports": 0, "main_guards": [],
-              "config_consumers": {}}
+              "config_consumers": {}, "suffix_reads": {}}
     for relative in code[:MAX_FILES_READ]:
         text = read_file(root, relative)
         if text is None:
             continue
         sample["read"] += 1
+        suffix = "." + relative.rsplit(".", 1)[-1]
+        sample["suffix_reads"][suffix] = sample["suffix_reads"].get(suffix, 0) + 1
         sample["lengths"].append(len(text.splitlines()))
         sample["markers"] += len(MARKER.findall(text))
         for concern, side in classify_idioms(relative, text).items():
             sample["idioms"].setdefault(concern, {}).setdefault(side, []).append(relative)
         for spec in _import_specs(relative, text):
-            target = _resolve_import(spec, relative, at_head)
+            target = _resolve_import(spec, relative, at_head, indexes)
             if target is None or target == relative:
                 continue
             sample["resolved_imports"] += 1
             sample["imported_by"].setdefault(target, set()).add(relative)
-            edge = (directory_of(relative, depth), directory_of(target, depth))
-            if edge[0] != edge[1]:
+            edge = _edge_between(relative, target)
+            if edge is not None:
                 sample["edges"][edge] = sample["edges"].get(edge, 0) + 1
-        if relative.endswith(".py") and MAIN_GUARD.search(text):
+        if _is_entrypoint(relative, text):
             sample["main_guards"].append(relative)
         for config_dir in config_dirs:
             if config_dir in text:
@@ -708,6 +861,19 @@ def architecture_facts(files: list, families: list, sample: dict, manifest_bins:
     found = []
     count_citation = [{"kind": "count", "pattern": "internal imports resolved",
                       "matched": sample["resolved_imports"], "sampled": sample["read"]}]
+    # Which languages the graph below actually saw. Sampled code the extractor has no pattern for
+    # is named here, so a missing edge reads as "not measured" and never as "independent" — and the
+    # drafting agent knows exactly where its own reading must carry the architecture.
+    parsed = sorted(s for s in sample["suffix_reads"] if s in IMPORT_PARSED_SUFFIXES)
+    unparsed = [{"suffix": s, "files": n} for s, n in sorted(sample["suffix_reads"].items())
+                if s not in IMPORT_PARSED_SUFFIXES]
+    if sample["read"]:
+        found.append(fact(
+            "arch.import_coverage",
+            "Which sampled languages the import extractor parsed, and which it could not",
+            {"parsed": parsed, "unparsed": unparsed},
+            [{"kind": "count", "pattern": "code files read", "matched": sample["read"],
+              "sampled": sample["total"]}]))
     if families:
         found.append(fact(
             "arch.families", "Directories that grow by adding one more file of a kind", families,
@@ -822,8 +988,10 @@ def scan(root, months: float, recent_months: float, depth: int, commits: int) ->
     facts = sorted(collected.values(), key=lambda entry: entry["id"])
 
     alive = liveness(root, files, months, recent_months, depth, commits)
+    graph_partial = any(s not in IMPORT_PARSED_SUFFIXES for s in sample["suffix_reads"])
     unknowns = sorted(set(shape_unknowns) | ({"liveness.complete"} if truncated else set())
-                      | ({"arch.families_truncated"} if families_truncated else set()))
+                      | ({"arch.families_truncated"} if families_truncated else set())
+                      | ({"arch.graph.partial"} if graph_partial else set()))
     return {
         "schema_version": 2,
         "head": git(root, ["rev-parse", "HEAD"]).strip(),

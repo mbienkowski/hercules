@@ -40,7 +40,8 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
 3. **Scan** — `python3 ${extensionPath}/tools/code_of_conduct/coc_scan.py all --root <root> --contract 2`.
    - It reports what the repo declares, what its history shows, which directories are alive, cooling,
      dormant or generated, a ranked file list to read from, and the `arch.*` facts: file families
-     (extension points), the import graph, chokepoints, entrypoints, config consumers.
+     (extension points), the import graph, chokepoints, entrypoints, config consumers —
+     `arch.import_coverage` names the languages where that reading is yours instead.
    - Non-zero exit: relay its message and stop — never hand-scan around a refusal.
    - Then the **§ Scan playbook** for what it cannot decide: read the ranked sample and the `arch.*`
      facts, and record each pattern, idiom or architectural mechanism you confirm as an
@@ -58,14 +59,19 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
    - Accepted-with-tooling becomes a rule; the rest stay chat advice.
 5. **Draft** — rules only from the three evidence streams (facts, answers, observations), per
    **§ Output format**.
-   - Orientation first (what the repo is, the edit→verify loop), then themed sections — Architecture
-     naming the real mechanisms, how the repo is extended, Testing, Quality Gates, Security & Data,
-     Delivery — each a 1–3 sentence summary then its rules; every reason in one closing Why section.
-   - Every rule: one line, opening `MUST:`/`SHOULD:`/`AVOID:`/`NEVER_DO:`, its check named inline.
-     Plain text — no markup.
-   - A worked example (≤12 indented lines) per `arch.families` extension point: the exact files one
-     more addition touches, its owning test named.
-   - Orientation, summaries, examples and the Why section cost no directive; the caps keep that true.
+   - Orientation first (what the repo is, the edit→verify loop, what the tiers mean), then themed
+     sections — Architecture naming the real mechanisms, how the repo is extended, Testing, Quality
+     Gates, Security & Data, Delivery — every reason in one closing Why section.
+   - Every heading (`##`, or `###` where a section has concerns worth naming) opens with a 1–3
+     sentence summary, then one `MUST:`/`SHOULD:`/`AVOID:`/`NEVER_DO:` header per posture owning a
+     numbered run. Plain text — no markup.
+   - Each directive is **multi-line**: first sentence is the rule and reads alone, then the lines
+     that explain it, then `Check:`. Add a fenced code block wherever the real fragment teaches
+     faster — the engine's config, a recipe entry, the destinations one source lands at.
+   - **Never past eight directives under one heading**; split at the first clear boundary, often
+     well before. Give each concern a `###` and its own summary, and carry it in the envelope's
+     `subsection`.
+   - Orientation, summaries, code blocks and the Why section cost no directive.
 6. **Gap pass & critical review** (Thorough) — run `coverage-map.md` once as a stack-gated gap detector.
    - Each load-bearing omission is a chat recommendation: accept → rule, decline → absent.
    - Offer highest-value first, never past the directive budget.
@@ -77,15 +83,17 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
    - Build the envelope: each rule as `{id, section, tag, text, check, citations}` plus the `facts`,
      `answers` and `observations` it may cite — `fact:<id>`, `answer:<id>`, `code:<observation-id>`
      (**§ Rules envelope**).
-   - Pipe it to `python3 ${extensionPath}/tools/code_of_conduct/coc_audit.py draft --contract 2`.
+   - Pipe it to `python3 ${extensionPath}/tools/code_of_conduct/coc_gate.py draft --contract 2`.
    - **Exit 0 ships.** Any other exit: fix or drop what its `findings` name and re-run — never argue
      past it, never hand-wave a rule it refused.
    - It judges tag, check, citations, unique id, observation paths, and the directive count. The rest
      stays yours: each rule reads exactly one way and conflicts with no other.
    - Lay the rules out as markdown, then `python3 ${extensionPath}/tools/code_of_conduct/coc_lint.py
-     --contract 2` with `{"contract":2,"markdown":"…","paths":[each observation's path]}` on stdin —
-     it checks the shape and holds every observation path against HEAD; it reports what to fix, it
-     never fixes it. Apply its findings and re-run until clean.
+     --contract 2` with `{"contract":2,"markdown":"…","paths":[each observation's path],
+     "families":[each `arch.families` path]}` on stdin — it checks the shape, holds every
+     observation path against HEAD, refuses a `Check:` that names nothing runnable, refuses an
+     unverifiable universal claim, and names any family the document never mentions. It reports
+     what to fix, it never fixes it. Apply its findings and re-run until clean.
    - Present with a short summary (top standards, added, conflicts, dropped, and the band when past
      `intended`), surfacing only the ~5 genuine decisions — never a long list to curate.
    - Feedback applies **surgically** with a diff; regenerate wholesale only if the user reopens the
@@ -107,29 +115,34 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
 
 - **Read it mechanically first:** `python3 ${extensionPath}/tools/code_of_conduct/coc_lint.py
   --contract 2 --file <coc> --root <root>`. Its `findings` are rotted references — wrong whoever
-  wrote them. Its `shape_notes` are **not a task list**: reformatting an existing bullet is the edit
-  additions-only forbids.
+  wrote them. Its `shape_notes` are **not a task list**: restyling an existing rule is the edit
+  additions-only forbids, and an existing document may be in any format at all.
 - A `dangling` entry is a **question for the user, never an edit** — the rule may be right and the
   path merely moved.
-- Where the state file holds a previous run's envelope (`schema_version` 1), re-verify those citations
-  exactly instead. An unreadable or older envelope **says so in chat** and falls back to the report.
-- **Additions only:** never rename, reorder, delete or restructure existing sections or bullets on the
+- Where the state file holds a previous run's envelope, re-verify those citations exactly instead.
+  An unreadable or older envelope **says so in chat** and falls back to the report.
+- **Additions only:** never rename, reorder, delete or restructure existing sections or rules on the
   generator's own initiative. Exceptions: a critical-review-proposed drop after an explicit yes, and
   any edit the user directs.
-- Existing bullets are never retro-fitted with tags, summaries or reasons, and **never submitted to
-  the gate** — they predate it, so validating them would refuse every legitimate update. New rules and
-  new sections meet the full bar.
+- **Append inside a run; never renumber.** A new directive joins the END of its tier's numbered run,
+  so no existing line changes. Inserting one mid-run would renumber every directive after it — a
+  mechanical edit to rules nobody asked to touch, and the loss of every number a review or an issue
+  ever cited. Where the ordering genuinely matters, say so and let the user decide.
+- **The group cap binds new rules, not old ones.** If appending would push a heading past eight,
+  propose a `###` split as a question — never perform one, because splitting moves existing rules.
+- Existing rules are never retro-fitted with tags, summaries, checks or reasons, and **never
+  submitted to the gate** — they predate it, so validating them would refuse every legitimate
+  update. New rules and new sections meet the full bar.
 - Gap analysis surfaces missing items, conflicts (the CoC says X, the code does Y — a question, never
   auto-resolved) and missing sections.
-- Present an additions-only diff plus any drop questions; insert bullets in place, append new sections
-  at the end.
+- Present an additions-only diff plus any drop questions; append new sections at the end.
 
 ## Output budget
 
 Every agent reads this whole file on top of its own instructions.
 
 - Aim for **30–40** directives; **50** for a large or polyglot repo; **70 is the hard ceiling**.
-- One tagged bullet = one directive. Orientation, summaries, worked examples and the Why section
+- One numbered directive = one directive. Orientation, summaries, code blocks and the Why section
   don't count.
 - Past 40 the delegate total crosses the ~150-directive adherence line: 50–70 trades adherence for
   coverage — **say so when reporting the count**.

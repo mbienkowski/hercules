@@ -32,10 +32,12 @@ def lint():
     """A draft checked for shape alone, submitted on stdin before it exists on disk."""
     main = load_tool("coc_lint")
 
-    def run(markdown, argv=None, paths=None):
+    def run(markdown, argv=None, paths=None, families=None):
         body = {"contract": CONTRACT, "markdown": markdown}
         if paths is not None:
             body["paths"] = paths
+        if families is not None:
+            body["families"] = families
         return invoke(main, None, argv or ["--contract", str(CONTRACT)],
                       stdin=io.StringIO(json.dumps(body)))
 
@@ -59,14 +61,17 @@ def review(repo, tmp_path):
 # The agreed document shape: orientation first, each section a summary then tagged rules, and the
 # reasons in one Why section at the end — rules first because a reader wants the requirement, then
 # the argument.
-VALID_SHAPE = """A rule's prefix says what it is: MUST is gated, SHOULD is convention, AVOID names
+VALID_SHAPE = """A rule's tier says what it is: MUST is gated, SHOULD is convention, AVOID names
 a tempting path, NEVER_DO is a hard stop. The reasons sit at the end.
 
 ## Development
 
 Standards drawn from the code are the ones people already follow.
 
-- MUST: Never commit a credential — the scanner runs in CI.
+NEVER_DO:
+
+1. Committing a credential.
+   Check: `gitleaks` runs in CI.
 
 ## Why this is the way it is
 

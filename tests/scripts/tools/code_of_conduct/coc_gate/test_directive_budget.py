@@ -4,7 +4,7 @@ costs a reader. Only the ceiling refuses."""
 
 from __future__ import annotations
 
-from tests.scripts.tools.code_of_conduct.coc_audit.conftest import a_rule, an_envelope, rules_numbering
+from tests.scripts.tools.code_of_conduct.coc_gate.conftest import a_rule, an_envelope, rules_numbering
 
 
 def test_the_report_counts_one_directive_per_rule(gate):

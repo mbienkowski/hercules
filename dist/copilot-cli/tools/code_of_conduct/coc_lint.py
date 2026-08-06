@@ -62,36 +62,110 @@ class Internal(Exception):
 # ── The emitted file's shape ──────────────────────────────────────────────────────────────────
 
 SECTION = re.compile(r"^##\s+(.*\S)\s*$")
+SUBSECTION = re.compile(r"^###\s+(.*\S)\s*$")
 BULLET = re.compile(r"^[-*]\s+(.*)$")
-# Four postures, plain text at the head of the bullet: MUST is gated, SHOULD is convention, AVOID
-# names a tempting path with a better one, NEVER_DO is a hard stop. Plain because markup tokens are
-# spent from every agent's context on every task, and a tagged rule carries its own emphasis.
-TAGGED = re.compile(r"^(MUST|SHOULD|AVOID|NEVER_DO):\s")
+# Four postures, each heading a numbered run of its own: MUST is gated, SHOULD is convention, AVOID
+# names a tempting path with a better one, NEVER_DO is a hard stop. Grouping beats repeating the tag
+# on every line — the reader maps the posture once and then reads requirements.
+TIER_HEADER = re.compile(r"^(MUST|SHOULD|AVOID|NEVER_DO):\s*$")
+TIER_SHAPED = re.compile(r"^([A-Z][A-Z0-9 _-]{1,24}):\s*$")
+DIRECTIVE = re.compile(r"^(\d+)\.\s+(\S.*)$")
+FENCE = re.compile(r"^\s*(?:```|~~~)")
 BOLD = re.compile(r"\*\*")
 # The reasons live together at the end, after every requirement: a reader wants the rule first and
 # the argument only when they need to argue with one.
 WHY_HEADING = re.compile(r"\bwhy\b", re.IGNORECASE)
-INDENTED = re.compile(r"^(?:\t| {4})")
+INDENTED = re.compile(r"^(?:\t| {2,})")
 
-# Orientation is a paragraph, not a chapter; an example is glanced at, not maintained as a program.
+# Orientation is a paragraph, not a chapter; a code block is read at a glance, not maintained as a
+# program. The group cap is the real readability gate: past it a reader cannot tell what lives
+# where, and the answer is a sub-heading that names the concern, never a longer list.
 MAX_ORIENTATION_LINES = 15
-MAX_EXAMPLE_LINES = 12
+MAX_CODE_LINES = 24
+MAX_GROUP_DIRECTIVES = 8
+
+# Literals that are true the day they are written and stale the day the repository moves. A measured
+# tally justifies a rule in the ENVELOPE — the document names the mechanism and the directory, never
+# today's count. Declared thresholds survive on purpose: "80%" and ">=3.9" are the rule's own
+# content, so round percentages and two-part version floors pass; a dated count ("17 files today"),
+# an exhaustive tally ("10 of 10"), a full x.y.z version, or a decimal percentage ("98.3%" — the
+# shape of a measurement, where a declared threshold is round) are each the fossil of a scan.
+SNAPSHOT_LITERALS = (
+    ("dated count", re.compile(r"\b\d+\s+\w+\s+today\b", re.IGNORECASE)),
+    ("tally", re.compile(r"\b\d+\s+of\s+\d+\b")),
+    ("version literal", re.compile(r"\b\d+\.\d+\.\d+\b")),
+    ("measured share", re.compile(r"\b\d+\.\d+\s*%")),
+)
+
+# Claims about the WHOLE repository, which one counterexample falsifies and which no path check can
+# confirm. Measured on real output: every accuracy defect a blind review found took one of these
+# shapes — "the only X anywhere", "on every host", "nowhere else", "all seven". The author saw a few
+# files and generalised; the citation resolved, so the gate passed a sentence that was false.
+# A rule's own imperative is not caught: "Never edit dist/ by hand" carries no scope quantifier.
+# Exclusivity is dangerous wherever it appears: nothing in this tool can prove an absence, and the
+# author who writes it has usually read a handful of files.
+UNIVERSAL_EXCLUSIVITY = (
+    ("an exclusivity claim",
+     re.compile(r"\bthe only\b[^.]{0,100}?\b(?:anywhere|in the (?:repo|repository|codebase|"
+                r"project|tree|suite))\b", re.IGNORECASE)),
+    # Scoped to the repository-wide forms. Bare "and nothing else" is English for "only that",
+    # usually about a closed list the document itself defines, and flagging it trains the reader
+    # to ignore this rule — which costs more than the few real cases it would catch.
+    ("an exclusivity claim",
+     re.compile(r"\b(?:anywhere|nowhere)\s+else\b", re.IGNORECASE)),
+)
+
+# A sweep across every instance of something is a fine REQUIREMENT ("declare it in every recipe")
+# and a claim nobody can verify when it appears as the EVIDENCE. So these bind only inside a
+# `Check:` — where the sentence promises the reader a way to confirm the rule.
+UNIVERSAL_AS_EVIDENCE = (
+    ("a distributive claim",
+     re.compile(r"\b(?:on|in|for|across|by)\s+every\s+\w+", re.IGNORECASE)),
+    ("a distributive claim",
+     re.compile(r"\bone\b[^.]{0,60}?\bper\s+\w+", re.IGNORECASE)),
+    ("a spelled-out total",
+     re.compile(r"\ball\s+(?:two|three|four|five|six|seven|eight|nine|ten)\s+\w+", re.IGNORECASE)),
+)
+
+# A `Check:` earns its name by naming something a reader can run or open — a path, a command, a job.
+# Where nothing enforces the rule, saying so is the honest check; silence dressed as one is not.
+CHECK_LINE = re.compile(r"^\s*Check:\s*(.+)$")
+CHECK_RUNNABLE = re.compile(r"`[^`]+`")
+CHECK_ADMITS_NOTHING = re.compile(
+    r"\b(?:no\b[^.]{0,40}\b(?:tool|gate|test|check|scanner|hook|job)\b|not enforced|"
+    r"nothing enforces|review is the enforcement|by convention only|unenforced)\b", re.IGNORECASE)
 
 
-def _sections(markdown: str) -> list:
-    """The file as `(heading, first_line_number, lines)`, with anything before the first heading
-    kept as a preamble so a rule stranded above one is still seen."""
-    found, heading, start, body = [], None, 1, []
+def _fenced_lines(markdown: str) -> set:
+    """Every line inside a code fence, the fences themselves included. A code block is quoted
+    material — its markup is syntax, its numbers are the file's, and its `##` is a comment, not a
+    heading — so every prose rule below consults this set before firing."""
+    inside, open_fence = set(), False
     for number, line in enumerate(markdown.splitlines(), 1):
-        match = SECTION.match(line)
-        if not match:
-            body.append((number, line))
+        if FENCE.match(line):
+            inside.add(number)
+            open_fence = not open_fence
             continue
-        if heading is not None or body:
-            found.append((heading, start, body))
-        heading, start, body = match.group(1), number, []
-    found.append((heading, start, body))
-    return [entry for entry in found if entry[0] is not None or entry[2]]
+        if open_fence:
+            inside.add(number)
+    return inside
+
+
+def _blocks(markdown: str, fenced: set) -> tuple:
+    """The file as `(preamble, blocks)`, one block per heading of either level. A section carrying
+    its own rules and a section carrying sub-headings are then the same shape to every check —
+    which is what lets the group cap be counted per LEAF, where a reader actually reads."""
+    preamble, blocks, current = [], [], None
+    for number, line in enumerate(markdown.splitlines(), 1):
+        if number not in fenced:
+            match = SECTION.match(line) or SUBSECTION.match(line)
+            if match:
+                current = {"heading": match.group(1), "level": 2 if line.startswith("## ") else 3,
+                           "start": number, "lines": []}
+                blocks.append(current)
+                continue
+        (current["lines"] if current is not None else preamble).append((number, line))
+    return preamble, blocks
 
 
 def _orientation_findings(preamble_lines: list) -> list:
@@ -110,90 +184,256 @@ def _orientation_findings(preamble_lines: list) -> list:
     return []
 
 
-def _why_findings(headed: list) -> list:
+def _why_findings(blocks: list) -> list:
     """One Why section, last. Rules first and reasons last is the agreed reading order: a reader
-    wants the requirement, then the argument — and every reason in one place is what lets a rule
-    stay one line."""
-    why_indices = [index for index, (heading, _, _) in enumerate(headed)
-                   if WHY_HEADING.search(heading)]
-    if not why_indices:
-        line = headed[-1][1] if headed else 1
-        return [{"rule": "why_missing", "line": line,
+    wants the requirement, then the argument — and every reason gathered in one place is what lets
+    a directive stay about its own subject."""
+    sections = [entry for entry in blocks if entry["level"] == 2]
+    why = [index for index, entry in enumerate(sections)
+           if WHY_HEADING.search(entry["heading"])]
+    if not why:
+        return [{"rule": "why_missing", "line": sections[-1]["start"] if sections else 1,
                  "message": "The document closes with no Why section. The reasons live together at "
                             "the end — without them every rule is obeyed literally."}]
-    return [{"rule": "why_misplaced", "line": headed[index][1],
-             "message": f"The Why section '{headed[index][0]}' is not the last section. Rules "
-                        "first, reasons last — a Why in the middle splits both."}
-            for index in why_indices if index != len(headed) - 1]
+    return [{"rule": "why_misplaced", "line": sections[index]["start"],
+             "message": f"The Why section '{sections[index]['heading']}' is not the last section. "
+                        "Rules first, reasons last — a Why in the middle splits both."}
+            for index in why if index != len(sections) - 1]
 
 
-def _section_findings(heading: str, start: int, body: list, is_why: bool) -> tuple:
-    """One section's findings and its rule count. Bullets are rules and must open with a tier tag;
-    the first content must be the summary the rules are generalised from; indented lines are worked
-    examples, bounded but otherwise left alone; Why-section bullets are rationale, not rules."""
-    findings, rules, first_is_bullet, example_run, saw_bullet = [], 0, None, 0, False
-    for number, line in body:
-        if INDENTED.match(line) and line.strip():
-            example_run += 1
-            if example_run == MAX_EXAMPLE_LINES + 1:
-                findings.append({
-                    "rule": "example_too_long", "line": number,
-                    "message": f"A worked example in '{heading}' runs past {MAX_EXAMPLE_LINES} "
-                               "lines. An example is glanced at; cut it to the shape it "
-                               "demonstrates."})
+def _code_findings(block: dict, fenced: set) -> list:
+    """Code blocks are invited — a fragment of the real thing teaches a rule as prose cannot — and
+    bounded, because past a screenful it is a program being maintained inside a document."""
+    findings, run, opened = [], 0, None
+    for number, line in block["lines"]:
+        if number not in fenced:
             continue
-        if not line.strip():
-            continue  # a blank line inside an example block does not end the block
-        example_run = 0
+        if FENCE.match(line):
+            if opened is None:
+                opened, run = number, 0
+            else:
+                opened = None
+            continue
+        run += 1
+        if run == MAX_CODE_LINES + 1:
+            findings.append({
+                "rule": "code_block_too_long", "line": opened or number,
+                "message": f"A code block in '{block['heading']}' runs past {MAX_CODE_LINES} "
+                           "lines. Show the shape the rule turns on, not the whole file."})
+    return findings
+
+
+def _block_findings(block: dict, fenced: set, is_why: bool) -> tuple:
+    """One leaf's findings and its directive count. The grammar: a summary in prose, then a tier
+    header owning a numbered run beneath it. A directive may run as many lines as it needs — a rule
+    worth stating is worth explaining — so only its FIRST line carries the number, and everything
+    indented under it is that directive's body."""
+    findings = list(_code_findings(block, fenced))
+    tier, directives, numbering, summary_seen, first_rule = None, 0, 0, False, None
+    for number, line in block["lines"]:
+        if number in fenced or not line.strip():
+            continue
         if BOLD.search(line):
             findings.append({
                 "rule": "emphasis_used", "line": number,
-                "message": f"A line in '{heading}' uses bold markup. The format is plain text: "
-                           "markup tokens are spent from every agent's context on every task, and "
-                           "a tagged rule already carries its own emphasis."})
+                "message": f"A line in '{block['heading']}' uses bold markup. The format is plain "
+                           "text: markup is spent from every agent's context on every task, and a "
+                           "tiered directive already carries its own emphasis."})
+        if is_why:
+            continue  # rationale: numbered or bulleted, it is argument rather than requirement
+        header = TIER_HEADER.match(line)
+        if header:
+            if tier is not None and numbering == 0:
+                findings.append({
+                    "rule": "tier_empty", "line": number,
+                    "message": f"The {tier} run in '{block['heading']}' lists no directive. A tier "
+                               "header with nothing under it says a posture and requires nothing."})
+            tier, numbering = header.group(1), 0
+            if first_rule is None:
+                first_rule = number
+            continue
+        shaped = TIER_SHAPED.match(line)
+        if shaped and not header:
+            findings.append({
+                "rule": "tier_unknown", "line": number,
+                "message": f"'{shaped.group(1)}' is not a tier. The vocabulary is MUST, SHOULD, "
+                           "AVOID and NEVER_DO — one of those four, or it is prose, not a header."})
+            continue
+        directive = DIRECTIVE.match(line)
+        if directive:
+            directives += 1
+            numbering += 1
+            if first_rule is None:
+                first_rule = number
+            if tier is None:
+                findings.append({
+                    "rule": "directive_untiered", "line": number,
+                    "message": f"A directive in '{block['heading']}' sits under no tier header. "
+                               "Open the run with MUST:, SHOULD:, AVOID: or NEVER_DO:."})
+            elif int(directive.group(1)) != numbering:
+                findings.append({
+                    "rule": "directive_misnumbered", "line": number,
+                    "message": f"Directive '{directive.group(1)}.' is number {numbering} of the "
+                               f"{tier} run in '{block['heading']}'. A run counts from 1 without "
+                               "gaps, or its numbers stop meaning anything."})
+            continue
+        if INDENTED.match(line):
+            continue  # a directive's own body: explanation, a check, an example
         bullet = BULLET.match(line)
         if bullet:
-            if first_is_bullet is None:
-                first_is_bullet = number
-            saw_bullet = True
-            if is_why:
-                continue  # rationale, not a rule: tagging it would tax arguments as directives
-            rules += 1
-            if not TAGGED.match(bullet.group(1)):
-                findings.append({
-                    "rule": "bullet_untagged", "line": number,
-                    "message": f"A rule in '{heading}' opens with no tier tag. Write "
-                               "MUST:, SHOULD:, AVOID: or NEVER_DO: so a reader can tell what "
-                               "enforces it."})
+            findings.append({
+                "rule": "bullet_in_rules", "line": number,
+                "message": f"A bullet in '{block['heading']}' states a rule. Directives are a "
+                           "numbered run under their tier header, so a reader can cite one."})
             continue
-        if first_is_bullet is None:
-            first_is_bullet = False  # prose arrived before any bullet: the summary exists
-    if saw_bullet and first_is_bullet and not is_why:
+        if first_rule is None:
+            summary_seen = True  # prose arrived before any rule: the summary exists
+    if tier is not None and numbering == 0:
         findings.append({
-            "rule": "group_unsummarized", "line": start,
-            "message": f"The section '{heading}' starts ruling with no summary. One to three "
-                       "sentences of intent are what a rule is generalised from; without them it "
-                       "is obeyed literally."})
-    return findings, rules
+            "rule": "tier_empty", "line": first_rule or block["start"],
+            "message": f"The {tier} run in '{block['heading']}' lists no directive."})
+    if not summary_seen and not is_why:
+        findings.append({
+            "rule": "group_unsummarized", "line": block["start"],
+            "message": f"'{block['heading']}' opens without a summary. One to three sentences of "
+                       "intent are what a rule is generalised from; without them it is obeyed "
+                       "literally and applied wrongly to the case the list never named."})
+    return findings, directives
 
 
-def lint_markdown(markdown) -> dict:
+def _group_size_findings(blocks: list, counts: dict) -> list:
+    """The readability gate. A leaf is where a reader reads, so a `##` that carries sub-headings is
+    measured by each child and never by their sum. Past the cap the answer is a sub-heading naming
+    the concern — never a longer list, which is how a document stops being navigable."""
+    has_children, previous_section = set(), None
+    for entry in blocks:
+        if entry["level"] == 2:
+            previous_section = id(entry)
+        elif previous_section is not None:
+            has_children.add(previous_section)
+    findings = []
+    for entry in blocks:
+        if entry["level"] == 2 and id(entry) in has_children:
+            continue
+        count = counts.get(id(entry), 0)
+        if count > MAX_GROUP_DIRECTIVES:
+            findings.append({
+                "rule": "group_oversized", "line": entry["start"],
+                "message": f"'{entry['heading']}' carries {count} directives, past the "
+                           f"{MAX_GROUP_DIRECTIVES} a reader can hold. Split it into sub-headings "
+                           "that name the concerns — the boundaries are already in the list."})
+    return findings
+
+
+def _snapshot_findings(markdown: str, fenced: set) -> list:
+    """Every literal in the document's PROSE that a normal week of work falsifies. The scan
+    measures and the envelope records; a count that leaks into a rule reads as present truth long
+    after it stopped being one. A code block is exempt: it quotes the file, and the file's own
+    numbers are what makes the quotation worth showing."""
+    found = []
+    for number, line in enumerate(markdown.splitlines(), 1):
+        if number in fenced:
+            continue
+        for kind, pattern in SNAPSHOT_LITERALS:
+            match = pattern.search(line)
+            if match:
+                found.append({
+                    "rule": "snapshot_literal", "line": number,
+                    "message": f"'{match.group(0)}' is a {kind} — true the day it was written, "
+                               "stale the day the repository moves. Name the mechanism and the "
+                               "directory; the number belongs in the envelope."})
+    return found
+
+
+def _universal_findings(markdown: str, fenced: set) -> list:
+    """Sentences that claim something about the whole repository. A path check proves existence and
+    can never prove an absence, so a universal is the one claim shape that clears every gate and is
+    still wrong. Requirements may sweep — evidence may not."""
+    found = []
+    for number, line in enumerate(markdown.splitlines(), 1):
+        if number in fenced:
+            continue
+        patterns = UNIVERSAL_EXCLUSIVITY
+        check = CHECK_LINE.match(line)
+        # A sweep is only unverifiable when it IS the evidence. Where the Check also names
+        # something runnable, the universal describes that thing's scope and the reader can go
+        # and look — so it binds only on a Check that offers nothing else to open.
+        if check and not CHECK_RUNNABLE.search(check.group(1)):
+            patterns = UNIVERSAL_EXCLUSIVITY + UNIVERSAL_AS_EVIDENCE
+        for kind, pattern in patterns:
+            match = pattern.search(line)
+            if match:
+                found.append({
+                    "rule": "unhedged_universal", "line": number,
+                    "message": f"'{match.group(0).strip()}' is {kind} offered as evidence. One "
+                               "counterexample falsifies it and no citation can confirm it — name "
+                               "what you actually verified, or drop the quantifier."})
+                break
+    return found
+
+
+def _check_findings(markdown: str, fenced: set) -> list:
+    """A `Check:` that names nothing runnable and does not admit that nothing enforces the rule.
+    Prose in that position reads as verification and provides none."""
+    found = []
+    for number, line in enumerate(markdown.splitlines(), 1):
+        if number in fenced:
+            continue
+        match = CHECK_LINE.match(line)
+        if not match:
+            continue
+        body = match.group(1)
+        if CHECK_RUNNABLE.search(body) or CHECK_ADMITS_NOTHING.search(body):
+            continue
+        found.append({
+            "rule": "check_unfalsifiable", "line": number,
+            "message": "This Check names nothing a reader can run or open. Name the file, command "
+                       "or job in backticks — or say plainly that nothing enforces the rule."})
+    return found
+
+
+def _family_findings(markdown: str, families) -> list:
+    """Every extension point the scan found is either taught or knowingly left out. A family the
+    document never names is the shape of a whole way this repository grows going undocumented —
+    the reader adds one more of that kind by guessing."""
+    if families is None:
+        return []
+    if not isinstance(families, list) or not all(isinstance(f, str) for f in families):
+        raise Internal("`families` must be a list of repository-relative directory strings.")
+    return [{"rule": "family_uncovered", "line": 0,
+             "message": f"`{family}` is a directory this repository grows by, and the document "
+                        "never names it. Teach how one more is added, or record that it is "
+                        "deliberately out of scope."}
+            for family in sorted({f.strip() for f in families if f.strip()})
+            if family not in markdown]
+
+
+def lint_markdown(markdown, families=None) -> dict:
     if not isinstance(markdown, str) or not markdown.strip():
         raise Internal("`markdown` must be the emitted document as a string.")
-    sections = _sections(markdown)
-    headed = [entry for entry in sections if entry[0]]
-    preamble = [entry for entry in sections if entry[0] is None]
+    fenced = _fenced_lines(markdown)
+    preamble, blocks = _blocks(markdown, fenced)
 
-    findings = _orientation_findings(preamble[0][2] if preamble else [])
-    findings.extend(_why_findings(headed))
-    rules = 0
-    for heading, start, body in headed:
-        section_findings, section_rules = _section_findings(
-            heading, start, body, bool(WHY_HEADING.search(heading)))
-        findings.extend(section_findings)
-        rules += section_rules
+    findings = _orientation_findings(preamble)
+    findings.extend(_why_findings(blocks))
+    findings.extend(_snapshot_findings(markdown, fenced))
+    findings.extend(_universal_findings(markdown, fenced))
+    findings.extend(_check_findings(markdown, fenced))
+    findings.extend(_family_findings(markdown, families))
+    counts, rules = {}, 0
+    for block in blocks:
+        block_findings, block_rules = _block_findings(
+            block, fenced, bool(WHY_HEADING.search(block["heading"])))
+        findings.extend(block_findings)
+        counts[id(block)] = block_rules
+        rules += block_rules
+    findings.extend(_group_size_findings(blocks, counts))
     findings.sort(key=lambda entry: (entry["line"], entry["rule"]))
-    return {"findings": findings, "sections": len(headed), "rules": rules}
+    return {"findings": findings, "rules": rules,
+            "sections": sum(1 for b in blocks if b["level"] == 2),
+            "subsections": sum(1 for b in blocks if b["level"] == 3),
+            "groups": [{"heading": b["heading"], "level": b["level"], "line": b["start"],
+                        "directives": counts.get(id(b), 0)} for b in blocks]}
 
 
 # ── Reading a code-of-conduct written elsewhere ───────────────────────────────────────────────
@@ -403,13 +643,13 @@ def emit(payload: dict, code: int) -> int:
     return code
 
 
-def review(markdown: str, file_path, root, declared=None) -> dict:
+def review(markdown: str, file_path, root, declared=None, families=None) -> dict:
     """Both halves of the answer. Shape binds a draft and only informs about a document that already
     exists: an existing bullet is never retro-fitted with a tag or a reason, so listing its shape as
     something to fix would invite exactly the edit the additions-only rule forbids. A rotted citation
     is a finding either way — it is wrong no matter who wrote it. Declared observation paths are
     verified only when a repository is in reach; skipping them silently would read as verification."""
-    report = lint_markdown(markdown)
+    report = lint_markdown(markdown, families)
     if file_path:
         report["shape_notes"] = report.pop("findings")
         report["findings"] = []
@@ -444,11 +684,12 @@ def main(argv=None, home=None, stdin=None) -> int:
                     EXIT_CONTRACT)
     try:
         if args.file:
-            markdown, declared = read_document(args.file), None
+            markdown, declared, families = read_document(args.file), None, None
         else:
             envelope = read_stdin_envelope(stdin if stdin is not None else sys.stdin)
-            markdown, declared = envelope.get("markdown"), envelope.get("paths")
-        report = review(markdown, args.file, args.root, declared)
+            markdown = envelope.get("markdown")
+            declared, families = envelope.get("paths"), envelope.get("families")
+        report = review(markdown, args.file, args.root, declared, families)
     except Refused as exc:
         return emit({"error": "refused", "rule": exc.rule, "message": exc.message}, EXIT_REFUSED)
     except Internal as exc:

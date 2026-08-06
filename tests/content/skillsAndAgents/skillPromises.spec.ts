@@ -131,7 +131,7 @@ describe('the code-of-conduct generator keeps its promises to whoever runs it', 
   it('decides the gate with a program rather than asking an agent to be careful', () => {
     // The whole point of the gate: a rule an agent cannot justify to a validator does not ship.
     const text = flat(GENERATOR);
-    expect(text).toContain('tools/code_of_conduct/coc_audit.py draft --contract 2');
+    expect(text).toContain('tools/code_of_conduct/coc_gate.py draft --contract 2');
     expect(text).toContain('Exit 0 ships');
   });
 
@@ -186,20 +186,22 @@ describe('the code-of-conduct generator keeps its promises to whoever runs it', 
       .toContain('a question, never majority rule');
   });
 
-  it('formats the file the way its owner reads: rules first, reasons last, plain text', () => {
+  it('formats the file the way its owner reads: tiered runs, reasons last, plain text', () => {
     // A reader wants the requirement, then the argument; markup tokens are spent from every
-    // agent's context on every task, forever.
-    const map = flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md');
-    expect(map).toContain('Rules first, reasons last');
-    expect(map).toMatch(/MUST.{0,80}SHOULD.{0,160}AVOID.{0,160}NEVER_DO/);
-    expect(map).toContain('no bold, no italics');
+    // agent's context on every task, forever. The shape lives in the spine, so it is asserted
+    // there — the map carries only what the spine does not say.
+    const text = flat(GENERATOR);
+    expect(text).toMatch(/MUST.{0,80}SHOULD.{0,160}AVOID.{0,160}NEVER_DO/);
+    expect(text).toContain('closing Why section');
+    expect(text).toContain('no markup');
   });
 
   it('teaches how the repository grows, not just what it forbids', () => {
-    // A family is an extension point: the standard way this repository grows is one more file
-    // there, in that shape — which is exactly what a worked example demonstrates.
+    // A family is an extension point: the standard way this repository grows. Leaving one
+    // unnamed hands the next contributor a whole extension path to guess at, so the map
+    // requires covering each and the linter reports any the document never mentions.
     const map = flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md');
-    expect(map).toContain('worked example');
+    expect(map).toContain('Cover every `arch.families` entry the scan reported');
     expect(map).toContain('arch.families');
   });
 

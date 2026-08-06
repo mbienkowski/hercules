@@ -44,6 +44,11 @@ BAND_INTENDED = 40
 BAND_LARGE = 50
 BAND_CEILING = 70
 
+# How many directives one heading may carry before a reader stops being able to say what lives
+# where. Judged here, on the structure, rather than left to the markdown: the fix is a sub-heading
+# that names the concern, and that is a decision about the rule set, not about its prose.
+MAX_GROUP_DIRECTIVES = 8
+
 # The evidence kinds a citation may name: something the scan measured, something the user said, or
 # something the drafting agent read in the code and recorded with the file that shows it. The third
 # is what lets an architectural rule be cited at all — without it, a rule drawn from reading the
@@ -137,6 +142,23 @@ def observation_findings(envelope: dict) -> list:
                 f"Observation '{observation_id}' points at '{clean}', which is not a "
                 "repository-relative path. Nothing outside the repository is evidence about it."))
     return found
+
+
+def group_findings(rules: list) -> list:
+    """Whether any one heading was asked to carry more than a reader can hold. A rule's group is
+    its `subsection` where it declares one and its `section` otherwise, so splitting a section is
+    exactly what clears this."""
+    counted = {}
+    for rule in rules:
+        section = _text_of(rule, "section") or "(unnamed)"
+        subsection = _text_of(rule, "subsection")
+        key = f"{section} / {subsection}" if subsection else section
+        counted[key] = counted.get(key, 0) + 1
+    return [finding("group_oversized", "",
+                    f"'{group}' carries {count} directives, past the {MAX_GROUP_DIRECTIVES} a "
+                    "reader can hold. Give each concern its own `subsection` — the boundaries are "
+                    "already in the list.")
+            for group, count in sorted(counted.items()) if count > MAX_GROUP_DIRECTIVES]
 
 
 def rules_of(envelope: dict) -> list:
@@ -252,7 +274,7 @@ def judge(envelope: dict) -> dict:
                       "every check by having nothing to check.")
 
     seen_ids = set()
-    findings = observation_findings(envelope)
+    findings = observation_findings(envelope) + group_findings(rules)
     cited = set()
     for rule in rules:
         findings.extend(rule_findings(rule, known, seen_ids))
@@ -276,7 +298,7 @@ def judge(envelope: dict) -> dict:
 # ── Command surface ───────────────────────────────────────────────────────────────────────────
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="coc_audit", add_help=False)
+    parser = argparse.ArgumentParser(prog="coc_gate", add_help=False)
     parser.add_argument("mode", choices=["draft"])
     parser.add_argument("--contract", type=int, required=True)
     return parser

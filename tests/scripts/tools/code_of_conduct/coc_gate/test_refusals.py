@@ -7,7 +7,7 @@ from __future__ import annotations
 import io
 import json
 
-from tests.scripts.tools.code_of_conduct.coc_audit.conftest import CONTRACT, an_envelope
+from tests.scripts.tools.code_of_conduct.coc_gate.conftest import CONTRACT, an_envelope
 from tests.scripts.tools.tool_harness import invoke, load_tool
 
 
@@ -44,7 +44,7 @@ def test_an_oversized_submission_is_refused_before_it_is_parsed(gate):
     """A gate that reads whatever it is handed can be hung by the repository it is auditing. The
     submission is otherwise valid and would clear the gate at any smaller size, so only the cap can
     be what refuses it."""
-    from tests.scripts.tools.code_of_conduct.coc_audit.conftest import a_rule
+    from tests.scripts.tools.code_of_conduct.coc_gate.conftest import a_rule
 
     bloated = an_envelope(rules=[a_rule(text="x" * (2 * 1024 * 1024))])
     code, report = gate(bloated)
@@ -72,7 +72,7 @@ def test_the_reply_is_one_json_object_on_every_path(gate):
 def test_the_gate_never_reaches_the_filesystem_for_its_verdict(tmp_path):
     """This mode is a pure function of its envelope: no path is opened, so a hostile repository has
     no surface here at all. Verification against a repository arrives with the scan inventory."""
-    main = load_tool("coc_audit")
+    main = load_tool("coc_gate")
     envelope = an_envelope()
     buffer = io.StringIO(json.dumps(envelope))
     code, report = invoke(main, None, ["draft", "--contract", str(CONTRACT)], stdin=buffer)

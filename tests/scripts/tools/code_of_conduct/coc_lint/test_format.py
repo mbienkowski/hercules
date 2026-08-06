@@ -1,8 +1,7 @@
-"""The shape of the file an agent actually emits, in the format the owner set: orientation before
-anything else, each section a short summary then its tagged rules, plain-text tags from the four-tier
-vocabulary, worked examples short enough to glance at, and every reason gathered in one Why section
-at the end — because a reader wants the requirement first and the argument only when they need to
-argue with one."""
+"""The shape of the file an agent emits. The draft gate judges structured rules before any markdown
+exists; this judges the markdown, because the layout is what decides whether a later reader can find
+one rule and be sure they found all of it. Every property here was optional prose before, which in
+practice meant absent."""
 
 from __future__ import annotations
 
@@ -16,10 +15,24 @@ SECTION = """
 
 Standards drawn from the code are the ones people already follow.
 
-- MUST: Format every file before committing — CI runs the formatter in check mode.
-- SHOULD: Keep a module under 430 lines — the repository's 90th percentile.
-- AVOID: Reaching around the build to edit generated output; change the source instead.
-- NEVER_DO: Commit a credential — there is no scanner, review is the enforcement.
+MUST:
+
+1. Format every file before committing.
+   The formatter ends arguments that cost more review time than it costs to run.
+   Check: `make format-check` in CI.
+
+2. Keep a module under the repository's 90th percentile.
+   Check: `internal/lint/size.mts`.
+
+AVOID:
+
+1. Reaching around the build to edit generated output.
+   Change the source instead.
+
+NEVER_DO:
+
+1. Committing a credential.
+   Check: No scanner runs here; review is the enforcement.
 """
 
 WHY = """
@@ -35,6 +48,13 @@ def test_a_file_in_the_agreed_shape_passes(lint):
     assert report["findings"] == []
 
 
+def test_the_report_counts_directives_sections_and_subsections(lint):
+    code, report = lint(ORIENTATION + SECTION + WHY)
+    assert report["rules"] == 4
+    assert report["sections"] == 2
+    assert report["subsections"] == 0
+
+
 def test_a_file_opening_with_a_heading_instead_of_orientation_is_refused(lint):
     """The first thing an agent reads must say what the repository is and what the loop is; a file
     that opens cold with rules orients nobody."""
@@ -44,51 +64,67 @@ def test_a_file_opening_with_a_heading_instead_of_orientation_is_refused(lint):
 
 
 def test_an_orientation_that_becomes_an_essay_is_refused(lint):
-    """Orientation is a paragraph, not a chapter — past a screen it is a section wearing no heading."""
     essay = "".join(f"Orientation line {n}.\n" for n in range(20))
     code, report = lint(essay + SECTION + WHY)
     assert code == 1
     assert findings(report, "orientation_oversized")
 
 
-def test_a_rule_bullet_carrying_no_tier_tag_is_refused(lint):
-    code, report = lint(ORIENTATION + SECTION + "- Keep functions small.\n" + WHY)
+def test_a_directive_under_no_tier_header_is_refused(lint):
+    """Without a posture above it a requirement says nothing about what enforces it."""
+    stray = "\n## Testing\n\nA summary.\n\n1. Run the suite before pushing.\n"
+    code, report = lint(ORIENTATION + SECTION + stray + WHY)
     assert code == 1
-    assert findings(report, "bullet_untagged")
+    assert findings(report, "directive_untiered")
 
 
-def test_the_retired_nice_to_have_tier_reads_as_untagged(lint):
-    """The owner folded NICE TO HAVE into SHOULD; a document still using it is out of vocabulary."""
-    code, report = lint(ORIENTATION + SECTION + "- NICE TO HAVE: Run the mutation suite.\n" + WHY)
+def test_a_header_outside_the_tier_vocabulary_is_refused(lint):
+    """The four postures each mean one thing; "SHALL:" carries nothing a reader can act on."""
+    code, report = lint(ORIENTATION + SECTION + "\nSHALL:\n\n1. Do a thing.\n" + WHY)
     assert code == 1
-    assert findings(report, "bullet_untagged")
+    assert findings(report, "tier_unknown")
 
 
-def test_a_finding_names_the_line_it_is_on(lint):
-    """A format complaint without a line number sends the reader through the whole file."""
-    code, report = lint(ORIENTATION + SECTION + "- Keep functions small.\n" + WHY)
-    assert findings(report, "bullet_untagged")[0]["line"] > 0
+def test_a_tier_header_with_no_directives_is_refused(lint):
+    """A posture stated and then required of nothing is a heading pretending to be a rule."""
+    code, report = lint(ORIENTATION + SECTION + "\nSHOULD:\n\nJust some prose.\n" + WHY)
+    assert code == 1
+    assert findings(report, "tier_empty")
+
+
+def test_a_run_whose_numbers_skip_is_refused(lint):
+    """A run counts from one without gaps, or its numbers stop being a way to cite a rule."""
+    misnumbered = "\n## Testing\n\nA summary.\n\nMUST:\n\n1. First.\n3. Third.\n"
+    code, report = lint(ORIENTATION + SECTION + misnumbered + WHY)
+    assert code == 1
+    assert findings(report, "directive_misnumbered")
+
+
+def test_a_rule_stated_as_a_bullet_is_refused(lint):
+    """Bullets are the retired grammar: they cannot be cited by number and they carry no posture."""
+    code, report = lint(ORIENTATION + SECTION + "\n- Keep functions small.\n" + WHY)
+    assert code == 1
+    assert findings(report, "bullet_in_rules")
 
 
 def test_a_section_that_starts_ruling_without_a_summary_is_refused(lint):
-    """The one-to-three-sentence summary is what a rule is generalised from; without it a rule is
-    obeyed literally and applied wrongly to the case the list never named."""
-    bare = "\n## Testing\n\n- MUST: Run the suite before pushing — CI runs it.\n"
+    """The summary is what a rule is generalised from; without it a rule is obeyed literally and
+    applied wrongly to the case the list never named."""
+    bare = "\n## Testing\n\nMUST:\n\n1. Run the suite before pushing.\n   Check: `make test`.\n"
     code, report = lint(ORIENTATION + SECTION + bare + WHY)
     assert code == 1
     assert findings(report, "group_unsummarized")
 
 
-def test_bold_emphasis_anywhere_outside_an_example_is_refused(lint):
-    """The owner's rule: no bold, no italics — markup tokens spend every agent's context on every
-    task, forever, and a tagged rule already carries its own emphasis."""
-    code, report = lint(ORIENTATION + SECTION + "- MUST: Keep **this** plain.\n" + WHY)
+def test_bold_emphasis_outside_a_code_block_is_refused(lint):
+    """Markup is spent from every agent's context on every task, and a tiered directive already
+    carries its own emphasis."""
+    code, report = lint(ORIENTATION + SECTION + "\nSHOULD:\n\n1. Keep **this** plain.\n" + WHY)
     assert code == 1
     assert findings(report, "emphasis_used")
 
 
 def test_a_document_without_a_closing_why_section_is_refused(lint):
-    """Rules without their reasons are obeyed literally; the reasons live at the end, together."""
     code, report = lint(ORIENTATION + SECTION)
     assert code == 1
     assert findings(report, "why_missing")
@@ -101,33 +137,24 @@ def test_a_why_section_anywhere_but_last_is_refused(lint):
     assert findings(report, "why_misplaced")
 
 
-def test_bullets_inside_the_why_section_need_no_tags(lint):
-    """They are rationale, not rules; tagging them would count arguments against the budget."""
+def test_the_why_section_is_free_of_the_rule_grammar(lint):
+    """Its entries are argument rather than requirement, so tagging them would tax reasons as
+    directives and numbering them would invite citing a reason as a rule."""
     code, report = lint(ORIENTATION + SECTION + WHY + "- Budgets exist because context is finite.\n")
     assert code == 0
-    assert not findings(report, "bullet_untagged")
-
-
-def test_a_worked_example_is_left_alone_by_the_shape_rules(lint):
-    """An indented block is a demonstration: its lines are neither rules to tag nor prose to ban
-    markup from."""
-    example = "\nWorked example, adding a module:\n\n    1. Add src/thing.py\n    2. Run make build\n"
-    code, report = lint(ORIENTATION + SECTION + example + WHY)
-    assert code == 0
-
-
-def test_a_worked_example_longer_than_a_screen_is_refused(lint):
-    """A demonstration is glanced at; past a dozen lines it is a program being maintained in prose."""
-    example = "\nWorked example:\n\n" + "".join(f"    step {n}\n" for n in range(16))
-    code, report = lint(ORIENTATION + SECTION + example + WHY)
-    assert code == 1
-    assert findings(report, "example_too_long")
-
-
-def test_the_report_counts_what_it_checked(lint):
-    code, report = lint(ORIENTATION + SECTION + WHY)
-    assert report["sections"] == 2
     assert report["rules"] == 4
+
+
+def test_a_directive_may_run_as_many_lines_as_it_needs(lint):
+    """A rule worth stating is worth explaining; only the first line carries the number."""
+    long_rule = ("\n## Testing\n\nA summary.\n\nMUST:\n\n"
+                 "1. Write the test first.\n"
+                 "   It has to fail for the right reason before the implementation exists.\n"
+                 "   Frozen means not edited while the implementation is written.\n"
+                 "   Check: `src/scripts/hooks/frozen_tests.py`.\n")
+    code, report = lint(ORIENTATION + SECTION + long_rule + WHY)
+    assert code == 0
+    assert report["rules"] == 5
 
 
 def test_markdown_that_is_not_a_string_is_refused(lint):

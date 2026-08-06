@@ -233,9 +233,9 @@
         "src/content/skills/write-test-scenarios/SKILL.md"
       ]
     },
-    "tools/code_of_conduct/coc_audit.py": {
+    "tools/code_of_conduct/coc_gate.py": {
       "sources": [
-        "src/scripts/tools/code_of_conduct/coc_audit.py"
+        "src/scripts/tools/code_of_conduct/coc_gate.py"
       ]
     },
     "tools/code_of_conduct/coc_lint.py": {

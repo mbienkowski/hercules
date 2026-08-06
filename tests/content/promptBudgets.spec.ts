@@ -38,7 +38,13 @@ const BUDGETS: ReadonlyArray<readonly [string, string, number]> = [
   ['the test-scenarios skill', 'skills/write-test-scenarios/SKILL.md', 1050],
   ['the reference skill', 'skills/hercules-reference/SKILL.md', 3900],
   ['the code-of-conduct generator', 'skills/code-of-conduct-generator/SKILL.md', 3000],
-  ['its coverage map', 'skills/code-of-conduct-generator/coverage-map.md', 6600],
+  // 6600 → 6700 at the owner's request. What the rise bought: five gates the map has to teach
+  // because a blind review found each one being broken in real output — a `Check:` must name
+  // something runnable, a universal claim must be verified or scoped, every scanned family must be
+  // covered or declined, a heading may not exceed eight directives, and code blocks are invited.
+  // The shape spec itself was deduplicated into SKILL.md § Step 5 first, which paid back ~200
+  // tokens; this is the remainder. Re-measure DOWN when the catalogue next shrinks.
+  ['its coverage map', 'skills/code-of-conduct-generator/coverage-map.md', 6700],
   ['the fusion-setup skill', 'skills/fusion-setup/SKILL.md', 1100],
 ];
 

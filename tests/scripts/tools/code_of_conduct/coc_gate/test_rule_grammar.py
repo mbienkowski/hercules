@@ -4,7 +4,7 @@ paragraph. Each is proven here to stop a draft rather than merely be requested."
 
 from __future__ import annotations
 
-from tests.scripts.tools.code_of_conduct.coc_audit.conftest import a_rule, an_envelope, findings_of
+from tests.scripts.tools.code_of_conduct.coc_gate.conftest import a_rule, an_envelope, findings_of
 
 
 def test_a_draft_whose_rules_all_pass_the_grammar_clears_the_gate(gate):
