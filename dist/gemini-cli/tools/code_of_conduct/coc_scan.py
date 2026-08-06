@@ -38,6 +38,8 @@ MAX_PATHS = 60_000
 MAX_FILES_READ = 1200
 MAX_FILE_BYTES = 400_000
 MAX_SUBJECT_CHARS = 200
+# A path may legitimately be long; the cap is a flood guard, not a formatting rule.
+MAX_EMITTED_CHARS = 400
 GIT_TIMEOUT_SECONDS = 60
 
 TOP_FILES = 50
@@ -289,15 +291,31 @@ def nul_paths(blob: bytes) -> list:
     return [chunk.decode("utf-8", "replace") for chunk in blob.split(b"\0") if chunk]
 
 
+SYMLINK_MODE = "120000"
+
+
 def head_files(root) -> tuple:
-    """Every path at HEAD, and which route found them. `ls-files` reads the index, which a bare
-    repository does not have — without the fallback a bare clone reports an empty repository."""
-    files = nul_paths(git(root, ["ls-files", "-z"], binary=True))
-    if files:
-        return files[:MAX_PATHS], "worktree"
+    """Every path at HEAD, which route found them, and which of them are SYMLINKS. `ls-files` reads
+    the index, which a bare repository does not have — without the fallback a bare clone reports an
+    empty repository.
+
+    The mode is read here because a tracked name is chosen by the repository and must never decide
+    what gets opened: a `package.json` that is really a link to a credentials file outside the
+    checkout was read, and its values reached the emitted document. Links stay in the inventory —
+    they are real entries a citation may resolve against — and are refused a read."""
+    listing = nul_paths(git(root, ["ls-files", "-sz"], binary=True))
+    if listing:
+        files, links = [], set()
+        for entry in listing[:MAX_PATHS]:
+            mode, _, rest = entry.partition(" ")
+            path = rest.split("\t", 1)[-1] if "\t" in rest else rest
+            files.append(path)
+            if mode == SYMLINK_MODE:
+                links.add(path)
+        return files, "worktree", links
     files = nul_paths(git(root, ["ls-tree", "-r", "-z", "--name-only", "HEAD"], binary=True))
     if files:
-        return files[:MAX_PATHS], "bare"
+        return files[:MAX_PATHS], "bare", set()
     raise Refused("empty_repository",
                   "That repository has no files at HEAD. There is nothing to draw standards from.")
 
@@ -305,8 +323,13 @@ def head_files(root) -> tuple:
 # ── Classifying paths ─────────────────────────────────────────────────────────────────────────
 
 def is_secret_path(path: str) -> bool:
-    name = path.rsplit("/", 1)[-1]
-    return any(fnmatch.fnmatch(path, g) or fnmatch.fnmatch(name, g) for g in SECRET_GLOBS)
+    """Case-folded on both sides. `fnmatch` is case-sensitive, but the filesystems this ships to
+    mostly are not: `ID_RSA` and `id_rsa` name the same file there, and only one of them was ever
+    matched — so the exclusion depended on which spelling the repository happened to choose."""
+    lowered = path.lower()
+    name = lowered.rsplit("/", 1)[-1]
+    return any(fnmatch.fnmatch(lowered, g.lower()) or fnmatch.fnmatch(name, g.lower())
+               for g in SECRET_GLOBS)
 
 
 def is_generated(path: str) -> bool:
@@ -350,21 +373,34 @@ def probe_facts(files: list) -> tuple:
     return found, len(FILE_PROBES), matched
 
 
-def read_file(root, relative: str):
-    """One repository file, bounded, and never a secret-bearing path."""
-    if is_secret_path(relative):
+def read_file(root, relative: str, links=frozenset()):
+    """One repository file, bounded, and never a way out of the worktree.
+
+    Four refusals before anything is opened, because every one of them was reachable from a name
+    the repository chose: a secret-bearing name, a tracked SYMLINK (whose target is wherever its
+    author pointed it, inside the checkout or not), a name carrying a backslash (an ordinary byte
+    on POSIX and a separator on the platform this also ships to), and — last, as the check that
+    does not depend on knowing the trick — a resolved path that does not sit under the root."""
+    if is_secret_path(relative) or relative in links or "\\" in relative:
         return None
+    joined = os.path.join(str(root), relative)
     try:
-        with open(os.path.join(str(root), relative), "rb") as handle:
+        base = os.path.realpath(str(root))
+        target = os.path.realpath(joined)
+        if target != base and not target.startswith(base + os.sep):
+            return None
+        if not os.path.isfile(target) or os.path.islink(joined):
+            return None
+        with open(joined, "rb") as handle:
             return handle.read(MAX_FILE_BYTES).decode("utf-8", "replace")
     except OSError:
         return None
 
 
-def pyproject_facts(root, files: list) -> list:
+def pyproject_facts(root, files: list, links=frozenset()) -> list:
     if "pyproject.toml" not in files:
         return []
-    text = read_file(root, "pyproject.toml")
+    text = read_file(root, "pyproject.toml", links)
     if text is None:
         return []
     found, seen = [], set()
@@ -380,10 +416,10 @@ def pyproject_facts(root, files: list) -> list:
     return found
 
 
-def package_json_facts(root, files: list) -> list:
+def package_json_facts(root, files: list, links=frozenset()) -> list:
     if "package.json" not in files:
         return []
-    text = read_file(root, "package.json")
+    text = read_file(root, "package.json", links)
     if text is None:
         return []
     try:
@@ -714,14 +750,14 @@ def _import_specs(relative: str, text: str) -> list:
     return matches[:MAX_IMPORTS_PER_FILE]
 
 
-def build_import_indexes(root, files: list) -> dict:
+def build_import_indexes(root, files: list, links=frozenset()) -> dict:
     """Everything resolution needs precomputed once, so no import pays a scan over the whole file
     list: Go's module prefix and package directories, and the JVM's basename-to-paths map — a
     dotted Java import only ever matches by its tail, and the basename shrinks the candidates to a
     handful."""
     indexes = {"go_module": None, "go_dirs": set(), "jvm_names": {}}
     if any(f.endswith(".go") for f in files):
-        text = read_file(root, "go.mod") if "go.mod" in files else None
+        text = read_file(root, "go.mod", links) if "go.mod" in files else None
         match = GO_MODULE.search(text) if text else None
         if match:
             indexes["go_module"] = match.group(1).rstrip("/")
@@ -845,7 +881,8 @@ def _is_entrypoint(relative: str, text: str) -> bool:
     return False
 
 
-def read_code_sample(root, files: list, config_dirs: list, depth: int) -> dict:
+def read_code_sample(root, files: list, config_dirs: list, depth: int,
+                     links=frozenset()) -> dict:
     """One bounded pass over the repository's own code, answering everything that needs the file
     contents: how long its modules run, how many markers they carry, which side of a competing idiom
     each file takes, what it imports, where execution enters, and which modules read the
@@ -853,12 +890,12 @@ def read_code_sample(root, files: list, config_dirs: list, depth: int) -> dict:
     code = [f for f in sorted(files)
             if f.endswith(CODE_SUFFIXES) and not is_generated(f) and not is_secret_path(f)]
     at_head = set(files)
-    indexes = build_import_indexes(root, files)
+    indexes = build_import_indexes(root, files, links)
     sample = {"lengths": [], "markers": 0, "read": 0, "total": len(code), "idioms": {},
               "imported_by": {}, "edges": {}, "resolved_imports": 0, "main_guards": [],
               "config_consumers": {}, "suffix_reads": {}}
     for relative in code[:MAX_FILES_READ]:
-        text = read_file(root, relative)
+        text = read_file(root, relative, links)
         if text is None:
             continue
         sample["read"] += 1
@@ -951,12 +988,12 @@ def architecture_facts(files: list, families: list, sample: dict, manifest_bins:
     return found
 
 
-def manifest_entrypoints(root, files: list) -> list:
+def manifest_entrypoints(root, files: list, links=frozenset()) -> list:
     """The entry points the Node manifest declares. Values are repository-authored text, cleaned
     and bounded like every other."""
     if "package.json" not in files:
         return []
-    text = read_file(root, "package.json")
+    text = read_file(root, "package.json", links)
     try:
         data = json.loads(text or "")
     except ValueError:
@@ -1000,20 +1037,20 @@ def shape_facts(lengths: list, markers: int, read: int, total: int) -> tuple:
 # ── The document ──────────────────────────────────────────────────────────────────────────────
 
 def scan(root, months: float, recent_months: float, depth: int, commits: int) -> dict:
-    files, root_kind = head_files(root)
+    files, root_kind, links = head_files(root)
     truncated = len(files) >= MAX_PATHS
     probes, attempted, matched = probe_facts(files)
     families, families_truncated = code_families(files)
     config_dirs = sorted({entry["path"] for entry in families
                           if entry["suffix"] in CONFIG_FAMILY_SUFFIXES})
-    sample = read_code_sample(root, files, config_dirs, depth)
+    sample = read_code_sample(root, files, config_dirs, depth, links)
     shape, shape_unknowns = shape_facts(sample["lengths"], sample["markers"],
                                         sample["read"], sample["total"])
     architecture = architecture_facts(files, families, sample,
-                                      manifest_entrypoints(root, files))
+                                      manifest_entrypoints(root, files, links))
 
     collected = {}
-    for entry in (probes + pyproject_facts(root, files) + package_json_facts(root, files)
+    for entry in (probes + pyproject_facts(root, files, links) + package_json_facts(root, files, links)
                   + history_facts(root, commits) + shape + architecture):
         collected.setdefault(entry["id"], entry)
     facts = sorted(collected.values(), key=lambda entry: entry["id"])
@@ -1051,11 +1088,32 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def sanitize(value):
+    """Every string in the emitted document, made inert and capped. Applied once at the exit rather
+    than at each of the dozen places a value is built: a FILENAME is the most attacker-controlled
+    string here — a crafted one carrying a newline, a fake heading or an ANSI escape reached an
+    agent's context and its terminal verbatim, while commit subjects had been cleaned all along.
+    One pass at the boundary also covers whatever field is added next.
+
+    Control characters are ESCAPED, never dropped. Dropping them would fold two genuinely different
+    tracked names into one presented name — the crafted twin and the real file it shadows would
+    read identically, which is the very confusion the escaping exists to prevent."""
+    if isinstance(value, str):
+        escaped = "".join(ch if ch == " " or (ch.isprintable() and ch != "\ufeff")
+                          else "\\x%02x" % ord(ch) for ch in value)
+        return escaped[:MAX_EMITTED_CHARS]
+    if isinstance(value, dict):
+        return {sanitize(key): sanitize(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [sanitize(item) for item in value]
+    return value
+
+
 def emit(payload: dict, mode: str, code: int) -> int:
     """Print the document as one JSON object and return the exit code. Every path emits, refusals
     included, so the skill parses one shape and never has to guess. Keys are sorted and no field
     reads the clock: two runs at one commit are byte-identical, and that is a tested promise."""
-    print(json.dumps(dict({"contract": CONTRACT_VERSION, "mode": mode}, **payload),
+    print(json.dumps(sanitize(dict({"contract": CONTRACT_VERSION, "mode": mode}, **payload)),
                      sort_keys=True, indent=1))
     return code
 

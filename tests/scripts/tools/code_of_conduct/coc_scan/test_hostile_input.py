@@ -53,7 +53,11 @@ def test_a_leading_newline_twin_inflates_no_real_files_count(tmp_path, scan):
     assert code == 0
     counts = {f["path"]: f["touches"] for f in doc["liveness"]["top_files"]}
     assert counts.get("src/real.py") == 1  # its own commit, never the twin's
-    assert counts.get("\nsrc/real.py") == 1  # the twin keeps its own touch, under its own name
+    # The twin keeps its own touch under its own name — spelled with its control character ESCAPED,
+    # because the emit boundary makes every string inert. Escaped rather than stripped precisely so
+    # the two names stay distinguishable here: dropping the newline would render both as
+    # `src/real.py`, recreating by presentation the confusion this test exists to refuse.
+    assert counts.get("\\x0asrc/real.py") == 1
 
 
 def test_a_repository_setting_its_own_quoting_cannot_change_how_paths_are_read(tmp_path, scan):

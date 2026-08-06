@@ -170,3 +170,47 @@ def test_a_directive_may_run_as_many_lines_as_it_needs(lint):
 def test_markdown_that_is_not_a_string_is_refused(lint):
     code, report = lint({"not": "markdown"})
     assert code == 4
+
+
+def test_a_code_block_longer_than_a_screenful_is_refused(lint):
+    """A fragment pins a rule to this codebase; past a screenful it is a program being maintained
+    inside a document, and the next reader edits it instead of the file it quotes."""
+    block = ("\n## Testing\n\nA summary.\n\nMUST:\n\n1. Follow the shape below.\n"
+             "   Check: `internal/builder/build.mts`.\n\n   ```ts\n"
+             + "".join(f"   const line{n} = {n};\n" for n in range(26)) + "   ```\n")
+    code, report = lint(ORIENTATION + SECTION + block + WHY)
+    assert code == 1
+    assert findings(report, "code_block_too_long")
+
+
+def test_a_code_block_inside_the_cap_is_left_alone(lint):
+    """The cap must have a passing side, or it is a ban on code blocks wearing a threshold."""
+    block = ("\n## Testing\n\nA summary.\n\nMUST:\n\n1. Follow the shape below.\n"
+             "   Check: `internal/builder/build.mts`.\n\n   ```ts\n"
+             + "".join(f"   const line{n} = {n};\n" for n in range(20)) + "   ```\n")
+    code, report = lint(ORIENTATION + SECTION + block + WHY)
+    assert code == 0
+
+
+def test_a_heading_carrying_more_directives_than_a_reader_holds_is_refused(lint):
+    """The gate counts the envelope; this counts the document that landed. Both are needed — an
+    update run submits only its new rules, so the gate never sees the heading's real total."""
+    crowded = "\n## Testing\n\nA summary.\n\nMUST:\n\n" + "".join(
+        f"{n}. Rule number {n} that states one thing.\n   Check: `tests/repo/rule{n}.py`.\n"
+        for n in range(1, 10))
+    code, report = lint(ORIENTATION + SECTION + crowded + WHY)
+    assert code == 1
+    assert findings(report, "group_oversized")
+
+
+def test_the_same_directives_split_across_sub_headings_pass(lint):
+    """The cap is per LEAF, so the fix is a sub-heading that names the concern — proving the cap
+    measures where a reader reads rather than how much a section totals."""
+    split = "\n## Testing\n\nA summary.\n"
+    for group in range(3):
+        split += f"\n### Concern {group}\n\nWhat this concern covers.\n\nMUST:\n\n" + "".join(
+            f"{n}. Rule {group}-{n} that states one thing.\n   Check: `tests/repo/r{group}{n}.py`.\n"
+            for n in range(1, 4))
+    code, report = lint(ORIENTATION + SECTION + split + WHY)
+    assert code == 0
+    assert not findings(report, "group_oversized")
