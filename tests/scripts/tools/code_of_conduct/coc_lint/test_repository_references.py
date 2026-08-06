@@ -28,6 +28,18 @@ def test_a_path_the_repository_no_longer_has_is_reported_as_dangling(review):
     assert entries(report, "dangling")[0]["token"] == "src/renamed_away.py"
 
 
+def test_an_example_line_cannot_vouch_for_a_later_genuine_citation(review):
+    """A DON'T line quoting a missing path is unparsed by design — it names the shape to avoid.
+    The same path cited as evidence further down is a rotted citation all the same, and the
+    example's shield must not extend to it."""
+    run, _ = review
+    code, report = run(document(
+        "DON'T: `src/gone.py` — the shape to avoid.\n"
+        "- MUST: Follow the pattern in `src/gone.py`.\n"))
+    assert code == 1
+    assert [e["token"] for e in entries(report, "dangling")] == ["src/gone.py"]
+
+
 def test_a_make_target_that_no_longer_exists_is_reported_as_dangling(review):
     run, _ = review
     code, report = run(document("- MUST: Run `make verify` before pushing.\n"))

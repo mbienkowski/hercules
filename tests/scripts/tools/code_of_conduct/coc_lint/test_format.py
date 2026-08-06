@@ -124,6 +124,16 @@ def test_bold_emphasis_outside_a_code_block_is_refused(lint):
     assert findings(report, "emphasis_used")
 
 
+def test_bold_inside_inline_code_is_the_codes_own(lint):
+    """`**kwargs` is Python, not markup: inline code quotes the repository the way a fenced block
+    does, and refusing it would make a legitimate Python draft un-shippable."""
+    code, report = lint(ORIENTATION + SECTION +
+                        "\nSHOULD:\n\n1. Accept options as `**kwargs`, never a bare dict.\n"
+                        "   Check: `grep -rn 'def .*(.*kwargs' src/` finds the signature.\n" + WHY)
+    assert code == 0
+    assert not findings(report, "emphasis_used")
+
+
 def test_a_document_without_a_closing_why_section_is_refused(lint):
     code, report = lint(ORIENTATION + SECTION)
     assert code == 1

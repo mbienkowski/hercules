@@ -1,12 +1,40 @@
 """The properties this tool's own header states, pinned: it reports both halves or says which half it
-skipped, and it never answers a citation from anywhere but the repository's own file list."""
+skipped, it never answers a citation from anywhere but the repository's own file list, and it fails
+closed — a linter that errors and exits zero waves through a document nobody checked."""
 
 from __future__ import annotations
 
 import io
+import json
 
 from tests.scripts.tools.code_of_conduct.coc_lint.conftest import CONTRACT, VALID_SHAPE
 from tests.scripts.tools.tool_harness import invoke, load_tool
+
+
+def test_an_unclassified_failure_refuses_rather_than_passing_the_document(monkeypatch):
+    """The dangerous direction is only one, the same one the gate pins: an error that exits zero
+    reads exactly like a document that passed."""
+    # `load_tool` is what puts the tools directory on the path, so it comes first.
+    load_tool("coc_lint")
+    import coc_lint
+
+    def explode(*_args, **_kwargs):
+        raise RuntimeError("something nobody anticipated")
+
+    monkeypatch.setattr(coc_lint, "lint_markdown", explode)
+    code, report = invoke(coc_lint.main, None, ["--contract", str(CONTRACT)],
+                          stdin=io.StringIO(json.dumps(
+                              {"contract": CONTRACT, "markdown": VALID_SHAPE})))
+    assert code == 4
+    assert report["error"] == "internal"
+
+
+def test_a_contract_mismatch_is_refused_before_anything_is_read(lint):
+    """The grammar this tool reads is the one its version names; a draft written against another
+    is refused rather than judged against the wrong rules."""
+    code, report = lint(VALID_SHAPE, argv=["--contract", str(CONTRACT + 1)])
+    assert code == 2
+    assert report["error"] == "contract"
 
 
 def test_a_document_checked_without_a_repository_reports_shape_only(tmp_path):

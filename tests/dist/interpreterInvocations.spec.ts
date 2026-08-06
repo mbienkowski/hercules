@@ -16,8 +16,16 @@ import { repoRoot } from '../support/repo';
 const DIST = join(repoRoot, 'dist');
 const ECOSYSTEMS = readdirSync(DIST).filter((name) => statSync(join(DIST, name)).isDirectory());
 
-// An interpreter followed by whatever it is pointed at, up to the first space.
-const INVOCATION = /\b(python3?|node|bun|sh|bash)\s+("?)([^\s"']+\.(?:py|js|mjs|cjs|sh))\2/g;
+// An interpreter followed by whatever it is pointed at, up to the first space. Interpreter flags
+// may sit between, and a quoted path is still a path — single quotes as much as double.
+const INVOCATION =
+  /\b(python3?|node|bun|sh|bash|uv\s+run)\s+(?:-{1,2}[\w=.-]+\s+)*(["']?)([^\s"']+\.(?:py|js|mjs|cjs|sh))\2/g;
+
+// `python -m tools.x` names a shipped program with no suffix at all, and resolves against the
+// working directory exactly as a relative path does. There is no way to anchor a module, so every
+// match of ours is a finding.
+const MODULE_INVOCATION =
+  /\b(python3?)\s+(?:-(?!m\b)[\w=.-]+\s+)*-m\s+(["']?)((?:tools|hooks)\.[\w.]+)\2/g;
 
 // Only the programs WE ship are our problem: a target repository's own `npm test` is not ours to
 // anchor, and neither is a command the user is told to type about their own code.
@@ -38,9 +46,13 @@ function proseUnder(root: string): string[] {
   return found;
 }
 
-/** An invocation is anchored when a host variable or an absolute path precedes our directory. */
+// Anchored means an absolute path or a HOST-RESOLVED plugin-root variable. Any other `$VAR` is no
+// proof at all: a variable the host never sets expands to nothing and the rest resolves against
+// the user's repository — the exact failure this sweep exists to stop.
+const HOST_ANCHOR = /^(?:\/|\$\{?[A-Za-z_]*(?:PLUGIN_ROOT|extensionPath)[A-Za-z_]*\}?\/)/;
+
 function isAnchored(target: string): boolean {
-  return target.startsWith('$') || target.startsWith('/') || target.includes('}/');
+  return HOST_ANCHOR.test(target);
 }
 
 function unanchored(root: string): string[] {
@@ -50,6 +62,9 @@ function unanchored(root: string): string[] {
     for (const [, , , target] of text.matchAll(INVOCATION)) {
       if (!target || !OURS.test(target) || isAnchored(target)) continue;
       found.push(`${relative(repoRoot, file)} runs "${target}", resolved against the user's repository`);
+    }
+    for (const [, , , module] of text.matchAll(MODULE_INVOCATION)) {
+      found.push(`${relative(repoRoot, file)} runs module "${module}", resolved against the user's repository`);
     }
   }
   return [...new Set(found)];
@@ -72,6 +87,27 @@ describe('a shipped instruction never runs one of our programs by a relative pat
       [...text.matchAll(INVOCATION)].filter(([, , , t]) => OURS.test(t ?? '') && !isAnchored(t ?? ''));
     expect(matches(relativeCall)).toHaveLength(1);
     expect(matches(anchored)).toHaveLength(0);
+  });
+
+  it('is not fooled by quoting, flags, runners, or a variable the host never resolves', () => {
+    const matches = (text: string) =>
+      [...text.matchAll(INVOCATION)].filter(([, , , t]) => OURS.test(t ?? '') && !isAnchored(t ?? ''));
+    expect(matches("run `python3 'tools/state_patch.py' apply`")).toHaveLength(1);
+    expect(matches('run `python3 "tools/state_patch.py" apply`')).toHaveLength(1);
+    expect(matches('run `python3 -u tools/state_patch.py apply`')).toHaveLength(1);
+    expect(matches('run `python3 ./tools/state_patch.py apply`')).toHaveLength(1);
+    expect(matches('run `uv run tools/state_patch.py apply`')).toHaveLength(1);
+    // $SOME_VAR looks anchored and is not: unset, it expands to nothing and the path goes relative.
+    expect(matches('run `python3 $SOME_REPO_VAR/tools/state_patch.py apply`')).toHaveLength(1);
+    expect(matches('run `python3 ${HERCULES_PLUGIN_ROOT}/tools/state_patch.py`')).toHaveLength(0);
+    expect(matches('run `python3 ${extensionPath}/tools/state_patch.py`')).toHaveLength(0);
+  });
+
+  it('recognises a module invocation of a shipped program', () => {
+    const modules = (text: string) => [...text.matchAll(MODULE_INVOCATION)];
+    expect(modules('run `python3 -m tools.state_patch apply`')).toHaveLength(1);
+    expect(modules('run `python3 -u -m tools.state_patch apply`')).toHaveLength(1);
+    expect(modules('run `python3 -m pytest` over the suite')).toHaveLength(0);
   });
 
   it('leaves a target repository\'s own commands alone', () => {

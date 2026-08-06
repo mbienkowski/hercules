@@ -4,7 +4,8 @@ costs a reader. Only the ceiling refuses."""
 
 from __future__ import annotations
 
-from tests.scripts.tools.code_of_conduct.coc_gate.conftest import a_rule, an_envelope, rules_numbering
+from tests.scripts.tools.code_of_conduct.coc_gate.conftest import (
+    a_rule, an_envelope, findings_of, rules_numbering)
 
 
 def test_the_report_counts_one_directive_per_rule(gate):
@@ -45,3 +46,20 @@ def test_the_explanations_attached_to_a_rule_are_not_themselves_directives(gate)
 def test_the_bands_are_reported_so_a_caller_never_hardcodes_them(gate):
     code, report = gate(an_envelope(rules=rules_numbering(5)))
     assert report["bands"] == {"intended": 40, "large": 50, "ceiling": 70}
+
+
+def test_a_heading_asked_to_carry_more_than_eight_directives_is_refused(gate):
+    """The per-heading cap is a different limit from the directive budget: nine rules sit far
+    inside every band and still bury each other under one heading. Splitting the subsection is
+    exactly what clears it."""
+    crowded = [a_rule(id=f"rule.{index:03d}", subsection="One Concern") for index in range(9)]
+    code, report = gate(an_envelope(rules=crowded))
+    assert code == 1
+    assert findings_of(report, "group_oversized")
+
+
+def test_eight_directives_under_one_heading_is_the_cap_not_past_it(gate):
+    exactly = [a_rule(id=f"rule.{index:03d}", subsection="One Concern") for index in range(8)]
+    code, report = gate(an_envelope(rules=exactly))
+    assert code == 0
+    assert not findings_of(report, "group_oversized")

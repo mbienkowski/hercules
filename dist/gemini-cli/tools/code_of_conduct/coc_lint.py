@@ -131,6 +131,15 @@ UNIVERSAL_AS_EVIDENCE = (
 # Where nothing enforces the rule, saying so is the honest check; silence dressed as one is not.
 CHECK_LINE = re.compile(r"^\s*Check:\s*(.+)$")
 CHECK_RUNNABLE = re.compile(r"`[^`]+`")
+# Inline code quotes the repository the way a fenced block does: `**kwargs` is Python, not bold
+# markup, and a version inside backticks is the config's own content, not the document's claim.
+INLINE_CODE = re.compile(r"`[^`\n]*`")
+
+
+def _mask_inline_code(line: str) -> str:
+    """The line with every inline-code span blanked, length preserved so finding lines stay
+    right."""
+    return INLINE_CODE.sub(lambda span: " " * len(span.group(0)), line)
 CHECK_ADMITS_NOTHING = re.compile(
     r"\b(?:no\b[^.]{0,40}\b(?:tool|gate|test|check|scanner|hook|job)\b|not enforced|"
     r"nothing enforces|review is the enforcement|by convention only|unenforced)\b", re.IGNORECASE)
@@ -233,7 +242,7 @@ def _block_findings(block: dict, fenced: set, is_why: bool) -> tuple:
     for number, line in block["lines"]:
         if number in fenced or not line.strip():
             continue
-        if BOLD.search(line):
+        if BOLD.search(_mask_inline_code(line)):
             findings.append({
                 "rule": "emphasis_used", "line": number,
                 "message": f"A line in '{block['heading']}' uses bold markup. The format is plain "
@@ -335,7 +344,7 @@ def _snapshot_findings(markdown: str, fenced: set) -> list:
         if number in fenced:
             continue
         for kind, pattern in SNAPSHOT_LITERALS:
-            match = pattern.search(line)
+            match = pattern.search(_mask_inline_code(line))
             if match:
                 found.append({
                     "rule": "snapshot_literal", "line": number,
@@ -474,8 +483,12 @@ def git(root: str, args: list) -> bytes:
     """Run one read-only git command against `root`, with the repository's own quoting and
     filesystem-monitor settings overridden — both are set by the thing being read."""
     argv = ["git", "-C", str(root), "-c", "core.quotePath=false", "-c", "core.fsmonitor=",
-            "-c", "core.pager=cat"] + list(args)
-    environment = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0")
+            "-c", "core.pager=cat", "-c", "log.showSignature=false"] + list(args)
+    # Inherited GIT_* variables are dropped, not passed through: GIT_DIR alone overrides `-C`
+    # discovery, silently checking citations against a different repository than `--root` names.
+    environment = {key: value for key, value in os.environ.items()
+                   if not key.startswith("GIT_")}
+    environment.update(GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0")
     try:
         done = subprocess.run(argv, capture_output=True, timeout=GIT_TIMEOUT_SECONDS,
                               env=environment)
@@ -562,9 +575,12 @@ def review_citations(text: str, root: str) -> dict:
         in_example = bool(EXAMPLE_LINE.match(line))
         for match in BACKTICKED.finditer(line):
             token = match.group(1)
-            if token in seen:
+            # Deduplicated per shield, not per token: an example line's occurrence is unparsed by
+            # design, and letting it claim the token would hide a genuine citation of the same
+            # missing path later in the document.
+            if (token, in_example) in seen:
                 continue
-            seen.add(token)
+            seen.add((token, in_example))
             kind, state, resolved = classify_token(token, paths, targets)
             if in_example and state == "dangling":
                 kind, state = "example", "unparsed"
@@ -658,6 +674,10 @@ def review(markdown: str, file_path, root, declared=None, families=None) -> dict
     something to fix would invite exactly the edit the additions-only rule forbids. A rotted citation
     is a finding either way — it is wrong no matter who wrote it. Declared observation paths are
     verified only when a repository is in reach; skipping them silently would read as verification."""
+    if declared is not None and not root:
+        raise Internal("`paths` were declared but no `--root` was given, so nothing could hold "
+                       "them against the repository. Pass --root <repo>; skipping them silently "
+                       "would read as verification.")
     report = lint_markdown(markdown, families)
     if file_path:
         report["shape_notes"] = report.pop("findings")

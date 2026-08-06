@@ -95,11 +95,15 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
    - It judges tag, check, citations, unique id, observation paths, and the directive count. The rest
      stays yours: each rule reads exactly one way and conflicts with no other.
    - Lay the rules out as markdown, then `python3 ${extensionPath}/tools/code_of_conduct/coc_lint.py
-     --contract 2` with `{"contract":2,"markdown":"…","paths":[each observation's path],
-     "families":[each `arch.families` path]}` on stdin — it checks the shape, holds every
-     observation path against HEAD, refuses a `Check:` that names nothing runnable, refuses an
-     unverifiable universal claim, and names any family the document never mentions. It reports
-     what to fix, it never fixes it. Apply its findings and re-run until clean.
+     --contract 2 --root <root>` with `{"contract":2,"markdown":"…","paths":[each observation's
+     path],"families":[each `arch.families` path]}` on stdin — it checks the shape, holds every
+     observation path against HEAD (it refuses to run on `paths` without `--root`), refuses a
+     `Check:` that names nothing runnable, refuses an unverifiable universal claim, and names any
+     family the document never mentions. It reports what to fix, it never fixes it. Apply its
+     findings and re-run until clean.
+   - **Dry-run every cited check** before shipping: the grep must match, the named make target,
+     script or CI job must exist. The linter can only judge the Check's shape; whether it holds is
+     yours to run. A check that fails drops or refits its rule.
    - Present with a short summary (top standards, added, conflicts, dropped, and the band when past
      `intended`), surfacing only the ~5 genuine decisions — never a long list to curate.
    - Feedback applies **surgically** with a diff; regenerate wholesale only if the user reopens the

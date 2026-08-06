@@ -77,6 +77,23 @@ def ruby_rust_repo(tmp_path):
 
 
 @pytest.fixture
+def python_layout_repo(tmp_path):
+    """The two Python layouts a root-relative reading is blind to, in one repository: a package
+    living under `src/` whose modules import each other relatively and by bare package name."""
+    return _repo(tmp_path / "pylayout", {
+        "pyproject.toml": "[project]\nname = 'svc'\n",
+        "src/svc/__init__.py": "",
+        "src/svc/store.py": "def get():\n    return 1\n",
+        "src/svc/api/__init__.py": "",
+        "src/svc/api/orders.py": "from ..store import get\n\n\ndef orders():\n    return get()\n",
+        "src/svc/api/users.py": "from svc.store import get\n\n\ndef users():\n    return get()\n",
+        "src/svc/api/pay.py": "from ..store import get\n\n\ndef pay():\n    return get()\n",
+        "src/svc/api/billing.py":
+            "from .orders import orders\n\n\ndef billing():\n    return orders()\n",
+    })
+
+
+@pytest.fixture
 def unparsed_repo(tmp_path):
     """A language the extractor has no pattern for. It must say so, not imply independence."""
     return _repo(tmp_path / "unparsed", {
@@ -93,6 +110,18 @@ def test_a_jvm_import_resolves_by_its_path_tail(jvm_repo, scan):
     chokepoints = fact(document, "arch.chokepoints")["value"]
     assert chokepoints[0]["path"] == "src/main/java/com/shop/core/OrderService.java"
     assert chokepoints[0]["fan_in"] == 3
+
+
+def test_python_relative_and_src_layout_imports_resolve(python_layout_repo, scan):
+    """`from ..store import get` climbs from the importing file's own package, and a bare
+    `svc.store` in an src-layout lives at `src/svc/store.py`. These are the two most common real
+    Python layouts, and a root-relative reading resolved neither — reporting `.py` as parsed while
+    the graph it fed stayed systematically empty."""
+    code, document = scan(python_layout_repo)
+    assert code == 0
+    chokepoints = fact(document, "arch.chokepoints")["value"]
+    assert chokepoints[0]["path"] == "src/svc/store.py"
+    assert chokepoints[0]["fan_in"] == 3  # two relative importers and one bare-package importer
 
 
 def test_an_area_boundary_is_found_where_the_paths_diverge(jvm_repo, scan):

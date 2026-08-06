@@ -265,8 +265,12 @@ def git(root, args, binary=False):
     """Run one git command against `root`. The repository's own configuration is overridden, not
     trusted: `core.quotePath` decides how paths are printed, and it is set by the thing being read."""
     argv = ["git", "-C", str(root), "-c", "core.quotePath=false", "-c", "core.fsmonitor=",
-            "-c", "core.pager=cat"] + list(args)
-    environment = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0")
+            "-c", "core.pager=cat", "-c", "log.showSignature=false"] + list(args)
+    # Inherited GIT_* variables are dropped, not passed through: GIT_DIR alone overrides `-C`
+    # discovery, silently answering about a different repository than the one `--root` names.
+    environment = {key: value for key, value in os.environ.items()
+                   if not key.startswith("GIT_")}
+    environment.update(GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0")
     try:
         done = subprocess.run(argv, capture_output=True, timeout=GIT_TIMEOUT_SECONDS,
                               env=environment)
@@ -475,21 +479,30 @@ def touches(root, since_epoch: int, commits: int) -> list:
     wrapped in delimiters of their own so a header and a path can never be confused."""
     blob = git(root, ["log", f"-n{commits}", "--no-merges", f"--since={since_epoch}",
                       "--name-only", "-z", "--no-renames", "--format=%x01%ct%x02"], binary=True)
-    found, epoch = [], None
+    found, epoch, expect_frame = [], None, False
     for chunk in blob.split(b"\0"):
         if not chunk:
             continue
         text = chunk.decode("utf-8", "replace")
-        while text.startswith("\x01"):
-            header, _, text = text[1:].partition("\x02")
+        if text.startswith("\x01"):
+            # A genuine header: git NUL-terminates the format output, so a header is always a
+            # chunk of its own — and a crafted filename cannot open one, because \x01 sorts first
+            # among a commit's paths, making any such name the commit's first path, and first
+            # paths arrive newline-prefixed.
+            header, _, _ = text[1:].partition("\x02")
             try:
                 epoch = int(header.strip() or 0)
             except ValueError:
                 epoch = None
-        # git writes a newline between the format output and the first path of each commit, so the
-        # first file of every commit arrives carrying one. Left on, it makes that path match nothing
-        # at HEAD — which reads as a repository whose every commit touched only deleted files.
-        text = text.lstrip("\n")
+            expect_frame = True
+            continue
+        if expect_frame:
+            # git writes one newline between the format output and a commit's first path. Exactly
+            # one: stripping more would fold a filename that itself begins with a newline onto the
+            # name after it, letting a crafted twin inflate a real file's count.
+            if text.startswith("\n"):
+                text = text[1:]
+            expect_frame = False
         if text and epoch is not None:
             found.append((epoch, text))
     return found
@@ -729,8 +742,26 @@ def _resolve_import(spec: str, importer: str, at_head: set, indexes: dict):
     if not spec or len(spec) > MAX_IMPORT_CHARS:
         return None
     if importer.endswith(".py"):
-        base = spec.replace(".", "/")
-        candidates = [base + ".py", base + "/__init__.py"]
+        if spec.startswith("."):
+            # Relative: each dot past the first climbs one package. Resolved against the importing
+            # file's own directory — the layouts real projects use most, and exactly the ones a
+            # root-relative reading was blind to.
+            dots = len(spec) - len(spec.lstrip("."))
+            remainder = spec[dots:].replace(".", "/")
+            package = importer.split("/")[:-1]
+            climb = dots - 1
+            if climb > len(package):
+                return None
+            base = "/".join(package[:len(package) - climb] + ([remainder] if remainder else []))
+            if not base:
+                return None
+            candidates = [base + ".py", base + "/__init__.py"]
+        else:
+            base = spec.replace(".", "/")
+            # `src/` second: an src-layout package is imported bare (`pkg.mod`) but lives under
+            # `src/pkg/mod.py`, so a root-relative reading alone misses the whole graph.
+            candidates = [base + ".py", base + "/__init__.py",
+                          "src/" + base + ".py", "src/" + base + "/__init__.py"]
     elif importer.endswith(JS_SUFFIXES) or importer.endswith(".rb"):
         if not spec.startswith("."):
             return None

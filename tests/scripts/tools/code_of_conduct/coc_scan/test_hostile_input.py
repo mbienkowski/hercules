@@ -41,6 +41,21 @@ def test_a_newline_in_a_filename_fabricates_no_path(tmp_path, scan):
     assert not any(p.strip() == "" for p in paths)
 
 
+def test_a_leading_newline_twin_inflates_no_real_files_count(tmp_path, scan):
+    """git frames each commit's paths with exactly one newline after the header. Stripping any more
+    folds a filename that itself begins with a newline onto the name after it — so committing a twin
+    named "\\nsrc/real.py" credited its touches to `src/real.py`, letting a crafted name push any
+    real file up the liveness ranking the drafting agent reads from."""
+    repo = build_repo(tmp_path / "twin")
+    _commit_file_named(repo, "src/real.py")
+    _commit_file_named(repo, "\nsrc/real.py", subject="chore: twin")
+    code, doc = scan(repo)
+    assert code == 0
+    counts = {f["path"]: f["touches"] for f in doc["liveness"]["top_files"]}
+    assert counts.get("src/real.py") == 1  # its own commit, never the twin's
+    assert counts.get("\nsrc/real.py") == 1  # the twin keeps its own touch, under its own name
+
+
 def test_a_repository_setting_its_own_quoting_cannot_change_how_paths_are_read(tmp_path, scan):
     """`core.quotePath` lives in the repository's own config, so a scan that trusts the default is
     reading whatever the repository decided it should read."""
@@ -55,6 +70,23 @@ def test_a_repository_setting_its_own_quoting_cannot_change_how_paths_are_read(t
     # had vanished from the report altogether.
     assert "src/naïve.py" in [f["path"] for f in doc["liveness"]["top_files"]]
     assert doc["liveness"]["ghost_touches_dropped"] == 1  # only the fixture's deliberate rename
+
+
+def test_an_inherited_git_dir_cannot_redirect_the_scan(tmp_path, scan, monkeypatch):
+    """GIT_DIR overrides git's own `-C` discovery. Inherited from the caller's shell, it would make
+    every git question silently answer about a different repository than the one `--root` names —
+    a wrong answer shaped exactly like a finding, the failure the module header calls the worst
+    one."""
+    target = build_repo(tmp_path / "target")
+    other = build_repo(tmp_path / "other", base_epoch=1_800_000_000)
+    # Resolved before the variables are set: the verifying command would be redirected too.
+    head = subprocess.run(["git", "-C", str(target), "rev-parse", "HEAD"],
+                          check=True, capture_output=True, text=True).stdout.strip()
+    monkeypatch.setenv("GIT_DIR", str(other / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(other))
+    code, doc = scan(target)
+    assert code == 0
+    assert doc["head"] == head
 
 
 def test_a_secret_bearing_path_is_never_read(tmp_path, scan):

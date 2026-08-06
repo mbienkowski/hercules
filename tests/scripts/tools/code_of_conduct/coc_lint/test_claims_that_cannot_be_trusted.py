@@ -26,6 +26,16 @@ def test_a_dated_count_is_refused(lint):
     assert findings(report, "snapshot_literal")
 
 
+def test_a_version_inside_inline_code_is_the_configs_own_content(lint):
+    """A version quoted in backticks is the file's own text, exempt exactly as a fenced block is —
+    the snapshot rule exists for the document's prose, not for what it quotes."""
+    code, report = lint(draft(
+        'Declare the engine floor in the manifest, like `"node": "22.14.0"`.\n'
+        "   Check: `package.json` carries an `engines` entry."))
+    assert code == 0
+    assert not findings(report, "snapshot_literal")
+
+
 def test_an_exhaustive_tally_is_refused(lint):
     code, report = lint(draft("Pin every dependency.\n   Check: 10 of 10 are pinned."))
     assert code == 1
@@ -142,9 +152,7 @@ def test_a_check_admitting_that_nothing_enforces_the_rule_passes(lint):
 def test_a_family_the_document_never_names_is_reported(lint):
     """A directory the repository grows by, left unnamed, is a whole extension path the next
     contributor has to guess."""
-    code, report = lint(draft("Add one more of a kind.\n   Check: `tests/`."),
-                        paths=None) if False else lint(
-        draft("Add one more of a kind.\n   Check: `tests/`."))
+    code, report = lint(draft("Add one more of a kind.\n   Check: `tests/`."))
     assert code == 0  # no families declared, nothing to check
     code, report = lint(draft("Add one more of a kind.\n   Check: `tests/`."),
                         families=["src/main/java/com/shop/web"])
