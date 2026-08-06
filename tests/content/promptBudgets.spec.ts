@@ -37,7 +37,11 @@ const BUDGETS: ReadonlyArray<readonly [string, string, number]> = [
   ['the learnings skill', 'skills/learnings/SKILL.md', 1050],
   ['the test-scenarios skill', 'skills/write-test-scenarios/SKILL.md', 1050],
   ['the reference skill', 'skills/hercules-reference/SKILL.md', 3900],
-  ['the code-of-conduct generator', 'skills/code-of-conduct-generator/SKILL.md', 3000],
+  // 3000 → 3100 at the owner's request. What the rise bought: Step 2 now binds the resolved path
+  // to Step 8, so a repository spelling it CODE_OF_CONDUCT.md is written back under that name
+  // instead of gaining a second, lowercase standards file — which on a case-insensitive filesystem
+  // silently clobbers the wrong one. Re-measure DOWN when the update-mode section next shrinks.
+  ['the code-of-conduct generator', 'skills/code-of-conduct-generator/SKILL.md', 3100],
   // 6600 → 6700 at the owner's request. What the rise bought: five gates the map has to teach
   // because a blind review found each one being broken in real output — a `Check:` must name
   // something runnable, a universal claim must be verified or scoped, every scanned family must be

@@ -147,6 +147,19 @@ describe('the code-of-conduct generator keeps its promises to whoever runs it', 
     expect(map).toMatch(/code:<observation/i);
   });
 
+  it('writes back to the path the repository already uses, without asking', () => {
+    // A repository spelling it CODE_OF_CONDUCT.md keeps that name. Emitting the lowercase default
+    // beside it leaves two standards files — and on a case-insensitive filesystem the second write
+    // silently clobbers the first. So the path found in step 2 is the path written in step 8, and
+    // the default applies only where nothing was found.
+    const text = flat(GENERATOR);
+    expect(text).toContain('Whatever it finds is the path Step 8 writes');
+    expect(text).toContain('Never a second file beside it');
+    expect(text).toContain('The default applies **only** here');
+    expect(text).toContain('Write to **the path Step 2 resolved**, overwriting it in place');
+    expect(text).toContain('The existing file is the output file');
+  });
+
   it('never creates or edits any file besides the code-of-conduct itself', () => {
     // The divergence the first real run surfaced: step 8 used to add an @-reference to the
     // instructions file, creating it when missing. The owner's rule is absolute — the reference

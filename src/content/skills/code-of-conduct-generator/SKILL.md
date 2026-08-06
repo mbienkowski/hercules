@@ -36,11 +36,17 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
    commit) or **Thorough** (adds the coverage-map gap pass and an advisor critical-review pass). Name the detected
    root so the user can correct it.
 2. **Find existing CoC** — `find <root> -maxdepth 2 -iname 'code[-_ ]of[-_ ]conduct.md'` across
-   root/`.github/`/`docs/`, any capitalization.
-   - One match → **update mode**. But a lone `.github/` behavioural Contributor Covenant is not an
-     engineering standard: treat it as none and create a separate file.
-   - More than one → **never silently pick**; list every match and confirm the target.
-   - None → default `code-of-conduct.md` in the root.
+   root/`.github/`/`docs/`, any capitalization. **Whatever it finds is the path Step 8 writes** —
+   the repo's own spelling, its own directory, in place. Never a second file beside it.
+   - One match → **update mode**, writing back to that exact path. A repo spelling it
+     `CODE_OF_CONDUCT.md` keeps that name; emitting the default alongside would leave two
+     standards files, and on a case-insensitive filesystem it silently clobbers the wrong one.
+   - More than one → **never silently pick**; list every match and confirm which one is the target.
+     This is the only naming question worth asking, because the repo itself is ambiguous.
+   - None → default `code-of-conduct.md` in the root. The default applies **only** here.
+   - Record the resolved path once and carry it verbatim through Steps 7, 8 and 9.
+   - But a lone `.github/` behavioural Contributor Covenant is not an engineering standard: treat
+     it as none and create a separate file.
 3. **Scan** — `python3 {{ plugin_root }}tools/code_of_conduct/coc_scan.py all --root <root> --contract 2`.
    - It reports what the repo declares, what its history shows, which directories are alive, cooling,
      dormant or generated, a ranked file list to read from, and the `arch.*` facts: file families
@@ -107,9 +113,12 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
 {%- else -%}
 8. **Approve & write** — on approval: leave plan mode → write atomically (temp + rename).
 {%- endif %}
-   The generator **never creates or edits any file besides the code-of-conduct itself** — offer the
-   `@./code-of-conduct.md` reference line for `{{ instructions_file }}` in chat; adding it is the
-   user's edit. Then **re-run the linter against the file on disk**
+   Write to **the path Step 2 resolved**, overwriting it in place — no rename, no second file, no
+   question about where it goes. The temp file lands in the same directory so the rename is atomic
+   on one filesystem.
+   The generator **never creates or edits any file besides that one** — offer the reference line
+   for `{{ instructions_file }}` in chat, naming the resolved path; adding it is the user's edit.
+   Then **re-run the linter against the file on disk**
    (`… coc_lint.py --contract 2 --file <coc> --root <root>`): the draft that passed is not proof about
    the bytes that landed. Fix and re-run until clean.
 9. **Review & commit** — show the file and ask the user to review it. On their go-ahead, **stage then
@@ -121,6 +130,8 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
 
 ## Update mode
 
+- **The existing file is the output file.** Update mode edits it where it lives, under the name the
+  repository already uses. Never emit a differently-named copy and never migrate the old one.
 - **Read it mechanically first:** `python3 {{ plugin_root }}tools/code_of_conduct/coc_lint.py
   --contract 2 --file <coc> --root <root>`. Its `findings` are rotted references — wrong whoever
   wrote them. Its `shape_notes` are **not a task list**: restyling an existing rule is the edit
