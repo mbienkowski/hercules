@@ -119,3 +119,21 @@ def test_nothing_in_the_document_is_ever_edited(review, tmp_path):
     before = document("- MUST: Follow `src/renamed_away.py`.\n")
     code, report = run(before)
     assert (tmp_path / "code-of-conduct.md").read_text() == before
+
+
+def test_a_name_inside_a_contrastive_example_is_not_a_rotted_citation(review):
+    """Update mode reads documents this generator did not write, in formats it does not set. A
+    DON'T line names a deliberately-bad path; reporting it as rot teaches the reader to stop
+    reading the findings — measured as the largest false-alarm class on a real document."""
+    run, _ = review
+    code, report = run(document("**DON'T:** `scope.mts`\n**DO:** `src/engine.py`\n"))
+    assert code == 0
+    assert not entries(report, "dangling")
+
+
+def test_a_path_inside_a_fenced_worked_example_is_still_a_citation(review):
+    """The emitted format demonstrates with REAL paths, so an example walking a reader through a
+    file the repository no longer has is exactly a rotted citation."""
+    run, _ = review
+    code, report = run(document("\n```sh\nedit `src/renamed_away.py`\n```\n"))
+    assert entries(report, "dangling")[0]["token"] == "src/renamed_away.py"

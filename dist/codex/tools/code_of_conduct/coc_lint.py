@@ -444,10 +444,16 @@ PATH_SUFFIXES = (".md", ".py", ".json", ".ts", ".tsx", ".mts", ".js", ".yml", ".
                  ".txt", ".cfg", ".ini", ".go", ".rs", ".java", ".rb", ".sh")
 
 # Names that look like citations and are not. Measured on a real document, these classes were the
-# false alarms: a dependency's entry point, and a placeholder standing in for whatever the reader
-# substitutes. Worked examples are NOT excluded — the owner's format demonstrates with real paths,
-# and an example walking a reader through a file the repository no longer has is a rotted citation.
+# false alarms: a dependency's entry point, a placeholder standing in for whatever the reader
+# substitutes, and a name inside a contrastive example, which is CHOSEN to be wrong.
+#
+# That last one binds in update mode above all. This tool reads documents it did not write, in
+# formats it does not set, and a `DON'T:` line naming a deliberately-bad path is not a rotted
+# citation — reporting it teaches the reader to stop reading the findings. Worked examples in the
+# emitted format are unaffected: they demonstrate inside a fenced block with real paths, and those
+# stay checked.
 PLACEHOLDER = re.compile(r"[<>{}]")
+EXAMPLE_LINE = re.compile(r"^\s*(?:\*\*)?(?:DON'T|DO|BAD|GOOD)(?:\*\*)?:", re.IGNORECASE)
 
 
 def read_document(path: str) -> str:
@@ -553,12 +559,15 @@ def review_citations(text: str, root: str) -> dict:
     targets = make_targets(root, paths)
     seen, entries = set(), []
     for number, line in enumerate(text.splitlines(), 1):
+        in_example = bool(EXAMPLE_LINE.match(line))
         for match in BACKTICKED.finditer(line):
             token = match.group(1)
             if token in seen:
                 continue
             seen.add(token)
             kind, state, resolved = classify_token(token, paths, targets)
+            if in_example and state == "dangling":
+                kind, state = "example", "unparsed"
             entries.append({"token": token[:200], "kind": kind, "state": state,
                             "resolved": resolved[:200], "line": number})
     entries.sort(key=lambda entry: (entry["state"], entry["kind"], entry["token"]))
