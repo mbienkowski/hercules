@@ -133,24 +133,53 @@
     A Hercules skill that writes a repository's <strong>code-of-conduct</strong> — the standing
     document that tells every agent and every contributor how this project is built: its
     architecture and extension points, its testing bar, its quality gates, and the rules that are
-    never broken. Run it once per repository, from a session inside that repository —
-    <em>"Hercules, set up this project"</em> — and every later session starts pre-calibrated.
+    never broken. Run it once per repository — <em>"Hercules, set up this project"</em> — and every
+    later session starts pre-calibrated.
   </p>
   <p class="lede">
-    It works in three moves: a deterministic tool <strong>measures</strong> the repository (config,
-    history, liveness — asking git, in any language), the skill <strong>asks the owner</strong> the
-    questions no scan can answer, and the agent <strong>reads the code</strong>, including writing a
-    small architecture extractor for whatever stack it finds. Every rule in the resulting document
-    must name evidence from one of those three streams — and two programs refuse the draft when it
-    cannot. That gate, not model care, is what makes the output trustworthy.
-  </p>
-  <p class="lede">
-    The tools are stdlib Python, shipped to every supported ecosystem; they read and never write.
-    Only the last step writes, and only the code-of-conduct file itself.
+    It works in three moves: a deterministic tool <strong>measures</strong> the repository, the
+    skill <strong>asks the owner</strong> what no scan can answer, and the agent
+    <strong>reads the code</strong>. Every rule in the document must name evidence from one of
+    those three streams, and programs — not judgment — refuse the draft when it cannot. Nothing is
+    written except the code-of-conduct file itself.
   </p>
 
   <section>
-    <h2>The pipeline</h2>
+    <h2>What you get</h2>
+    <p class="sub">
+      One file, project-specific, citing real paths. The first sentence of every rule reads alone —
+      that is the line a skimming reader takes away; everything after it is for the reader who
+      stopped.
+    </p>
+<pre class="sample"><span class="c">&lt;orientation — what this repo is, the loop, what the tiers mean&gt;</span>
+
+## Architecture                    <span class="c">← section, then its summary</span>
+
+### Rendering and templates        <span class="c">← a concern, then its own summary</span>
+
+<span class="k">MUST:</span>                             <span class="c">← the posture, stated once</span>
+
+1. Render every shipped file through the single engine instance.
+   That module is the only place an engine is constructed.   <span class="c">← explanation</span>
+   Check: `internal/builder/template-engine.mts`.            <span class="c">← the check</span>
+
+   ```ts                                                     <span class="c">← invited</span>
+   return new Liquid({ strictVariables: true });
+   ```
+
+2. Remove a key from scope by declaring it null in the recipe.
+   …
+
+<span class="k">AVOID:</span>
+
+1. …
+
+## Why this is the way it is       <span class="c">← every reason, last</span>
+</pre>
+  </section>
+
+  <section>
+    <h2>How it works</h2>
     <p class="sub">
       Evidence enters by three lanes and leaves as one JSON envelope. Nothing reaches the document
       that has not passed the envelope gate first.
@@ -249,197 +278,68 @@
         </svg>
       </div>
       <figcaption>
-        The refusal loop is the point: a rule the agent cannot justify to <code>coc_gate</code>
-        never becomes markdown, and a path it cannot resolve at HEAD never becomes a file. The two
-        later gates exist because passing an envelope says nothing about the document, and passing
-        a draft says nothing about the bytes on disk. The reading lane is many citations, not one —
-        each area, edge, chokepoint and split convention is its own observation, each naming
-        the file that shows it.
+        The refusal loop is the point: a rule the agent cannot justify never becomes markdown, and
+        a path it cannot prove exists never becomes a file.
       </figcaption>
     </figure>
   </section>
 
   <section>
-    <h2>The run, step by step</h2>
+    <h2>The workflow</h2>
     <p class="sub">
-      Ten steps, in this order. A content test pins the order, so the shipped prose cannot drift
-      out of sequence.
+      Ten steps. A content test pins the order, so the shipped prose cannot drift out of sequence.
     </p>
     <div class="steps">
-      <div class="step"><div class="step-n">01</div><div class="step-t">Plan mode, and pick a depth</div>
-        <div class="step-d">Nothing is scanned before the user has seen the flow. <em>Quick</em> for a small repository; <em>Thorough</em> adds the gap pass and an advisor review.</div></div>
+      <div class="step"><div class="step-n">01</div><div class="step-t">Plan, and pick a depth</div>
+        <div class="step-d">Nothing is scanned before the user has seen the flow. <em>Quick</em> or <em>Thorough</em>.</div></div>
       <div class="step"><div class="step-n">02</div><div class="step-t">Find any existing code-of-conduct</div>
-        <div class="step-d">One match means update mode, and update mode is additions-only. Several matches are never silently resolved — it asks.</div></div>
-      <div class="step"><div class="step-n">03</div><div class="step-t">Scan, then read what the scan cannot know</div>
-        <div class="step-d">The tool reports what the repository declares, how its history reads, which directories are alive, and which grow by one-more-of-a-kind. It knows no language — everything language-shaped is the agent's to read, recorded as observations.</div>
-        <div class="out">→ <b>facts</b> · liveness · unknowns · <b>observations</b></div></div>
-      <div class="step"><div class="step-n">3b</div><div class="step-t">Write an extractor; let the tool run it</div>
-        <div class="step-d">The agent writes a small read-only extractor for the language in front of it — the one function a language appears in — and <code>coc_scan.py extract</code> runs it under a wall-clock bound, kills anything it spawned, caps what it may print, and holds every path it reports against HEAD. A timeout fails loud: one narrowed retry, then stop and report.</div>
-        <div class="out">→ areas · edges · chokepoints · entrypoints · conventions · <b>files_processed / files_at_head</b></div></div>
+        <div class="step-d">One match means update mode, additions-only. Several are never silently resolved — it asks.</div></div>
+      <div class="step"><div class="step-n">03</div><div class="step-t">Scan</div>
+        <div class="step-d">Config, history, liveness, and the directories the repo grows by — asked of git, in any language.</div></div>
+      <div class="step"><div class="step-n">3b</div><div class="step-t">Extract the architecture</div>
+        <div class="step-d">The agent writes a small extractor for the stack in front of it; the tool runs it under a hard bound and validates every path it reports against the repository.</div></div>
       <div class="step"><div class="step-n">04</div><div class="step-t">Ask, in one batch</div>
-        <div class="step-d">Never fewer than five questions, never trickled. Every split convention the extractor found becomes one question carrying both sides' counts — recent work says where a team is going and equally where it is retreating from, and no count can tell those apart.</div>
-        <div class="out">→ <b>answers</b></div></div>
+        <div class="step-d">Five or more questions, never trickled. Every split convention found in the code becomes a question — never a majority vote.</div></div>
       <div class="step"><div class="step-n">05</div><div class="step-t">Draft from all three streams</div>
-        <div class="step-d">Orientation, then themed sections whose concerns each get a sub-heading and a summary. Rules group under one tier header per posture as a numbered run, and a directive takes the lines it needs.</div>
-        <div class="out">→ never past <b>8 directives</b> under one heading · split at the first clear boundary</div></div>
+        <div class="step-d">Every rule cites a fact, an answer, or an observation. No evidence, no rule.</div></div>
       <div class="step"><div class="step-n">06</div><div class="step-t">Gap pass and critical review</div>
-        <div class="step-d">A coverage map runs once as a gap detector — each load-bearing omission becomes a chat recommendation, never a silent addition. Then an advisor reviews the draft and returns findings only.</div></div>
-      <div class="step"><div class="step-n">07</div><div class="step-t">Gate, then present</div>
-        <div class="step-d">The envelope goes to <code>coc_gate</code>; the laid-out markdown goes to <code>coc_lint</code>. Exit 0 ships. Any other exit gets fixed, never argued past.</div></div>
+        <div class="step-d">A coverage map finds load-bearing omissions; an advisor reviews the draft. Both recommend — neither silently adds.</div></div>
+      <div class="step"><div class="step-n">07</div><div class="step-t">Gate</div>
+        <div class="step-d">Two programs check the draft — evidence, shape, citations, real paths. Exit 0 ships; anything else gets fixed, never argued past.</div></div>
       <div class="step"><div class="step-n">08</div><div class="step-t">Approve and write</div>
-        <div class="step-d">Written atomically. The generator never creates or edits any file besides the code-of-conduct itself — a reference line for the instructions file is offered in chat, and adding it is the user's edit. Then the linter runs again, against disk.</div></div>
-      <div class="step"><div class="step-n">09</div><div class="step-t">Review and commit</div>
-        <div class="step-d">Exactly that one path is staged and committed, so other staged work is never swept in. A push is offered, never taken.</div></div>
+        <div class="step-d">Written atomically, after the user's yes. No other file is created or edited. The linter runs once more, against disk.</div></div>
+      <div class="step"><div class="step-n">09</div><div class="step-t">Commit</div>
+        <div class="step-d">Exactly that one path is staged. A push is offered, never taken.</div></div>
     </div>
   </section>
 
   <section>
-    <h2>The three tools</h2>
+    <h2>Why the output can be trusted</h2>
     <p class="sub">
-      Capability is declared, not assumed — a hygiene scan holds each tool to its row, and a tool
-      with no row fails the scan rather than passing quietly. All three answer with one JSON object
-      on every path, including refusals.
-    </p>
-    <div class="tablebox">
-      <table>
-        <thead><tr><th>Tool</th><th>Posture</th><th>Reaches</th><th>Refuses</th></tr></thead>
-        <tbody>
-          <tr>
-            <td>coc_scan.py</td>
-            <td class="dim">Fails closed; opens no repository file — asks git, and runs the extractor bounded</td>
-            <td class="dim">git <code>ls-files</code>, <code>ls-tree</code>, <code>log</code>, <code>tag</code>, <code>rev-parse</code>; spawns the agent's extractor under a deadline, its own session killed whole, stdout read through a 1&nbsp;MB cap. Read-only and no-network stay blueprint instructions — there is no sandbox behind them</td>
-            <td class="dim">An unreadable repository; an artifact whose shape breaks, whose paths miss HEAD, or whose counters are impossible; a hung or flooding extractor — loud, with one narrowed retry</td>
-          </tr>
-          <tr>
-            <td>coc_gate.py</td>
-            <td class="dim">Pure function, fails closed</td>
-            <td class="dim">Nothing. No path is opened, no subprocess runs</td>
-            <td class="dim">A rule untagged, uncheckable, uncited, duplicated, over-grouped, or past the hard ceiling</td>
-          </tr>
-          <tr>
-            <td>coc_lint.py</td>
-            <td class="dim">Reports, never edits</td>
-            <td class="dim">git <code>ls-files</code>, <code>ls-tree</code> — a cited path resolves by membership, never by touching disk</td>
-            <td class="dim">A broken shape, a dangling citation, a literal that will rot, an unverifiable claim</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="note">
-      <b>Why membership, not the filesystem.</b> A code-of-conduct written by someone else is
-      untrusted text. Resolving its paths against the repository's own file list means a document
-      can never be used to ask what exists outside the repository.
-    </div>
-
-    <h3>Exit codes</h3>
-    <div class="tablebox">
-      <table>
-        <thead><tr><th>Code</th><th>Meaning</th><th>What the caller does</th></tr></thead>
-        <tbody>
-          <tr><td>0</td><td class="dim">Clean</td><td class="dim">Proceed to the next step</td></tr>
-          <tr><td>1</td><td class="dim">Refused — findings name what failed</td><td class="dim">Fix or drop what it named, then re-run</td></tr>
-          <tr><td>2</td><td class="dim">Contract mismatch</td><td class="dim">Stop; the prose and the tool are different versions</td></tr>
-          <tr><td>4</td><td class="dim">Internal — nothing was judged</td><td class="dim">Relay the message and stop; never treat as a pass</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section>
-    <h2>The document it writes</h2>
-    <p class="sub">
-      A rule nobody can navigate to is a rule nobody follows. This grammar is enforced by the
-      linter, not requested in prose.
-    </p>
-<pre class="sample"><span class="c">&lt;orientation — what this repo is, the loop, what the tiers mean&gt;</span>
-
-## Architecture                    <span class="c">← section, then its summary</span>
-
-### Rendering and templates        <span class="c">← a concern, then its own summary</span>
-
-<span class="k">MUST:</span>                             <span class="c">← the posture, stated once</span>
-
-1. Render every shipped file through the single engine instance.
-   That module is the only place an engine is constructed.   <span class="c">← explanation</span>
-   Check: `internal/builder/template-engine.mts`.            <span class="c">← the check</span>
-
-   ```ts                                                     <span class="c">← invited</span>
-   return new Liquid({ strictVariables: true });
-   ```
-
-2. Remove a key from scope by declaring it null in the recipe.
-   …
-
-<span class="k">AVOID:</span>
-
-1. …
-
-## Why this is the way it is       <span class="c">← every reason, last</span>
-</pre>
-    <div class="note">
-      <b>The first sentence is the rule.</b> It has to read alone, because that is the line a
-      skimming reader takes away. Everything after it — what the rule prevents, the case it
-      generalises to, the check, the fragment — is there for the reader who stopped.
-    </div>
-  </section>
-
-  <section>
-    <h2>What each gate refuses, and why it exists</h2>
-    <p class="sub">
-      Every rule below was added because a real defect got through without it. That is the reason
-      to keep them: each one is a bug that already happened once.
-    </p>
-    <div class="tablebox">
-      <table>
-        <thead><tr><th>Finding</th><th>Where</th><th>The defect it exists to prevent</th></tr></thead>
-        <tbody>
-          <tr><td>rule_untagged</td><td><span class="tier t-gate">gate</span></td><td class="dim">A rule whose enforcement weight the reader cannot tell — everything reads as equally optional.</td></tr>
-          <tr><td>rule_uncheckable</td><td><span class="tier t-gate">gate</span></td><td class="dim">A rule no reviewer can settle objectively, so compliance becomes a matter of taste.</td></tr>
-          <tr><td>rule_uncited</td><td><span class="tier t-gate">gate</span></td><td class="dim">A rule nobody can trace to a scan observation, a user answer, or a reading of the code.</td></tr>
-          <tr><td>citation_unknown</td><td><span class="tier t-gate">gate</span></td><td class="dim">An id nothing produced — the shape of a rule invented first and justified afterwards.</td></tr>
-          <tr><td>observation_path_escapes</td><td><span class="tier t-gate">gate</span></td><td class="dim">Evidence claimed from outside the repository, which says nothing about it.</td></tr>
-          <tr><td>group_oversized</td><td><span class="tier t-gate">gate</span> <span class="tier t-lint">lint</span></td><td class="dim">More rules under one heading than a reader can hold, so nobody can say what lives where.</td></tr>
-          <tr><td>orientation_missing</td><td><span class="tier t-lint">lint</span></td><td class="dim">A file that opens cold with rules and orients nobody.</td></tr>
-          <tr><td>group_unsummarized</td><td><span class="tier t-lint">lint</span></td><td class="dim">Rules with no statement of intent, so they are obeyed literally and generalised wrongly.</td></tr>
-          <tr><td>directive_untiered</td><td><span class="tier t-lint">lint</span></td><td class="dim">A requirement with no posture — is it blocking, or a preference?</td></tr>
-          <tr><td>why_missing / why_misplaced</td><td><span class="tier t-lint">lint</span></td><td class="dim">Reasons scattered through the rules, or absent, leaving nothing to reason from.</td></tr>
-          <tr><td>snapshot_literal</td><td><span class="tier t-lint">lint</span></td><td class="dim">"17 files today", "10 of 10", a pinned version — true when written, false a week later, and nothing would ever say so.</td></tr>
-          <tr><td>unhedged_universal</td><td><span class="tier t-lint">lint</span></td><td class="dim">"the only X anywhere", "on every host". A path check proves existence and can never prove an absence, so these clear every gate while being false. Blind review found this the single largest source of wrong statements.</td></tr>
-          <tr><td>check_unfalsifiable</td><td><span class="tier t-lint">lint</span></td><td class="dim">A <code>Check:</code> that names nothing runnable — prose in the position that promises verification.</td></tr>
-          <tr><td>family_uncovered</td><td><span class="tier t-lint">lint</span></td><td class="dim">A directory the repository grows by that the document never names, leaving the next contributor to guess a whole extension path.</td></tr>
-          <tr><td>citation_dangling</td><td><span class="tier t-lint">lint</span></td><td class="dim">A path the repository no longer has — a rule pointing at something somebody moved.</td></tr>
-          <tr><td>path_not_at_head</td><td><span class="tier t-extract">extract</span></td><td class="dim">An extractor naming a file nobody can open reported something else too — the whole artifact is suspect.</td></tr>
-          <tr><td>counters_impossible</td><td><span class="tier t-extract">extract</span></td><td class="dim">More files read than found, or found than tracked. An artifact that read a fifth of the repository is otherwise shaped exactly like one that read all of it.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section>
-    <h2>How it stays universal</h2>
-    <p class="sub">
-      Four layers, and none of the shipped code knows any language. The per-language parsers this
-      design replaced were a catalogue — incomplete by construction, and found reporting their own
-      coverage as complete while blind to ordinary layouts of a language they claimed to parse.
+      Not because a model wrote it carefully — because programs refuse it when it is wrong. Every
+      check below exists because that defect really got through once.
     </p>
     <div class="layers">
       <div class="layer"><div class="layer-n">01</div>
-        <div class="layer-t">Language-agnostic measurement</div>
-        <div class="layer-d">Config probes, commit conventions, release shape, liveness by directory, and families — the directories that grow by one-more-of-a-kind, whatever the suffix. The scan asks git and nothing else.</div></div>
+        <div class="layer-t">Every rule is evidenced, or refused</div>
+        <div class="layer-d">Untagged, uncheckable, or citing evidence the run does not carry — the gate bounces it back with the reason named.</div></div>
       <div class="layer"><div class="layer-n">02</div>
-        <div class="layer-t">An extractor written on the spot</div>
-        <div class="layer-d">The agent, standing in the repository, writes the one function a language appears in. An instruction travels to every language; a catalogue never finishes arriving.</div></div>
+        <div class="layer-t">Every cited path is real, or refused</div>
+        <div class="layer-d">Paths resolve against the repository's own file list at HEAD — a claim about a file that does not exist never enters the document.</div></div>
       <div class="layer"><div class="layer-n">03</div>
-        <div class="layer-t">Run bounded, believed never</div>
-        <div class="layer-d"><code>coc_scan.py extract</code> runs it under a deadline, kills whatever it spawned, caps its output, then validates: shape, section caps, every path against HEAD, and <code>files_processed</code> against <code>files_at_head</code> — so an artifact that read a fifth of the repository can never pass as one that read it all.</div></div>
+        <div class="layer-t">Nothing that rots ships</div>
+        <div class="layer-d">Snapshot counts, pinned versions, and unverifiable universals ("the only X anywhere") are refused — they are true when written and silently false a week later.</div></div>
       <div class="layer"><div class="layer-n">04</div>
-        <div class="layer-t">The agent carries the rest</div>
-        <div class="layer-d">What no extractor states — layering intent, what a chokepoint means, what is enforced by habit — the agent reads, and each becomes a <code>code:</code> observation, held to the same gate and the same path check as every other fact.</div></div>
+        <div class="layer-t">The runtime extractor is bounded, never believed</div>
+        <div class="layer-d">The agent-written extractor runs under a deadline with its output capped, and must report how much of the repository it actually read — a partial read can never pass as a complete one.</div></div>
+      <div class="layer"><div class="layer-n">05</div>
+        <div class="layer-t">Universal by design</div>
+        <div class="layer-d">No shipped code knows any language — the scan asks git, and the language knowledge is written by the agent at runtime, per repository. There is no parser catalogue to fall behind.</div></div>
     </div>
     <div class="note">
-      <b>The consequence.</b> No language ever has to be added for the pipeline to be complete —
-      there is nothing to add it to. The knowledge lives in the agent's hands at runtime; the
-      shipped code only decides whether what came back can be trusted.
+      <b>Failure is loud.</b> An unreadable repository, a hung extractor, a rule without evidence —
+      each stops the run and names itself. The one thing this pipeline never does is degrade
+      silently into a confident document that covers less than it appears to.
     </div>
   </section>
 
