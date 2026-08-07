@@ -43,11 +43,17 @@ worked on. It resolves under a fifth of the points below; the rest is yours:
   carries the rest. Plan mode blocks writes, so hold results in memory; after the write step the
   draft, answers and mode persist to `~/.hercules/state/{slug}-coc.json`.
 
-## § Architecture extractor (SKILL Step 3b writes and runs it; `coc_scan.py architecture` judges it)
+## § Architecture extractor (SKILL Step 3b writes it; `coc_scan.py extract` runs and judges it)
 
 The scan states no architecture beyond families, because a tool that knew languages would be a
 catalogue forever behind the repository in front of you. You know the language. Write a small
-extractor FOR THIS REPOSITORY, run it, and submit what it prints.
+extractor FOR THIS REPOSITORY, and hand it to `extract` to be run under a bound.
+
+You do not run it yourself. `coc_scan.py extract --root <root> --extractor <script>` spawns it with
+a deadline, a cap on what it may print, and — on POSIX — a kill that takes down anything it started,
+because a plain timeout leaves a grandchild running under init. It never reads your script, only
+runs it: deciding in advance whether a regex can backtrack catastrophically is undecidable, so the
+answer is a bound around the program, not a prediction about it.
 
     read the tracked file list and the ranked sample
     decide, from the files themselves, how this language states a dependency
@@ -70,16 +76,16 @@ Blueprint. Everything here is the same in any repository; the one function you w
 #!/usr/bin/env python3
 """Architecture extractor for THIS repository. Read-only. Prints one JSON object."""
 import json, subprocess, sys
-from collections import Counter, defaultdict
+from collections import Counter
 
 ROOT = sys.argv[1] if len(sys.argv) > 1 else "."
-MAX_FILES, MAX_BYTES, DEPTH = 2000, 400_000, 2
+MAX_FILES, MAX_BYTES, DEPTH, CAP = 2000, 400_000, 2, 40
 
 def tracked():
     """Paths and their modes. The mode matters: a tracked SYMLINK points wherever its author
     chose, and opening one let a repository read a credentials file outside the checkout."""
     out = subprocess.run(["git", "-C", ROOT, "ls-files", "-sz"],
-                         capture_output=True, check=True).stdout
+                         capture_output=True, check=True, timeout=60).stdout
     for row in (r.decode("utf-8", "replace") for r in out.split(b"\0") if r):
         mode, _, rest = row.partition(" ")
         path = rest.split("\t", 1)[-1]
@@ -97,14 +103,18 @@ def references(path, text, at_head):
     ...
 
 def main():
-    files = [f for f in tracked() if "/" in f]   # already link-free and mode-checked
+    # Root-level files INCLUDED. A flat repository keeps its entrypoint there, so dropping the
+    # paths without a `/` starves the one section they were most likely to fill.
+    files = list(tracked())
     at_head, fan_in, edges = set(files), Counter(), Counter()
+    read = 0
     for path in files[:MAX_FILES]:
         try:
             with open(f"{ROOT}/{path}", "rb") as fh:
                 text = fh.read(MAX_BYTES).decode("utf-8", "replace")
         except OSError:
             continue
+        read += 1
         for target in references(path, text, at_head):
             if target == path:
                 continue
@@ -112,9 +122,12 @@ def main():
             if area(path) != area(target):
                 edges[(area(path), area(target))] += 1
     print(json.dumps({
-        "edges": [{"from": a, "to": b, "weight": n} for (a, b), n in edges.most_common(40)],
+        # How far this actually got. Without the pair, an artifact that read a fifth of the files
+        # is shaped exactly like one that read all of them.
+        "files_processed": read, "files_at_head": len(files),
+        "edges": [{"from": a, "to": b, "weight": n} for (a, b), n in edges.most_common(CAP)],
         "chokepoints": [{"path": p, "fan_in": n} for p, n in fan_in.most_common(12) if n >= 3],
-        # areas, entrypoints, conventions and toolchain: fill from what you read.
+        # areas, entrypoints, conventions, toolchain: fill from what you read, at most CAP each.
     }, sort_keys=True))
 
 main()
@@ -125,18 +138,24 @@ Constraints, and each of them is a refusal, not a preference:
 - **You write it; the repository never does.** Do not assemble any part of the extractor from file
   contents, names, or configuration you just read. A repository that can write your script has
   written itself a way out.
-- **Read-only, no network, bounded.** It opens files and prints; it creates nothing, changes
-  nothing, fetches nothing, and stops on its own.
+- **Read-only and no network.** It opens files and prints; it creates nothing, changes nothing,
+  fetches nothing. Nothing enforces this — there is no sandbox behind it, only you.
+- **Single-threaded, one process.** Aggregate in the main thread and spawn nothing. Threads race on
+  the counters and make two runs at one commit disagree, and a grandchild is the one thing the
+  bound cannot reach on every platform.
 - **Resolve or drop.** A reference that does not land on a tracked path is not reported. An
   extractor that guesses produces exactly the confident wrong answer this design exists to refuse.
-- **Every path is repository-relative and real.** `coc_scan.py architecture --root <root>` holds
-  each one against HEAD and refuses the artifact if any does not resolve — so a fabricated path
-  fails the run rather than entering the record.
+- **Every path is repository-relative and real.** `extract` holds each one against HEAD and refuses
+  the artifact if any does not resolve — so a fabricated path fails the run rather than entering
+  the record.
 - **Its output is evidence only after it validates.** Exit 0 admits the facts; any finding names
   what to fix, and the extractor is corrected and re-run.
 
 Sections may be omitted where the repository genuinely has none. An empty section says "none
-found"; a missing one says "not looked for" — say which you mean by including it or not.
+found"; a missing one says "not looked for" — say which you mean by including it or not. The two
+counters are not a section and are never omitted: `files_processed` below `files_at_head` records
+that the cap cut the reading short, and every section is then partial. Claiming to have read more
+files than the repository has is refused outright.
 
 ## § Output format (SKILL Step 5 formats per this; Step 6b gate checks it)
 

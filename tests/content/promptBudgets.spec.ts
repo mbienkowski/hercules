@@ -37,12 +37,15 @@ const BUDGETS: ReadonlyArray<readonly [string, string, number]> = [
   ['the learnings skill', 'skills/learnings/SKILL.md', 1050],
   ['the test-scenarios skill', 'skills/write-test-scenarios/SKILL.md', 1050],
   ['the reference skill', 'skills/hercules-reference/SKILL.md', 3900],
-  // 3000 → 3100 → 3300 at the owner's request. What the last rise bought: Step 2 binds the
-  // resolved path to Step 8 (so a repository keeps its own spelling), and new Step 3b has the
-  // agent write, run and submit an architecture extractor — the replacement for ~450 lines of
-  // per-language parsing deleted from coc_scan.py, which is a net loss of shipped surface even
-  // though this file grew. Re-measure DOWN when the update-mode section next shrinks.
-  ['the code-of-conduct generator', 'skills/code-of-conduct-generator/SKILL.md', 3300],
+  // 3000 → 3100 → 3300 → 3400 at the owner's request. The 3300 rise bought Step 2 binding the
+  // resolved path to Step 8 (so a repository keeps its own spelling) and Step 3b's architecture
+  // extractor, the replacement for ~450 lines of per-language parsing deleted from coc_scan.py.
+  // The last 100 buys what Step 3b must say when that extractor HANGS: the agent no longer runs it
+  // (`extract` does, under a bound), a timeout is named as a hang rather than a wrong answer, the
+  // retry is capped at one and honest about being a coin flip without per-file attribution, and a
+  // denied extraction must be reported as denied — never allowed to read as "this repository has
+  // no architecture". Re-measure DOWN when the update-mode section next shrinks.
+  ['the code-of-conduct generator', 'skills/code-of-conduct-generator/SKILL.md', 3400],
   // 6600 → 6700 → 7300 at the owner's request. The first rise bought five gates a blind review
   // found being broken in real output. The second buys § Architecture extractor: the pseudocode,
   // the output schema and the five refusals that replace every per-language parser the scanner
@@ -53,8 +56,13 @@ const BUDGETS: ReadonlyArray<readonly [string, string, number]> = [
   // of inventing the whole script under time pressure — a runtime failure that would otherwise
   // land differently every run. The blueprint also carries the symlink refusal forward: the
   // scanner no longer opens any file, so the exfiltration guard a security review forced had to
-  // move to the one thing that still reads. Re-measure DOWN when the map next shrinks.
-  ['its coverage map', 'skills/code-of-conduct-generator/coverage-map.md', 7900],
+  // move to the one thing that still reads. 7900 → 8200 for what three review rounds found the
+  // blueprint doing wrong: it dropped every ROOT-LEVEL file, starving `entrypoints` in exactly the
+  // flat repositories whose entrypoint sits there; its `git ls-files` call had no timeout; four of
+  // its six sections had no cap; and nothing recorded that the 2000-file cap had cut the reading
+  // short, which is the same silent-truncation defect this file already paid for once.
+  // Re-measure DOWN when the map next shrinks.
+  ['its coverage map', 'skills/code-of-conduct-generator/coverage-map.md', 8200],
   ['the fusion-setup skill', 'skills/fusion-setup/SKILL.md', 1100],
 ];
 

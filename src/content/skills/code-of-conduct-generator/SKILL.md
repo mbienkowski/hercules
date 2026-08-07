@@ -57,11 +57,19 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
      mechanism you confirm as an **observation** `{id, path}` naming the file that shows it — the
      third evidence stream, beside facts and answers.
 3b. **Extract the architecture** — per **§ Architecture extractor**. Write a small read-only
-   extractor for the language in front of you, run it, and pipe its JSON to
-   `python3 {{ plugin_root }}tools/code_of_conduct/coc_scan.py architecture --root <root> --contract 2`.
-   - You author the extractor; never assemble any part of it from repository content.
+   extractor for the language in front of you, then have it RUN for you:
+   `python3 {{ plugin_root }}tools/code_of_conduct/coc_scan.py extract --root <root> --extractor <script> --contract 2`.
+   - You author the extractor; never assemble any part of it from repository content. Never run it
+     yourself — `extract` bounds its runtime and its output, and an unbounded run is how one file
+     costs an hour.
    - **Exit 0 admits its facts.** Any finding names a section and what is wrong — most often a path
      that does not resolve at HEAD. Fix the extractor and re-run; never submit around a refusal.
+   - `extractor_timed_out` is a hang, not a wrong answer, and nothing came back to tell you which
+     file caused it. Retry **once** having narrowed what it reads — halve `MAX_FILES`, or start the
+     iteration elsewhere so a different set is read — and know that without per-file attribution
+     this is a coin flip, not a repair. **A second timeout stops the run**: report it to the user.
+   - A stopped extraction means the architecture was attempted and denied. Say that in as many
+     words, and never let the document read as though this repository has no architecture.
 4. **Questions** — one batch, one message, no trickle.
    - **Never fewer than 5**, up to 8+ for a large or polyglot repo; Quick asks this many too.
    - **Every `conflicts` entry becomes one question**, quoting both sides' `file_share` and
