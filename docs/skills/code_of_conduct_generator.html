@@ -127,18 +127,26 @@
 <body>
 <div class="wrap">
 
-  <p class="eyebrow">skills / code-of-conduct-generator</p>
-  <h1>Three kinds of evidence, one gate that refuses all of them equally</h1>
+  <p class="eyebrow">hercules / skills</p>
+  <h1>code-of-conduct-generator</h1>
   <p class="lede">
-    The generator writes a project's engineering standards by measuring the repository, asking its
-    owner, and reading its code. What makes the output trustworthy is not that a model wrote it
-    carefully — it is that <strong>every rule must name evidence the run actually carries</strong>,
-    and two programs refuse the draft when it cannot.
+    A Hercules skill that writes a repository's <strong>code-of-conduct</strong> — the standing
+    document that tells every agent and every contributor how this project is built: its
+    architecture and extension points, its testing bar, its quality gates, and the rules that are
+    never broken. Run it once per repository, from a session inside that repository —
+    <em>"Hercules, set up this project"</em> — and every later session starts pre-calibrated.
   </p>
   <p class="lede">
-    It runs against any repository, in any language. The tools are stdlib Python, shipped to every
-    ecosystem; they read and never write. Only the last step writes, and only the code-of-conduct
-    file itself.
+    It works in three moves: a deterministic tool <strong>measures</strong> the repository (config,
+    history, liveness — asking git, in any language), the skill <strong>asks the owner</strong> the
+    questions no scan can answer, and the agent <strong>reads the code</strong>, including writing a
+    small architecture extractor for whatever stack it finds. Every rule in the resulting document
+    must name evidence from one of those three streams — and two programs refuse the draft when it
+    cannot. That gate, not model care, is what makes the output trustworthy.
+  </p>
+  <p class="lede">
+    The tools are stdlib Python, shipped to every supported ecosystem; they read and never write.
+    Only the last step writes, and only the code-of-conduct file itself.
   </p>
 
   <section>
