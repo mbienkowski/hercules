@@ -29,12 +29,14 @@
     "plan_exit": "approval",
     "plan_mode": "prose",
     "plugin_manifest_dir": false,
-    "plugin_root": "",
+    "plugin_root": "${HERCULES_PLUGIN_ROOT}/",
     "product": "OpenCode",
     "version_manifest": "package_root",
     "write_backstop": "settable_permission"
   },
-  "runtime_variables": [],
+  "runtime_variables": [
+    "HERCULES_PLUGIN_ROOT"
+  ],
   "targets": {
     "CAPABILITIES.md": {
       "sources": [
@@ -229,6 +231,21 @@
     "skills/write-test-scenarios/SKILL.md": {
       "sources": [
         "src/content/skills/write-test-scenarios/SKILL.md"
+      ]
+    },
+    "tools/code_of_conduct/coc_gate.py": {
+      "sources": [
+        "src/scripts/tools/code_of_conduct/coc_gate.py"
+      ]
+    },
+    "tools/code_of_conduct/coc_lint.py": {
+      "sources": [
+        "src/scripts/tools/code_of_conduct/coc_lint.py"
+      ]
+    },
+    "tools/code_of_conduct/coc_scan.py": {
+      "sources": [
+        "src/scripts/tools/code_of_conduct/coc_scan.py"
       ]
     },
     "tools/project_reset.py": {

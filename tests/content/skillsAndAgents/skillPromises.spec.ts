@@ -127,4 +127,123 @@ describe('the code-of-conduct generator keeps its promises to whoever runs it', 
     expect(positions.filter((at) => at === -1), 'every documented step must be present').toEqual([]);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
   });
+
+  it('decides the gate with a program rather than asking an agent to be careful', () => {
+    // The whole point of the gate: a rule an agent cannot justify to a validator does not ship.
+    const text = flat(GENERATOR);
+    expect(text).toContain('tools/code_of_conduct/coc_gate.py draft --contract 2');
+    expect(text).toContain('Exit 0 ships');
+  });
+
+  it('records what it reads in the code as citable, path-verified observations', () => {
+    // The valuable rules are architectural, and architecture is read, not measured. Without a
+    // recorded observation the only way such a rule passes the gate is disguised as a fact
+    // nothing produced — the exact invented-evidence shape the gate exists to refuse.
+    const text = flat(GENERATOR);
+    expect(text).toContain('observation');
+    expect(text).toMatch(/code:<observation/i);
+    const map = flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md');
+    expect(map).toContain('"observations"');
+    expect(map).toMatch(/code:<observation/i);
+  });
+
+  it('writes back to the path the repository already uses, without asking', () => {
+    // A repository spelling it CODE_OF_CONDUCT.md keeps that name. Emitting the lowercase default
+    // beside it leaves two standards files — and on a case-insensitive filesystem the second write
+    // silently clobbers the first. So the path found in step 2 is the path written in step 8, and
+    // the default applies only where nothing was found.
+    const text = flat(GENERATOR);
+    expect(text).toContain('Whatever it finds is the path Step 8 writes');
+    expect(text).toContain('Never a second file beside it');
+    expect(text).toContain('The default applies **only** here');
+    expect(text).toContain('Write to **the path Step 2 resolved**, overwriting it in place');
+    expect(text).toContain('The existing file is the output file');
+  });
+
+  it('never creates or edits any file besides the code-of-conduct itself', () => {
+    // The divergence the first real run surfaced: step 8 used to add an @-reference to the
+    // instructions file, creating it when missing. The owner's rule is absolute — the reference
+    // line is offered in chat, and adding it is the user's edit.
+    const text = flat(GENERATOR);
+    expect(text).toMatch(/never creates? or edits? any (other )?file/i);
+    expect(text).not.toContain('creating it when missing');
+  });
+
+  it('gathers its evidence with a program before it reasons about any of it', () => {
+    const text = flat(GENERATOR);
+    expect(text).toContain('tools/code_of_conduct/coc_scan.py all --root');
+    expect(text).toContain('never hand-scan around a refusal');
+  });
+
+  it('keeps one authority for the scan rather than a tool and a rival prose procedure', () => {
+    // The playbook used to specify the mechanics the tool now performs. Left in place it would be a
+    // second, drifting description of one job, paid for twice out of the same budget.
+    const map = flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md');
+    expect(map).toContain('this is what the tool cannot decide');
+    expect(map).not.toContain('git log -n 200');
+  });
+
+  it('tells the agent to weigh living code above code nobody maintains', () => {
+    const map = flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md');
+    expect(map).toContain('liveness.top_files');
+    expect(map).toContain('describes what nobody maintains');
+  });
+
+  it('turns a split convention into a question rather than counting the votes', () => {
+    // Code is edited while a convention is being adopted and equally while it is being torn out, so
+    // a count is an argument to put to someone, never an answer to act on. The split arrives from
+    // the agent-authored extractor's `conventions` section now that the scan parses no language.
+    const text = flat(GENERATOR);
+    expect(text).toContain('Every `conventions` entry the extractor reported becomes one question');
+    expect(text).toContain('Never pick for the user');
+    expect(flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md'))
+      .toContain('a question, never majority rule');
+  });
+
+  it('formats the file the way its owner reads: tiered runs, reasons last, plain text', () => {
+    // A reader wants the requirement, then the argument; markup tokens are spent from every
+    // agent's context on every task, forever. The shape lives in the spine, so it is asserted
+    // there — the map carries only what the spine does not say.
+    const text = flat(GENERATOR);
+    expect(text).toMatch(/MUST.{0,80}SHOULD.{0,160}AVOID.{0,160}NEVER_DO/);
+    expect(text).toContain('closing Why section');
+    expect(text).toContain('no markup');
+  });
+
+  it('teaches how the repository grows, not just what it forbids', () => {
+    // A family is an extension point: the standard way this repository grows. Leaving one
+    // unnamed hands the next contributor a whole extension path to guess at, so the map
+    // requires covering each and the linter reports any the document never mentions.
+    const map = flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md');
+    expect(map).toContain('Cover every `arch.families` entry the scan reported');
+    expect(map).toContain('arch.families');
+  });
+
+  it('checks the shape of the file it emits, and again once it is on disk', () => {
+    // The draft that passed is not evidence about the bytes that landed.
+    const text = flat(GENERATOR);
+    expect(text).toContain('tools/code_of_conduct/coc_lint.py');
+    expect(text).toContain('re-run the linter against the file on disk');
+  });
+
+  it('reads an existing document mechanically before proposing a single change to it', () => {
+    const text = flat(GENERATOR);
+    expect(text).toContain('coc_lint.py --contract 2 --file <coc> --root <root>');
+    expect(text).toContain('never an edit');
+  });
+
+  it('exempts the bullets that predate the gate rather than refusing every update', () => {
+    // Rules written before the envelope existed carry no tags or citations. Submitting them would
+    // make a passing update impossible, which is how an additions-only promise gets quietly broken.
+    const text = flat(GENERATOR);
+    expect(text).toContain('never submitted to the gate');
+    expect(text).toContain('New rules and new sections meet the full bar');
+  });
+
+  it('tells the drafting agent where the envelope it must fill is specified', () => {
+    // A gate whose input shape is undocumented is a gate the agent guesses its way past.
+    expect(flat(GENERATOR)).toContain('§ Rules envelope');
+    expect(flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md'))
+      .toContain('## § Rules envelope');
+  });
 });

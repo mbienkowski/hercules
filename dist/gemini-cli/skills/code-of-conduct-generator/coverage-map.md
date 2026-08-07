@@ -1,9 +1,9 @@
 # Coverage map — code-of-conduct generator (internal scan aid, not CoC output)
 
-The generator drafts **evidence-first** from the repo, then runs this map ONCE as a **gap detector**:
-for each applicable point, was a rule already drafted from scan evidence or a user answer? If not and
-the point is load-bearing, surface it in chat as a recommendation — accept makes it a real rule,
-decline drops it. Never emit a point from this map without repo evidence or an explicit user yes.
+The generator drafts **evidence-first**, then runs this map ONCE as a **gap detector**: for each
+applicable point not already covered by a drafted rule, if load-bearing, recommend it in chat —
+accept makes it a rule, decline drops it. Never emit a point without repo evidence or an explicit
+user yes.
 
 **Tiers:** `P0` every serious repo · `P1` most repos · `P2` situational · `P3` emerging.
 **Stack flags:** `[be]` backend · `[fe]` frontend · `[mobile]` · `[data]` · `[ml]` · `[infra]` · `[ai]`.
@@ -11,47 +11,209 @@ Load only the groups whose stack the scan detected; always load A–D, H–L, Q�
 **Sources:** backbone points cite a primary standard; `(conv)` = established convention, not a cited spec.
 Each point: `name [tier][stack] — scan signal → rule shape.`
 
-## § Scan playbook (SKILL Step 3 runs this — bounded ≤5 min, config-first)
+## § Scan playbook (SKILL Step 3 runs `coc_scan.py`; this is what the tool cannot decide)
 
-Bound the whole scan with a hard **5-minute cap** plus file/byte caps; on breach, mark the rest
-`unknown` (they become Step-4 questions) — degrade, never stall. Read config, not the tree.
+The tool reports what the repo declares, what its history shows, and which directories are still
+worked on. It resolves under a fifth of the points below; the rest is yours:
 
-- **Sizing probe** — `git ls-files | wc -l`, an extension histogram, and workspace/monorepo detection
-  (`nx.json`/`go.work`/multiple manifests) classify the repo before any heavy work.
-- **Config first** — read the known config set (deps + lockfiles, lint/format, `tsconfig`, CI workflows,
-  `Dockerfile`, `CODEOWNERS`, migrations dir, secrets-scanner/dependabot); it resolves most points cheaply.
-- **Sample, don't read the tree** — grep counts are evidence (`rg -l <pat> | wc -l`); read only a canonical
-  sorted sample (~20–30 files); note repeated design patterns and test conventions.
-- **Mine bounded history** — `git log -n 200` → commit convention (format, scope, tense, ticket refs);
-  branch names and merge shape → branching/merge strategy; `git tag` → release cadence.
-- **Reconcile config against code** — a rule the config states but the sampled code visibly violates
-  becomes a Step-4 question, never an enforced rule.
-- **Large / monorepo** — scan root config plus a few representative modules per language, never every
-  module; proceed sampled and invite the user to point at key modules or grant budget, never block.
-- **Tag & capture** — tag each observation (`inferred-high` … `unknown`) and capture its `file:line` /
-  count / commit so a rule can cite it. Two live patterns for one concern → a question, never majority
-  rule. Exclude `.env*` and credential paths; record structure, never values.
-- **Determinism & resume** — canonical sorted sampling and a fixed question order make two runs
-  ~identical. Plan mode blocks writes, so hold results in memory (a bounded interrupted scan re-runs);
-  after the write step the draft/answers/mode persist to `~/.hercules/state/{slug}-coc.json` to resume.
+- **Read from `liveness.top_files`, never the tree** — take ~20–30 from its head and name the
+  design patterns, test conventions and idioms in them; it is ranked because alive code is the
+  standard.
+- **`arch.families` is the only architectural fact the scan states** — a directory several files
+  share a suffix in, which is one way this repository grows. It needs no allowlist of suffixes and
+  therefore misses nothing: a family of `.tf`, `.proto` or `.sql` counts exactly as much as code.
+- **Everything else about the architecture is yours to extract** — see § Architecture extractor.
+  The tool learned no languages on purpose: a catalogue is forever behind the repository in front
+  of you, and the one that shipped here reported its own coverage as complete while missing the two
+  commonest layouts of a language it claimed.
+- **Record each further confirmed reading as an observation** `{id, path}`. An observation is as
+  citable as a validated fact — the gate accepts `code:<id>` for ids the envelope carries, the
+  linter holds each path against HEAD. A pattern with no file to show is a question, not evidence.
+- **Weigh by `status`** — `alive` is what the repo converges on; `cooling` is current, not
+  frontier; `dormant` describes what nobody maintains, so rules from it bind work nobody does.
+  A `generated: true` directory states nothing.
+- **Reconcile config against code** — a rule the config states but the code visibly violates is a
+  Step-4 question, never an enforced rule.
+- **Two live patterns for one concern → a question, never majority rule.** Report both in the
+  extractor's `conventions` and name no winner; neither do you — a pattern is edited while being
+  adopted and while being torn out.
+- **Anything marked `unknown`, or not locally observable** — branch protection, required reviewers,
+  self-merge policy live in the forge, not the repo — is a Step-4 question.
+- **Determinism & resume** — the document is byte-identical per commit; a fixed question order
+  carries the rest. Plan mode blocks writes, so hold results in memory; after the write step the
+  draft, answers and mode persist to `~/.hercules/state/{slug}-coc.json`.
+
+## § Architecture extractor (SKILL Step 3b writes it; `coc_scan.py extract` runs and judges it)
+
+The scan states no architecture beyond families, because a tool that knew languages would be a
+catalogue forever behind the repository in front of you. You know the language. Write a small
+extractor FOR THIS REPOSITORY, and hand it to `extract` to be run under a bound.
+
+You do not run it yourself. `coc_scan.py extract --root <root> --extractor <script>` spawns it with
+a deadline, a cap on what it may print, and — on POSIX — a kill that takes down anything it started,
+because a plain timeout leaves a grandchild running under init. It never reads your script, only
+runs it: deciding in advance whether a regex can backtrack catastrophically is undecidable, so the
+answer is a bound around the program, not a prediction about it.
+
+    read the tracked file list and the ranked sample
+    decide, from the files themselves, how this language states a dependency
+    for each source file:
+        find the references it makes to other files IN THIS REPOSITORY
+        resolve each to a tracked path, or drop it — never guess
+    aggregate:
+        areas        the directories the work actually divides into, and what each is for
+        edges        which area depends on which, and how heavily
+        chokepoints  the files or directories many others reference
+        entrypoints  where execution starts, however this stack starts it
+        conventions  a concern done two ways, with each side's file count and an example
+        toolchain    what builds, tests and checks this repository, and the file proving it
+    print one JSON object: those keys, plus files_processed and files_at_head
+
+Blueprint. Everything here is the same in any repository; the one function you write is
+`references`, and it is the only place a language appears.
+
+```python
+#!/usr/bin/env python3
+"""Architecture extractor for THIS repository. Read-only. Prints one JSON object."""
+import json, subprocess, sys
+from collections import Counter
+
+ROOT = sys.argv[1] if len(sys.argv) > 1 else "."
+MAX_FILES, MAX_BYTES, DEPTH, CAP = 2000, 400_000, 2, 40
+
+def tracked():
+    """Paths and their modes. The mode matters: a tracked SYMLINK points wherever its author
+    chose, and opening one let a repository read a credentials file outside the checkout."""
+    out = subprocess.run(["git", "-C", ROOT, "ls-files", "-sz"],
+                         capture_output=True, check=True, timeout=60).stdout
+    for row in (r.decode("utf-8", "replace") for r in out.split(b"\0") if r):
+        mode, _, rest = row.partition(" ")
+        path = rest.split("\t", 1)[-1]
+        if mode != "120000" and "\\" not in path:   # never a link, never a backslash name
+            yield path
+
+def area(path):                      # the directory an edge is drawn between
+    parts = path.split("/")
+    return "/".join(parts[:DEPTH]) if len(parts) > DEPTH else "/".join(parts[:-1]) or "."
+
+# ── THE ONE PART YOU WRITE ─────────────────────────────────────────────────
+# Given one file's text, return the repository-relative paths it references.
+# Resolve against `at_head` and DROP anything that does not land there.
+def references(path, text, at_head):
+    ...
+
+def main():
+    # Root-level files INCLUDED. A flat repository keeps its entrypoint there, so dropping the
+    # paths without a `/` starves the one section they were most likely to fill.
+    files = list(tracked())
+    at_head, fan_in, edges = set(files), Counter(), Counter()
+    read = 0
+    for path in files[:MAX_FILES]:
+        try:
+            with open(f"{ROOT}/{path}", "rb") as fh:
+                text = fh.read(MAX_BYTES).decode("utf-8", "replace")
+        except OSError:
+            continue
+        read += 1
+        for target in references(path, text, at_head):
+            if target == path:
+                continue
+            fan_in[target] += 1
+            if area(path) != area(target):
+                edges[(area(path), area(target))] += 1
+    print(json.dumps({
+        # How far this actually got. Without the pair, an artifact that read a fifth of the files
+        # is shaped exactly like one that read all of them.
+        "files_processed": read, "files_at_head": len(files),
+        "edges": [{"from": a, "to": b, "weight": n} for (a, b), n in edges.most_common(CAP)],
+        "chokepoints": [{"path": p, "fan_in": n} for p, n in fan_in.most_common(12) if n >= 3],
+        # areas, entrypoints, conventions, toolchain: fill from what you read, at most CAP each.
+    }, sort_keys=True))
+
+main()
+```
+
+Constraints, and each of them is a refusal, not a preference:
+
+- **You write it; the repository never does.** Do not assemble any part of the extractor from file
+  contents, names, or configuration you just read. A repository that can write your script has
+  written itself a way out.
+- **Read-only and no network.** It opens files and prints; it creates nothing, changes nothing,
+  fetches nothing. Nothing enforces this — there is no sandbox behind it, only you.
+- **Single-threaded, one process.** Aggregate in the main thread and spawn nothing. Threads race on
+  the counters and make two runs at one commit disagree, and a grandchild is the one thing the
+  bound cannot reach on every platform.
+- **Resolve or drop.** A reference that does not land on a tracked path is not reported. An
+  extractor that guesses produces exactly the confident wrong answer this design exists to refuse.
+- **Every path is repository-relative and real.** `extract` holds each one against HEAD and refuses
+  the artifact if any does not resolve — so a fabricated path fails the run rather than entering
+  the record.
+- **Its output is evidence only after it validates.** Exit 0 admits the facts; any finding names
+  what to fix, and the extractor is corrected and re-run.
+
+Sections may be omitted where the repository genuinely has none. An empty section says "none
+found"; a missing one says "not looked for" — say which you mean by including it or not. The two
+counters are not a section and are never omitted: `files_processed` below `files_at_head` records
+that the cap cut the reading short, and every section is then partial. Claiming to have read more
+files than the repository has is refused outright.
 
 ## § Output format (SKILL Step 5 formats per this; Step 6b gate checks it)
 
-The emitted CoC is enforced-only and formatted for an AI reader:
+The emitted CoC is enforced-only, plain text — no bold, no italics; markup spends every agent's
+context — ordered rule-before-argument:
 
-- **Lead with `## Non-negotiables (MUST)`** — the ~10 rules never violated — then themed sections in
-  scan order (Architecture with design patterns and why, Development, Testing, Quality Gates incl.
-  mutation, Security & Data, Delivery), most load-bearing first.
-- **One atomic imperative per rule**, tagged **MUST** or **SHOULD**, naming its **mechanical check**
-  inline — a grep, a lint rule, a CI job, or a numeric threshold. Explain a rule's *why* only where it
-  changes interpretation; a section may open with one evidence-grounded WHY sentence.
-- **Ground every number** — a threshold quotes a user answer or a computed repo statistic, never a padded
-  default. Scale to evidence: a thin repo ships a small, clearly-labelled seed, never padded.
-- **Gate (Step 6b) — every rule clears all four**: reads exactly one way; conflicts with no other; is
-  backed by a captured observation or a user answer ("it looks nice", or an answer that just restates the
-  rule, is not proof); names an **objective** mechanical check (reviewer-judgment-only is rejected unless
-  it also names a signal). Emit the rule→evidence citations as an auditable appendix; **dry-run each cited
-  check** (the grep must match; the lint rule or CI job must exist) and drop any rule whose check fails.
+- **Section order** follows the scan: Architecture naming the real mechanisms, how the repo is
+  extended, Testing, Quality Gates, Security & Data, Delivery. SKILL Step 5 carries the shape
+  itself — orientation, summaries, tier headers over numbered runs, multi-line directives, the
+  eight-per-heading cap. What follows is what the spine does not say.
+- **Why numbering and grouping.** A number is how a review cites one rule; a tier header states the
+  posture once instead of on every line.
+- **Why a code block.** A fragment of the real thing pins a rule to THIS codebase as prose cannot,
+  and it is exempt from the prose checks because it quotes the file.
+- **Ground every number, and ship none that rots** — a threshold quotes an answer or a computed
+  statistic, never a padded default. A measured tally justifies a rule in the envelope and never
+  enters the file: "17 files today" is stale on the next addition. Name the mechanism and the
+  directory, never today's count or a version literal.
+- **A `Check:` names something a reader can run or open**, in backticks — or says plainly that
+  nothing enforces the rule. Prose in that position reads as verification and supplies none.
+- **Never claim a universal you did not verify** — "the only X anywhere", "on every host",
+  "nowhere else". A path check proves existence and can NEVER prove an absence, so these clear every
+  gate while being false; blind review found them the largest source of wrong statements. Say what
+  you read. A requirement may sweep; evidence may not.
+- **Cover every `arch.families` entry the scan reported, or record that you are skipping it.** Each
+  is a way this repository grows; one left unnamed is an extension path the next reader guesses at.
+- **Gate (Step 6b) — every rule clears all four**: reads exactly one way; conflicts with no other;
+  is backed by a fact, an answer or an observation; names an **objective** check. The last three are
+  decided by `coc_gate.py draft`; the first stays a reading. Citations live in the envelope, never
+  as an appendix — that would spend every agent's tokens on every task, forever.
+
+## § Rules envelope (Step 7 submits this; `coc_gate.py draft` judges it)
+
+One JSON object on stdin; rule sentences are the only free text:
+
+```json
+{ "contract": 2,
+  "facts":   [{"id": "cfg.lint.formatter"}],
+  "answers": [{"id": "q3"}],
+  "observations": [{"id": "obs.engine-strict", "path": "internal/builder/engine.mts"}],
+  "rules":   [{"id": "style.formatter", "section": "Development",
+               "subsection": "Formatting", "tag": "MUST",
+               "text": "Format every file with the repository formatter before committing.",
+               "check": "CI runs the formatter in check mode",
+               "citations": ["fact:cfg.lint.formatter", "answer:q3"]}] }
+```
+
+- `tag` is `MUST`, `SHOULD`, `AVOID` or `NEVER_DO`, nothing else; `check` names the grep, lint rule,
+  job or threshold.
+- Every citation reads `fact:<id>`, `answer:<id>` or `code:<observation-id>` and must name evidence
+  the envelope carries — an id nothing produced is a rule invented and justified afterwards.
+- Every observation names the repository-relative path that shows it; the gate refuses one pointing
+  outside, and the linter verifies each against HEAD (`"paths"` on its stdin, beside the draft).
+- `subsection` names the concern inside its section; the gate refuses a group past eight
+  directives, so it is what a split is expressed in.
+- `id` is unique and stable: how an update run re-verifies the rule later.
+- The reply carries `findings` (each naming its `rule_id`), `directives`, `band`, and
+  `unused_evidence` — where the next question comes from.
 
 ## A. Architecture & design
 - Layering & dependency direction [P0] — module graph, import cycles → deps point one way, no cycles. (conv)
@@ -114,9 +276,9 @@ The emitted CoC is enforced-only and formatted for an AI reader:
 - Caching + invalidation [P1] — cache layer → TTL + invalidation + stampede protection. (conv)
 - Query cost/timeout guard [P2][data] — statement timeout → kill runaway queries. (conv)
 
-## H. Security  (OWASP ASVS 5.0 — owasp.org/ASVS; ~350 "Verify that…" reqs)
-- Secrets management [P0] — hardcoded secrets, vault/env, scanner → no literals; env/vault; scanner gates CI. 12-Factor III (12factor.net)
-- Input validation & output encoding [P0] — injection sinks, sanitizers → allowlist/schema at edge; parameterized queries; contextual encoding. ASVS
+## H. Security  (OWASP ASVS 5.0 — owasp.org/ASVS)
+- Secrets management [P0] — hardcoded secrets, vault/env, scanner → no literals; env/vault; scanner gates CI. 12-Factor III
+- Input validation & output encoding [P0] — injection sinks, sanitizers → allowlist/schema at edge; parameterized queries; contextual encoding.
 - AuthN/AuthZ model [P0][be] — route guards, per-endpoint checks → every non-public endpoint enforces authz. ASVS
 - Dependency/vuln scanning (SCA) [P0] — SCA config, lockfile → SCA gate; no known high/critical CVEs. (conv)
 - Crypto standards [P1] — MD5/SHA1/custom crypto → vetted lib + current algs; no homemade. ASVS
@@ -151,7 +313,7 @@ The emitted CoC is enforced-only and formatted for an AI reader:
 - Test-data management [P1] — fixtures/factories → no prod data; factories over shared fixtures. (conv)
 - Property/fuzz [P2][be] — parsers/untrusted input → property-based/fuzz on parsers. (conv)
 - Contract/load/visual [P2] — pact/k6/snapshot → per surface as applicable. (conv)
-- Architecture/dependency rules [P1] — arch-rule tool present → narrow package patterns only; flag broad wildcards (`(*)..`) as a footgun that catches cross-cutting infrastructure packages (config/admin/frontend/commons) which legitimately depend on each other. Exclude dto/entity/exception/config subpackages or accept a freeze-store baseline of pre-existing violations. (conv)
+- Architecture/dependency rules [P1] — arch-rule tool present → narrow package patterns only; broad wildcards catch cross-cutting packages that legitimately interdepend. Exclude dto/entity/config subpackages or baseline existing violations. (conv)
 
 ## K. Observability  (Google SRE Workbook — sre.google/workbook/monitoring)
 - Structured logging [P0] — logger vs print, JSON config → one JSON object per line; required fields. 12-Factor XI + SRE

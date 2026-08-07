@@ -12,6 +12,7 @@ import pytest
 from tests.scripts.tools.state_patch.conftest import (
     SIBLING_SESSION, TARGET_SESSION, apply, build_home,
 )
+from tests.scripts.tools.tool_harness import read_only_directories_are_enforced
 
 
 def test_the_target_session_is_patched_and_the_sibling_session_survives_unchanged(fx):
@@ -112,8 +113,10 @@ def test_a_record_that_cannot_be_parsed_is_refused_rather_than_half_edited(fx):
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX permission semantics")
-def test_a_record_that_cannot_be_written_leaves_the_original_intact(fx):
+def test_a_record_that_cannot_be_written_leaves_the_original_intact(fx, tmp_path):
     """When the rewrite cannot land, the original must still be there — never a truncated file."""
+    if not read_only_directories_are_enforced(tmp_path):
+        pytest.skip("this machine writes into read-only directories, so no write here can fail")
     original = fx.state_path.read_text()
     os.chmod(fx.state_path.parent, 0o500)
     try:

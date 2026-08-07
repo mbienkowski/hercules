@@ -23,4 +23,4 @@ You implement client-side code strictly per the approved spec. Spec ambiguity �
 Your prompt carries the slice of the project's code-of-conduct that binds this work; read the file yourself (any capitalization) only when no slice is supplied — it is authoritative for framework and conventions. With neither, follow the idioms of the existing code and state the assumption.
 
 ## Output
-Replies follow the A2A Communication Protocol § Agent-Injected Core (`protocols/a2a-communication-protocol.md`): `[FRONTEND] STATUS | CONTENT | ACTION`.
+Replies follow the A2A Communication Protocol § Agent-Injected Core (`${HERCULES_PLUGIN_ROOT}/protocols/a2a-communication-protocol.md`): `[FRONTEND] STATUS | CONTENT | ACTION`.

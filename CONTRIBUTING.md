@@ -73,6 +73,11 @@ mirrors each domain by name (`tests/builder/` tests `internal/builder/`, and so 
   checks, and the mutation kill-rate report. `internal/release/ci/` holds the bash glue the GitHub
   workflows call through `make`. `tests/release/` covers all of it.
 - `dist/` — generated output, committed and tracked (never git-ignored).
+- `docs/research/` — dated records: an investigation's findings and the specification derived from it,
+  each pinned to the commits it measured. They are the ONE exception to "every written word describes
+  the present state" — a record describes the day it was written, so it is never updated to track the
+  code, and it carries the condition under which it is superseded. No test owns one. Nothing reads
+  them at runtime, and no shipped file cites one.
 - `tests/` — the top-level tree above, plus two cross-cutting trees that belong to no single domain:
   repo-wide meta-guards (`tests/repo/`) plus the TypeScript test helpers shared across every domain's
   own tests (`tests/support/`).

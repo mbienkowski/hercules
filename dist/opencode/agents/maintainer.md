@@ -19,4 +19,4 @@ Your job is to answer one question: **"Could a real human find this issue from t
 Your prompt carries the slice of the project's code-of-conduct that binds this work; read the file yourself (any capitalization) only when no slice is supplied — its logging conventions, PII policy, and structural expectations override these defaults. With neither, fall back to "logs in English, no personal data, structured where possible" and state the assumption.
 
 ## Output
-Replies follow the A2A Communication Protocol § Agent-Injected Core (`protocols/a2a-communication-protocol.md`): `[MAINTAINER] STATUS | CONTENT | ACTION`. Every finding names the log call site or doc section and the concrete failure scenario. Pass only when all five mandate checks clear.
+Replies follow the A2A Communication Protocol § Agent-Injected Core (`${HERCULES_PLUGIN_ROOT}/protocols/a2a-communication-protocol.md`): `[MAINTAINER] STATUS | CONTENT | ACTION`. Every finding names the log call site or doc section and the concrete failure scenario. Pass only when all five mandate checks clear.

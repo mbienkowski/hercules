@@ -15,6 +15,17 @@ for (const asset of ["instructions.md", "protocols/a2a-communication-protocol.md
   }
 }
 
+// Every other host names its own plugin directory in an environment variable, and shipped prose
+// invokes a tool through that variable. OpenCode names none, so this plugin publishes one — the
+// shell an agent runs is a child of this process and inherits it.
+//
+// Why it matters more than tidiness: without an absolute prefix the invocation resolves against
+// the working directory, which IS the repository being worked on.
+// Any repository shipping a file at that path would have it executed with the user's authority. The
+// prose now carries the HERCULES_PLUGIN_ROOT expansion, so an unset variable yields the absolute
+// `/tools/…` and fails loudly instead of silently running whatever the checkout contains.
+process.env.HERCULES_PLUGIN_ROOT = PLUGIN_ROOT;
+
 const LEAD = "hercules";
 const COMMAND_PREFIX = "hercules:";
 

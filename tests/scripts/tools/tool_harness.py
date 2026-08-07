@@ -11,17 +11,27 @@ import contextlib
 import importlib
 import io
 import json
+import os
 import sys
 from pathlib import Path
 
 TOOLS_DIR = Path(__file__).resolve().parents[3] / "src" / "scripts" / "tools"
 
 
+def tool_directories() -> list:
+    """Every directory a shipped tool lives in. Tools are grouped by the feature they serve, and a
+    host reaches one by path, so a test resolves them the same way rather than assuming one flat
+    directory."""
+    return [TOOLS_DIR] + sorted(p for p in TOOLS_DIR.rglob("*") if p.is_dir()
+                                and p.name != "__pycache__")
+
+
 def load_tool(module_name: str):
     """The shipped tool's ``main``, reached by putting its directory on the path — single-file
     programs with no package around them, the same way a host reaches one."""
-    if str(TOOLS_DIR) not in sys.path:
-        sys.path.insert(0, str(TOOLS_DIR))
+    for directory in tool_directories():
+        if str(directory) not in sys.path:
+            sys.path.insert(0, str(directory))
     return importlib.import_module(module_name).main
 
 
@@ -102,6 +112,24 @@ def write_hercules_home(
         })
     )
     return ToolHome(tmp_path, project, slug, docs)
+
+
+def read_only_directories_are_enforced(tmp_path: Path) -> bool:
+    """Whether stripping write permission from a directory actually stops a write here — measured,
+    not inferred from the user id. A test that a failed write leaves the original intact needs the
+    write to fail; run as root, or on a filesystem that ignores the mode, it never does, and the test
+    would report a defect in the tool that is really a property of the machine."""
+    probe = tmp_path / "permission-probe"
+    probe.mkdir()
+    (probe / "existing.txt").write_text("x")
+    os.chmod(probe, 0o500)
+    try:
+        (probe / "new.txt").write_text("x")
+        return False
+    except OSError:
+        return True
+    finally:
+        os.chmod(probe, 0o700)
 
 
 def invoke(main, home: Path, argv, **extra):

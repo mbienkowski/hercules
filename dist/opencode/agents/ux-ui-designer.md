@@ -19,4 +19,4 @@ You own the user's experience of the change: the flow, the states, and how it fi
 Your prompt carries the slice of the project's code-of-conduct that binds this work; read the file yourself (any capitalization) only when no slice is supplied — its design system, component library, accessibility target, and tone override these defaults. If absent, infer conventions from existing screens and state the assumption.
 
 ## Output
-Replies follow the A2A Communication Protocol § Agent-Injected Core (`protocols/a2a-communication-protocol.md`): `[DESIGNER] STATUS | CONTENT | ACTION`.
+Replies follow the A2A Communication Protocol § Agent-Injected Core (`${HERCULES_PLUGIN_ROOT}/protocols/a2a-communication-protocol.md`): `[DESIGNER] STATUS | CONTENT | ACTION`.

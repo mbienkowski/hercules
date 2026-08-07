@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the code-of-conduct generator works</title>
+<style>
+  :root {
+    --bg: #e9ebea; --surface: #f3f4f3; --sunk: #dfe2e1;
+    --text: #171c22; --dim: #5c666f; --faint: #8b949d; --rule: #c9cecd;
+    --signal: #9c6413; --verify: #2c6a58; --refuse: #9d3d26;
+    --s-scan: #3f5f8f; --s-ask: #6f5290; --s-read: #336b57;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #11151a; --surface: #171d24; --sunk: #0d1116;
+      --text: #e4e8ea; --dim: #98a3ac; --faint: #6b757e; --rule: #2a323b;
+      --signal: #d69a3c; --verify: #58a48c; --refuse: #d1705a;
+      --s-scan: #7ba0d4; --s-ask: #a98cc8; --s-read: #63a88c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--signal); margin: 0 0 0.75rem;
+  }
+  h1 {
+    font-size: clamp(1.75rem, 4vw, 2.4rem); line-height: 1.15; letter-spacing: -0.02em;
+    font-weight: 620; margin: 0 0 1rem; text-wrap: balance;
+  }
+  .lede { max-width: 62ch; color: var(--dim); margin: 0 0 1rem; }
+  .lede strong { color: var(--text); font-weight: 600; }
+  h2 {
+    font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.12em;
+    text-transform: uppercase; font-weight: 600; color: var(--text); margin: 0 0 0.35rem;
+  }
+  h3 {
+    font-size: 1rem; font-weight: 600; margin: 2rem 0 0.5rem; color: var(--text);
+  }
+  .sub { color: var(--dim); font-size: 0.95rem; max-width: 62ch; margin: 0 0 1.5rem; }
+  section { margin-top: 3.5rem; border-top: 1px solid var(--rule); padding-top: 1.75rem; }
+  code, .mono { font-family: var(--mono); font-size: 0.85em; }
+  .lede code, .sub code, td code, .step-d code, .layer-d code, .note code { color: var(--text); }
+
+  figure { margin: 0; }
+  .figbox {
+    overflow-x: auto; background: var(--surface); border: 1px solid var(--rule);
+    padding: 1.5rem 1rem;
+  }
+  .figbox svg { display: block; min-width: 700px; max-width: 100%; height: auto; margin: 0 auto; }
+  figcaption { font-size: 0.85rem; color: var(--dim); margin-top: 0.85rem; max-width: 68ch; }
+  .d-label { font-family: var(--mono); font-size: 13px; fill: var(--text); }
+  .d-sub   { font-family: var(--mono); font-size: 10.5px; fill: var(--faint); letter-spacing: 0.04em; }
+  .d-edge  { font-family: var(--mono); font-size: 10.5px; fill: var(--dim); }
+  .d-cap   { font-family: var(--mono); font-size: 10px; fill: var(--faint); letter-spacing: 0.1em; }
+  .box { fill: var(--surface); stroke: var(--rule); stroke-width: 1.25; }
+  .sunkbox { fill: var(--sunk); stroke: var(--rule); stroke-width: 1.25; }
+  .gate { fill: none; stroke: var(--signal); stroke-width: 2; }
+  .gate-fill { fill: var(--signal); opacity: 0.07; }
+  .flow { stroke: var(--dim); stroke-width: 1.4; fill: none; }
+  .flow-refuse { stroke: var(--refuse); stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; }
+
+  .steps { display: grid; }
+  .step {
+    display: grid; grid-template-columns: 2.5rem 1fr; gap: 0 1rem;
+    padding: 0.9rem 0; border-bottom: 1px solid var(--rule); align-items: baseline;
+  }
+  .step:first-child { border-top: 1px solid var(--rule); }
+  .step-n { font-family: var(--mono); font-size: 0.85rem; color: var(--signal); font-variant-numeric: tabular-nums; }
+  .step-t { font-weight: 580; font-size: 0.98rem; }
+  .step-d { grid-column: 2; color: var(--dim); font-size: 0.9rem; margin-top: 0.15rem; }
+  .out {
+    grid-column: 2; margin-top: 0.4rem; font-family: var(--mono); font-size: 0.78rem;
+    color: var(--faint); letter-spacing: 0.02em;
+  }
+  .out b { color: var(--verify); font-weight: 500; }
+
+  .tablebox { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th {
+    text-align: left; font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--faint); font-weight: 500;
+    padding: 0 1rem 0.6rem 0; border-bottom: 1px solid var(--rule);
+  }
+  td { padding: 0.7rem 1rem 0.7rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  td:first-child { font-family: var(--mono); color: var(--text); white-space: nowrap; }
+  td.dim { color: var(--dim); }
+  .tier { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.06em; padding: 0.1rem 0.4rem; border: 1px solid currentColor; }
+  .t-gate { color: var(--signal); }
+  .t-lint { color: var(--s-scan); }
+  .t-extract { color: var(--s-read); }
+
+  pre.sample {
+    margin: 0; font-family: var(--mono); font-size: 0.8rem; line-height: 1.65;
+    color: var(--text); overflow-x: auto; background: var(--surface);
+    border: 1px solid var(--rule); padding: 1.25rem 1rem;
+  }
+  pre.sample .c { color: var(--faint); }
+  pre.sample .k { color: var(--signal); }
+
+  .layers { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .layer { background: var(--surface); padding: 1rem 1.15rem; display: grid; grid-template-columns: 1.5rem 1fr; gap: 0 0.9rem; }
+  .layer-n { font-family: var(--mono); font-size: 0.8rem; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .layer-t { font-weight: 580; font-size: 0.95rem; }
+  .layer-d { grid-column: 2; color: var(--dim); font-size: 0.89rem; margin-top: 0.2rem; }
+
+  .note {
+    margin-top: 1.25rem; padding: 0.9rem 1.1rem; border-left: 2px solid var(--signal);
+    background: var(--surface); font-size: 0.9rem; color: var(--dim); max-width: 68ch;
+  }
+  .note b { color: var(--text); font-weight: 600; }
+  footer { margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--rule); font-size: 0.85rem; color: var(--faint); }
+  @media (max-width: 560px) {
+    .wrap { padding: 2rem 1rem 3rem; }
+    .step { grid-template-columns: 2rem 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">hercules / skills</p>
+  <h1>code-of-conduct-generator</h1>
+  <p class="lede">
+    A Hercules skill that writes a repository's <strong>code-of-conduct</strong> — the standing
+    document that tells every agent and every contributor how this project is built: its
+    architecture and extension points, its testing bar, its quality gates, and the rules that are
+    never broken. Run it once per repository — <em>"Hercules, set up this project"</em> — and every
+    later session starts pre-calibrated.
+  </p>
+  <p class="lede">
+    It works in three moves: a deterministic tool <strong>measures</strong> the repository, the
+    skill <strong>asks the owner</strong> what no scan can answer, and the agent
+    <strong>reads the code</strong>. Every rule in the document must name evidence from one of
+    those three streams, and programs — not judgment — refuse the draft when it cannot. Nothing is
+    written except the code-of-conduct file itself.
+  </p>
+
+  <section>
+    <h2>What you get</h2>
+    <p class="sub">
+      One file, project-specific, citing real paths. The first sentence of every rule reads alone —
+      that is the line a skimming reader takes away; everything after it is for the reader who
+      stopped.
+    </p>
+<pre class="sample"><span class="c">&lt;orientation — what this repo is, the loop, what the tiers mean&gt;</span>
+
+## Architecture                    <span class="c">← section, then its summary</span>
+
+### Rendering and templates        <span class="c">← a concern, then its own summary</span>
+
+<span class="k">MUST:</span>                             <span class="c">← the posture, stated once</span>
+
+1. Render every shipped file through the single engine instance.
+   That module is the only place an engine is constructed.   <span class="c">← explanation</span>
+   Check: `internal/builder/template-engine.mts`.            <span class="c">← the check</span>
+
+   ```ts                                                     <span class="c">← invited</span>
+   return new Liquid({ strictVariables: true });
+   ```
+
+2. Remove a key from scope by declaring it null in the recipe.
+   …
+
+<span class="k">AVOID:</span>
+
+1. …
+
+## Why this is the way it is       <span class="c">← every reason, last</span>
+</pre>
+  </section>
+
+  <section>
+    <h2>How it works</h2>
+    <p class="sub">
+      Evidence enters by three lanes and leaves as one JSON envelope. Nothing reaches the document
+      that has not passed the envelope gate first.
+    </p>
+    <figure>
+      <div class="figbox">
+        <svg viewBox="0 0 940 826" role="img"
+             aria-label="Three evidence lanes — a deterministic scan, an owner interview, and the agent reading code — each produce citations that converge into one JSON envelope. The envelope gate refuses any rule that is untagged, uncheckable or uncited, looping back for a fix. Passing drafts are laid out as markdown and checked for shape and citation, written atomically, then re-checked against the bytes on disk.">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <rect class="sunkbox" x="370" y="16" width="200" height="44"/>
+          <text class="d-label" x="470" y="37" text-anchor="middle">target repository</text>
+          <text class="d-sub" x="470" y="52" text-anchor="middle">UNTRUSTED · READ-ONLY</text>
+          <g color="var(--dim)">
+            <path class="flow" d="M470 60 L470 82 L175 82 L175 118" marker-end="url(#ar)"/>
+            <path class="flow" d="M470 60 L470 118" marker-end="url(#ar)"/>
+            <path class="flow" d="M470 60 L470 82 L765 82 L765 118" marker-end="url(#ar)"/>
+          </g>
+          <text class="d-cap" x="175" y="106" text-anchor="middle">MEASURED</text>
+          <text class="d-cap" x="470" y="106" text-anchor="middle">ASKED</text>
+          <text class="d-cap" x="765" y="106" text-anchor="middle">READ</text>
+
+          <rect class="box" x="55" y="118" width="240" height="70" stroke="var(--s-scan)"/>
+          <text class="d-label" x="175" y="140" text-anchor="middle">coc_scan.py</text>
+          <text class="d-sub" x="175" y="156" text-anchor="middle">config · history · liveness</text>
+          <text class="d-sub" x="175" y="170" text-anchor="middle">families — asks git only,</text>
+          <text class="d-sub" x="175" y="182" text-anchor="middle">knows no language</text>
+
+          <rect class="box" x="350" y="118" width="240" height="70" stroke="var(--s-ask)"/>
+          <text class="d-label" x="470" y="140" text-anchor="middle">owner interview</text>
+          <text class="d-sub" x="470" y="156" text-anchor="middle">intent the code cannot show</text>
+          <text class="d-sub" x="470" y="170" text-anchor="middle">every split convention becomes</text>
+          <text class="d-sub" x="470" y="182" text-anchor="middle">one question, never a guess</text>
+
+          <rect class="box" x="645" y="118" width="240" height="70" stroke="var(--s-read)"/>
+          <text class="d-label" x="765" y="140" text-anchor="middle">the agent reading + extracting</text>
+          <text class="d-sub" x="765" y="156" text-anchor="middle">writes an extractor for THIS repo;</text>
+          <text class="d-sub" x="765" y="170" text-anchor="middle">coc_scan runs it under a bound,</text>
+          <text class="d-sub" x="765" y="182" text-anchor="middle">validates every path against HEAD</text>
+
+          <g color="var(--dim)">
+            <path class="flow" d="M175 188 L175 214" marker-end="url(#ar)"/>
+            <path class="flow" d="M470 188 L470 214" marker-end="url(#ar)"/>
+            <path class="flow" d="M765 188 L765 214" marker-end="url(#ar)"/>
+          </g>
+          <rect x="105" y="214" width="140" height="28" fill="none" stroke="var(--s-scan)" stroke-width="1.25"/>
+          <text class="d-label" x="175" y="233" text-anchor="middle" fill="var(--s-scan)">fact:&lt;id&gt;</text>
+          <rect x="400" y="214" width="140" height="28" fill="none" stroke="var(--s-ask)" stroke-width="1.25"/>
+          <text class="d-label" x="470" y="233" text-anchor="middle" fill="var(--s-ask)">answer:&lt;id&gt;</text>
+          <rect x="695" y="214" width="140" height="28" fill="none" stroke="var(--s-read)" stroke-width="1.25"/>
+          <text class="d-label" x="765" y="233" text-anchor="middle" fill="var(--s-read)">code:&lt;id&gt;</text>
+          <text class="d-sub" x="765" y="256" text-anchor="middle" fill="var(--s-read)">one per observation · many</text>
+
+          <g color="var(--dim)">
+            <path class="flow" d="M175 242 L175 272 L470 272 L470 296" marker-end="url(#ar)"/>
+            <path class="flow" d="M470 242 L470 272"/>
+            <path class="flow" d="M765 242 L765 272 L470 272"/>
+          </g>
+          <rect class="box" x="320" y="296" width="300" height="52"/>
+          <text class="d-label" x="470" y="319" text-anchor="middle">rules envelope · JSON</text>
+          <text class="d-sub" x="470" y="336" text-anchor="middle">id · section · subsection · tag · check · citations</text>
+          <g color="var(--dim)"><path class="flow" d="M470 348 L470 384" marker-end="url(#ar)"/></g>
+
+          <rect class="gate-fill" x="285" y="384" width="370" height="76"/>
+          <rect class="gate" x="285" y="384" width="370" height="76"/>
+          <text class="d-cap" x="470" y="404" text-anchor="middle" fill="var(--signal)">GATE · PURE FUNCTION</text>
+          <text class="d-label" x="470" y="424" text-anchor="middle">coc_gate.py draft</text>
+          <text class="d-sub" x="470" y="443" text-anchor="middle">tagged · checkable · cited · unique · grouped · in budget</text>
+          <g color="var(--refuse)"><path class="flow-refuse" d="M285 422 L215 422 L215 322 L320 322" marker-end="url(#ar)"/></g>
+          <text class="d-edge" x="208" y="374" text-anchor="end" fill="var(--refuse)">exit 1</text>
+          <text class="d-edge" x="208" y="388" text-anchor="end" fill="var(--refuse)">fix, re-run</text>
+          <g color="var(--dim)"><path class="flow" d="M470 460 L470 500" marker-end="url(#ar)"/></g>
+          <text class="d-edge" x="482" y="484" fill="var(--verify)">exit 0</text>
+
+          <rect class="box" x="340" y="500" width="260" height="44"/>
+          <text class="d-label" x="470" y="527" text-anchor="middle">markdown draft</text>
+          <g color="var(--dim)"><path class="flow" d="M470 544 L470 580" marker-end="url(#ar)"/></g>
+
+          <rect class="gate-fill" x="285" y="580" width="370" height="72"/>
+          <rect class="gate" x="285" y="580" width="370" height="72"/>
+          <text class="d-cap" x="470" y="600" text-anchor="middle" fill="var(--signal)">GATE · SHAPE + CLAIMS + PATHS</text>
+          <text class="d-label" x="470" y="620" text-anchor="middle">coc_lint.py</text>
+          <text class="d-sub" x="470" y="638" text-anchor="middle">every cited path resolved against HEAD</text>
+          <g color="var(--dim)"><path class="flow" d="M470 652 L470 690" marker-end="url(#ar)"/></g>
+
+          <rect class="box" x="330" y="690" width="280" height="46" stroke="var(--verify)"/>
+          <text class="d-label" x="470" y="710" text-anchor="middle">code-of-conduct.md</text>
+          <text class="d-sub" x="470" y="726" text-anchor="middle">written atomically · nothing else touched</text>
+          <g color="var(--dim)"><path class="flow" d="M470 736 L470 768" marker-end="url(#ar)"/></g>
+          <rect class="gate" x="285" y="768" width="370" height="44"/>
+          <text class="d-label" x="470" y="789" text-anchor="middle">coc_lint.py --file</text>
+          <text class="d-sub" x="470" y="805" text-anchor="middle">the draft that passed is not proof about the bytes that landed</text>
+        </svg>
+      </div>
+      <figcaption>
+        The refusal loop is the point: a rule the agent cannot justify never becomes markdown, and
+        a path it cannot prove exists never becomes a file.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>The workflow</h2>
+    <p class="sub">
+      Ten steps. A content test pins the order, so the shipped prose cannot drift out of sequence.
+    </p>
+    <div class="steps">
+      <div class="step"><div class="step-n">01</div><div class="step-t">Plan, and pick a depth</div>
+        <div class="step-d">Nothing is scanned before the user has seen the flow. <em>Quick</em> or <em>Thorough</em>.</div></div>
+      <div class="step"><div class="step-n">02</div><div class="step-t">Find any existing code-of-conduct</div>
+        <div class="step-d">One match means update mode, additions-only. Several are never silently resolved — it asks.</div></div>
+      <div class="step"><div class="step-n">03</div><div class="step-t">Scan</div>
+        <div class="step-d">Config, history, liveness, and the directories the repo grows by — asked of git, in any language.</div></div>
+      <div class="step"><div class="step-n">3b</div><div class="step-t">Extract the architecture</div>
+        <div class="step-d">The agent writes a small extractor for the stack in front of it; the tool runs it under a hard bound and validates every path it reports against the repository.</div></div>
+      <div class="step"><div class="step-n">04</div><div class="step-t">Ask, in one batch</div>
+        <div class="step-d">Five or more questions, never trickled. Every split convention found in the code becomes a question — never a majority vote.</div></div>
+      <div class="step"><div class="step-n">05</div><div class="step-t">Draft from all three streams</div>
+        <div class="step-d">Every rule cites a fact, an answer, or an observation. No evidence, no rule.</div></div>
+      <div class="step"><div class="step-n">06</div><div class="step-t">Gap pass and critical review</div>
+        <div class="step-d">A coverage map finds load-bearing omissions; an advisor reviews the draft. Both recommend — neither silently adds.</div></div>
+      <div class="step"><div class="step-n">07</div><div class="step-t">Gate</div>
+        <div class="step-d">Two programs check the draft — evidence, shape, citations, real paths. Exit 0 ships; anything else gets fixed, never argued past.</div></div>
+      <div class="step"><div class="step-n">08</div><div class="step-t">Approve and write</div>
+        <div class="step-d">Written atomically, after the user's yes. No other file is created or edited. The linter runs once more, against disk.</div></div>
+      <div class="step"><div class="step-n">09</div><div class="step-t">Commit</div>
+        <div class="step-d">Exactly that one path is staged. A push is offered, never taken.</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why the output can be trusted</h2>
+    <p class="sub">
+      Not because a model wrote it carefully — because programs refuse it when it is wrong. Every
+      check below exists because that defect really got through once.
+    </p>
+    <div class="layers">
+      <div class="layer"><div class="layer-n">01</div>
+        <div class="layer-t">Every rule is evidenced, or refused</div>
+        <div class="layer-d">Untagged, uncheckable, or citing evidence the run does not carry — the gate bounces it back with the reason named.</div></div>
+      <div class="layer"><div class="layer-n">02</div>
+        <div class="layer-t">Every cited path is real, or refused</div>
+        <div class="layer-d">Paths resolve against the repository's own file list at HEAD — a claim about a file that does not exist never enters the document.</div></div>
+      <div class="layer"><div class="layer-n">03</div>
+        <div class="layer-t">Nothing that rots ships</div>
+        <div class="layer-d">Snapshot counts, pinned versions, and unverifiable universals ("the only X anywhere") are refused — they are true when written and silently false a week later.</div></div>
+      <div class="layer"><div class="layer-n">04</div>
+        <div class="layer-t">The runtime extractor is bounded, never believed</div>
+        <div class="layer-d">The agent-written extractor runs under a deadline with its output capped, and must report how much of the repository it actually read — a partial read can never pass as a complete one.</div></div>
+      <div class="layer"><div class="layer-n">05</div>
+        <div class="layer-t">Universal by design</div>
+        <div class="layer-d">No shipped code knows any language — the scan asks git, and the language knowledge is written by the agent at runtime, per repository. There is no parser catalogue to fall behind.</div></div>
+    </div>
+    <div class="note">
+      <b>Failure is loud.</b> An unreadable repository, a hung extractor, a rule without evidence —
+      each stops the run and names itself. The one thing this pipeline never does is degrade
+      silently into a confident document that covers less than it appears to.
+    </div>
+  </section>
+
+  <footer>
+    Source of truth for the behaviour described here:
+    <code>src/content/skills/code-of-conduct-generator/</code> and
+    <code>src/scripts/tools/code_of_conduct/</code>. When they disagree with this page, they are
+    right and this page is stale.
+  </footer>
+
+</div>
+</body>
+</html>

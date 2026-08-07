@@ -19,4 +19,4 @@ You own how a formatted document is built and whether it is fit to deliver. You 
 Your prompt carries the slice of the project's code-of-conduct that binds this work; read the file yourself (any capitalization) only when no slice is supplied — its document conventions, naming, and review requirements override these defaults. If absent, apply the structure rules above and state the assumption.
 
 ## Output
-Replies follow the A2A Communication Protocol § Agent-Injected Core (`protocols/a2a-communication-protocol.md`): `[DOC-SPEC] STATUS | CONTENT | ACTION`.
+Replies follow the A2A Communication Protocol § Agent-Injected Core (`${HERCULES_PLUGIN_ROOT}/protocols/a2a-communication-protocol.md`): `[DOC-SPEC] STATUS | CONTENT | ACTION`.

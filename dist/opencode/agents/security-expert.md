@@ -23,4 +23,4 @@ Hard-coded secrets/credentials; unvalidated user input reaching the service/pers
 Your prompt carries the slice of the project's code-of-conduct that binds this work; read the file yourself (any capitalization) only when no slice is supplied — its compliance obligations, secret-handling rules, and forbidden/cautioned operations override these defaults. If absent, apply OWASP Top 10 as the baseline and state the assumption.
 
 ## Output
-Replies follow the A2A Communication Protocol § Agent-Injected Core (`protocols/a2a-communication-protocol.md`): `[SECURITY] STATUS | CONTENT | ACTION`. Tiebreaker authority on security/compliance; if the human overrides, log it as an accepted risk.
+Replies follow the A2A Communication Protocol § Agent-Injected Core (`${HERCULES_PLUGIN_ROOT}/protocols/a2a-communication-protocol.md`): `[SECURITY] STATUS | CONTENT | ACTION`. Tiebreaker authority on security/compliance; if the human overrides, log it as an accepted risk.

@@ -11,18 +11,19 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
 
 ## Invariants
 
-The file states the **target repository's** enforced standards only — never Hercules's process internals
-(phases, commands, state, spec-first flow, contributor rules). It states only what is enforced today;
-anything recommended-but-unmet is offered in chat, not written in the file. Never average two
-conflicting values.
+- The **target repository's** enforced standards only — never Hercules's process internals (phases,
+  commands, state, spec-first flow, contributor rules).
+- Only what is enforced **today**; recommended-but-unmet is offered in chat, never written to the file.
+- Never average two conflicting values.
 
 ## Preconditions
 
-Must run inside a git repository — else **stop** and tell the user to re-open Hercules in the target
-repository and re-invoke. Resolve the **target** repo per `hercules-reference § Code-of-conduct resolution`, not
-the launch directory; if Codex was opened away from the code or several candidate roots exist, list
-them (`ls`, `git rev-parse --show-toplevel`) and ask which repo the CoC is for. Run every scan, `find`,
-and git command against that root (`git -C <root>`), never bare `.`.
+- Must run inside a git repository — else **stop**: tell the user to re-open Hercules in the target
+  repository and re-invoke.
+- Resolve the **target** repo per `hercules-reference § Code-of-conduct resolution`, not the launch
+  directory. If Codex was opened away from the code, or several roots are candidates, list them
+  (`ls`, `git rev-parse --show-toplevel`) and ask which repo the CoC is for.
+- Run every scan, `find` and git command against that root (`git -C <root>`), never bare `.`.
 
 ## Method
 
@@ -30,68 +31,152 @@ and git command against that root (`git -C <root>`), never bare `.`.
    flow and offer **Quick** (small/low-stakes default: scan → a few questions → draft → gate → review →
    commit) or **Thorough** (adds the coverage-map gap pass and an advisor critical-review pass). Name the detected
    root so the user can correct it.
-2. **Find existing CoC** — find it case-insensitively (any capitalization of `code-of-conduct.md` or
-   `CODE_OF_CONDUCT.md`) across root/`.github/`/`docs/` (`find <root> -maxdepth 2 -iname
-   'code[-_ ]of[-_ ]conduct.md'`). One match → **update mode**; but a lone `.github/` behavioural
-   Contributor Covenant is not an engineering standard — treat it as none and create a separate file.
-   **More than one** → never silently pick; list every match and confirm the target. None → default
-   `code-of-conduct.md` in the root.
-3. **Scan (≤5 min)** — run the **§ Scan playbook** in `coverage-map.md`: bounded and config-first,
-   size-adaptive, mining git history for the commit/branch/merge/release conventions, reconciling config
-   against code, capturing a citation per observation.
-4. **Questions** — ask a single batch in one message — no trickle. The main agent decides the count
-   each run but **never asks fewer than 5–8 questions** (minimum 5, up to 8 or more for a large or
-   polyglot repo); even Quick asks at least this many, since a fuller interview signals deeper, more
-   thorough work. Ask *intent*, resolve split patterns, and force an explicit accept/decline on each recommended gate.
-   Recommend in chat the AI-assisted quality bar — branch (not just line) coverage, a mutation gate
-   where a mutation tool exists, architecture/dependency tests via the framework's standard tool, a
-   linter + formatter; accepted-with-tooling becomes a rule, the rest stay chat advice.
-5. **Draft** — draft rules only from scan observations and user answers, formatted per **§ Output
-   format** in `coverage-map.md`: lead with a `## Non-negotiables (MUST)` block, then themed sections —
-   Architecture (design patterns in use, and why), Development, Testing, Quality Gates (coverage;
-   mutation), Security & Data, Delivery — each rule naming its check inline and tagged MUST/SHOULD;
-   explain a rule's *why* only where it changes interpretation.
-6. **Gap pass & critical review** (Thorough) — run `coverage-map.md` once as a stack-gated gap detector: each
-   load-bearing omission is a chat recommendation (accept → rule, decline → absent), offered
-   highest-value first and never past the directive budget. Then one `challenger` critically reviews the draft
-   per `hercules-reference § Sub-agent consent`, carrying the A2A § Agent-Injected Core plus the observations; a full trio is
-   opt-in or automatic for a contested repo, per `hercules-reference § Debate protocol`; advisors return findings
-   only, never write. Quick runs a light platitude/no-evidence self-scan instead.
-7. **Gate & present** — hold the draft until every rule clears the gate: reads exactly one way;
-   conflicts with no other; is backed by a captured observation or a user answer ("it looks nice" is not
-   proof); names an objective mechanical check — and **dry-run each cited check, dropping any that
-   fails** (full rationale in **§ Output format**). Then present it with a short summary (top standards,
-   added, conflicts, dropped), surfacing only the ~5 genuine decisions ranked by marginal information —
-   never a long list to curate. Feedback applies **surgically** with a diff of what changed; regenerate
-   wholesale only when the user reopens the scope, and re-gate only what changed.
-8. **Approve & write** — on approval: leave plan mode → write atomically (temp + rename) → add a
-   deduplicated `@`-reference (default `@./code-of-conduct.md`) to the **target** repo's `AGENTS.md`,
-   creating it when missing.
+2. **Find existing CoC** — `find <root> -maxdepth 2 -iname 'code[-_ ]of[-_ ]conduct.md'` across
+   root/`.github/`/`docs/`, any capitalization. **Whatever it finds is the path Step 8 writes** —
+   the repo's own spelling, its own directory, in place. Never a second file beside it.
+   - One match → **update mode**, writing back to that exact path. A repo spelling it
+     `CODE_OF_CONDUCT.md` keeps that name; emitting the default alongside would leave two
+     standards files, and on a case-insensitive filesystem it silently clobbers the wrong one.
+   - More than one → **never silently pick**; list every match and confirm which one is the target.
+     This is the only naming question worth asking, because the repo itself is ambiguous.
+   - None → default `code-of-conduct.md` in the root. The default applies **only** here.
+   - Record the resolved path once and carry it verbatim through Steps 7, 8 and 9.
+   - But a lone `.github/` behavioural Contributor Covenant is not an engineering standard: treat
+     it as none and create a separate file.
+3. **Scan** — `python3 ${PLUGIN_ROOT}/tools/code_of_conduct/coc_scan.py all --root <root> --contract 2`.
+   - It reports what the repo declares by the presence of a file, what its history shows, which
+     directories are alive, cooling, dormant or generated, a ranked file list to read from, and
+     `arch.families` — the directories that grow by one more of a kind. It knows no language.
+   - Non-zero exit: relay its message and stop — never hand-scan around a refusal.
+   - Then the **§ Scan playbook** for what it cannot decide: read the ranked sample, reconcile
+     config against code, turn every `unknown` into a Step-4 question, and record each pattern or
+     mechanism you confirm as an **observation** `{id, path}` naming the file that shows it — the
+     third evidence stream, beside facts and answers.
+3b. **Extract the architecture** — per **§ Architecture extractor**. Write a small read-only
+   extractor for the language in front of you, then have it RUN for you:
+   `python3 ${PLUGIN_ROOT}/tools/code_of_conduct/coc_scan.py extract --root <root> --extractor <script> --contract 2`.
+   - You author the extractor; never assemble any part of it from repository content. Never run it
+     yourself — `extract` bounds its runtime and its output, and an unbounded run is how one file
+     costs an hour.
+   - **Exit 0 admits its facts.** Any finding names a section and what is wrong — most often a path
+     that does not resolve at HEAD. Fix the extractor and re-run; never submit around a refusal.
+   - `extractor_timed_out` is a hang, not a wrong answer, and nothing came back to tell you which
+     file caused it. Retry **once** having narrowed what it reads — halve `MAX_FILES`, or start the
+     iteration elsewhere so a different set is read — and know that without per-file attribution
+     this is a coin flip, not a repair. **A second timeout stops the run**: report it to the user.
+   - A stopped extraction means the architecture was attempted and denied. Say that in as many
+     words, and never let the document read as though this repository has no architecture.
+4. **Questions** — one batch, one message, no trickle.
+   - **Never fewer than 5**, up to 8+ for a large or polyglot repo; Quick asks this many too.
+   - **Every `conventions` entry the extractor reported becomes one question**, quoting each
+     side's file count and naming an example file. Never pick for the user: recent work says
+     where a team is going and equally where it is retreating from, and no count can tell those
+     apart. The counts are the argument; the answer is theirs.
+   - Ask *intent*, resolve split patterns, force an explicit accept/decline on each recommended gate.
+   - Recommend in chat: branch (not line) coverage, a mutation gate where a mutation tool exists,
+     architecture tests via the framework's standard tool, a linter + formatter.
+   - Accepted-with-tooling becomes a rule; the rest stay chat advice.
+5. **Draft** — rules only from the three evidence streams (facts, answers, observations), per
+   **§ Output format**.
+   - Orientation first (what the repo is, the edit→verify loop, what the tiers mean), then themed
+     sections — Architecture naming the real mechanisms, how the repo is extended, Testing, Quality
+     Gates, Security & Data, Delivery — every reason in one closing Why section.
+   - Every heading (`##`, or `###` where a section has concerns worth naming) opens with a 1–3
+     sentence summary, then one `MUST:`/`SHOULD:`/`AVOID:`/`NEVER_DO:` header per posture owning a
+     numbered run. Plain text — no markup.
+   - Each directive is **multi-line**: first sentence is the rule and reads alone, then the lines
+     that explain it, then `Check:`. Add a fenced code block wherever the real fragment teaches
+     faster — the engine's config, a recipe entry, the destinations one source lands at.
+   - **Never past eight directives under one heading**; split at the first clear boundary, often
+     well before. Give each concern a `###` and its own summary, and carry it in the envelope's
+     `subsection`.
+   - Orientation, summaries, code blocks and the Why section cost no directive.
+6. **Gap pass & critical review** (Thorough) — run `coverage-map.md` once as a stack-gated gap detector.
+   - Each load-bearing omission is a chat recommendation: accept → rule, decline → absent.
+   - Offer highest-value first, never past the directive budget.
+   - Then one `challenger` reviews the draft per `hercules-reference § Sub-agent consent`, carrying the
+     A2A § Agent-Injected Core plus the observations; a trio is opt-in, or automatic for a contested
+     repo per `hercules-reference § Debate protocol`. Advisors return findings only, never write.
+   - Quick runs a light platitude/no-evidence self-scan instead.
+7. **Gate & present** — the gate is a program, not a promise.
+   - Build the envelope: each rule as `{id, section, tag, text, check, citations}` plus the `facts`,
+     `answers` and `observations` it may cite — `fact:<id>`, `answer:<id>`, `code:<observation-id>`
+     (**§ Rules envelope**).
+   - Pipe it to `python3 ${PLUGIN_ROOT}/tools/code_of_conduct/coc_gate.py draft --contract 2`.
+   - **Exit 0 ships.** Any other exit: fix or drop what its `findings` name and re-run — never argue
+     past it, never hand-wave a rule it refused.
+   - It judges tag, check, citations, unique id, observation paths, and the directive count. The rest
+     stays yours: each rule reads exactly one way and conflicts with no other.
+   - Lay the rules out as markdown, then `python3 ${PLUGIN_ROOT}/tools/code_of_conduct/coc_lint.py
+     --contract 2 --root <root>` with `{"contract":2,"markdown":"…","paths":[each observation's
+     path],"families":[each `arch.families` path]}` on stdin — it checks the shape, holds every
+     observation path against HEAD (it refuses to run on `paths` without `--root`), refuses a
+     `Check:` that names nothing runnable, refuses an unverifiable universal claim, and names any
+     family the document never mentions. It reports what to fix, it never fixes it. Apply its
+     findings and re-run until clean.
+   - **Dry-run every cited check** before shipping: the grep must match, the named make target,
+     script or CI job must exist. The linter can only judge the Check's shape; whether it holds is
+     yours to run. A check that fails drops or refits its rule.
+   - Present with a short summary (top standards, added, conflicts, dropped, and the band when past
+     `intended`), surfacing only the ~5 genuine decisions — never a long list to curate.
+   - Feedback applies **surgically** with a diff; regenerate wholesale only if the user reopens the
+     scope, and re-gate only what changed.
+8. **Approve & write** — on approval: leave plan mode → write atomically (temp + rename).
+   Write to **the path Step 2 resolved**, overwriting it in place — no rename, no second file, no
+   question about where it goes. The temp file lands in the same directory so the rename is atomic
+   on one filesystem.
+   The generator **never creates or edits any file besides that one** — offer the reference line
+   for `AGENTS.md` in chat, naming the resolved path; adding it is the user's edit.
+   Then **re-run the linter against the file on disk**
+   (`… coc_lint.py --contract 2 --file <coc> --root <root>`): the draft that passed is not proof about
+   the bytes that landed. Fix and re-run until clean.
 9. **Review & commit** — show the file and ask the user to review it. On their go-ahead, **stage then
-   commit** exactly the code-of-conduct file plus `AGENTS.md` when touched — `git add -- <paths>` then
-   `git commit -m … -- <paths>` — so an untracked new file commits cleanly and the user's other staged
-   work is never reset or swept in; use the mined commit convention or a plain imperative subject.
+   commit** exactly the code-of-conduct file — `git add -- <path>` then `git commit -m … -- <path>` —
+   so an untracked new file commits cleanly and the user's other staged work is never reset or swept
+   in; use the mined commit convention or a plain imperative subject.
    Attribution lives in the commit message, never in the file. Offer a push; never push automatically.
-   No go-ahead → reply: "Left uncommitted: {paths}. Say 'commit' when ready, or edit first."
+   No go-ahead → reply: "Left uncommitted: {path}. Say 'commit' when ready, or edit first."
 
 ## Update mode
 
-Never rename, reorder, delete, or restructure existing sections or bullets on the generator's own
-initiative — additions only. Exceptions: a critical-review-proposed drop after the user's explicit yes, and any
-edit the user directs. Gap analysis surfaces missing items, conflicts (the CoC says X, the code does Y —
-a question, never auto-resolved), and missing sections; present an additions-only diff plus any drop
-questions, insert bullets in place, and append new sections at the end.
+- **The existing file is the output file.** Update mode edits it where it lives, under the name the
+  repository already uses. Never emit a differently-named copy and never migrate the old one.
+- **Read it mechanically first:** `python3 ${PLUGIN_ROOT}/tools/code_of_conduct/coc_lint.py
+  --contract 2 --file <coc> --root <root>`. Its `findings` are rotted references — wrong whoever
+  wrote them. Its `shape_notes` are **not a task list**: restyling an existing rule is the edit
+  additions-only forbids, and an existing document may be in any format at all.
+- A `dangling` entry is a **question for the user, never an edit** — the rule may be right and the
+  path merely moved.
+- Where the state file holds a previous run's envelope, re-verify those citations exactly instead.
+  An unreadable or older envelope **says so in chat** and falls back to the report.
+- **Additions only:** never rename, reorder, delete or restructure existing sections or rules on the
+  generator's own initiative. Exceptions: a critical-review-proposed drop after an explicit yes, and
+  any edit the user directs.
+- **Append inside a run; never renumber.** A new directive joins the END of its tier's numbered run,
+  so no existing line changes. Inserting one mid-run would renumber every directive after it — a
+  mechanical edit to rules nobody asked to touch, and the loss of every number a review or an issue
+  ever cited. Where the ordering genuinely matters, say so and let the user decide.
+- **The group cap binds new rules, not old ones.** If appending would push a heading past eight,
+  propose a `###` split as a question — never perform one, because splitting moves existing rules.
+- Existing rules are never retro-fitted with tags, summaries, checks or reasons, and **never
+  submitted to the gate** — they predate it, so validating them would refuse every legitimate
+  update. New rules and new sections meet the full bar.
+- Gap analysis surfaces missing items, conflicts (the CoC says X, the code does Y — a question, never
+  auto-resolved) and missing sections.
+- Present an additions-only diff plus any drop questions; append new sections at the end.
 
 ## Output budget
 
-**Directive budget.** Every agent reads this whole file on top of its own instructions — aim for
-**30–40** directives (one bullet = one directive; the section-opening WHY sentences don't count);
-up to **50** for a large or polyglot repo; **70 is the hard ceiling**. Past 40 the delegate total
-crosses the ~150-directive adherence line — 50–70 trades adherence for coverage; say so when
-reporting the count. Near the band, merge near-duplicates and cut what the code makes obvious
-(new-file flow only — in update mode existing bullets are never cut or merged; surface the overage
-as a question). A mutation gate ships only when a mutation tool exists in the repo; otherwise
-mutation testing is a chat recommendation, never a file rule.
+Every agent reads this whole file on top of its own instructions.
+
+- Aim for **30–40** directives; **50** for a large or polyglot repo; **70 is the hard ceiling**.
+- One numbered directive = one directive. Orientation, summaries, code blocks and the Why section
+  don't count.
+- Past 40 the delegate total crosses the ~150-directive adherence line: 50–70 trades adherence for
+  coverage — **say so when reporting the count**.
+- Near the band, merge near-duplicates and cut what the code makes obvious. New-file flow only: in
+  update mode nothing existing is cut or merged, so surface the overage as a question instead.
+- A mutation gate ships only where a mutation tool exists; otherwise it is chat advice, never a rule.
 
 ## Corner cases
 

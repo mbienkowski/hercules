@@ -44,7 +44,7 @@ per project, keyed by a human-friendly slug (default the launch-directory basena
 collision), carrying `directory`, `docs_root`, a `state_file` pointer, and the `repositories` map.
 Resolve the current project by matching the launch directory against each entry's `directory` (a full
 path — collision-proof). The registry is a **regenerable index**: the state files are the source of
-truth, and `python3 tools/registry_sync.py repair plan|apply [--confirm]` heals the pointer half of a torn two-file write (when a `state_file` pointer names a file that does not exist, but the conventional `{slug}.json` does). Orphaned state files with no registry entry are reported but never fabricated. The **delivery state**
+truth, and `python3 ${HERCULES_PLUGIN_ROOT}/tools/registry_sync.py repair plan|apply [--confirm]` heals the pointer half of a torn two-file write (when a `state_file` pointer names a file that does not exist, but the conventional `{slug}.json` does). Orphaned state files with no registry entry are reported but never fabricated. The **delivery state**
 `~/.hercules/state/{slug}.json` is the source of truth for delivery, **keyed by session** (one feature
 = one Discover gathering = one session, with its own `tier`).
 
@@ -155,9 +155,9 @@ Rule 7 in the Agent-Injected Core carries the minimal debate summary to all agen
 Once the user consents to advisors (§ Sub-agent consent), Discover and Design convene them — that is
 not separately optional. The tier's round range is a ceiling, never an itinerary: a further round
 runs only where the one before it left a topic contested, so a debate that converges ends there.
-Full orchestrator mechanics: [protocols/debate-consensus-protocol.md](protocols/debate-consensus-protocol.md).
+Full orchestrator mechanics: [${HERCULES_PLUGIN_ROOT}/protocols/debate-consensus-protocol.md](${HERCULES_PLUGIN_ROOT}/protocols/debate-consensus-protocol.md).
 For debates involving built-in Explore/Plan/Workflow agents, prepend the full
-`protocols/debate-consensus-protocol.md` to the per-call delegation prompt.
+`${HERCULES_PLUGIN_ROOT}/protocols/debate-consensus-protocol.md` to the per-call delegation prompt.
 
 ## Independent review
 

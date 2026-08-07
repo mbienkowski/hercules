@@ -228,6 +228,21 @@
         "src/content/skills/write-test-scenarios/SKILL.md"
       ]
     },
+    "tools/code_of_conduct/coc_gate.py": {
+      "sources": [
+        "src/scripts/tools/code_of_conduct/coc_gate.py"
+      ]
+    },
+    "tools/code_of_conduct/coc_lint.py": {
+      "sources": [
+        "src/scripts/tools/code_of_conduct/coc_lint.py"
+      ]
+    },
+    "tools/code_of_conduct/coc_scan.py": {
+      "sources": [
+        "src/scripts/tools/code_of_conduct/coc_scan.py"
+      ]
+    },
     "tools/project_reset.py": {
       "sources": [
         "src/scripts/tools/project_reset.py"
