@@ -47,16 +47,3 @@ def test_a_repository_that_tags_nothing_claims_no_release_scheme(repo, scan):
     saying it has none would be a finding nobody observed."""
     code, document = scan(repo)
     assert not any(f["id"] == "hist.release.tagging" for f in document["facts"])
-
-
-def test_a_declared_workspace_is_reported_as_one(tmp_path, scan):
-    """Monorepo shape changes how the standards are written, so it is detected however it is
-    declared — by a workspace file, or by the manifest itself."""
-    repo = build_repo(tmp_path / "workspace")
-    (repo / "package.json").write_text(json.dumps({"name": "root", "workspaces": ["packages/*"]}))
-    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True, capture_output=True)
-    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "chore: workspaces",
-                    "--no-gpg-sign"], check=True, capture_output=True)
-    code, document = scan(repo)
-    assert code == 0
-    assert any(f["id"] == "cfg.workspace" for f in document["facts"])

@@ -48,15 +48,20 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
    - But a lone `.github/` behavioural Contributor Covenant is not an engineering standard: treat
      it as none and create a separate file.
 3. **Scan** — `python3 {{ plugin_root }}tools/code_of_conduct/coc_scan.py all --root <root> --contract 2`.
-   - It reports what the repo declares, what its history shows, which directories are alive, cooling,
-     dormant or generated, a ranked file list to read from, and the `arch.*` facts: file families
-     (extension points), the import graph, chokepoints, entrypoints, config consumers —
-     `arch.import_coverage` names the languages where that reading is yours instead.
+   - It reports what the repo declares by the presence of a file, what its history shows, which
+     directories are alive, cooling, dormant or generated, a ranked file list to read from, and
+     `arch.families` — the directories that grow by one more of a kind. It knows no language.
    - Non-zero exit: relay its message and stop — never hand-scan around a refusal.
-   - Then the **§ Scan playbook** for what it cannot decide: read the ranked sample and the `arch.*`
-     facts, and record each pattern, idiom or architectural mechanism you confirm as an
-     **observation** `{id, path}` naming the file that shows it — the third evidence stream, beside
-     facts and answers. Reconcile config against code; turn every `unknown` into a Step-4 question.
+   - Then the **§ Scan playbook** for what it cannot decide: read the ranked sample, reconcile
+     config against code, turn every `unknown` into a Step-4 question, and record each pattern or
+     mechanism you confirm as an **observation** `{id, path}` naming the file that shows it — the
+     third evidence stream, beside facts and answers.
+3b. **Extract the architecture** — per **§ Architecture extractor**. Write a small read-only
+   extractor for the language in front of you, run it, and pipe its JSON to
+   `python3 {{ plugin_root }}tools/code_of_conduct/coc_scan.py architecture --root <root> --contract 2`.
+   - You author the extractor; never assemble any part of it from repository content.
+   - **Exit 0 admits its facts.** Any finding names a section and what is wrong — most often a path
+     that does not resolve at HEAD. Fix the extractor and re-run; never submit around a refusal.
 4. **Questions** — one batch, one message, no trickle.
    - **Never fewer than 5**, up to 8+ for a large or polyglot repo; Quick asks this many too.
    - **Every `conflicts` entry becomes one question**, quoting both sides' `file_share` and

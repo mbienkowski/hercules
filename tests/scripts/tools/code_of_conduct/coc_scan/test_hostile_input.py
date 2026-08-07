@@ -93,25 +93,6 @@ def test_an_inherited_git_dir_cannot_redirect_the_scan(tmp_path, scan, monkeypat
     assert doc["head"] == head
 
 
-def test_a_secret_bearing_path_is_never_read(tmp_path, scan):
-    """Structure may be recorded; contents never. The document is fed to a model and persisted.
-    The file is given a code suffix deliberately: a `.env` would be skipped for not being code at
-    all, which would let this pass while the exclusion it names did nothing."""
-    repo = build_repo(tmp_path / "secrets")
-    (repo / "src").mkdir(parents=True, exist_ok=True)
-    (repo / "src" / "credentials.py").write_text("TOKEN = 'super-secret'\n# TODO: rotate\n")
-    _commit_file_named(repo, "keep.txt", subject="chore: add credentials")
-    code, doc = scan(repo)
-    assert code == 0
-    assert "super-secret" not in json.dumps(doc)
-    density = next(f for f in doc["facts"] if f["id"] == "shape.marker_density")
-    # Its marker is not counted, and it is absent from the sample's denominator too — the file was
-    # never a candidate, rather than a candidate that happened to be skipped when opened.
-    assert density["value"]["markers"] == 1  # the fixture's own marker, not this file's
-    citation = density["citations"][0]
-    assert citation["matched"] == citation["sampled"]
-
-
 def test_a_commit_subject_reaches_the_document_only_as_bounded_evidence(tmp_path, scan):
     """Subjects are attacker-authored text on the way to a model that then writes files. The scope
     is where a subject actually reaches the document, so that is where the cap has to hold."""

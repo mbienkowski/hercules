@@ -37,18 +37,24 @@ const BUDGETS: ReadonlyArray<readonly [string, string, number]> = [
   ['the learnings skill', 'skills/learnings/SKILL.md', 1050],
   ['the test-scenarios skill', 'skills/write-test-scenarios/SKILL.md', 1050],
   ['the reference skill', 'skills/hercules-reference/SKILL.md', 3900],
-  // 3000 → 3100 at the owner's request. What the rise bought: Step 2 now binds the resolved path
-  // to Step 8, so a repository spelling it CODE_OF_CONDUCT.md is written back under that name
-  // instead of gaining a second, lowercase standards file — which on a case-insensitive filesystem
-  // silently clobbers the wrong one. Re-measure DOWN when the update-mode section next shrinks.
-  ['the code-of-conduct generator', 'skills/code-of-conduct-generator/SKILL.md', 3100],
-  // 6600 → 6700 at the owner's request. What the rise bought: five gates the map has to teach
-  // because a blind review found each one being broken in real output — a `Check:` must name
-  // something runnable, a universal claim must be verified or scoped, every scanned family must be
-  // covered or declined, a heading may not exceed eight directives, and code blocks are invited.
-  // The shape spec itself was deduplicated into SKILL.md § Step 5 first, which paid back ~200
-  // tokens; this is the remainder. Re-measure DOWN when the catalogue next shrinks.
-  ['its coverage map', 'skills/code-of-conduct-generator/coverage-map.md', 6700],
+  // 3000 → 3100 → 3300 at the owner's request. What the last rise bought: Step 2 binds the
+  // resolved path to Step 8 (so a repository keeps its own spelling), and new Step 3b has the
+  // agent write, run and submit an architecture extractor — the replacement for ~450 lines of
+  // per-language parsing deleted from coc_scan.py, which is a net loss of shipped surface even
+  // though this file grew. Re-measure DOWN when the update-mode section next shrinks.
+  ['the code-of-conduct generator', 'skills/code-of-conduct-generator/SKILL.md', 3300],
+  // 6600 → 6700 → 7300 at the owner's request. The first rise bought five gates a blind review
+  // found being broken in real output. The second buys § Architecture extractor: the pseudocode,
+  // the output schema and the five refusals that replace every per-language parser the scanner
+  // used to carry. That catalogue was incomplete by construction and reported its own coverage as
+  // complete while missing two ordinary layouts; instruction that travels to any language costs
+  // tokens once, where a catalogue costs code forever. The third adds the extractor's runnable
+  // blueprint: all the plumbing is identical everywhere, so the agent fills one function instead
+  // of inventing the whole script under time pressure — a runtime failure that would otherwise
+  // land differently every run. The blueprint also carries the symlink refusal forward: the
+  // scanner no longer opens any file, so the exfiltration guard a security review forced had to
+  // move to the one thing that still reads. Re-measure DOWN when the map next shrinks.
+  ['its coverage map', 'skills/code-of-conduct-generator/coverage-map.md', 7900],
   ['the fusion-setup skill', 'skills/fusion-setup/SKILL.md', 1100],
 ];
 

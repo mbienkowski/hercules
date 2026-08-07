@@ -3,10 +3,12 @@
 what this project declares about itself, how its history says it is worked on, and which of its code
 is still being worked on at all.
 
-Three properties are not negotiable. It is READ-ONLY — it runs `git` and opens files, and writes
-nothing anywhere. It treats the repository as UNTRUSTED: paths arrive NUL-delimited so a crafted
-filename cannot fabricate one, git runs with the repository's own quoting settings overridden, no
-author identity is emitted, and secret-bearing paths are never opened. And it fails CLOSED — an
+Three properties are not negotiable. It opens NO FILE — it asks git and nothing else, so the whole
+class of worktree escapes (a tracked symlink pointing outside the checkout, a backslash name that is
+a separator on one platform) cannot arise here at all; the extractor that does read files carries
+those guards instead. It treats the repository as UNTRUSTED: paths arrive NUL-delimited so a crafted
+filename cannot fabricate one, git runs with the repository's own quoting settings overridden, every
+emitted string is made inert, and no author identity is emitted. And it fails CLOSED — an
 unreadable repository is a refusal, never a report of an empty one, because a wrong answer shaped like
 a finding is indistinguishable downstream from the truth.
 """
@@ -35,8 +37,6 @@ EXIT_INTERNAL = 4
 # to an explicit unknown rather than to a stall or a silent truncation.
 MAX_COMMITS = 4000
 MAX_PATHS = 60_000
-MAX_FILES_READ = 1200
-MAX_FILE_BYTES = 400_000
 MAX_SUBJECT_CHARS = 200
 # A path may legitimately be long; the cap is a flood guard, not a formatting rule.
 MAX_EMITTED_CHARS = 400
@@ -44,48 +44,21 @@ GIT_TIMEOUT_SECONDS = 60
 
 TOP_FILES = 50
 
-# Never opened. Structure may be recorded, contents never — this document is read by a model and
-# persisted to disk, so a credential that enters it does not leave.
-SECRET_GLOBS = ("*.env", ".env", ".env.*", "*.pem", "*.key", "*.p12", "*.pfx", "*id_rsa*",
-                "*id_ed25519*", "*.keystore", "*secrets*.y*ml", "*credentials*")
 
 # Trees a build produces. They can out-commit every hand-written module in a repository, so they are
 # tagged rather than ranked; the skill confirms with the user rather than assuming.
 GENERATED_DIR_HINTS = ("dist/", "build/", "vendor/", "node_modules/", "target/", ".next/",
                        "out/", "generated/", "__generated__/", "__pycache__/")
-GENERATED_FILE_HINTS = ("package-lock.json", "yarn.lock", "pnpm-lock.yaml", "poetry.lock",
-                        "uv.lock", "Cargo.lock", "go.sum", "Gemfile.lock", "composer.lock")
+GENERATED_FILE_HINTS = ()
 
-CODE_SUFFIXES = (".py", ".ts", ".tsx", ".mts", ".js", ".jsx", ".mjs", ".go", ".rs", ".java",
-                 ".kt", ".rb", ".cs", ".swift", ".php", ".scala", ".c", ".cc", ".cpp", ".h")
 
 # Probes are GLOBS, not filenames: a real project spelled its lint config `.eslintrc.yml`, which an
 # exact-name list missed entirely.
 FILE_PROBES = {
-    "cfg.eco.node": (["package.json"], "Node manifest present"),
-    "cfg.eco.python": (["pyproject.toml", "setup.py", "requirements*.txt"], "Python manifest present"),
-    "cfg.eco.go": (["go.mod"], "Go module present"),
-    "cfg.eco.rust": (["Cargo.toml"], "Rust crate present"),
-    "cfg.eco.jvm": (["pom.xml", "build.gradle", "build.gradle.kts"], "JVM build present"),
-    "cfg.eco.ruby": (["Gemfile"], "Ruby bundle present"),
-    "cfg.workspace": (["pnpm-workspace.yaml", "lerna.json", "nx.json", "turbo.json", "go.work",
-                       "rush.json"], "Workspace or monorepo configuration present"),
-    "cfg.deps.lockfile": (list(GENERATED_FILE_HINTS), "Dependency lockfile present"),
-    "cfg.lint.eslint": ([".eslintrc*", "eslint.config.*"], "ESLint configuration present"),
-    "cfg.lint.golangci": ([".golangci.*"], "golangci-lint configuration present"),
-    "cfg.lint.rubocop": ([".rubocop.yml"], "RuboCop configuration present"),
-    "cfg.format.prettier": ([".prettierrc*", "prettier.config.*"], "Prettier configuration present"),
     "cfg.format.editorconfig": ([".editorconfig"], "EditorConfig present"),
-    "cfg.types.tsconfig": (["tsconfig.json", "tsconfig.*.json"], "TypeScript configuration present"),
-    "cfg.test.vitest_config": (["vitest.config.*"], "Vitest configuration file present"),
-    "cfg.test.jest_config": (["jest.config.*"], "Jest configuration file present"),
-    "cfg.test.pytest_ini": (["pytest.ini", "tox.ini"], "Pytest or tox configuration file present"),
     "cfg.ci.github": ([".github/workflows/*"], "GitHub Actions workflows present"),
     "cfg.ci.gitlab": ([".gitlab-ci.yml"], "GitLab CI configuration present"),
     "cfg.build.makefile": (["Makefile"], "Makefile present"),
-    "cfg.build.maven": (["pom.xml"], "Maven build present"),
-    "cfg.build.gradle": (["build.gradle", "build.gradle.kts", "settings.gradle",
-                          "settings.gradle.kts"], "Gradle build present"),
     "cfg.container.dockerfile": (["Dockerfile", "*/Dockerfile"], "Dockerfile present"),
     "cfg.review.codeowners": (["CODEOWNERS", ".github/CODEOWNERS", "docs/CODEOWNERS"],
                               "CODEOWNERS present"),
@@ -99,90 +72,10 @@ FILE_PROBES = {
     "cfg.license": (["LICENSE*", "COPYING"], "License file present"),
 }
 
-# Tooling a modern Python project declares INSIDE its manifest. A `[tool.<name>]` header is
-# line-anchored, so it reads reliably without the TOML parser this runtime floor does not have.
-PYPROJECT_SECTIONS = {
-    "ruff": ("cfg.lint.ruff", "Ruff configured in pyproject"),
-    "black": ("cfg.format.black", "Black configured in pyproject"),
-    "isort": ("cfg.format.isort", "isort configured in pyproject"),
-    "flake8": ("cfg.lint.flake8", "Flake8 configured in pyproject"),
-    "mypy": ("cfg.types.mypy", "mypy configured in pyproject"),
-    "pyright": ("cfg.types.pyright", "Pyright configured in pyproject"),
-    "pytest": ("cfg.test.pytest", "Pytest configured in pyproject"),
-    "coverage": ("cfg.test.coverage", "Coverage configured in pyproject"),
-    "mutmut": ("cfg.test.mutation", "Mutation testing configured in pyproject"),
-}
 
-# Tooling carried as a dependency, which a project may do with no config file of its own.
-NODE_PACKAGES = {
-    "eslint": ("cfg.lint.eslint", "ESLint present as a dependency"),
-    "prettier": ("cfg.format.prettier", "Prettier present as a dependency"),
-    "typescript": ("cfg.types.typescript", "TypeScript present as a dependency"),
-    "vitest": ("cfg.test.vitest", "Vitest present as a dependency"),
-    "jest": ("cfg.test.jest", "Jest present as a dependency"),
-    "mocha": ("cfg.test.mocha", "Mocha present as a dependency"),
-    "@playwright/test": ("cfg.test.e2e", "Playwright present as a dependency"),
-    "cypress": ("cfg.test.e2e", "Cypress present as a dependency"),
-    "husky": ("cfg.hooks.precommit", "Husky present as a dependency"),
-}
 
-# Two ways of doing one thing, where a file commits to one of them visibly. Deliberately small: every
-# pair costs a pass over each sampled file, and a pair nobody's repository uses is pure maintenance.
-# Sides are ordered — the FIRST that matches wins, because the markers are not mutually exclusive
-# (a `unittest.TestCase` method is still spelled `def test_…`), and the more specific one is listed
-# first so a file is attributed to the convention it actually commits to.
-#
-# Each pair is SCOPED to the files the question is about. Without that, any file that merely mentions
-# a marker is counted as using it — this scanner's own source names every pattern below, and would
-# otherwise report itself as the repository's one holdout.
-IDIOM_PAIRS = {
-    "test.style.python": ("How Python tests are written", ("*test*.py", "*_test.py"), [
-        ("unittest-class", re.compile(r"\bunittest\.TestCase\b")),
-        ("pytest-function", re.compile(r"^\s*def test_", re.M)),
-    ]),
-    "assertion.python": ("How Python tests assert", ("*test*.py", "*_test.py"), [
-        ("unittest-assert", re.compile(r"\bself\.assert[A-Z]")),
-        ("bare-assert", re.compile(r"^\s*assert\s", re.M)),
-    ]),
-    "http.client.python": ("Which HTTP client Python code reaches for", ("*.py",), [
-        ("httpx", re.compile(r"^\s*(?:import|from) httpx\b", re.M)),
-        ("requests", re.compile(r"^\s*(?:import|from) requests\b", re.M)),
-    ]),
-    "test.runner.js": ("Which test runner JavaScript and TypeScript tests import",
-                       ("*.test.*", "*.spec.*"), [
-        ("vitest", re.compile(r"""from ['"]vitest['"]""")),
-        ("jest", re.compile(r"""from ['"]@jest/globals['"]""")),
-    ]),
-    "test.framework.jvm": ("Which JUnit generation JVM tests import",
-                           ("*Test.java", "*Tests.java", "*Test.kt"), [
-        ("junit5", re.compile(r"\borg\.junit\.jupiter\b")),
-        ("junit4", re.compile(r"\borg\.junit\.Test\b")),
-    ]),
-    "test.framework.ruby": ("Which Ruby test framework the suite uses",
-                            ("*_spec.rb", "*_test.rb", "test_*.rb"), [
-        ("rspec", re.compile(r"\bRSpec\.describe\b")),
-        ("minitest", re.compile(r"\bMinitest::Test\b")),
-    ]),
-}
 
-# Tools that genuinely compete for one job, named explicitly rather than grouped by the middle of
-# their fact id. Grouping by concern reads `cfg.test.pytest` and `cfg.test.vitest` as rivals, when a
-# repository with Python and TypeScript in it needs both — and pairs a coverage tool against a test
-# runner, which answer different questions. Rivalry is a fact about tools, so it is stated.
-CONFIG_RIVALS = (
-    ("Which JavaScript test runner is authoritative",
-     ("cfg.test.vitest", "cfg.test.jest", "cfg.test.mocha")),
-    ("Which JavaScript test runner the configuration files declare",
-     ("cfg.test.vitest_config", "cfg.test.jest_config")),
-    ("Which Python linter is authoritative", ("cfg.lint.ruff", "cfg.lint.flake8")),
-    ("Which Python formatter is authoritative", ("cfg.format.black", "cfg.format.isort")),
-    ("Which Python type checker is authoritative", ("cfg.types.mypy", "cfg.types.pyright")),
-    ("Which end-to-end runner is authoritative", ("cfg.test.e2e",)),
-    ("Which JVM build is authoritative", ("cfg.build.maven", "cfg.build.gradle")),
-)
 
-# More than one of these means two package managers are both claiming to pin the same dependencies.
-RIVAL_LOCKFILES = ("package-lock.json", "yarn.lock", "pnpm-lock.yaml")
 
 # ── Architecture: what the valuable rules stand on ────────────────────────────────────────────
 # The quality-bearing facts of a repository are architectural — the engine everything renders
@@ -190,58 +83,26 @@ RIVAL_LOCKFILES = ("package-lock.json", "yarn.lock", "pnpm-lock.yaml")
 # Everything here is derived by regex over import lines and file lists: deterministic, bounded, and
 # honest about being INFERRED, never measured. A rule citing these can see that.
 
-MAX_IMPORTS_PER_FILE = 200
-MAX_IMPORT_CHARS = 120      # a longer specifier is generated or hostile, never an architecture
-MAX_EDGES = 40
-MAX_CHOKEPOINTS = 12
-MIN_CHOKEPOINT_FAN_IN = 3
 # Measured against Hercules's own tree: 24 real families (>=4 files) exist, and a cap of 12 dropped
 # src/content/commands — the extension point a user actually invokes — with no signal that anything
 # was cut. 24 clears that with headroom without being tuned to this one repository's exact count;
 # a repository with more still gets a truncation signal rather than a silently shorter list.
 MIN_FAMILY_FILES = 4
 MAX_FAMILIES = 32
-MAX_ENTRYPOINT_FILES = 20
 
-FAMILY_SUFFIXES = CODE_SUFFIXES + (".md", ".json", ".yml", ".yaml", ".toml")
-CONFIG_FAMILY_SUFFIXES = (".json", ".yml", ".yaml", ".toml")
-JS_SUFFIXES = (".ts", ".tsx", ".mts", ".js", ".jsx", ".mjs")
-JVM_SUFFIXES = (".java", ".kt")
+# No suffix allowlist. A family is a directory several files share a suffix in — and WHICH suffix
+# is exactly the thing this tool must not have an opinion about. A list would be one more catalogue
+# of languages to fall behind, and it would miss the extension points that matter most in
+# repositories built out of things nobody thought to enumerate.
+MIN_SUFFIX_CHARS, MAX_SUFFIX_CHARS = 2, 12
 
-# One extraction pattern per language the resolver can place. These are a HEAD START, never the
-# ceiling: a language with no pattern contributes no edges, and the scan SAYS SO — per-suffix parse
-# coverage is reported and `arch.graph.partial` lands in `unknowns`, so the drafting agent derives
-# the missing architecture by reading and records it as observations. The pipeline is complete for
-# every language; the parser only decides how much of the work arrives pre-measured.
-PYTHON_IMPORT = re.compile(r"^\s*(?:from\s+([\w.]+)\s+import|import\s+([\w.]+))", re.M)
-JS_IMPORT = re.compile(
-    r"""(?:from\s+|require\(\s*|import\(\s*|^import\s+)['"]([^'"\n]{1,200})['"]""", re.M)
-GO_IMPORT_SINGLE = re.compile(r'^import\s+(?:\w+\s+)?"([^"\n]{1,200})"', re.M)
-GO_IMPORT_BLOCK = re.compile(r"^import\s+\(([^)]{0,4000})\)", re.M)
-GO_QUOTED = re.compile(r'"([^"\n]{1,200})"')
-JVM_IMPORT = re.compile(r"^import\s+(?:static\s+)?([\w.]+?)(\.\*)?\s*;?\s*$", re.M)
-RUBY_RELATIVE = re.compile(r"""require_relative\s+['"]([^'"\n]{1,200})['"]""")
-RUST_USE = re.compile(r"^\s*use\s+crate::([\w:]+)", re.M)
-GO_MODULE = re.compile(r"^module\s+(\S+)", re.M)
 
-# Where execution enters, per language. Go demands both marks: `func main` inside `package main`.
-MAIN_PATTERNS = (
-    ((".py",), re.compile(r"""^if __name__ == ['"]__main__['"]""", re.M)),
-    ((".go",), re.compile(r"^func main\(\)", re.M)),
-    ((".java", ".kt"), re.compile(r"\bstatic\s+void\s+main\s*\(|^fun\s+main\s*\(", re.M)),
-    ((".rs",), re.compile(r"^fn main\(\)", re.M)),
-)
-GO_PACKAGE_MAIN = re.compile(r"^package main\b", re.M)
 
-# The suffixes the import extractor and the entrypoint patterns actually understand. Everything
-# else that was sampled is reported as unparsed rather than silently contributing nothing.
-IMPORT_PARSED_SUFFIXES = (".py",) + JS_SUFFIXES + JVM_SUFFIXES + (".go", ".rb", ".rs")
 
 CONVENTIONAL_SUBJECT = re.compile(
     r"^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?!?: ")
 TICKET_REFERENCE = re.compile(r"(#\d+|[A-Z]{2,}-\d+)")
 TOOL_SECTION = re.compile(r"^\[tool\.([A-Za-z0-9_-]+)")
-MARKER = re.compile(r"\b(TODO|FIXME|XXX|HACK)\b")
 
 
 class Refused(Exception):
@@ -291,9 +152,6 @@ def nul_paths(blob: bytes) -> list:
     return [chunk.decode("utf-8", "replace") for chunk in blob.split(b"\0") if chunk]
 
 
-SYMLINK_MODE = "120000"
-
-
 def head_files(root) -> tuple:
     """Every path at HEAD, which route found them, and which of them are SYMLINKS. `ls-files` reads
     the index, which a bare repository does not have — without the fallback a bare clone reports an
@@ -305,31 +163,20 @@ def head_files(root) -> tuple:
     they are real entries a citation may resolve against — and are refused a read."""
     listing = nul_paths(git(root, ["ls-files", "-sz"], binary=True))
     if listing:
-        files, links = [], set()
+        files = []
         for entry in listing[:MAX_PATHS]:
-            mode, _, rest = entry.partition(" ")
-            path = rest.split("\t", 1)[-1] if "\t" in rest else rest
-            files.append(path)
-            if mode == SYMLINK_MODE:
-                links.add(path)
-        return files, "worktree", links
+            _, _, rest = entry.partition(" ")
+            files.append(rest.split("\t", 1)[-1] if "\t" in rest else rest)
+        return files, "worktree"
     files = nul_paths(git(root, ["ls-tree", "-r", "-z", "--name-only", "HEAD"], binary=True))
     if files:
-        return files[:MAX_PATHS], "bare", set()
+        return files[:MAX_PATHS], "bare"
     raise Refused("empty_repository",
                   "That repository has no files at HEAD. There is nothing to draw standards from.")
 
 
 # ── Classifying paths ─────────────────────────────────────────────────────────────────────────
 
-def is_secret_path(path: str) -> bool:
-    """Case-folded on both sides. `fnmatch` is case-sensitive, but the filesystems this ships to
-    mostly are not: `ID_RSA` and `id_rsa` name the same file there, and only one of them was ever
-    matched — so the exclusion depended on which spelling the repository happened to choose."""
-    lowered = path.lower()
-    name = lowered.rsplit("/", 1)[-1]
-    return any(fnmatch.fnmatch(lowered, g.lower()) or fnmatch.fnmatch(name, g.lower())
-               for g in SECRET_GLOBS)
 
 
 def is_generated(path: str) -> bool:
@@ -373,86 +220,10 @@ def probe_facts(files: list) -> tuple:
     return found, len(FILE_PROBES), matched
 
 
-def read_file(root, relative: str, links=frozenset()):
-    """One repository file, bounded, and never a way out of the worktree.
-
-    Four refusals before anything is opened, because every one of them was reachable from a name
-    the repository chose: a secret-bearing name, a tracked SYMLINK (whose target is wherever its
-    author pointed it, inside the checkout or not), a name carrying a backslash (an ordinary byte
-    on POSIX and a separator on the platform this also ships to), and — last, as the check that
-    does not depend on knowing the trick — a resolved path that does not sit under the root."""
-    if is_secret_path(relative) or relative in links or "\\" in relative:
-        return None
-    joined = os.path.join(str(root), relative)
-    try:
-        base = os.path.realpath(str(root))
-        target = os.path.realpath(joined)
-        if target != base and not target.startswith(base + os.sep):
-            return None
-        if not os.path.isfile(target) or os.path.islink(joined):
-            return None
-        with open(joined, "rb") as handle:
-            return handle.read(MAX_FILE_BYTES).decode("utf-8", "replace")
-    except OSError:
-        return None
 
 
-def pyproject_facts(root, files: list, links=frozenset()) -> list:
-    if "pyproject.toml" not in files:
-        return []
-    text = read_file(root, "pyproject.toml", links)
-    if text is None:
-        return []
-    found, seen = [], set()
-    for line_number, line in enumerate(text.splitlines(), 1):
-        match = TOOL_SECTION.match(line)
-        if not match:
-            continue
-        entry = PYPROJECT_SECTIONS.get(match.group(1).lower())
-        if entry and entry[0] not in seen:
-            seen.add(entry[0])
-            found.append(fact(entry[0], entry[1], match.group(1).lower(),
-                              [{"kind": "file", "path": "pyproject.toml", "line": line_number}]))
-    return found
 
 
-def package_json_facts(root, files: list, links=frozenset()) -> list:
-    if "package.json" not in files:
-        return []
-    text = read_file(root, "package.json", links)
-    if text is None:
-        return []
-    try:
-        data = json.loads(text)
-    except ValueError:
-        return []
-    if not isinstance(data, dict):
-        return []
-    dependencies = {}
-    for key in ("dependencies", "devDependencies"):
-        if isinstance(data.get(key), dict):
-            dependencies.update(data[key])
-    found, seen = [], set()
-    for name, (fact_id, claim) in sorted(NODE_PACKAGES.items()):
-        if name in dependencies and fact_id not in seen:
-            seen.add(fact_id)
-            found.append(fact(fact_id, claim, name,
-                              [{"kind": "file", "path": "package.json"}]))
-    if dependencies:
-        pinned = sum(1 for value in dependencies.values() if re.match(r"^\d", str(value)))
-        found.append(fact("cfg.deps.pinning", "Share of exact-pinned dependency versions",
-                          {"pinned": pinned, "total": len(dependencies)},
-                          [{"kind": "file", "path": "package.json"}]))
-    if isinstance(data.get("engines"), dict):
-        engines = {clean_text(str(k), 40): clean_text(str(v), 40)
-                   for k, v in sorted(data["engines"].items())}
-        found.append(fact("cfg.runtime.engines", "Declared runtime engine constraint", engines,
-                          [{"kind": "file", "path": "package.json"}]))
-    if isinstance(data.get("workspaces"), (list, dict)):
-        found.append(fact("cfg.workspace", "Workspace or monorepo configuration present",
-                          "package.json workspaces",
-                          [{"kind": "file", "path": "package.json"}]))
-    return found
 
 
 # ── What the history says ─────────────────────────────────────────────────────────────────────
@@ -599,82 +370,12 @@ def liveness(root, files: list, months: float, recent_months: float, depth: int,
 
 # ── Numbers a rule can cite ───────────────────────────────────────────────────────────────────
 
-def classify_idioms(relative: str, text: str) -> dict:
-    """Which side of each competing idiom this one file takes, at most one side per concern."""
-    taken = {}
-    for concern, (_, scope, sides) in IDIOM_PAIRS.items():
-        name_only = relative.rsplit("/", 1)[-1]
-        if not any(fnmatch.fnmatch(name_only, g) for g in scope):
-            continue
-        for name, pattern in sides:
-            if pattern.search(text):
-                taken[concern] = name
-                break
-    return taken
 
 
-def conflicts_from_idioms(idioms: dict, directories: list, depth: int) -> list:
-    """Where a repository does one thing two ways, both ways with their standing: how much of the
-    code takes each side, and how much of the RECENT work happens where that side lives.
-
-    It reports both and resolves neither. Recency is a good argument and a bad decision procedure —
-    code is edited when it is being adopted and equally when it is being removed, and this cannot
-    tell those apart. A rule the repository will be held to is worth one question."""
-    recent = {entry["path"]: entry["recent_touches"] for entry in directories}
-    found = []
-    for concern in sorted(idioms):
-        sides = idioms[concern]
-        if len(sides) < 2:
-            continue  # one way of doing something is a convention, not a conflict
-        total_files = sum(len(paths) for paths in sides.values())
-        total_recent = sum(sum(recent.get(directory_of(p, depth), 0) for p in paths)
-                           for paths in sides.values())
-        candidates = []
-        for name in sorted(sides):
-            paths = sorted(sides[name])
-            touches = sum(recent.get(directory_of(p, depth), 0) for p in paths)
-            candidates.append({
-                "name": name,
-                "files": len(paths),
-                "file_share": round(len(paths) / total_files, 4),
-                "recent_touches": touches,
-                "recent_share": round(touches / total_recent, 4) if total_recent else 0.0,
-                "example": paths[0],
-            })
-        candidates.sort(key=lambda c: (-c["files"], c["name"]))
-        found.append({
-            "id": f"conflict.{concern}",
-            "concern": IDIOM_PAIRS[concern][0],
-            "candidates": candidates,
-            "resolution": "question",
-        })
-    return found
 
 
-def _config_candidates(names: list) -> list:
-    return [{"name": name, "files": 1, "file_share": round(1 / len(names), 4),
-             "recent_touches": 0, "recent_share": 0.0, "example": name}
-            for name in sorted(names)]
 
 
-def conflicts_from_config(facts: list) -> list:
-    """Two rival tools both declared for one job. Which is authoritative is a decision nobody wrote
-    down anywhere the scan can read, so it is asked rather than inferred from which config is newer."""
-    present = {entry["id"] for entry in facts}
-    found = []
-    for index, (concern, rivals) in enumerate(CONFIG_RIVALS):
-        declared = [name for name in rivals if name in present]
-        if len(declared) > 1:
-            found.append({"id": f"conflict.cfg.{index}", "concern": concern,
-                          "candidates": _config_candidates(declared), "resolution": "question"})
-    lockfiles = next((entry["value"] for entry in facts if entry["id"] == "cfg.deps.lockfile"), [])
-    rival_locks = [name for name in RIVAL_LOCKFILES
-                   if any(str(value).endswith(name) for value in lockfiles)]
-    if len(rival_locks) > 1:
-        found.append({"id": "conflict.cfg.lockfile",
-                      "concern": "Which package manager pins the dependencies",
-                      "candidates": _config_candidates(rival_locks), "resolution": "question"})
-    return found
 
 
 def code_families(files: list) -> tuple:
@@ -691,12 +392,12 @@ def code_families(files: list) -> tuple:
         directory, name = path.rsplit("/", 1)
         dot = name.rfind(".")
         suffix = name[dot:] if dot > 0 else ""
-        if suffix in FAMILY_SUFFIXES:
+        if MIN_SUFFIX_CHARS <= len(suffix) <= MAX_SUFFIX_CHARS:
             file_groups.setdefault((directory, suffix), []).append(path)
         # The item is the directory, identified by the file every sibling carries under the same
         # name. Scaffolding names (`__init__.py`, `conftest.py`) would make every package tree a
         # family, so they identify nothing.
-        if "/" in directory and suffix in FAMILY_SUFFIXES \
+        if "/" in directory and MIN_SUFFIX_CHARS <= len(suffix) <= MAX_SUFFIX_CHARS \
                 and not name.startswith("_") and name != "conftest.py":
             parent, item = directory.rsplit("/", 1)
             directory_groups.setdefault((parent, name), {})[item] = path
@@ -713,355 +414,59 @@ def code_families(files: list) -> tuple:
     return families[:MAX_FAMILIES], len(families) > MAX_FAMILIES
 
 
-def _join_relative(directory: str, spec: str):
-    """A relative import specifier resolved against its importer's directory, inside the repository
-    or not at all — a specifier is repository-authored text, and one that climbs out resolves to
-    nothing rather than to a path this document would then carry."""
-    parts = directory.split("/") if directory else []
-    for piece in spec.split("/"):
-        if piece in ("", "."):
-            continue
-        if piece == "..":
-            if not parts:
-                return None
-            parts.pop()
-        else:
-            parts.append(piece)
-    return "/".join(parts)
 
 
-def _import_specs(relative: str, text: str) -> list:
-    if relative.endswith(".py"):
-        matches = [first or second for first, second in PYTHON_IMPORT.findall(text)]
-    elif relative.endswith(JS_SUFFIXES):
-        matches = JS_IMPORT.findall(text)
-    elif relative.endswith(".go"):
-        matches = GO_IMPORT_SINGLE.findall(text)
-        for block in GO_IMPORT_BLOCK.findall(text):
-            matches.extend(GO_QUOTED.findall(block))
-    elif relative.endswith(JVM_SUFFIXES):
-        matches = [dotted + (star or "") for dotted, star in JVM_IMPORT.findall(text)]
-    elif relative.endswith(".rb"):
-        matches = RUBY_RELATIVE.findall(text)
-    elif relative.endswith(".rs"):
-        matches = RUST_USE.findall(text)
-    else:
-        matches = []
-    return matches[:MAX_IMPORTS_PER_FILE]
 
 
-def build_import_indexes(root, files: list, links=frozenset()) -> dict:
-    """Everything resolution needs precomputed once, so no import pays a scan over the whole file
-    list: Go's module prefix and package directories, and the JVM's basename-to-paths map — a
-    dotted Java import only ever matches by its tail, and the basename shrinks the candidates to a
-    handful."""
-    indexes = {"go_module": None, "go_dirs": set(), "jvm_names": {}}
-    if any(f.endswith(".go") for f in files):
-        text = read_file(root, "go.mod", links) if "go.mod" in files else None
-        match = GO_MODULE.search(text) if text else None
-        if match:
-            indexes["go_module"] = match.group(1).rstrip("/")
-        indexes["go_dirs"] = {f.rsplit("/", 1)[0] for f in files
-                              if f.endswith(".go") and "/" in f}
-    for path in files:
-        if path.endswith(JVM_SUFFIXES):
-            indexes["jvm_names"].setdefault(path.rsplit("/", 1)[-1], []).append(path)
-    return indexes
 
 
-def _resolve_import(spec: str, importer: str, at_head: set, indexes: dict):
-    """The file (or, for Go and star imports, the package directory) a specifier names, by
-    membership at HEAD, or None. Python and Rust resolve from the repository root, JavaScript and
-    Ruby resolve relative specifiers only, Go resolves under its own module prefix, and JVM dotted
-    names resolve by their path tail — a specifier none of those place names a dependency, which is
-    outside the repository and outside this graph."""
-    if not spec or len(spec) > MAX_IMPORT_CHARS:
-        return None
-    if importer.endswith(".py"):
-        if spec.startswith("."):
-            # Relative: each dot past the first climbs one package. Resolved against the importing
-            # file's own directory — the layouts real projects use most, and exactly the ones a
-            # root-relative reading was blind to.
-            dots = len(spec) - len(spec.lstrip("."))
-            remainder = spec[dots:].replace(".", "/")
-            package = importer.split("/")[:-1]
-            climb = dots - 1
-            if climb > len(package):
-                return None
-            base = "/".join(package[:len(package) - climb] + ([remainder] if remainder else []))
-            if not base:
-                return None
-            candidates = [base + ".py", base + "/__init__.py"]
-        else:
-            base = spec.replace(".", "/")
-            # `src/` second: an src-layout package is imported bare (`pkg.mod`) but lives under
-            # `src/pkg/mod.py`, so a root-relative reading alone misses the whole graph.
-            candidates = [base + ".py", base + "/__init__.py",
-                          "src/" + base + ".py", "src/" + base + "/__init__.py"]
-    elif importer.endswith(JS_SUFFIXES) or importer.endswith(".rb"):
-        if not spec.startswith("."):
-            return None
-        directory = importer.rsplit("/", 1)[0] if "/" in importer else ""
-        base = _join_relative(directory, spec)
-        if base is None:
-            return None
-        dot, slash = base.rfind("."), base.rfind("/")
-        stem = base[:dot] if dot > slash else base
-        if importer.endswith(".rb"):
-            candidates = [base, stem + ".rb"]
-        else:
-            candidates = ([base] + [stem + suffix for suffix in JS_SUFFIXES]
-                          + [stem + "/index" + suffix for suffix in JS_SUFFIXES])
-    elif importer.endswith(".go"):
-        module = indexes.get("go_module")
-        if not module or not spec.startswith(module + "/"):
-            return None
-        package = spec[len(module) + 1:]
-        return package if package in indexes["go_dirs"] else None
-    elif importer.endswith(JVM_SUFFIXES):
-        if spec.endswith(".*"):
-            tail = spec[:-2].replace(".", "/")
-            matches = sorted(d for d in {p.rsplit("/", 1)[0]
-                                         for paths in indexes["jvm_names"].values()
-                                         for p in paths}
-                             if d == tail or d.endswith("/" + tail))
-            return matches[0] if matches else None
-        tail = spec.replace(".", "/")
-        for extension in JVM_SUFFIXES:
-            name = tail.rsplit("/", 1)[-1] + extension
-            matches = sorted(p for p in indexes["jvm_names"].get(name, [])
-                             if p == tail + extension or p.endswith("/" + tail + extension))
-            if matches:
-                return matches[0]
-        return None
-    elif importer.endswith(".rs"):
-        base = spec.replace("::", "/")
-        candidates = ["src/" + base + ".rs", "src/" + base + "/mod.rs", base + ".rs"]
-    else:
-        return None
-    for candidate in candidates:
-        if candidate in at_head:
-            return candidate
-    return None
 
 
-def _containing_directory(path: str) -> str:
-    """The directory a resolved target lives in — or the target itself where resolution already
-    returned a directory (a Go package, a JVM star import), told apart by the last segment carrying
-    no suffix dot."""
-    last = path.rsplit("/", 1)[-1]
-    if "." not in last:
-        return path
-    return path.rsplit("/", 1)[0] if "/" in path else "."
 
 
-def _edge_between(importer: str, target: str):
-    """The dependency edge at the level where the two paths actually diverge — one segment past
-    their common prefix. A fixed depth is a property of one repository's layout: depth two reads a
-    Maven tree as `src/main` importing `src/main`, and every real edge vanishes into a self-loop."""
-    from_parts = _containing_directory(importer).split("/")
-    to_parts = _containing_directory(target).split("/")
-    shared = 0
-    while (shared < len(from_parts) and shared < len(to_parts)
-           and from_parts[shared] == to_parts[shared]):
-        shared += 1
-    if shared == len(from_parts) and shared == len(to_parts):
-        return None  # one directory — a local import, not an edge between areas
-    source = "/".join(from_parts[:shared + 1]) if shared < len(from_parts) else "/".join(from_parts)
-    destination = "/".join(to_parts[:shared + 1]) if shared < len(to_parts) else "/".join(to_parts)
-    if source == destination:
-        return None
-    return source, destination
 
 
-def _is_entrypoint(relative: str, text: str) -> bool:
-    for suffixes, pattern in MAIN_PATTERNS:
-        if relative.endswith(suffixes) and pattern.search(text):
-            return not relative.endswith(".go") or bool(GO_PACKAGE_MAIN.search(text))
-    return False
 
 
-def read_code_sample(root, files: list, config_dirs: list, depth: int,
-                     links=frozenset()) -> dict:
-    """One bounded pass over the repository's own code, answering everything that needs the file
-    contents: how long its modules run, how many markers they carry, which side of a competing idiom
-    each file takes, what it imports, where execution enters, and which modules read the
-    configuration families. One pass because each of those alone would not justify the reads."""
-    code = [f for f in sorted(files)
-            if f.endswith(CODE_SUFFIXES) and not is_generated(f) and not is_secret_path(f)]
-    at_head = set(files)
-    indexes = build_import_indexes(root, files, links)
-    sample = {"lengths": [], "markers": 0, "read": 0, "total": len(code), "idioms": {},
-              "imported_by": {}, "edges": {}, "resolved_imports": 0, "main_guards": [],
-              "config_consumers": {}, "suffix_reads": {}}
-    for relative in code[:MAX_FILES_READ]:
-        text = read_file(root, relative, links)
-        if text is None:
-            continue
-        sample["read"] += 1
-        suffix = "." + relative.rsplit(".", 1)[-1]
-        sample["suffix_reads"][suffix] = sample["suffix_reads"].get(suffix, 0) + 1
-        sample["lengths"].append(len(text.splitlines()))
-        sample["markers"] += len(MARKER.findall(text))
-        for concern, side in classify_idioms(relative, text).items():
-            sample["idioms"].setdefault(concern, {}).setdefault(side, []).append(relative)
-        for spec in _import_specs(relative, text):
-            target = _resolve_import(spec, relative, at_head, indexes)
-            if target is None or target == relative:
-                continue
-            sample["resolved_imports"] += 1
-            sample["imported_by"].setdefault(target, set()).add(relative)
-            edge = _edge_between(relative, target)
-            if edge is not None:
-                sample["edges"][edge] = sample["edges"].get(edge, 0) + 1
-        if _is_entrypoint(relative, text):
-            sample["main_guards"].append(relative)
-        for config_dir in config_dirs:
-            if config_dir in text:
-                sample["config_consumers"].setdefault(config_dir, set()).add(relative)
-    sample["lengths"].sort()
-    return sample
 
 
-def architecture_facts(files: list, families: list, sample: dict, manifest_bins: list) -> list:
-    """The architecture the sample can show. Absent evidence yields no fact — an empty graph would
-    read as 'measured: independent' when nothing was resolved at all."""
-    found = []
-    count_citation = [{"kind": "count", "pattern": "internal imports resolved",
-                      "matched": sample["resolved_imports"], "sampled": sample["read"]}]
-    # Which languages the graph below actually saw. Sampled code the extractor has no pattern for
-    # is named here, so a missing edge reads as "not measured" and never as "independent" — and the
-    # drafting agent knows exactly where its own reading must carry the architecture.
-    parsed = sorted(s for s in sample["suffix_reads"] if s in IMPORT_PARSED_SUFFIXES)
-    unparsed = [{"suffix": s, "files": n} for s, n in sorted(sample["suffix_reads"].items())
-                if s not in IMPORT_PARSED_SUFFIXES]
-    if sample["read"]:
-        found.append(fact(
-            "arch.import_coverage",
-            "Which sampled languages the import extractor parsed, and which it could not",
-            {"parsed": parsed, "unparsed": unparsed},
-            [{"kind": "count", "pattern": "code files read", "matched": sample["read"],
-              "sampled": sample["total"]}]))
-    if families:
-        found.append(fact(
-            "arch.families", "Directories that grow by adding one more file of a kind", families,
-            [{"kind": "file", "path": entry["examples"][0]} for entry in families[:3]]))
-    edges = [{"from": source, "to": target, "imports": count}
-             for (source, target), count in sample["edges"].items()]
-    edges.sort(key=lambda entry: (-entry["imports"], entry["from"], entry["to"]))
-    if edges:
-        mutual = sorted({tuple(sorted((entry["from"], entry["to"]))) for entry in edges
-                         if any(other["from"] == entry["to"] and other["to"] == entry["from"]
-                                for other in edges)})
-        found.append(fact(
-            "arch.graph", "Import dependencies between areas, read from import lines",
-            {"edges": edges[:MAX_EDGES], "mutual": [list(pair) for pair in mutual]},
-            count_citation, "inferred-medium"))
-    chokepoints = [{"path": target, "fan_in": len(importers)}
-                   for target, importers in sample["imported_by"].items()
-                   if len(importers) >= MIN_CHOKEPOINT_FAN_IN]
-    chokepoints.sort(key=lambda entry: (-entry["fan_in"], entry["path"]))
-    if chokepoints:
-        found.append(fact(
-            "arch.chokepoints", "Modules that many files import — the paths every change flows through",
-            chokepoints[:MAX_CHOKEPOINTS],
-            [{"kind": "file", "path": entry["path"]}
-             for entry in chokepoints[:3]], "inferred-medium"))
-    bin_files = sorted(f for f in files if f.startswith("bin/")
-                       and not is_generated(f))[:MAX_ENTRYPOINT_FILES]
-    main_guards = sorted(sample["main_guards"])[:MAX_ENTRYPOINT_FILES]
-    if bin_files or main_guards or manifest_bins:
-        cited = (bin_files or main_guards or manifest_bins)[0]
-        found.append(fact(
-            "arch.entrypoints", "Where execution enters the repository",
-            {"bin_files": bin_files, "main_guards": main_guards, "manifest": manifest_bins},
-            [{"kind": "file", "path": cited}], "inferred-medium"))
-    consumers = [{"family": config_dir, "consumers": sorted(readers)[:3]}
-                 for config_dir, readers in sample["config_consumers"].items() if readers]
-    consumers.sort(key=lambda entry: entry["family"])
-    if consumers:
-        found.append(fact(
-            "arch.config_consumers",
-            "Modules that name a configuration family — the code its files are read by",
-            consumers, [{"kind": "file", "path": consumers[0]["consumers"][0]}],
-            "inferred-medium"))
-    return found
 
 
-def manifest_entrypoints(root, files: list, links=frozenset()) -> list:
-    """The entry points the Node manifest declares. Values are repository-authored text, cleaned
-    and bounded like every other."""
-    if "package.json" not in files:
-        return []
-    text = read_file(root, "package.json", links)
-    try:
-        data = json.loads(text or "")
-    except ValueError:
-        return []
-    if not isinstance(data, dict):
-        return []
-    declared = []
-    bins = data.get("bin")
-    if isinstance(bins, str):
-        declared.append(bins)
-    elif isinstance(bins, dict):
-        declared.extend(value for value in bins.values() if isinstance(value, str))
-    if isinstance(data.get("main"), str):
-        declared.append(data["main"])
-    cleaned = {clean_text(re.sub(r"^\./", "", value), 200) for value in declared}
-    return sorted(entry for entry in cleaned if entry)[:MAX_ENTRYPOINT_FILES]
 
 
-def shape_facts(lengths: list, markers: int, read: int, total: int) -> tuple:
-    """Module sizes and marker density, so a threshold can quote this repository instead of a
-    default nobody measured. Bounded: a large repository yields a sample, and says so."""
-    if not lengths:
-        return [], ["shape.module_size"]
-    def percentile(fraction: float) -> int:
-        return lengths[min(len(lengths) - 1, int(len(lengths) * fraction))]
-
-    citation = [{"kind": "count", "pattern": "code files read",
-                 "matched": read, "sampled": total}]
-    found = [
-        fact("shape.module_size", "Module length percentiles across the sampled code files",
-             {"p50": percentile(0.5), "p90": percentile(0.9), "p99": percentile(0.99),
-              "max": lengths[-1]}, citation,
-             "inferred-high" if read == total else "inferred-medium"),
-        fact("shape.marker_density", "TODO, FIXME, XXX and HACK markers per sampled file",
-             {"markers": markers, "files": read,
-              "per_file": round(markers / read, 3) if read else 0.0}, citation),
-    ]
-    return found, ([] if read == total else ["shape.sampled_only"])
 
 
 # ── The document ──────────────────────────────────────────────────────────────────────────────
 
 def scan(root, months: float, recent_months: float, depth: int, commits: int) -> dict:
-    files, root_kind, links = head_files(root)
+    """What holds in ANY repository: what it declares by the presence of a file, how its history
+    reads, which directories are still worked on, and which of them grow by one-more-of-a-kind.
+
+    Nothing here parses a language. The catalogue that used to — import patterns, entrypoint
+    markers, competing-idiom regexes, per-ecosystem manifest readers — was removed on purpose: a
+    list of languages is incomplete by construction, and worse, it reported its own coverage as
+    complete while missing the two commonest Python layouts. Architecture is derived instead by an
+    extractor the agent writes for the repository in front of it, and arrives through `architecture`
+    below, where it is validated rather than trusted."""
+    files, root_kind = head_files(root)
     truncated = len(files) >= MAX_PATHS
     probes, attempted, matched = probe_facts(files)
     families, families_truncated = code_families(files)
-    config_dirs = sorted({entry["path"] for entry in families
-                          if entry["suffix"] in CONFIG_FAMILY_SUFFIXES})
-    sample = read_code_sample(root, files, config_dirs, depth, links)
-    shape, shape_unknowns = shape_facts(sample["lengths"], sample["markers"],
-                                        sample["read"], sample["total"])
-    architecture = architecture_facts(files, families, sample,
-                                      manifest_entrypoints(root, files, links))
 
     collected = {}
-    for entry in (probes + pyproject_facts(root, files, links) + package_json_facts(root, files, links)
-                  + history_facts(root, commits) + shape + architecture):
+    for entry in probes + history_facts(root, commits):
         collected.setdefault(entry["id"], entry)
+    if families:
+        collected["arch.families"] = fact(
+            "arch.families", "Directories that grow by adding one more of a kind", families,
+            [{"kind": "file", "path": entry["examples"][0]} for entry in families[:3]])
     facts = sorted(collected.values(), key=lambda entry: entry["id"])
 
     alive = liveness(root, files, months, recent_months, depth, commits)
-    graph_partial = any(s not in IMPORT_PARSED_SUFFIXES for s in sample["suffix_reads"])
-    unknowns = sorted(set(shape_unknowns) | ({"liveness.complete"} if truncated else set())
-                      | ({"arch.families_truncated"} if families_truncated else set())
-                      | ({"arch.graph.partial"} if graph_partial else set()))
+    unknowns = sorted(({"liveness.complete"} if truncated else set())
+                      | ({"arch.families_truncated"} if families_truncated else set()))
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "head": git(root, ["rev-parse", "HEAD"]).strip(),
         "root_kind": root_kind,
         "files_at_head": len(files),
@@ -1069,16 +474,116 @@ def scan(root, months: float, recent_months: float, depth: int, commits: int) ->
         "probes_matched": matched,
         "facts": facts,
         "liveness": alive,
-        "conflicts": conflicts_from_config(facts)
-                     + conflicts_from_idioms(sample["idioms"], alive["directories"], depth),
         "unknowns": unknowns,
         "truncated": truncated,
     }
 
 
+# ── The architecture artifact ─────────────────────────────────────────────────────────────────
+# The agent writes an extractor for whatever language is in front of it, runs it, and submits its
+# output here. This tool never learns a language; it learns the SHAPE an answer must take, and
+# refuses anything that does not take it. Every path is held against HEAD, so a claim about a file
+# the repository does not have cannot enter the record — which is the whole reason the extractor's
+# output is validated rather than believed.
+ARCHITECTURE_SHAPE = {
+    "areas": ("path", "role"),
+    "edges": ("from", "to"),
+    "chokepoints": ("path", "fan_in"),
+    "entrypoints": ("path", "kind"),
+    "conventions": ("concern", "sides"),
+    "toolchain": ("name", "role", "evidence"),
+}
+# Which member of each entry names a repository path, and must therefore resolve at HEAD.
+ARCHITECTURE_PATHS = {"areas": ("path",), "edges": ("from", "to"), "chokepoints": ("path",),
+                      "entrypoints": ("path",), "toolchain": ("evidence",)}
+MAX_ARTIFACT_BYTES = 1024 * 1024
+MAX_ARTIFACT_ENTRIES = 200
+
+
+def read_artifact(stream) -> dict:
+    """The extractor's output, read whole and bounded. Reading one byte past the cap is enough to
+    know the cap is breached, so a huge submission is refused rather than held."""
+    try:
+        text = stream.read(MAX_ARTIFACT_BYTES + 1)
+    except Exception as exc:
+        raise Internal(f"The architecture artifact could not be read. {exc}") from exc
+    if text is None or not str(text).strip():
+        raise Internal("No artifact was submitted. Send the extractor's JSON on standard input.")
+    if len(text) > MAX_ARTIFACT_BYTES:
+        raise Internal(f"The artifact exceeds {MAX_ARTIFACT_BYTES} bytes. Nothing was read.")
+    try:
+        artifact = json.loads(text)
+    except ValueError as exc:
+        raise Internal(f"The artifact is not valid JSON. {exc}") from exc
+    if not isinstance(artifact, dict):
+        raise Internal("The artifact must be one JSON object carrying the architecture sections.")
+    return artifact
+
+
+def validate_architecture(artifact: dict, at_head: set) -> tuple:
+    """The artifact as facts, plus what it got wrong. An extractor is a program the agent wrote
+    minutes ago against a repository nobody here has seen: its output is evidence only once its
+    shape holds and its paths resolve."""
+    findings, facts = [], []
+    for section, required in sorted(ARCHITECTURE_SHAPE.items()):
+        entries = artifact.get(section)
+        if entries is None:
+            continue
+        if not isinstance(entries, list):
+            findings.append({"rule": "section_malformed", "section": section,
+                             "message": f"`{section}` must be a list of entries."})
+            continue
+        if len(entries) > MAX_ARTIFACT_ENTRIES:
+            findings.append({"rule": "section_oversized", "section": section,
+                             "message": f"`{section}` carries {len(entries)} entries, past the "
+                                        f"{MAX_ARTIFACT_ENTRIES} a reader can use."})
+            continue
+        clean = []
+        for index, entry in enumerate(entries):
+            if not isinstance(entry, dict):
+                findings.append({"rule": "entry_malformed", "section": section,
+                                 "message": f"`{section}[{index}]` is not an object."})
+                continue
+            missing = [key for key in required if not str(entry.get(key, "")).strip()]
+            if missing:
+                findings.append({"rule": "entry_incomplete", "section": section,
+                                 "message": f"`{section}[{index}]` omits {', '.join(missing)}."})
+                continue
+            dangling = [entry[key] for key in ARCHITECTURE_PATHS.get(section, ())
+                        if not _resolves(str(entry[key]), at_head)]
+            if dangling:
+                findings.append({"rule": "path_not_at_head", "section": section,
+                                 "message": f"`{section}[{index}]` names {dangling[0]}, which the "
+                                            "repository does not have. An extractor reporting a "
+                                            "path nobody can open reported something else too."})
+                continue
+            clean.append(entry)
+        if clean:
+            citation = next(({"kind": "file", "path": str(item[key])}
+                             for item in clean
+                             for key in ARCHITECTURE_PATHS.get(section, ())), None)
+            facts.append(fact(f"arch.{section}", f"Architecture reported by the extractor: {section}",
+                              clean, [citation] if citation else [], "inferred-medium"))
+    return facts, findings
+
+
+def _resolves(path: str, at_head: set) -> bool:
+    candidate = path.strip().rstrip("/")
+    return bool(candidate) and (candidate in at_head
+                                or any(p.startswith(candidate + "/") for p in at_head))
+
+
+def architecture(root, stream) -> dict:
+    """Validate one extractor artifact against the repository it claims to describe."""
+    files, _ = head_files(root)
+    facts, findings = validate_architecture(read_artifact(stream), set(files))
+    return {"schema_version": 3, "head": git(root, ["rev-parse", "HEAD"]).strip(),
+            "facts": facts, "findings": findings, "sections": sorted(ARCHITECTURE_SHAPE)}
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="coc_scan", add_help=False)
-    parser.add_argument("mode", choices=["all"])
+    parser.add_argument("mode", choices=["all", "architecture"])
     parser.add_argument("--root", required=True)
     parser.add_argument("--contract", type=int, required=True)
     parser.add_argument("--months", type=float, default=12.0)
@@ -1118,7 +623,7 @@ def emit(payload: dict, mode: str, code: int) -> int:
     return code
 
 
-def main(argv=None, home=None) -> int:
+def main(argv=None, home=None, stdin=None) -> int:
     """Resolve, read, and turn every failure into a scripted refusal — nothing escapes as a
     traceback. `home` is accepted for a uniform tool signature and unused: this tool keeps no
     record."""
@@ -1127,7 +632,9 @@ def main(argv=None, home=None) -> int:
     except SystemExit:
         return emit({"error": "usage",
                      "message": "The arguments were not understood. Expected: "
-                                f"all --root <path> --contract {CONTRACT_VERSION}"},
+                                f"all --root <path> --contract {CONTRACT_VERSION}, or "
+                                f"architecture --root <path> --contract {CONTRACT_VERSION} "
+                                "with the extractor's JSON on stdin"},
                     "all", EXIT_INTERNAL)
     if args.contract != CONTRACT_VERSION:
         return emit({"error": "contract",
@@ -1136,7 +643,10 @@ def main(argv=None, home=None) -> int:
                     args.mode, EXIT_CONTRACT)
     commits = max(1, min(args.commits, MAX_COMMITS))
     try:
-        document = scan(args.root, args.months, args.recent_months, max(1, args.depth), commits)
+        if args.mode == "architecture":
+            document = architecture(args.root, stdin if stdin is not None else sys.stdin)
+        else:
+            document = scan(args.root, args.months, args.recent_months, max(1, args.depth), commits)
     except Refused as exc:
         return emit({"error": "refused", "rule": exc.rule, "message": exc.message},
                     args.mode, EXIT_REFUSED)
@@ -1145,6 +655,10 @@ def main(argv=None, home=None) -> int:
     except Exception as exc:  # fail closed: an unreadable repository is never an empty one
         return emit({"error": "internal", "message": f"Nothing was scanned. {exc}"},
                     args.mode, EXIT_INTERNAL)
+    # An artifact whose shape or paths did not hold is a refusal: the agent fixes what the findings
+    # name and submits again, exactly as the draft gate works.
+    if document.get("findings"):
+        return emit(document, args.mode, EXIT_REFUSED)
     return emit(document, args.mode, EXIT_OK)
 
 
