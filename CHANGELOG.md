@@ -1,3 +1,7 @@
+## v1.20.0 (2026-08-07)
+
+* Rebuild the code-of-conduct generator on scripted tools instead of prose (#45)
+
 ## v1.19.0 (2026-08-04)
 
 * Claude/hercules agent clarity c45oy3 (#44)
