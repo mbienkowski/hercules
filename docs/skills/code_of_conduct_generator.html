@@ -96,6 +96,7 @@
   .tier { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.06em; padding: 0.1rem 0.4rem; border: 1px solid currentColor; }
   .t-gate { color: var(--signal); }
   .t-lint { color: var(--s-scan); }
+  .t-extract { color: var(--s-read); }
 
   pre.sample {
     margin: 0; font-family: var(--mono); font-size: 0.8rem; line-height: 1.65;
@@ -170,20 +171,20 @@
           <rect class="box" x="55" y="118" width="240" height="70" stroke="var(--s-scan)"/>
           <text class="d-label" x="175" y="140" text-anchor="middle">coc_scan.py</text>
           <text class="d-sub" x="175" y="156" text-anchor="middle">config · history · liveness</text>
-          <text class="d-sub" x="175" y="170" text-anchor="middle">families · graph · chokepoints</text>
-          <text class="d-sub" x="175" y="182" text-anchor="middle">and what it could not parse</text>
+          <text class="d-sub" x="175" y="170" text-anchor="middle">families — asks git only,</text>
+          <text class="d-sub" x="175" y="182" text-anchor="middle">knows no language</text>
 
           <rect class="box" x="350" y="118" width="240" height="70" stroke="var(--s-ask)"/>
           <text class="d-label" x="470" y="140" text-anchor="middle">owner interview</text>
           <text class="d-sub" x="470" y="156" text-anchor="middle">intent the code cannot show</text>
-          <text class="d-sub" x="470" y="170" text-anchor="middle">every conflict becomes one</text>
-          <text class="d-sub" x="470" y="182" text-anchor="middle">question, never a guess</text>
+          <text class="d-sub" x="470" y="170" text-anchor="middle">every split convention becomes</text>
+          <text class="d-sub" x="470" y="182" text-anchor="middle">one question, never a guess</text>
 
           <rect class="box" x="645" y="118" width="240" height="70" stroke="var(--s-read)"/>
-          <text class="d-label" x="765" y="140" text-anchor="middle">the agent reading</text>
-          <text class="d-sub" x="765" y="156" text-anchor="middle">areas · layering · chokepoints</text>
-          <text class="d-sub" x="765" y="170" text-anchor="middle">idioms · entrypoints · what is</text>
-          <text class="d-sub" x="765" y="182" text-anchor="middle">already enforced here</text>
+          <text class="d-label" x="765" y="140" text-anchor="middle">the agent reading + extracting</text>
+          <text class="d-sub" x="765" y="156" text-anchor="middle">writes an extractor for THIS repo;</text>
+          <text class="d-sub" x="765" y="170" text-anchor="middle">coc_scan runs it under a bound,</text>
+          <text class="d-sub" x="765" y="182" text-anchor="middle">validates every path against HEAD</text>
 
           <g color="var(--dim)">
             <path class="flow" d="M175 188 L175 214" marker-end="url(#ar)"/>
@@ -244,7 +245,7 @@
         never becomes markdown, and a path it cannot resolve at HEAD never becomes a file. The two
         later gates exist because passing an envelope says nothing about the document, and passing
         a draft says nothing about the bytes on disk. The reading lane is many citations, not one —
-        each area, layering rule, chokepoint and local idiom is its own observation, each naming
+        each area, edge, chokepoint and split convention is its own observation, each naming
         the file that shows it.
       </figcaption>
     </figure>
@@ -253,7 +254,7 @@
   <section>
     <h2>The run, step by step</h2>
     <p class="sub">
-      Nine steps, in this order. A content test pins the order, so the shipped prose cannot drift
+      Ten steps, in this order. A content test pins the order, so the shipped prose cannot drift
       out of sequence.
     </p>
     <div class="steps">
@@ -261,11 +262,14 @@
         <div class="step-d">Nothing is scanned before the user has seen the flow. <em>Quick</em> for a small repository; <em>Thorough</em> adds the gap pass and an advisor review.</div></div>
       <div class="step"><div class="step-n">02</div><div class="step-t">Find any existing code-of-conduct</div>
         <div class="step-d">One match means update mode, and update mode is additions-only. Several matches are never silently resolved — it asks.</div></div>
-      <div class="step"><div class="step-n">03</div><div class="step-t">Scan, then read what the scan could not decide</div>
-        <div class="step-d">The tool reports what the repository declares, how its history reads, which directories are alive, and its architecture. Whatever it could not parse it says so, and the agent reads that itself, recording observations.</div>
-        <div class="out">→ <b>facts</b> · liveness · conflicts · unknowns · <b>observations</b></div></div>
+      <div class="step"><div class="step-n">03</div><div class="step-t">Scan, then read what the scan cannot know</div>
+        <div class="step-d">The tool reports what the repository declares, how its history reads, which directories are alive, and which grow by one-more-of-a-kind. It knows no language — everything language-shaped is the agent's to read, recorded as observations.</div>
+        <div class="out">→ <b>facts</b> · liveness · unknowns · <b>observations</b></div></div>
+      <div class="step"><div class="step-n">3b</div><div class="step-t">Write an extractor; let the tool run it</div>
+        <div class="step-d">The agent writes a small read-only extractor for the language in front of it — the one function a language appears in — and <code>coc_scan.py extract</code> runs it under a wall-clock bound, kills anything it spawned, caps what it may print, and holds every path it reports against HEAD. A timeout fails loud: one narrowed retry, then stop and report.</div>
+        <div class="out">→ areas · edges · chokepoints · entrypoints · conventions · <b>files_processed / files_at_head</b></div></div>
       <div class="step"><div class="step-n">04</div><div class="step-t">Ask, in one batch</div>
-        <div class="step-d">Never fewer than five questions, never trickled. Every conflict the scan found becomes one question carrying both sides' shares — recent work says where a team is going and equally where it is retreating from, and the scan cannot tell those apart.</div>
+        <div class="step-d">Never fewer than five questions, never trickled. Every split convention the extractor found becomes one question carrying both sides' counts — recent work says where a team is going and equally where it is retreating from, and no count can tell those apart.</div>
         <div class="out">→ <b>answers</b></div></div>
       <div class="step"><div class="step-n">05</div><div class="step-t">Draft from all three streams</div>
         <div class="step-d">Orientation, then themed sections whose concerns each get a sub-heading and a summary. Rules group under one tier header per posture as a numbered run, and a directive takes the lines it needs.</div>
@@ -294,9 +298,9 @@
         <tbody>
           <tr>
             <td>coc_scan.py</td>
-            <td class="dim">Read-only, fails closed</td>
-            <td class="dim">git <code>ls-files</code>, <code>ls-tree</code>, <code>log</code>, <code>tag</code>, <code>rev-parse</code>; opens files, never secret-bearing paths</td>
-            <td class="dim">An unreadable repository — reported as a refusal, never as an empty one</td>
+            <td class="dim">Fails closed; opens no repository file — asks git, and runs the extractor bounded</td>
+            <td class="dim">git <code>ls-files</code>, <code>ls-tree</code>, <code>log</code>, <code>tag</code>, <code>rev-parse</code>; spawns the agent's extractor under a deadline, its own session killed whole, stdout read through a 1&nbsp;MB cap. Read-only and no-network stay blueprint instructions — there is no sandbox behind them</td>
+            <td class="dim">An unreadable repository; an artifact whose shape breaks, whose paths miss HEAD, or whose counters are impossible; a hung or flooding extractor — loud, with one narrowed retry</td>
           </tr>
           <tr>
             <td>coc_gate.py</td>
@@ -396,6 +400,8 @@
           <tr><td>check_unfalsifiable</td><td><span class="tier t-lint">lint</span></td><td class="dim">A <code>Check:</code> that names nothing runnable — prose in the position that promises verification.</td></tr>
           <tr><td>family_uncovered</td><td><span class="tier t-lint">lint</span></td><td class="dim">A directory the repository grows by that the document never names, leaving the next contributor to guess a whole extension path.</td></tr>
           <tr><td>citation_dangling</td><td><span class="tier t-lint">lint</span></td><td class="dim">A path the repository no longer has — a rule pointing at something somebody moved.</td></tr>
+          <tr><td>path_not_at_head</td><td><span class="tier t-extract">extract</span></td><td class="dim">An extractor naming a file nobody can open reported something else too — the whole artifact is suspect.</td></tr>
+          <tr><td>counters_impossible</td><td><span class="tier t-extract">extract</span></td><td class="dim">More files read than found, or found than tracked. An artifact that read a fifth of the repository is otherwise shaped exactly like one that read all of it.</td></tr>
         </tbody>
       </table>
     </div>
@@ -404,27 +410,28 @@
   <section>
     <h2>How it stays universal</h2>
     <p class="sub">
-      Four layers, and only one of them knows any language. A stack the parser has never seen still
-      gets the full pipeline — the work simply arrives read rather than measured.
+      Four layers, and none of the shipped code knows any language. The per-language parsers this
+      design replaced were a catalogue — incomplete by construction, and found reporting their own
+      coverage as complete while blind to ordinary layouts of a language they claimed to parse.
     </p>
     <div class="layers">
       <div class="layer"><div class="layer-n">01</div>
         <div class="layer-t">Language-agnostic measurement</div>
-        <div class="layer-d">File and directory families, liveness by directory, commit conventions, release shape, config probes, module-size percentiles. None of it parses a language.</div></div>
+        <div class="layer-d">Config probes, commit conventions, release shape, liveness by directory, and families — the directories that grow by one-more-of-a-kind, whatever the suffix. The scan asks git and nothing else.</div></div>
       <div class="layer"><div class="layer-n">02</div>
-        <div class="layer-t">Parsed architecture</div>
-        <div class="layer-d">Import graph, chokepoints by fan-in, entrypoints and config consumers, resolved for the languages the extractor has patterns for. A head start, never the ceiling.</div></div>
+        <div class="layer-t">An extractor written on the spot</div>
+        <div class="layer-d">The agent, standing in the repository, writes the one function a language appears in. An instruction travels to every language; a catalogue never finishes arriving.</div></div>
       <div class="layer"><div class="layer-n">03</div>
-        <div class="layer-t">Declared blind spots — the hinge</div>
-        <div class="layer-d"><code>arch.import_coverage</code> names every sampled suffix the extractor could not read, and <code>arch.graph.partial</code> lands in unknowns. Silence never passes for a measurement.</div></div>
+        <div class="layer-t">Run bounded, believed never</div>
+        <div class="layer-d"><code>coc_scan.py extract</code> runs it under a deadline, kills whatever it spawned, caps its output, then validates: shape, section caps, every path against HEAD, and <code>files_processed</code> against <code>files_at_head</code> — so an artifact that read a fifth of the repository can never pass as one that read it all.</div></div>
       <div class="layer"><div class="layer-n">04</div>
         <div class="layer-t">The agent carries the rest</div>
-        <div class="layer-d">Where the graph is silent, the agent derives the areas, dependencies and entrypoints by reading — and each becomes a <code>code:</code> observation, held to the same gate and the same path check as a parsed fact.</div></div>
+        <div class="layer-d">What no extractor states — layering intent, what a chokepoint means, what is enforced by habit — the agent reads, and each becomes a <code>code:</code> observation, held to the same gate and the same path check as every other fact.</div></div>
     </div>
     <div class="note">
-      <b>The consequence.</b> No language ever has to be added for the pipeline to be complete.
-      Teaching the parser a new one only moves work from the read leg to the measured leg — it does
-      not decide whether the output can be trusted.
+      <b>The consequence.</b> No language ever has to be added for the pipeline to be complete —
+      there is nothing to add it to. The knowledge lives in the agent's hands at runtime; the
+      shipped code only decides whether what came back can be trusted.
     </div>
   </section>
 

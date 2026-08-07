@@ -68,10 +68,10 @@ scan tactics and output format live in the companion `coverage-map.md`; this fil
      words, and never let the document read as though this repository has no architecture.
 4. **Questions** — one batch, one message, no trickle.
    - **Never fewer than 5**, up to 8+ for a large or polyglot repo; Quick asks this many too.
-   - **Every `conflicts` entry becomes one question**, quoting both sides' `file_share` and
-     `recent_share` and naming an `example` file each. Never pick for the user: recent work says
-     where a team is going and equally where it is retreating from, and the scan cannot tell those
-     apart. The shares are the argument; the answer is theirs.
+   - **Every `conventions` entry the extractor reported becomes one question**, quoting each
+     side's file count and naming an example file. Never pick for the user: recent work says
+     where a team is going and equally where it is retreating from, and no count can tell those
+     apart. The counts are the argument; the answer is theirs.
    - Ask *intent*, resolve split patterns, force an explicit accept/decline on each recommended gate.
    - Recommend in chat: branch (not line) coverage, a mutation gate where a mutation tool exists,
      architecture tests via the framework's standard tool, a linter + formatter.

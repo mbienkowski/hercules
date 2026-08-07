@@ -191,9 +191,10 @@ describe('the code-of-conduct generator keeps its promises to whoever runs it', 
 
   it('turns a split convention into a question rather than counting the votes', () => {
     // Code is edited while a convention is being adopted and equally while it is being torn out, so
-    // a share is an argument to put to someone, never an answer to act on.
+    // a count is an argument to put to someone, never an answer to act on. The split arrives from
+    // the agent-authored extractor's `conventions` section now that the scan parses no language.
     const text = flat(GENERATOR);
-    expect(text).toContain('Every `conflicts` entry becomes one question');
+    expect(text).toContain('Every `conventions` entry the extractor reported becomes one question');
     expect(text).toContain('Never pick for the user');
     expect(flat('dist/claude-code/skills/code-of-conduct-generator/coverage-map.md'))
       .toContain('a question, never majority rule');

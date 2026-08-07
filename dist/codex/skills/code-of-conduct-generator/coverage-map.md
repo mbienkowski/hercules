@@ -67,7 +67,7 @@ answer is a bound around the program, not a prediction about it.
         entrypoints  where execution starts, however this stack starts it
         conventions  a concern done two ways, with each side's file count and an example
         toolchain    what builds, tests and checks this repository, and the file proving it
-    print one JSON object with those keys and nothing else
+    print one JSON object: those keys, plus files_processed and files_at_head
 
 Blueprint. Everything here is the same in any repository; the one function you write is
 `references`, and it is the only place a language appears.
