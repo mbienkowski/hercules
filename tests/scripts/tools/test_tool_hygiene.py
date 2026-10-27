@@ -30,6 +30,7 @@ _TOOLS = {
     "retire_spec.py": {"writes": True, "fails": "closed", "shells_to_git": True,
                        "git_subcommands": {"ls-files", "rm"}},
     "registry_sync.py": {"writes": True, "fails": "closed", "shells_to_git": False},
+    "memory_core.py": {"writes": True, "fails": "closed", "shells_to_git": False},
     "code_of_conduct/coc_gate.py": {"writes": False, "fails": "closed",
                                     "shells_to_git": False},
     "code_of_conduct/coc_lint.py": {"writes": False, "fails": "closed", "shells_to_git": True,
