@@ -11,10 +11,9 @@ also ships a Codex `PreToolUse` hook; the host asks you to review/trust plugin h
   compact preferences and instructions to capture explicit durable user preferences through
   `tools/memory_core.py`. Delivery state is per session in `~/.hercules/memory/.deliveries.json`: session
   start always delivers, and compaction resets it. The existing host model performs extraction; capture
-  depends on its permissions and compliance, with no separate model service. Context is capped at 2,400
-  UTF-8 bytes. Memory failures allow the chat to continue. The event and context contract follows the
+  depends on its permissions and compliance, with no separate model service. Stored entries are capped so the block stays within about 2,400 UTF-8 bytes; very long project paths can lengthen the header. Memory failures allow the chat to continue. The event and context contract follows the
   [official hook reference](https://learn.chatgpt.com/docs/hooks). The hook writes only `~/.hercules/memory/`:
-  the `.deliveries.json` state file, and a per-project store only after a capture.
+  the `.deliveries.json` and `.deliveries.lock` state files, and a per-project store only after a capture.
   Codex hashes the whole plugin folder for hook trust, so every plugin update needs re-trust (startup
   "Trust all" or `/hooks`). There is no plugin-side pre-trust; administrators can use managed hooks.
 

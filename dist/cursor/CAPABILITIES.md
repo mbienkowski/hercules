@@ -9,12 +9,11 @@
   `additional_context` is dropped, so memory arrives after the first tool call there; the editor agent panel
   gets it twice per conversation (about 1.3 KB once). `preCompact` resets delivery state, so the first tool
   call after compaction re-delivers. The existing model captures explicit durable preferences through
-  `tools/memory_core.py` only when its instructions and tool permissions allow it. Context is capped at
-  2,400 UTF-8 bytes. Failures allow the chat to continue; no separate model service performs extraction.
+  `tools/memory_core.py` only when its instructions and tool permissions allow it. Stored entries are capped so the block stays within about 2,400 UTF-8 bytes; very long project paths can lengthen the header. Failures allow the chat to continue; no separate model service performs extraction.
   Automatic capture is not guaranteed.
   See the [official hooks contract](https://cursor.com/docs/hooks).
   The project is resolved from `workspace_roots`. The hook writes only `~/.hercules/memory/`: the
-  `.deliveries.json` state file, and a per-project store only after a capture. The Windows/PowerShell
+  `.deliveries.json` and `.deliveries.lock` state files, and a per-project store only after a capture. The Windows/PowerShell
   expansion of `${CURSOR_PLUGIN_ROOT}` is unverified.
 
 Hercules ships the full Discover → Design → Build → Ship methodology on Cursor as an official plugin

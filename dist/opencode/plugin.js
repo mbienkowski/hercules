@@ -107,7 +107,11 @@ const MEMORY_UNAVAILABLE = "Hercules memory unavailable; this conversation conti
 const memoryBySession = new Map(); // sessionID -> Promise<string>
 function sessionMemory(projectDir, sessionID, client) {
   if (!memoryBySession.has(sessionID)) memoryBySession.set(sessionID, (async () => {
-    const s = client && await client.session.get({ path: { id: sessionID } }).catch(() => null);
+    // A hung lookup must not stall the model call; the timeout fails open, treating the session as not a child.
+    const s = client && await Promise.race([
+      client.session.get({ path: { id: sessionID } }).catch(() => null),
+      new Promise((resolve) => setTimeout(() => resolve(null), 1000)),
+    ]);
     if (s && s.data && s.data.parentID) return ""; // delegates inherit the parent's context
     return new Promise((resolve) => {
       // No session_id: the Map is the dedupe; hook-side state would blank a resumed session.

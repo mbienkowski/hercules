@@ -51,14 +51,15 @@ def project_dir(payload):
     return cwd
 
 
-def event_class(payload, dialect):
+def event_class(payload, dialect, host_event=None):
     """START, PROMPT, TOOL or COMPACT. Unnamed or unknown events are PROMPT, the one that may add context.
-    OpenCode (`text`) has no event name and its output is only ever a session start."""
+    OpenCode (`text`) has no event name and its output is only ever a session start. Copilot's payloads
+    carry no name, so the host event passed on argv stands in for it."""
     if dialect == "text":
         return START
     if not isinstance(payload, dict):
         return PROMPT
-    name = payload.get("hook_event_name") or payload.get("hookEventName")
+    name = payload.get("hook_event_name") or payload.get("hookEventName") or host_event
     if name in START_EVENTS or (not name and "source" in payload):  # Copilot camelCase starts carry only source
         return START
     if name in COMPACT_EVENTS:
@@ -182,16 +183,18 @@ def context(payload, *, home=None, event=PROMPT, dialect="common"):
         return full if event == START else ""
 
 
-def main(raw=None, *, home=None, dialect=None):
+def main(raw=None, *, home=None, dialect=None, host_event=None):
     """A memory failure never blocks a prompt or leaks exception contents. Session starts say so; other events stay silent."""
-    dialect = dialect or (sys.argv[1] if len(sys.argv) > 1 else "common")
-    payload, event = {}, event_class({}, dialect)
+    argv = sys.argv[1:] if dialect is None else []  # an explicit dialect means a caller, not the command line
+    dialect = dialect or (argv[0] if argv else "common")
+    host_event = host_event or (argv[1] if len(argv) > 1 else None)
+    payload, event = {}, event_class({}, dialect, host_event)
     try:
         raw = sys.stdin.read(MAX_INPUT_BYTES + 1) if raw is None else raw
         if len(raw.encode("utf-8")) > MAX_INPUT_BYTES:
             raise ValueError("oversized memory event")
         payload = json.loads(raw)
-        event = event_class(payload, dialect)
+        event = event_class(payload, dialect, host_event)
         text = context(payload, home=home, event=event, dialect=dialect)
         if not text:
             print("{}" if dialect != "text" else "")

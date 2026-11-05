@@ -8,8 +8,8 @@
   session's first tool call, so a chat that never calls a tool gets no memory. `PostCompact` resets
   delivery state, so the next tool call re-delivers. An MCP-instructions alternative was rejected: it is
   capped at 2,048 characters, needs a tool, and carries no workspace directory. The plugin must be trusted
-  (`--trust` or `~/.grok/plugins`). Context is capped at 2,400 UTF-8 bytes. The hook writes only
-  `~/.hercules/memory/`: the `.deliveries.json` state file, and a per-project store only after a
+  (`--trust` or `~/.grok/plugins`). Stored entries are capped so the block stays within about 2,400 UTF-8 bytes; very long project paths can lengthen the header. The hook writes only
+  `~/.hercules/memory/`: the `.deliveries.json` and `.deliveries.lock` state files, and a per-project store only after a
   capture. Capture depends on the host model's instructions and permissions; no separate model service runs.
   See the [official hooks guide](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/10-hooks.md).
 

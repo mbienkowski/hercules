@@ -7,13 +7,11 @@
 - **Ordinary-chat project memory (needs `python3` and enabled hooks).** `SessionStart` and `BeforeAgent`
   invoke `hooks/memory_hook.py gemini`, returning `hookSpecificOutput.additionalContext`. The host model
   receives compact preferences and instructions to capture explicit durable user preferences through
-  `tools/memory_core.py`; capture depends on its compliance and tool permissions. Context is capped at
-  2,400 UTF-8 bytes. Delivery state is per session in `~/.hercules/memory/.deliveries.json`. `/clear` and
+  `tools/memory_core.py`; capture depends on its compliance and tool permissions. Stored entries are capped so the block stays within about 2,400 UTF-8 bytes; very long project paths can lengthen the header. Delivery state is per session in `~/.hercules/memory/.deliveries.json`. `/clear` and
   `--resume` re-deliver on the next prompt. A manual `/compress` (`PreCompress`, matcher `manual`) resets
   delivery state. Auto-compression re-delivers roughly per 256 KB of transcript growth (a heuristic). With
   `contextManagement.enabled`, `PreCompress` never fires. The hook is not wired to automatic compression
-  because it would fire every turn. The hook writes only `~/.hercules/memory/`: the `.deliveries.json` state
-  file, and a per-project store only after a capture. Failures allow the chat to continue; no separate model
+  because it would fire every turn. The hook writes only `~/.hercules/memory/`: the `.deliveries.json` and `.deliveries.lock` state files, and a per-project store only after a capture. Failures allow the chat to continue; no separate model
   service performs extraction.
   See the [official hook reference](https://geminicli.com/docs/hooks/reference/).
 

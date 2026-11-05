@@ -77,7 +77,7 @@ describe('hosts register memory at events that can deliver context', () => {
   it.each(['sessionStart', 'userPromptSubmitted', 'preCompact'])('Copilot CLI %s runs the memory hook with the copilot dialect', (event) => {
     const registered = handlers(hookConfig('copilot-cli'), event);
     expect(registered).toHaveLength(1);
-    expect(registered[0]?.bash).toBe('python3 "$PLUGIN_ROOT/hooks/memory_hook.py" copilot || exit 0');
+    expect(registered[0]?.bash).toBe(`python3 "$PLUGIN_ROOT/hooks/memory_hook.py" copilot ${event} || exit 0`);
     expect(registered[0]?.timeoutSec).toBe(10);
   });
 
@@ -149,10 +149,10 @@ describe('dist hook registrations match the source hooks', () => {
     expect(registered[0]?.command?.endsWith(suffix)).toBe(true);
   });
 
-  it.each(['sessionStart', 'userPromptSubmitted', 'preCompact'])('dist/copilot-cli registers %s with the copilot dialect', (event) => {
+  it.each(['sessionStart', 'userPromptSubmitted', 'preCompact'])('dist/copilot-cli registers %s with the copilot dialect and its event name', (event) => {
     const registered = handlers(distHookConfig('copilot-cli'), event);
     expect(registered).toHaveLength(1);
-    expect(registered[0]?.bash).toContain('/hooks/memory_hook.py" copilot');
+    expect(registered[0]?.bash).toContain(`/hooks/memory_hook.py" copilot ${event} || exit 0`);
   });
 
   it('dist/grok-build registers PostToolUse and PostCompact with the packaged hook', () => {
@@ -211,7 +211,7 @@ async function loadPlugin(pluginDir: string, execFile: Mock, client?: unknown) {
   const requireSource = createRequire(join(pluginDir, 'plugin.js'));
   const module = { exports: {} as { server: (input: { directory: string; client?: unknown }) => Promise<Hooks> } };
   runInNewContext(readFileSync(join(pluginDir, 'plugin.js'), 'utf8'), {
-    module, __dirname: pluginDir, process: { env: {}, cwd: () => '/fallback' },
+    module, __dirname: pluginDir, process: { env: {}, cwd: () => '/fallback' }, setTimeout,
     require: (id: string) => id === 'child_process' ? { spawnSync: vi.fn(), execFile }
       : id === 'fs' ? { existsSync: () => true } : requireSource(id),
   });
@@ -232,8 +232,7 @@ describe.each([['source', sourceDir], ['dist', distDir]])('OpenCode appends memo
     expect(args).toEqual([join(pluginDir!, 'hooks/memory_hook.py'), 'text']);
     expect(options.cwd).toBe('/project with spaces');
     expect(stdinPayload(execFile, 0)).toEqual({ cwd: '/project with spaces' });
-    expect(options.timeout).toBeGreaterThan(0);
-    expect(options.timeout).toBeLessThanOrEqual(10000);
+    expect(options.timeout).toBe(3000);
     expect(plugin['tool.execute.before']).toBeTypeOf('function');
   });
 
@@ -314,6 +313,16 @@ describe.each([['source', sourceDir], ['dist', distDir]])('OpenCode appends memo
       expect(output.system[1]).toMatch(/memory unavailable/i);
       expect(output.system[1]).not.toContain(result.stdout);
     }
+    expect(execFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails open to the fresh context when the session lookup never answers', async () => {
+    const execFile = fakeExecFile({ stdout: 'compact context' });
+    const hung = { session: { get: vi.fn(() => new Promise(() => {})) } };
+    const plugin = await load(execFile, hung);
+    const output = { system: ['existing instructions'] };
+    await plugin['experimental.chat.system.transform']!({ sessionID: 'chat-hung' }, output);
+    expect(output.system).toEqual(['existing instructions', 'compact context']);
     expect(execFile).toHaveBeenCalledTimes(1);
   });
 

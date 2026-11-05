@@ -12,10 +12,10 @@
   entries. Context is computed once per session (async, cached as a promise, so concurrent calls share one
   spawn) and re-attached on each model call. Compaction (`session.compacted`) drops the cache, so the next
   call recomputes it. Subagent (child) sessions are skipped. Calls with no session id (Agent.generate) get
-  none. The hook writes only `~/.hercules/memory/`: the `.deliveries.json` state file, and a per-project
+  none. The hook writes only `~/.hercules/memory/`: the `.deliveries.json` and `.deliveries.lock` state files, and a per-project
   store only after a capture.
   This hook has no prompt text, so it loads compact standing preferences and capture instructions,
-  rather than prompt-specific search. Context is capped at 2,400 UTF-8 bytes.
+  rather than prompt-specific search. Stored entries are capped so the block stays within about 2,400 UTF-8 bytes; very long project paths can lengthen the header.
   The host model captures explicit durable user preferences through `tools/memory_core.py` when
   its instructions and permissions allow; no separate model service runs and capture is not guaranteed.
   A missing interpreter, subprocess error or three-second timeout adds a memory-unavailable warning

@@ -284,6 +284,16 @@ def test_capture_statement_limit_and_markup_roundtrip(fx):
     assert any(e["statement"] == statement for e in select(fx)[1]["entries"])
 
 
+def test_a_raw_line_break_in_a_statement_is_stored_as_one_line(fx):
+    # Universal newlines would split a raw CR in the heading and refuse every later read of the store.
+    assert capture(fx, "decision", "a\rb", topic="cr-topic")[0] == 0
+    assert capture(fx, "decision", "x y", topic="other-topic")[0] == 0
+    assert select(fx)[0] == 0
+    assert capture(fx, "decision", "a\rb", topic="cr-topic")[0] == 0
+    statements = sorted(e["statement"] for e in select(fx)[1]["entries"])
+    assert statements == ["a b", "x y"]
+
+
 def test_delivery_deduplicates_per_session_and_retains_bounded_private_state(fx):
     claim = lambda session, fingerprint: core.claim_delivery(str(fx.project), session, fingerprint, home=fx.home)
     assert claim("first/private/session", "v1") is True
@@ -310,13 +320,13 @@ def test_concurrent_delivery_claims_have_one_winner(fx):
     assert results.count(True) == 1
 
 
-def test_delivery_refuses_corruption_without_overwriting_it(fx):
+def test_corrupt_delivery_state_self_heals_to_valid_json(fx):
     path = fx.home / ".hercules" / "memory" / ".deliveries.json"
     path.parent.mkdir(parents=True)
     path.write_bytes(b"not JSON")
-    with pytest.raises(core.Refused):
-        core.claim_delivery(str(fx.project), "s", "f", home=fx.home)
-    assert path.read_bytes() == b"not JSON"
+    assert core.claim_delivery(str(fx.project), "s", "f", home=fx.home)
+    assert len(json.loads(path.read_text(encoding="utf-8"))) == 1
+    assert not core.claim_delivery(str(fx.project), "s", "f", home=fx.home)
 
 
 def test_delivery_reset_reclaims_same_context_after_compaction(fx):

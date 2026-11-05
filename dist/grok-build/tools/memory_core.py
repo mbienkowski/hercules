@@ -606,6 +606,9 @@ _SECRET_RE = re.compile(
     re.IGNORECASE)
 
 
+_LINE_BREAKS = re.compile(r"[\r\n\v\f\x85\u2028\u2029]+")
+
+
 def _validate_capture(statement: str, rationale: str, evidence, metadata=None) -> None:
     if not isinstance(statement, str) or len(statement) > 1000:
         raise Refused("statement_limit", "Statements must be strings of at most 1000 characters.")
@@ -623,6 +626,11 @@ def capture_entry(cwd: str, kind: str, statement: str, rationale: str = "",
     """Record provenance; count equivalent recaptures and preserve differing statements."""
     if kind not in KINDS:
         raise Refused("bad_kind", f"'{kind}' is not a known kind; one of {KINDS}.")
+    # A raw line break would split the rendered heading line and corrupt entries.md for every later read.
+    if isinstance(statement, str):
+        statement = _LINE_BREAKS.sub(" ", statement)
+    if isinstance(topic, str):
+        topic = _LINE_BREAKS.sub(" ", topic)
     _validate_capture(statement, rationale, evidence, [topic, scope, related_code_version, captured_by,
                                                       extraction_model, extraction_version])
     if not statement.strip() or not (scope == "project" or re.fullmatch(r"task:[A-Za-z0-9][A-Za-z0-9._-]*", scope)):
@@ -767,8 +775,8 @@ def claim_delivery(cwd: str, session_id: str, fingerprint: str, home=None, reset
                                or not isinstance(v, str) or not re.fullmatch(r"[0-9a-f]{64}", v)
                                for k, v in sessions.items())):
                     raise ValueError("invalid delivery state")
-            except (ValueError, OSError) as exc:
-                raise Refused("corrupt_delivery", "Delivery state is unreadable; bytes preserved.") from exc
+            except (ValueError, OSError):
+                sessions = {}  # dedupe hashes only: an unreadable file is treated as empty and overwritten
         if not reset and sessions.get(session_key) == digest:
             return False
         sessions.pop(session_key, None)
