@@ -99,6 +99,31 @@ function makeWriteGate(projectDir) {
   };
 }
 
+// Standing memory per session, cached for the process lifetime (shortcut: never evicted, fine for one
+// CLI session per process; upgrade to an LRU if a long-lived server hosts many sessions). A failure is
+// cached too, so a broken python3 is not retried on every model call.
+const MEMORY_UNAVAILABLE = "Hercules memory unavailable; this conversation continues without refreshed memory.";
+const memoryBySession = new Map();
+function sessionMemory(projectDir, sessionID) {
+  if (!memoryBySession.has(sessionID)) {
+    let text;
+    try {
+      const result = spawnSync("python3", [path.join(PLUGIN_ROOT, "hooks", "memory_hook.py"), "text"], {
+        cwd: projectDir,
+        // No session_id: memory_hook.py dedupes per session in a persistent file, so a resumed session would get blank memory. The Map cache below is the dedupe.
+        input: JSON.stringify({ cwd: projectDir }),
+        encoding: "utf8", timeout: 3000, maxBuffer: 65536,
+      });
+      if (result.error || result.status !== 0) throw new Error("memory hook unavailable");
+      text = (result.stdout || "").trim();
+    } catch (e) {
+      text = MEMORY_UNAVAILABLE;
+    }
+    memoryBySession.set(sessionID, text);
+  }
+  return memoryBySession.get(sessionID);
+}
+
 // A bare `module.exports = <function>` breaks Bun's real loader (it spreads the function's own
 // properties into the namespace and throws on the first non-export value), so this exports the
 // documented `PluginModule` shape instead; `id` is required in practice. Diagnosis: issue #15.
@@ -161,6 +186,14 @@ module.exports = {
         cfg.command = { ...(cfg.command || {}), ...commands() };
       },
       "tool.execute.before": makeWriteGate(projectDir),
+      // Fires on every model call (each tool-loop step), so the hook runs once per session and the
+      // cached text is re-attached each time: OpenCode rebuilds `output.system` per call. Calls with no
+      // session id (title and small-model requests) get nothing and spawn nothing.
+      "experimental.chat.system.transform": async (input, output) => {
+        if (!input || !input.sessionID) return;
+        const context = sessionMemory(projectDir, input.sessionID);
+        if (context) output.system.push(context);
+      },
     };
   },
 };

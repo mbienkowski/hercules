@@ -1,5 +1,15 @@
 # Hercules on GitHub Copilot CLI — capabilities & disclosed gaps
 
+- **Project memory at session start only (needs Copilot CLI ≥ 1.0.11 and `python3`).** `sessionStart`
+  runs `hooks/memory_hook.py copilot`, and its `additionalContext` reaches the model with compact
+  preferences and capture instructions. Per-prompt retrieval is not wired: Copilot's
+  `userPromptSubmitted` output for command hooks is undocumented and contradictory. Context is capped at
+  2,400 UTF-8 bytes and unchanged deliveries are suppressed per session. The hook writes only
+  `~/.hercules/memory/`: a single `.deliveries.json` for dedupe, and a per-project store only after a
+  capture. The model captures explicit durable preferences through `tools/memory_core.py` only when its
+  instructions and permissions allow; there is no capture guarantee or separate model service.
+  See the [official hooks reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-hooks-reference).
+
 Hercules ships the full Discover → Design → Build → Ship methodology on GitHub Copilot CLI as an
 installable plugin (`plugin.json` manifest; agents, commands, skills, and a write-gate hook), with the
 capability gaps disclosed here (the "disclose gaps, never hide" principle):

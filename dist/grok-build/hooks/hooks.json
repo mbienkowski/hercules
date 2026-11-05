@@ -13,6 +13,17 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${GROK_PLUGIN_ROOT}/hooks/memory_hook.py\"",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

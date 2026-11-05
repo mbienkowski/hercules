@@ -1,5 +1,21 @@
 # Hercules on OpenCode — capabilities & disclosed gaps
 
+- **Ordinary-chat project memory (needs `python3`).** The plugin's
+  `experimental.chat.system.transform` runs `hooks/memory_hook.py text` with the project directory
+  as both working directory and `cwd`, appending context to `output.system` and preserving its entries.
+  The context is computed once per session (cached) and re-attached on each model call; calls without a
+  session id get none. The hook writes only `~/.hercules/memory/`: a single `.deliveries.json` for dedupe,
+  and a per-project store only after a capture.
+  This hook has no prompt text, so it loads compact standing preferences and capture instructions,
+  rather than prompt-specific search. Context is capped at 2,400 UTF-8 bytes.
+  The host model captures explicit durable user preferences through `tools/memory_core.py` when
+  its instructions and permissions allow; no separate model service runs and capture is not guaranteed.
+  A missing interpreter, subprocess error or three-second timeout adds a memory-unavailable warning
+  to system context and allows the model request to continue.
+  This requires the experimental hook in the
+  [official plugin interface](https://github.com/anomalyco/opencode/blob/v1.2.27/packages/plugin/src/index.ts);
+  compatibility with a different plugin API is not implied.
+
 Hercules ships the full Discover → Design → Build → Ship methodology on OpenCode, with the
 capability gaps disclosed here (the "disclose gaps, never hide" principle):
 

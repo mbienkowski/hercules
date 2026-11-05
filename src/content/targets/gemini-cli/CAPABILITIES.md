@@ -1,5 +1,16 @@
 # Hercules on Gemini CLI — capabilities & disclosed gaps
 
+- **Ordinary-chat project memory (needs `python3` and enabled hooks).** `SessionStart` and
+  `BeforeAgent` invoke `hooks/memory_hook.py`, returning `hookSpecificOutput.additionalContext`.
+  The host model receives compact preferences and instructions to capture explicit durable user
+  preferences through `tools/memory_core.py`; capture depends on its compliance and tool permissions.
+  Context is capped at 2,400 UTF-8 bytes and unchanged deliveries are suppressed per session;
+  native `source: compact` / `clear` events reset delivery tracking when supplied by the host.
+  SessionStart's `source` has no `compact` value, so context is not re-delivered after compression within a session.
+  The hook writes only `~/.hercules/memory/`: a single `.deliveries.json` for dedupe, and a per-project store only after a capture.
+  Failures allow the chat to continue; no separate model service performs extraction.
+  See the [official hook reference](https://geminicli.com/docs/hooks/reference/).
+
 Hercules ships the full Discover → Design → Build → Ship methodology on Gemini CLI as an extension
 (`gemini-extension.json` + `agents/`, `commands/`, `skills/`, `GEMINI.md`, `hooks/`), with the
 capability gaps disclosed here (the "disclose gaps, never hide" principle):

@@ -188,6 +188,11 @@
         "src/content/targets/gemini-cli/hooks/hooks.json"
       ]
     },
+    "hooks/memory_hook.py": {
+      "sources": [
+        "src/scripts/hooks/memory_hook.py"
+      ]
+    },
     "hooks/write_gate.json": {
       "sources": [
         "src/content/targets/gemini-cli/hooks/write_gate.json"
@@ -251,6 +256,11 @@
     "tools/code_of_conduct/coc_scan.py": {
       "sources": [
         "src/scripts/tools/code_of_conduct/coc_scan.py"
+      ]
+    },
+    "tools/memory_core.py": {
+      "sources": [
+        "src/scripts/tools/memory_core.py"
       ]
     },
     "tools/project_reset.py": {

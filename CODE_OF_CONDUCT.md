@@ -223,17 +223,17 @@ Shared rules for every hook, on every ecosystem:
   user's edit. Two further sanctioned mutations exist, each a different kind:
   - **Cursor's headless restore** — through git, bounded to the frozen path, reporting success
     **only when git actually restored it**.
-  - **The session-lifecycle memory hook** (evolved 2026-10-26, sanctioned) — write-capable by
-    declaration, writing **only** to the memory subtree `~/.hercules/memory/<slug>/`, gated by
-    `hooks/memory_gate.json` (a `writeGate`-class dialect that refuses any path outside that root via
-    the in-tree containment helpers in `src/scripts/tools/`, so auto-capture can never reach the repo,
-    `docs/learnings.md`,
-    or `code-of-conduct.md`). Its **no-race invariant is enforced, not assumed**: the memory subtree is
-    disjoint from the model's state, so no two writers own one file, and every memory write routes
-    through the shared `memory_core.py` with the per-slug lock + atomic `os.replace` + revision-check,
-    so a hook-triggered and a model-triggered write **serialize**. It fails open: a missing `python3`
-    or an unwritable memory dir is a visible, unrecorded limitation, never a crash of the user's
-    session.
+  - **Project memory** — `hooks/memory_hook.py` retrieves compact context for ordinary chats and
+    instructs the host model to capture explicit durable preferences through `tools/memory_core.py`.
+    The model performs semantic extraction; the hook neither reads transcripts nor calls a model.
+    Capture writes **only** under `~/.hercules/memory/<slug>/`; containment is enforced inside
+    `tools/memory_core.py` (path validation refuses symlinks, and locked read-modify-write operations use
+    atomic replacement). Delivery dedupe state is the single `~/.hercules/memory/.deliveries.json`.
+    Memory grants no action permissions. Promotion into a committed store requires explicit
+    confirmation. Context is byte-bounded and unchanged deliveries are suppressed within a session;
+    session start after compaction restores it. Failure is visible and never blocks the conversation.
+    Host activation limits are disclosed in each edition's capabilities; component tests alone are
+    not evidence of installed-host learning or lower total task-token consumption.
   A tool in `src/scripts/tools/` is likewise command-invoked, write-capable by declaration, and
   fail-closed — a hook's safe default is allowing an edit; a deleting tool's is doing nothing.
 - **Honest scope.** A hook reads model-authored state, so it is **runtime-mediated, not tamper-proof**

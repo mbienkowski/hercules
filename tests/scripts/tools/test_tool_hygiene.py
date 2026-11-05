@@ -54,7 +54,10 @@ def test_at_least_one_tool_ships():
 def _needs_installing(root: str) -> bool:
     """Whether importing `root` pulls in an installed package, answered by where the module lives:
     `sys.stdlib_module_names` starts at 3.10, and CI runs this project's 3.9 floor."""
-    if root in sys.builtin_module_names:
+    if root in sys.builtin_module_names or root in getattr(sys, "stdlib_module_names", ()):
+        return False
+    # Python 3.9 lacks stdlib_module_names; these lock modules exist only on their own platform.
+    if root in {"msvcrt", "fcntl"}:
         return False
     try:
         spec = importlib.util.find_spec(root)
@@ -80,6 +83,8 @@ def test_the_installed_package_check_can_actually_fail():
     to `pytest` — exactly what a consumer must not need."""
     assert _needs_installing("pytest") is True
     assert _needs_installing("json") is False
+    assert _needs_installing("msvcrt") is False
+    assert _needs_installing("fcntl") is False
 
 
 @pytest.mark.parametrize("script", _TOOL_SCRIPTS, ids=lambda p: p.relative_to(_TOOLS_DIR).as_posix())
@@ -117,10 +122,20 @@ def test_a_shipped_tool_never_invokes_version_control(script: Path):
     source = script.read_text()
     roots = set(_imported_roots(ast.parse(source)))
     assert "subprocess" not in roots, f"{script.name} imports subprocess"
-    # Whole word only: "legitimate" and "digit" are not invocations of git.
-    calls = [line for line in source.splitlines()
-             if re.search(r"\bgit\b", line) and not line.lstrip().startswith(("#", '"', "'"))]
+    calls = _executable_git_mentions(source)
     assert not calls, f"{script.name} mentions git in executable code: {calls}"
+
+
+def _executable_git_mentions(source: str) -> list:
+    """Reading a .git metadata path does not execute version control."""
+    return [line for line in source.splitlines()
+            if re.search(r"(?<![.\w])git\b", line)
+            and not line.lstrip().startswith(("#", '"', "'"))]
+
+
+def test_reading_repository_metadata_does_not_grant_permission_to_run_git():
+    assert not _executable_git_mentions('root = (parent / ".git").exists()')
+    assert _executable_git_mentions('os.system("git reset --hard")')
 
 
 def _starts_with_git(node) -> bool:

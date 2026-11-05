@@ -72,5 +72,18 @@ describe.skipIf(which('codex') === null)('live Codex CLI', () => {
     expect(hercules?.source.source).toBe('local');
     // macOS resolves the tmp directory through `/private`, while Node starts with `/var`.
     expect(hercules?.source.path).toMatch(/\/dist\/codex$/);
+    const installedRoot = hercules?.source.path as string;
+    const hooks = JSON.parse(readFileSync(join(installedRoot, 'hooks/hooks.json'), 'utf8'));
+    const command = hooks.hooks.UserPromptSubmit[0].hooks[0].command as string;
+    const injected = spawnSync(command, {
+      shell: true, cwd: root, env: { ...env, PLUGIN_ROOT: installedRoot }, encoding: 'utf8',
+      input: JSON.stringify({ cwd: root, session_id: 'installed-smoke', hook_event_name: 'UserPromptSubmit' }),
+      timeout: TIMEOUT_MS,
+    });
+    expect(injected.status, injected.stderr).toBe(0);
+    const context = JSON.parse(injected.stdout).hookSpecificOutput.additionalContext as string;
+    expect(context).toContain('Apply relevant stored preferences');
+    expect(context).toContain(join(installedRoot, 'tools/memory_core.py'));
+    expect(Buffer.byteLength(context)).toBeLessThanOrEqual(2400);
   }, (TIMEOUT_MS * 3) + 5_000);
 });

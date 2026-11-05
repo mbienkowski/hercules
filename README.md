@@ -21,6 +21,14 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
 *For more details, look into the [detailed diagram](https://htmlpreview.github.io/?https://github.com/mbienkowski/hercules/blob/main/docs/workflow/workflow-diagram-detailed.html)
 (or open `docs/workflow/workflow-diagram-detailed.html` from a clone if the preview proxy is slow).*
 
+**Project memory in ordinary chats:** all seven editions inject compact local memory automatically and ship the same capture tools.
+Cursor and Copilot CLI inject at session start only.
+Grok Build injects after the session's first tool call.
+OpenCode injects through its experimental system hook.
+Codex needs its plugin hooks trusted via `/hooks`.
+Context is capped at 2,400 UTF-8 bytes and needs `python3`; capture depends on the model and its permissions, with no separate model service.
+Each edition's `CAPABILITIES.md` has the details.
+
 **Who it's for:**
 
 - **Non-developers - Product & QA** — turn messy notes into clear, reviewable requirements;

@@ -10,6 +10,28 @@
           }
         ]
       }
+    ],
+    "BeforeAgent": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${extensionPath}/hooks/memory_hook.py\"",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${extensionPath}/hooks/memory_hook.py\"",
+            "timeout": 10000
+          }
+        ]
+      }
     ]
   }
 }

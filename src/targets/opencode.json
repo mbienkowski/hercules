@@ -168,6 +168,11 @@
         "src/scripts/hooks/hercules_state.py"
       ]
     },
+    "hooks/memory_hook.py": {
+      "sources": [
+        "src/scripts/hooks/memory_hook.py"
+      ]
+    },
     "instructions.md": {
       "sources": [
         "src/content/persona.md"
@@ -246,6 +251,11 @@
     "tools/code_of_conduct/coc_scan.py": {
       "sources": [
         "src/scripts/tools/code_of_conduct/coc_scan.py"
+      ]
+    },
+    "tools/memory_core.py": {
+      "sources": [
+        "src/scripts/tools/memory_core.py"
       ]
     },
     "tools/project_reset.py": {

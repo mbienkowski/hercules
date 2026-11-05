@@ -1,5 +1,14 @@
 # Hercules on Grok Build — capabilities & disclosed gaps
 
+- **Project memory after the first tool call (needs `python3` and a trusted plugin).** `PostToolUse`
+  runs `hooks/memory_hook.py`, and its `additionalContext` is the output Grok delivers to the model;
+  session-start and prompt-submit output does not reach it. Delivery happens once per session, after the
+  session's first tool call, so a chat that never calls a tool gets no memory. The plugin must be trusted
+  (`--trust` or `~/.grok/plugins`). Context is capped at 2,400 UTF-8 bytes. The hook writes only
+  `~/.hercules/memory/`: a single `.deliveries.json` for dedupe, and a per-project store only after a
+  capture. Capture depends on the host model's instructions and permissions; no separate model service runs.
+  See the [official hooks guide](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/10-hooks.md).
+
 Hercules ships the full Discover → Design → Build → Ship methodology on Grok Build as a native,
 installable plugin (`.grok-plugin/marketplace.json` → `dist/grok-build`). Grok Build's plugin format
 mirrors Claude Code's — the same `agents/`/`commands/`/`skills/`/`hooks/` layout, a `plugin.json`,

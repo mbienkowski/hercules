@@ -8,6 +8,14 @@
         "bash": "python3 \"$PLUGIN_ROOT/hooks/hercules_gate.py\" preToolUse || exit 0",
         "powershell": "try { python3 \"$env:PLUGIN_ROOT/hooks/hercules_gate.py\" preToolUse } catch {}; exit 0"
       }
+    ],
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "python3 \"$PLUGIN_ROOT/hooks/memory_hook.py\" copilot || exit 0",
+        "powershell": "try { python3 \"$env:PLUGIN_ROOT/hooks/memory_hook.py\" copilot } catch {}; exit 0",
+        "timeoutSec": 10
+      }
     ]
   }
 }

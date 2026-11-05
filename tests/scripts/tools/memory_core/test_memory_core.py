@@ -223,7 +223,8 @@ def test_unregistered_directory_derives_a_deterministic_slug(tmp_path, fx):
     stray.mkdir()
     code, payload = run(fx, "inspect", "--cwd", str(stray))
     # No crash; a slug derived from the directory name, so any repo works with no per-repo config.
-    assert payload["slug"] == "some-unregistered-repo"
+    assert payload["slug"].startswith("some-unregistered-repo-")
+    assert len(payload["slug"].rsplit("-", 1)[1]) == 12
 
 
 # ── The rebuildable index is a cache, not the source of truth ───────────────────────────────────
@@ -244,16 +245,16 @@ def test_index_is_rebuildable_and_select_works_without_it(fx):
 
 # ── Path escape is refused ──────────────────────────────────────────────────────────────────────
 
-def test_path_escape_is_refused():
+def test_path_escape_is_refused(tmp_path):
     """The one thing auto-capture must never do is reach outside the memory subtree. A slug that
     would escape (e.g. ``..`` or ``.``) is refused before any write."""
     import sys
     module = sys.modules["memory_core"]  # the conftest loaded it the way a host does
     for bad in ("..", ".", "proj/..", "..hidden", ".hidden"):
         with pytest.raises(module.Refused):
-            module.memory_root(bad, home="/tmp/never-here-12345")
+            module.memory_root(bad, home=tmp_path)
     # A plain slug name is NOT an escape — it lives inside the memory subtree and is allowed.
-    module.memory_root("proj", home="/tmp/never-here-12345")
+    module.memory_root("proj", home=tmp_path)
 
 
 # ── The four gated lifecycle ops, locked in CI (promote/delete/checkpoint/reindex) ───────────────
