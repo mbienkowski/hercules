@@ -19,7 +19,7 @@ const workspace = tempWorkspace();
 afterEach(workspace.cleanup, 30_000);
 
 it('before-tool gate is wired to the adapter', () => {
-  // hooks.json wires BeforeTool to hercules_gate.py via python3 and `${extensionPath}` — form pinned.
+  // hooks.json wires BeforeTool to hercules_gate.py via python3 and a quoted `${extensionPath}` — form pinned.
   const hooks = JSON.parse(readFileSync(join(DIST, 'hooks', 'hooks.json'), 'utf-8')) as {
     hooks: { BeforeTool: Array<{ matcher: string; hooks: Array<{ command: string }> }> };
   };
@@ -29,7 +29,7 @@ it('before-tool gate is wired to the adapter', () => {
   expect(matcher).toContain('replace');
   const cmd = (entries[0] as { hooks: Array<{ command: string }> }).hooks[0]?.command;
   expect(cmd, `unexpected hook command: ${cmd}`).toBe(
-    'python3 ${extensionPath}/hooks/hercules_gate.py || exit 0',
+    'python3 "${extensionPath}/hooks/hercules_gate.py" || exit 0',
   );
 });
 

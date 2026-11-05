@@ -82,7 +82,7 @@ describe.skipIf(which('codex') === null)('live Codex CLI', () => {
     });
     expect(injected.status, injected.stderr).toBe(0);
     const context = JSON.parse(injected.stdout).hookSpecificOutput.additionalContext as string;
-    expect(context).toContain('Apply relevant stored preferences');
+    expect(context).toContain(' capture --cwd '); // empty store: short capture-only header
     expect(context).toContain(join(installedRoot, 'tools/memory_core.py'));
     expect(Buffer.byteLength(context)).toBeLessThanOrEqual(2400);
   }, (TIMEOUT_MS * 3) + 5_000);
