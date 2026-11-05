@@ -8,6 +8,30 @@
         "bash": "python3 \"$PLUGIN_ROOT/hooks/hercules_gate.py\" preToolUse || exit 0",
         "powershell": "try { python3 \"$env:PLUGIN_ROOT/hooks/hercules_gate.py\" preToolUse } catch {}; exit 0"
       }
+    ],
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "python3 \"$PLUGIN_ROOT/hooks/memory_hook.py\" copilot sessionStart || exit 0",
+        "powershell": "try { python3 \"$env:PLUGIN_ROOT/hooks/memory_hook.py\" copilot sessionStart } catch {}; exit 0",
+        "timeoutSec": 10
+      }
+    ],
+    "userPromptSubmitted": [
+      {
+        "type": "command",
+        "bash": "python3 \"$PLUGIN_ROOT/hooks/memory_hook.py\" copilot userPromptSubmitted || exit 0",
+        "powershell": "try { python3 \"$env:PLUGIN_ROOT/hooks/memory_hook.py\" copilot userPromptSubmitted } catch {}; exit 0",
+        "timeoutSec": 10
+      }
+    ],
+    "preCompact": [
+      {
+        "type": "command",
+        "bash": "python3 \"$PLUGIN_ROOT/hooks/memory_hook.py\" copilot preCompact || exit 0",
+        "powershell": "try { python3 \"$env:PLUGIN_ROOT/hooks/memory_hook.py\" copilot preCompact } catch {}; exit 0",
+        "timeoutSec": 10
+      }
     ]
   }
 }

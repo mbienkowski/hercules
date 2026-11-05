@@ -21,6 +21,21 @@ Half god, half man — strong enough to wrestle a lion, patient enough to sit th
 *For more details, look into the [detailed diagram](https://htmlpreview.github.io/?https://github.com/mbienkowski/hercules/blob/main/docs/workflow/workflow-diagram-detailed.html)
 (or open `docs/workflow/workflow-diagram-detailed.html` from a clone if the preview proxy is slow).*
 
+**Project memory in ordinary chats:** all seven editions inject compact local memory automatically and ship the same capture tools.
+Stored entries are capped so the block stays within about 2,400 UTF-8 bytes; very long project paths can lengthen the header. Memory needs `python3`; capture depends on the model and its permissions, with no separate model service. Repos with no stored memory still receive a short capture instruction at session start. A symlinked `~/.hercules` (e.g. via a dotfile manager) is refused for safety; memory reports itself unavailable.
+
+| Edition | Memory delivered | Verified against |
+|---|---|---|
+| claude-code | Session start and each prompt | `Claude Code 2.1.289 (2026-11-05)` |
+| codex | Session start (all sources) and each prompt, once plugin hooks are trusted | `openai/codex main @ e7f32cf (2026-11-05)` |
+| gemini-cli | Session start and each agent turn; re-delivered after `/clear`, `--resume`, and manual `/compress` | `Gemini CLI v0.67.0 (2026-11-04)` |
+| cursor | Session start, with a first-tool-call fallback; re-delivered after compaction | `Cursor 3.25.6 / cursor-agent 2026.10.16 (2026-11-05)` |
+| copilot-cli | Session start and each prompt (per-prompt context depends on Copilot honouring command-hook userPromptSubmitted output; GitHub's reference says it is dropped, the changelog says it is delivered); re-delivered after compaction | `GitHub Copilot CLI v1.0.105 (2026-10-28)` |
+| grok-build | After the session's first tool call; re-delivered after compaction | `Grok Build 1.0.45 @ 2bdd1d6 (2026-09-29)` |
+| opencode | Each model call, from a per-session cache (OpenCode v1.x only) | `OpenCode v1.19.5 (2026-10-28)` |
+
+Each edition's `CAPABILITIES.md` records the host version its notes were verified against; re-verify when upgrading.
+
 **Who it's for:**
 
 - **Non-developers - Product & QA** — turn messy notes into clear, reviewable requirements;

@@ -15,6 +15,10 @@ const RAW_PLUGIN = /parents\[\d+]\s*\/\s*["']plugin["']|\/\s*["']plugin["']\s*\/
 // Markdown reference to a bare `plugin/` path segment. The negative lookbehind exempts the legitimate
 // `.claude-plugin/` and `opencode-plugin/`.
 const RETIRED_PLUGIN_MD = /(?<![-.\w])plugin\//;
+function referencesRetiredPluginPath(line: string): boolean {
+  return RETIRED_PLUGIN_MD.test(line.replace(/https?:\/\/[^\s<>()`]+/g, ''));
+}
+
 // Generated / not-authored-here markdown the guard must not police.
 const MD_GUARD_SKIP = new Set(['CHANGELOG.md']);
 
@@ -38,6 +42,17 @@ describe('no source file hardcodes a path into the retired plugin/ folder', () =
 });
 
 describe('project documentation never points readers to the retired plugin/ folder', () => {
+  it.each([
+    ['`plugin/hooks/frozen_tests.py`', true],
+    ['[guard](plugin/hooks/frozen_tests.py)', true],
+    ['[plugin/hooks](https://example.com/docs)', true],
+    ['https://example.com/plugin/src/index.ts `plugin/hooks/`', true],
+    ['[interface](https://github.com/anomalyco/opencode/blob/v1.2.27/packages/plugin/src/index.ts)', false],
+    ['`.claude-plugin/plugin.json` and `opencode-plugin/`', false],
+  ])('distinguishes local paths from external URLs: %s', (line, expected) => {
+    expect(referencesRetiredPluginPath(line)).toBe(expected);
+  });
+
   it('scans every git-tracked markdown file (excluding generated files like the changelog)', () => {
     // git-tracked only, so the gitignored root CLAUDE.md is never swept. A tracked path whose file is
     // gone — a deletion not yet staged — is documentation nobody can read, so it is skipped.
@@ -50,7 +65,7 @@ describe('project documentation never points readers to the retired plugin/ fold
       if (MD_GUARD_SKIP.has(basename(relativePath))) continue;
       const lines = readRepoFile(relativePath).split('\n');
       lines.forEach((line, i) => {
-        if (RETIRED_PLUGIN_MD.test(line)) {
+        if (referencesRetiredPluginPath(line)) {
           offenders.push(`${relativePath}:${i + 1}: ${line.trim().slice(0, 100)}`);
         }
       });

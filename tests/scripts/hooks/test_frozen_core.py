@@ -48,6 +48,13 @@ def test_a_frozen_test_is_blocked_whatever_shape_the_edit_request_takes(tmp_path
         payload = _payload(project, FROZEN_TEST, tool="Write")
     assert main(payload, home=tmp_path) == 2
 
+@pytest.mark.parametrize("tool", ["search_replace", "hashline_edit", "write"])
+def test_grok_build_edit_tool_names_are_guarded_too(tmp_path, tool):
+    """Grok Build sends its real tool names in tool_name (its matcher aliases are not what arrives)."""
+    project = tmp_path / "proj"
+    _setup(tmp_path, project)
+    assert main(_payload(project, FROZEN_TEST, tool=tool), home=tmp_path) == 2
+
 @pytest.mark.parametrize("case", [
     "non_mutating_tool", "non_frozen_target", "phase_not_build",
     "empty_frozen_list", "project_opt_out",

@@ -187,7 +187,10 @@ Exception: `hercules.md`, the orchestrator persona.
 > **LOCKED.** `src/scripts/hooks/` stays Python, stdlib-only, forever — the one deliberate, permanent
 > exception to the all-TypeScript rule for executable domains. Porting it would force a Node runtime
 > dependency onto every consumer across all seven ecosystems, for code whose entire job is running
-> unmodified on whatever the host ships. Do not "finish the migration" here.
+> unmodified on whatever the host ships. Do not "finish the migration" here. This
+> permanence covers the *language* of hooks, not their write posture: a write-capable session-lifecycle
+> hook may be added, provided it stays stdlib-only Python, byte-copied to every ecosystem, and obeys
+> the gated, serialized memory-write rule below.
 
 Hooks are the plugin's **hard** enforcement — deterministic code the host runs, which a model cannot
 rationalise past. All hook code is authored ONCE in `src/scripts/hooks/` and byte-copied to every
@@ -214,13 +217,25 @@ Shared rules for every hook, on every ecosystem:
 - **Stdlib-only Python, no shebang** — invoked as `python3 <script>` (exec-form `args`, or a `command`
   string on hosts that require it); no jq/bash dependency, cross-platform. The `${…_PLUGIN_ROOT}` env
   var is the host's, e.g. `${CLAUDE_PLUGIN_ROOT}` / `${CURSOR_PLUGIN_ROOT}`.
-- **Read-only over `~/.hercules`, fail-open** — a hook never writes state (it would race the model's
-  atomic writes) and allows the action whenever no active build resolves or no `python3` is found; it
-  must never crash a user's edit. The **one** sanctioned working-tree mutation among hooks is
-  Cursor's disclosed headless restore: through git, bounded to the frozen path, reporting success
-  **only when git actually restored it**. A tool in `src/scripts/tools/` is the other sanctioned
-  mutation and a different kind: command-invoked, write-capable by declaration, and fail-closed —
-  a hook's safe default is allowing an edit; a deleting tool's is doing nothing.
+- **Read-only over the model's state; one gated write subtree, fail-open** — a hook never writes the
+  *model's* state (`config.json`, `state/<slug>.json`): it would race the model's atomic writes. It
+  allows the action whenever no active build resolves or no `python3` is found, and must never crash a
+  user's edit. Two further sanctioned mutations exist, each a different kind:
+  - **Cursor's headless restore** — through git, bounded to the frozen path, reporting success
+    **only when git actually restored it**.
+  - **Project memory** — `hooks/memory_hook.py` retrieves compact context for ordinary chats and
+    instructs the host model to capture explicit durable preferences through `tools/memory_core.py`.
+    The model performs semantic extraction; the hook neither reads transcripts nor calls a model.
+    Capture writes **only** under `~/.hercules/memory/<slug>/`; containment is enforced inside
+    `tools/memory_core.py` (path validation refuses symlinks, and locked read-modify-write operations use
+    atomic replacement). Delivery state is per session in `~/.hercules/memory/.deliveries.json`; session
+    start always delivers, and compaction events reset delivery state.
+    Memory grants no action permissions. Promotion into a committed store requires explicit
+    confirmation. Context is byte-bounded. Failure is visible and never blocks the conversation.
+    Host activation limits are disclosed in each edition's capabilities; component tests alone are
+    not evidence of installed-host learning or lower total task-token consumption.
+  A tool in `src/scripts/tools/` is likewise command-invoked, write-capable by declaration, and
+  fail-closed — a hook's safe default is allowing an edit; a deleting tool's is doing nothing.
 - **Honest scope.** A hook reads model-authored state, so it is **runtime-mediated, not tamper-proof**
   — say so, never "unbypassable"; disclose each host's limits in its own
   `src/content/targets/<eco>/CAPABILITIES.md` (fail-open without `python3`; a revert-only path where

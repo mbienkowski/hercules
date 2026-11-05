@@ -4,7 +4,7 @@
 
 const path = require("path");
 const fs = require("fs");
-const { spawnSync } = require("child_process");
+const { spawnSync, execFile } = require("child_process");
 const { readFile, frontmatter, stripFrontmatter, listMarkdown } = require("./read-file.js");
 
 // This file lives at the root of dist/opencode/; assets are its siblings.
@@ -99,6 +99,32 @@ function makeWriteGate(projectDir) {
   };
 }
 
+// Standing memory per session. The Map holds a Promise, so concurrent model calls share one spawn; a
+// failure resolves to the unavailable notice and is cached too, so a broken python3 is not retried on
+// every call. Entries drop on session.compacted (the next call recomputes) and session.deleted.
+// Title calls DO carry a sessionID (one ~600-token extra once, accepted); only Agent.generate has none.
+const MEMORY_UNAVAILABLE = "Hercules memory unavailable; this conversation continues without refreshed memory.";
+const memoryBySession = new Map(); // sessionID -> Promise<string>
+function sessionMemory(projectDir, sessionID, client) {
+  if (!memoryBySession.has(sessionID)) memoryBySession.set(sessionID, (async () => {
+    // A hung lookup must not stall the model call; the timeout fails open, treating the session as not a child.
+    const s = client && await Promise.race([
+      client.session.get({ path: { id: sessionID } }).catch(() => null),
+      new Promise((resolve) => setTimeout(() => resolve(null), 1000)),
+    ]);
+    if (s && s.data && s.data.parentID) return ""; // delegates inherit the parent's context
+    return new Promise((resolve) => {
+      // No session_id: the Map is the dedupe; hook-side state would blank a resumed session.
+      const child = execFile("python3", [path.join(PLUGIN_ROOT, "hooks", "memory_hook.py"), "text"],
+        { cwd: projectDir, encoding: "utf8", timeout: 3000, maxBuffer: 65536 },
+        (err, stdout) => resolve(err ? MEMORY_UNAVAILABLE : (stdout || "").trim()));
+      child.stdin.on("error", () => {});
+      child.stdin.end(JSON.stringify({ cwd: projectDir }));
+    });
+  })().catch(() => MEMORY_UNAVAILABLE)); // a synchronous throw (python3 spawn, client) must not fail the model call
+  return memoryBySession.get(sessionID);
+}
+
 // A bare `module.exports = <function>` breaks Bun's real loader (it spreads the function's own
 // properties into the namespace and throws on the first non-export value), so this exports the
 // documented `PluginModule` shape instead; `id` is required in practice. Diagnosis: issue #15.
@@ -106,7 +132,12 @@ module.exports = {
   id: "hercules",
   server: async (input) => {
     const projectDir = (input && input.directory) || process.cwd();
+    const client = input && input.client;
     return {
+      event: async ({ event }) => {
+        if (event.type === "session.compacted") memoryBySession.delete(event.properties.sessionID);
+        if (event.type === "session.deleted") memoryBySession.delete(event.properties.info && event.properties.info.id);
+      },
       config: (cfg) => {
         cfg.default_agent = LEAD;
         // Fusion delegation needs the primary to spawn builder, and builder to spawn a read-only
@@ -161,6 +192,14 @@ module.exports = {
         cfg.command = { ...(cfg.command || {}), ...commands() };
       },
       "tool.execute.before": makeWriteGate(projectDir),
+      // Fires on every model call (each tool-loop step), so the hook runs once per session and the
+      // cached text is re-attached each time: OpenCode rebuilds `output.system` per call. Calls with no
+      // session id (Agent.generate) get nothing and spawn nothing.
+      "experimental.chat.system.transform": async (input, output) => {
+        if (!input || !input.sessionID) return;
+        const context = await sessionMemory(projectDir, input.sessionID, client);
+        if (context) output.system.push(context);
+      },
     };
   },
 };

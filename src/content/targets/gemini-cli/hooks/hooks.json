@@ -6,7 +6,41 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${extensionPath}/hooks/hercules_gate.py || exit 0"
+            "command": "python3 \"${extensionPath}/hooks/hercules_gate.py\" || exit 0"
+          }
+        ]
+      }
+    ],
+    "BeforeAgent": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${extensionPath}/hooks/memory_hook.py\" gemini",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${extensionPath}/hooks/memory_hook.py\" gemini",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PreCompress": [
+      {
+        "matcher": "manual",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${extensionPath}/hooks/memory_hook.py\" gemini",
+            "timeout": 10000
           }
         ]
       }

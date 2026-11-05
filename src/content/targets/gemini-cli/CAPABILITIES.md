@@ -1,5 +1,20 @@
 # Hercules on Gemini CLI — capabilities & disclosed gaps
 
+> Verified against: Gemini CLI v0.67.0 (2026-11-04) — geminicli.com/docs/hooks + source @ 1fe22af. Re-check these notes when upgrading past it.
+
+> Gemini CLI is replaced by Antigravity CLI for unpaid and Google One tiers since 2026-06-18; this edition's notes do not cover Antigravity.
+
+- **Ordinary-chat project memory (needs `python3` and enabled hooks).** `SessionStart` and `BeforeAgent`
+  invoke `hooks/memory_hook.py gemini`, returning `hookSpecificOutput.additionalContext`. The host model
+  receives compact preferences and instructions to capture explicit durable user preferences through
+  `tools/memory_core.py`; capture depends on its compliance and tool permissions. Stored entries are capped so the block stays within about 2,400 UTF-8 bytes; very long project paths can lengthen the header. Delivery state is per session in `~/.hercules/memory/.deliveries.json`. `/clear` and
+  `--resume` re-deliver on the next prompt. A manual `/compress` (`PreCompress`, matcher `manual`) resets
+  delivery state. Auto-compression re-delivers roughly per 256 KB of transcript growth (a heuristic). With
+  `contextManagement.enabled`, `PreCompress` never fires. The hook is not wired to automatic compression
+  because it would fire every turn. The hook writes only `~/.hercules/memory/`: the `.deliveries.json` and `.deliveries.lock` state files, and a per-project store only after a capture. Failures allow the chat to continue; no separate model
+  service performs extraction.
+  See the [official hook reference](https://geminicli.com/docs/hooks/reference/).
+
 Hercules ships the full Discover → Design → Build → Ship methodology on Gemini CLI as an extension
 (`gemini-extension.json` + `agents/`, `commands/`, `skills/`, `GEMINI.md`, `hooks/`), with the
 capability gaps disclosed here (the "disclose gaps, never hide" principle):

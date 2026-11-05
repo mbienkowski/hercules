@@ -18,7 +18,9 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from hercules_state import canon, frozen_candidates, resolve_build_contexts  # noqa: E402
 
-_MUTATING_TOOLS = {"Edit", "MultiEdit", "Write", "NotebookEdit"}
+_MUTATING_TOOLS = {"Edit", "MultiEdit", "Write", "NotebookEdit",
+                   # Grok Build's real edit tool names (its matcher aliases Edit/Write to them); apply_patch is left out: no file_path.
+                   "search_replace", "hashline_edit", "write"}
 
 
 def _target_paths(tool_input):

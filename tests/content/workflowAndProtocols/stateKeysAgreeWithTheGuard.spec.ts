@@ -29,6 +29,12 @@ describe('the written instructions and the runtime guard share one vocabulary', 
   const fromSchema = schemaPropertyNames();
   const instructions = instructionText();
 
+  it('reads the adapter, policy and state reader without unrelated lifecycle-hook fields', () => {
+    expect(read).toEqual(expect.arrayContaining(['reason_at', 'frozen_override', 'active_session']));
+    expect(read).not.toContain('agent_id');
+    expect(read).not.toContain('verification_required');
+  });
+
   it('the guard was actually read', () => {
     // Guards the guard: an empty vocabulary would make both checks below pass by asking nothing.
     expect(read.length, 'no keys were found in the guard source').toBeGreaterThan(10);

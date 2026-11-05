@@ -1,5 +1,19 @@
 # Hercules on GitHub Copilot CLI — capabilities & disclosed gaps
 
+> Verified against: GitHub Copilot CLI v1.0.105 (2026-10-28) — changelog + docs.github.com cli-hooks-reference. Re-check these notes when upgrading past it.
+
+- **Project memory at session start and each prompt (needs Copilot CLI ≥ 1.0.11 and `python3`).**
+  `sessionStart` (including resume) and `userPromptSubmitted` run `hooks/memory_hook.py copilot`, and
+  their `additionalContext` reaches the model with compact preferences and capture instructions. The
+  `userPromptSubmitted` context reaches the model since CLI 1.0.65; the reference page still says it is
+  dropped, but the changelog and issue #5122 take precedence. If several plugins return it, only the
+  last-loaded plugin's context wins (issue #5122). `preCompact` resets delivery state, so the next prompt
+  re-delivers. Delivery state is per session in `~/.hercules/memory/.deliveries.json`. Stored entries are capped so the block stays within about 2,400 UTF-8 bytes; very long project paths can lengthen the header. The hook writes only `~/.hercules/memory/`: the `.deliveries.json` and `.deliveries.lock` state files, and a
+  per-project store only after a capture. The model captures explicit durable preferences through
+  `tools/memory_core.py` only when its instructions and permissions allow; there is no capture guarantee or
+  separate model service.
+  See the [official hooks reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-hooks-reference).
+
 Hercules ships the full Discover → Design → Build → Ship methodology on GitHub Copilot CLI as an
 installable plugin (`plugin.json` manifest; agents, commands, skills, and a write-gate hook), with the
 capability gaps disclosed here (the "disclose gaps, never hide" principle):

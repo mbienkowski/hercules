@@ -56,8 +56,15 @@ export function schemaFixedValues(): Set<string> {
  */
 export function stateKeysTheGuardReads(): Set<string> {
   const found = new Set<string>();
-  for (const name of readdirSync(HOOKS).filter((file) => file.endsWith('.py'))) {
+  const modules = new Set(readdirSync(HOOKS).filter((file) => file.endsWith('.py')));
+  const guards = new Set(['hercules_gate.py']);
+  for (const name of guards) {
     const source = readFileSync(join(HOOKS, name), 'utf-8');
+    // Follow the enforcement adapter's local imports; lifecycle hooks own separate state.
+    for (const match of source.matchAll(/^(?:from|import) ([a-zA-Z_]\w*)/gm)) {
+      const dependency = `${match[1]}.py`;
+      if (modules.has(dependency)) guards.add(dependency);
+    }
     for (const match of source.matchAll(/(?:\.get\(|\[)"([a-z][a-z0-9_]{4,})"/g)) {
       found.add(match[1] as string);
     }

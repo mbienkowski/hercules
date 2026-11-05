@@ -15,6 +15,24 @@
       {
         "command": "python3 ${CURSOR_PLUGIN_ROOT}/hooks/hercules_gate.py after_edit"
       }
+    ],
+    "sessionStart": [
+      {
+        "command": "python3 \"${CURSOR_PLUGIN_ROOT}/hooks/memory_hook.py\" cursor",
+        "timeout": 10
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "python3 \"${CURSOR_PLUGIN_ROOT}/hooks/memory_hook.py\" cursor",
+        "timeout": 10
+      }
+    ],
+    "preCompact": [
+      {
+        "command": "python3 \"${CURSOR_PLUGIN_ROOT}/hooks/memory_hook.py\" cursor",
+        "timeout": 10
+      }
     ]
   }
 }

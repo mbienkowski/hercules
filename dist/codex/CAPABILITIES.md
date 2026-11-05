@@ -1,8 +1,21 @@
 # Hercules on Codex — capabilities & disclosed gaps
 
+> Verified against: openai/codex main @ e7f32cf (2026-11-05) — https://learn.chatgpt.com/docs/hooks + codex-rs source. Re-check these notes when upgrading past it.
+
 Hercules ships the full Discover → Design → Build → Ship methodology on Codex as a native plugin
 (`.codex-plugin/plugin.json`) whose reusable phase and advisor components are Codex skills. The plugin
 also ships a Codex `PreToolUse` hook; the host asks you to review/trust plugin hooks before they run.
+
+- **Ordinary-chat project memory (needs `python3` and trusted hooks).** `SessionStart` (every source:
+  startup, resume, clear, compact, fork) and `UserPromptSubmit` invoke `hooks/memory_hook.py`, delivering
+  compact preferences and instructions to capture explicit durable user preferences through
+  `tools/memory_core.py`. Delivery state is per session in `~/.hercules/memory/.deliveries.json`: session
+  start always delivers, and compaction resets it. The existing host model performs extraction; capture
+  depends on its permissions and compliance, with no separate model service. Stored entries are capped so the block stays within about 2,400 UTF-8 bytes; very long project paths can lengthen the header. Memory failures allow the chat to continue. The event and context contract follows the
+  [official hook reference](https://learn.chatgpt.com/docs/hooks). The hook writes only `~/.hercules/memory/`:
+  the `.deliveries.json` and `.deliveries.lock` state files, and a per-project store only after a capture.
+  Codex hashes the whole plugin folder for hook trust, so every plugin update needs re-trust (startup
+  "Trust all" or `/hooks`). There is no plugin-side pre-trust; administrators can use managed hooks.
 
 
 

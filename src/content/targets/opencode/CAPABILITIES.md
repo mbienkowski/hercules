@@ -1,5 +1,29 @@
 # Hercules on OpenCode — capabilities & disclosed gaps
 
+> Verified against: OpenCode v1.19.5 (2026-10-28) — anomalyco/opencode plugin API ([index.ts](https://github.com/anomalyco/opencode/blob/v1.19.5/packages/plugin/src/index.ts)). Re-check these notes when upgrading past it.
+
+- **Gap: OpenCode v2 does not run this plugin.** OpenCode v2.x (v2.2.5, 2026-10-30) does not run v1
+  plugins (see the migrate-v1 docs). On v2.x the whole Hercules plugin is inactive, memory included. This
+  edition needs OpenCode v1.x.
+
+- **Ordinary-chat project memory (needs `python3`).** The plugin's
+  `experimental.chat.system.transform` runs `hooks/memory_hook.py text` asynchronously, with the project
+  directory as both working directory and `cwd`, appending context to `output.system` and preserving its
+  entries. Context is computed once per session (async, cached as a promise, so concurrent calls share one
+  spawn) and re-attached on each model call. Compaction (`session.compacted`) drops the cache, so the next
+  call recomputes it. Subagent (child) sessions are skipped. Calls with no session id (Agent.generate) get
+  none. The hook writes only `~/.hercules/memory/`: the `.deliveries.json` and `.deliveries.lock` state files, and a per-project
+  store only after a capture.
+  This hook has no prompt text, so it loads compact standing preferences and capture instructions,
+  rather than prompt-specific search. Stored entries are capped so the block stays within about 2,400 UTF-8 bytes; very long project paths can lengthen the header.
+  The host model captures explicit durable user preferences through `tools/memory_core.py` when
+  its instructions and permissions allow; no separate model service runs and capture is not guaranteed.
+  A missing interpreter, subprocess error or three-second timeout adds a memory-unavailable warning
+  to system context and allows the model request to continue.
+  This requires the experimental hook in the
+  [official plugin interface](https://github.com/anomalyco/opencode/blob/v1.19.5/packages/plugin/src/index.ts);
+  compatibility with a different plugin API is not implied.
+
 Hercules ships the full Discover → Design → Build → Ship methodology on OpenCode, with the
 capability gaps disclosed here (the "disclose gaps, never hide" principle):
 

@@ -31,7 +31,7 @@ jobs:
   # Also emits the smoke matrix, one leg per registered ecosystem, so `smoke` needs no discovery job.
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # setup-python has no 3.9 for ubuntu 26.04; 3.9 is our requires-python floor
     timeout-minutes: 10
     outputs:
       # GitHub evaluates a job's matrix BEFORE its `if:`, so the empty-include fallback keeps `smoke`'s
@@ -84,7 +84,7 @@ jobs:
   test:
     name: Test
     needs: [build]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # setup-python has no 3.9 for ubuntu 26.04; 3.9 is our requires-python floor
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -115,7 +115,7 @@ jobs:
   validate:
     name: Validate plugin package
     needs: [build]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # setup-python has no 3.9 for ubuntu 26.04; 3.9 is our requires-python floor
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
@@ -152,7 +152,7 @@ jobs:
     if: >-
       !cancelled()
       && needs.build.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # setup-python has no 3.9 for ubuntu 26.04; 3.9 is our requires-python floor
     timeout-minutes: 10
     strategy:
       fail-fast: false
