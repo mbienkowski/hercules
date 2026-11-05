@@ -1,11 +1,19 @@
 # Hercules on OpenCode — capabilities & disclosed gaps
 
+> Verified against: OpenCode v1.19.5 (2026-10-28) — anomalyco/opencode plugin API ([index.ts](https://github.com/anomalyco/opencode/blob/v1.19.5/packages/plugin/src/index.ts)). Re-check these notes when upgrading past it.
+
+- **Gap: OpenCode v2 does not run this plugin.** OpenCode v2.x (v2.2.5, 2026-10-30) does not run v1
+  plugins (see the migrate-v1 docs). On v2.x the whole Hercules plugin is inactive, memory included. This
+  edition needs OpenCode v1.x.
+
 - **Ordinary-chat project memory (needs `python3`).** The plugin's
-  `experimental.chat.system.transform` runs `hooks/memory_hook.py text` with the project directory
-  as both working directory and `cwd`, appending context to `output.system` and preserving its entries.
-  The context is computed once per session (cached) and re-attached on each model call; calls without a
-  session id get none. The hook writes only `~/.hercules/memory/`: a single `.deliveries.json` for dedupe,
-  and a per-project store only after a capture.
+  `experimental.chat.system.transform` runs `hooks/memory_hook.py text` asynchronously, with the project
+  directory as both working directory and `cwd`, appending context to `output.system` and preserving its
+  entries. Context is computed once per session (async, cached as a promise, so concurrent calls share one
+  spawn) and re-attached on each model call. Compaction (`session.compacted`) drops the cache, so the next
+  call recomputes it. Subagent (child) sessions are skipped. Calls with no session id (Agent.generate) get
+  none. The hook writes only `~/.hercules/memory/`: the `.deliveries.json` state file, and a per-project
+  store only after a capture.
   This hook has no prompt text, so it loads compact standing preferences and capture instructions,
   rather than prompt-specific search. Context is capped at 2,400 UTF-8 bytes.
   The host model captures explicit durable user preferences through `tools/memory_core.py` when
@@ -13,7 +21,7 @@
   A missing interpreter, subprocess error or three-second timeout adds a memory-unavailable warning
   to system context and allows the model request to continue.
   This requires the experimental hook in the
-  [official plugin interface](https://github.com/anomalyco/opencode/blob/v1.2.27/packages/plugin/src/index.ts);
+  [official plugin interface](https://github.com/anomalyco/opencode/blob/v1.19.5/packages/plugin/src/index.ts);
   compatibility with a different plugin API is not implied.
 
 Hercules ships the full Discover → Design → Build → Ship methodology on OpenCode, with the

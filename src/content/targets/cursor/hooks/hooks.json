@@ -21,6 +21,18 @@
         "command": "python3 \"${CURSOR_PLUGIN_ROOT}/hooks/memory_hook.py\" cursor",
         "timeout": 10
       }
+    ],
+    "postToolUse": [
+      {
+        "command": "python3 \"${CURSOR_PLUGIN_ROOT}/hooks/memory_hook.py\" cursor",
+        "timeout": 10
+      }
+    ],
+    "preCompact": [
+      {
+        "command": "python3 \"${CURSOR_PLUGIN_ROOT}/hooks/memory_hook.py\" cursor",
+        "timeout": 10
+      }
     ]
   }
 }

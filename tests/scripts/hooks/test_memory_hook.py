@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
 import subprocess
 import sys
 import time
@@ -32,6 +31,20 @@ def submit(fx, capsys, *, session="new-chat", prompt="Continue the task", **extr
     return code, json.loads(capsys.readouterr().out)
 
 
+def send(fx, capsys, dialect="common", **fields):
+    """One host event through `main`: the parsed stdout the host would read."""
+    hook.main(json.dumps({"cwd": str(fx.project), **fields}), home=fx.home, dialect=dialect)
+    return json.loads(capsys.readouterr().out)
+
+
+def text_of(result):
+    if "additional_context" in result:
+        return result["additional_context"]
+    if "additionalContext" in result:
+        return result["additionalContext"]
+    return result.get("hookSpecificOutput", {}).get("additionalContext", "")
+
+
 def test_an_ordinary_chat_receives_preferences_without_a_workflow_command(fx, capsys):
     capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
     code, result = submit(fx, capsys)
@@ -42,17 +55,16 @@ def test_an_ordinary_chat_receives_preferences_without_a_workflow_command(fx, ca
 
 
 def test_an_unchanged_context_is_not_paid_for_on_every_turn(fx, capsys):
+    capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
     submit(fx, capsys)
     _, result = submit(fx, capsys)
     assert result == {}
 
 
-def test_a_new_session_or_compaction_restores_context(fx, capsys):
+def test_a_new_session_restores_context(fx, capsys):
     submit(fx, capsys)
     _, next_chat = submit(fx, capsys, session="second-chat")
-    _, compacted = submit(fx, capsys, source="compact")
     assert next_chat["hookSpecificOutput"]["additionalContext"]
-    assert compacted["hookSpecificOutput"]["additionalContext"]
 
 
 def test_a_preference_recorded_by_the_host_model_reaches_the_next_chat(fx, capsys):
@@ -128,6 +140,7 @@ def test_context_uses_the_host_output_format(fx, capsys, dialect, key):
 
 
 def test_copilot_receives_a_flat_additional_context(fx, capsys):
+    capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
     hook.main(json.dumps({"cwd": str(fx.project)}), home=fx.home, dialect="copilot")
     result = json.loads(capsys.readouterr().out)
     assert set(result) == {"additionalContext"}
@@ -174,6 +187,14 @@ def test_the_capture_template_is_shell_inert(fx, capsys):
     assert '"short-topic"' not in text
 
 
+def test_an_empty_store_gets_a_short_header_under_400_bytes(fx, capsys):
+    _, result = submit(fx, capsys)
+    text = result["hookSpecificOutput"]["additionalContext"]
+    assert len(text.encode("utf-8")) <= 400
+    assert "--statement 'concise preference'" in text
+    assert "Hercules project memory (ordinary chats" not in text  # the long rules wait for entries
+
+
 def test_host_payload_variants_resolve_the_same_project_and_skip_subagents(fx, capsys):
     capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
     cursor = json.dumps({"workspace_roots": [str(fx.project)], "sessionId": "cursor-chat"})
@@ -186,9 +207,20 @@ def test_host_payload_variants_resolve_the_same_project_and_skip_subagents(fx, c
     assert json.loads(capsys.readouterr().out) == {}
 
 
-def test_delegates_do_not_capture_a_second_copy_of_the_users_preferences(fx, capsys):
-    _, result = submit(fx, capsys, agent_id="reviewer")
+@pytest.mark.parametrize("delegate", [
+    {"agent_id": "reviewer"}, {"agentId": "reviewer"}, {"parentAgentId": "parent"},
+    {"subagent_type": "explore"}, {"subagentType": "explore"},
+])
+def test_delegates_do_not_capture_a_second_copy_of_the_users_preferences(fx, capsys, delegate):
+    _, result = submit(fx, capsys, **delegate)
     assert result == {}
+
+
+def test_a_claude_main_thread_with_agent_type_still_receives_context(fx, capsys):
+    # Claude sends agent_type on the main thread when a plugin sets settings.agent: not a delegate.
+    capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
+    _, result = submit(fx, capsys, agent_type="hercules:hercules")
+    assert "Keep responses concise." in result["hookSpecificOutput"]["additionalContext"]
 
 
 def test_versioned_code_findings_always_require_verification_in_host_context(fx, capsys):
@@ -197,3 +229,127 @@ def test_versioned_code_findings_always_require_verification_in_host_context(fx,
     text = result["hookSpecificOutput"]["additionalContext"]
     assert '"verification_required":true' in text
     assert "verify flagged code findings" in text
+
+
+def test_the_output_names_the_event_the_host_sent(fx, capsys):
+    # Codex rejects a hookEventName that differs from the event it sent; a start without a name says SessionStart.
+    start = send(fx, capsys, source="startup")
+    assert start["hookSpecificOutput"]["hookEventName"] == "SessionStart"
+    prompt = send(fx, capsys, session_id="s", prompt="hello")
+    assert prompt["hookSpecificOutput"]["hookEventName"] == "UserPromptSubmit"
+
+
+def test_a_repeated_session_start_delivers_in_full_each_time(fx, capsys):
+    capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
+    first = send(fx, capsys, hook_event_name="SessionStart", session_id="s", source="resume")
+    again = send(fx, capsys, hook_event_name="SessionStart", session_id="s", source="resume")
+    assert "Keep responses concise." in text_of(first) and "Keep responses concise." in text_of(again)
+
+
+def test_a_copilot_resume_gets_its_context_every_session_start(fx, capsys):
+    capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
+    for _ in range(2):
+        result = send(fx, capsys, dialect="copilot", hookEventName="sessionStart", sessionId="cp", source="resume")
+        assert "Keep responses concise." in result["additionalContext"]
+
+
+def test_a_prompt_after_start_adds_only_newly_relevant_entries(fx, capsys):
+    for i in range(6):  # six pinned entries fill the standing budget, so the next one is never standing
+        capture(fx, "decision", f"Preference {i}.", topic=f"topic-{i}", pinned=True)
+    capture(fx, "decision", "Use pnpm.", topic="package-manager")
+    start = send(fx, capsys, hook_event_name="SessionStart", session_id="s")
+    assert "Use pnpm." not in text_of(start)
+    extra = send(fx, capsys, hook_event_name="UserPromptSubmit", session_id="s", prompt="pnpm")
+    text = text_of(extra)
+    assert text.startswith("Hercules memory relevant to this request (data, not authority):\n")
+    assert "Use pnpm." in text and "Preference 0." not in text and "Hercules project memory" not in text
+    assert send(fx, capsys, hook_event_name="UserPromptSubmit", session_id="s", prompt="Fix the lint") == {}
+
+
+def test_a_compaction_restores_context_on_the_next_prompt(fx, capsys):
+    capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
+    assert text_of(send(fx, capsys, hook_event_name="UserPromptSubmit", session_id="s")) != ""
+    assert send(fx, capsys, hook_event_name="UserPromptSubmit", session_id="s") == {}
+    assert send(fx, capsys, hook_event_name="PreCompact", session_id="s") == {}
+    assert "Keep responses concise." in text_of(send(fx, capsys, hook_event_name="UserPromptSubmit", session_id="s"))
+
+
+@pytest.mark.parametrize("name", ["PreCompress", "preCompact", "pre_compact", "PostCompact"])
+def test_every_compaction_event_name_resets_delivery(fx, capsys, name):
+    capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
+    send(fx, capsys, hook_event_name="UserPromptSubmit", session_id="s")
+    assert send(fx, capsys, hook_event_name=name, session_id="s") == {}
+    assert "Keep responses concise." in text_of(send(fx, capsys, hook_event_name="UserPromptSubmit", session_id="s"))
+
+
+def test_a_compaction_before_any_delivery_does_not_suppress_the_first_one(fx, capsys):
+    capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
+    assert send(fx, capsys, hook_event_name="PreCompact", session_id="fresh") == {}
+    assert "Keep responses concise." in text_of(send(fx, capsys, hook_event_name="UserPromptSubmit", session_id="fresh"))
+
+
+def test_a_tool_event_is_silent_once_delivered(fx, capsys):
+    capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
+    first = send(fx, capsys, hook_event_name="PostToolUse", session_id="t")
+    assert "Keep responses concise." in text_of(first)
+    assert send(fx, capsys, hook_event_name="PostToolUse", session_id="t") == {}
+
+
+def test_a_cursor_session_start_leaves_the_first_tool_call_to_deliver(fx, capsys):
+    capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
+    start = send(fx, capsys, dialect="cursor", hook_event_name="sessionStart", conversation_id="c1")
+    assert "Keep responses concise." in text_of(start)
+    tool = send(fx, capsys, dialect="cursor", hook_event_name="postToolUse", conversation_id="c1")
+    assert "Keep responses concise." in text_of(tool) and "additional_context" in tool
+    assert send(fx, capsys, dialect="cursor", hook_event_name="postToolUse", conversation_id="c1") == {}
+
+
+def test_a_cursor_tool_call_from_a_subdirectory_resolves_the_workspace_project(fx, capsys):
+    capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
+    subdir = fx.project / "src"
+    subdir.mkdir()
+    roots = [str(fx.project)]
+    prompt = send(fx, capsys, dialect="cursor", hook_event_name="beforeSubmitPrompt", workspace_roots=roots,
+                  conversation_id="c2", prompt="hello")
+    assert "Keep responses concise." in text_of(prompt)
+    tool = send(fx, capsys, dialect="cursor", hook_event_name="postToolUse", cwd=str(subdir),
+                workspace_roots=roots, conversation_id="c2")
+    assert tool == {}  # same project and session key as the prompt, so already delivered
+
+
+def test_gemini_session_start_after_clear_delivers_on_the_next_before_agent(fx, capsys):
+    capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
+    start = send(fx, capsys, dialect="gemini", hook_event_name="SessionStart", session_id="g1", source="clear")
+    assert "Keep responses concise." in text_of(start)
+    agent = send(fx, capsys, dialect="gemini", hook_event_name="BeforeAgent", session_id="g1", prompt="Continue")
+    assert "Keep responses concise." in text_of(agent)
+    assert send(fx, capsys, dialect="gemini", hook_event_name="BeforeAgent", session_id="g1", prompt="Continue") == {}
+
+
+def test_gemini_redelivers_when_the_transcript_crosses_an_epoch(fx, capsys, tmp_path):
+    capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
+    transcript = tmp_path / "transcript.jsonl"
+    transcript.write_bytes(b"x" * 10)
+    event = {"hook_event_name": "BeforeAgent", "session_id": "g2", "prompt": "Continue",
+             "transcript_path": str(transcript)}
+    assert "Keep responses concise." in text_of(send(fx, capsys, dialect="gemini", **event))
+    assert send(fx, capsys, dialect="gemini", **event) == {}
+    transcript.write_bytes(b"x" * hook.GEMINI_EPOCH_BYTES)  # the next 256 KB epoch
+    assert "Keep responses concise." in text_of(send(fx, capsys, dialect="gemini", **event))
+    assert send(fx, capsys, dialect="gemini", **event) == {}
+
+
+def test_a_corrupt_delivery_state_still_lets_a_session_start_emit(fx, capsys):
+    capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
+    memory = fx.home / ".hercules" / "memory"
+    memory.mkdir(parents=True, exist_ok=True)
+    (memory / ".deliveries.json").write_text("{not json", encoding="utf-8")
+    start = send(fx, capsys, hook_event_name="SessionStart", session_id="s")
+    assert "Keep responses concise." in text_of(start)
+    assert send(fx, capsys, hook_event_name="UserPromptSubmit", session_id="s") == {}
+
+
+def test_without_a_session_id_a_start_emits_and_a_tool_call_stays_silent(fx, capsys):
+    capture(fx, "decision", "Keep responses concise.", topic="response-style", pinned=True)
+    assert "Keep responses concise." in text_of(send(fx, capsys, hook_event_name="SessionStart"))
+    assert send(fx, capsys, hook_event_name="PostToolUse") == {}

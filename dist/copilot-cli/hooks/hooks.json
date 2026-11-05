@@ -16,6 +16,22 @@
         "powershell": "try { python3 \"$env:PLUGIN_ROOT/hooks/memory_hook.py\" copilot } catch {}; exit 0",
         "timeoutSec": 10
       }
+    ],
+    "userPromptSubmitted": [
+      {
+        "type": "command",
+        "bash": "python3 \"$PLUGIN_ROOT/hooks/memory_hook.py\" copilot || exit 0",
+        "powershell": "try { python3 \"$env:PLUGIN_ROOT/hooks/memory_hook.py\" copilot } catch {}; exit 0",
+        "timeoutSec": 10
+      }
+    ],
+    "preCompact": [
+      {
+        "type": "command",
+        "bash": "python3 \"$PLUGIN_ROOT/hooks/memory_hook.py\" copilot || exit 0",
+        "powershell": "try { python3 \"$env:PLUGIN_ROOT/hooks/memory_hook.py\" copilot } catch {}; exit 0",
+        "timeoutSec": 10
+      }
     ]
   }
 }

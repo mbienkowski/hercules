@@ -1,18 +1,21 @@
 # Hercules on Cursor — capabilities & disclosed gaps
 
-- **Ordinary-chat project memory at session start (needs `python3` and enabled hooks).**
-  `sessionStart` invokes `hooks/memory_hook.py cursor` and returns compact standing preferences plus
+> Verified against: Cursor 3.25.6 / cursor-agent 2026.10.16 (docs fetched 2026-11-05) — cursor.com/docs/hooks. Re-check these notes when upgrading past it.
+
+- **Ordinary-chat project memory (needs `python3` and enabled hooks).** `sessionStart` and a
+  `postToolUse` fallback invoke `hooks/memory_hook.py cursor`, returning compact standing preferences plus
   capture instructions as `additional_context`. `beforeSubmitPrompt` cannot inject context, so
-  prompt-specific retrieval is not wired. The existing model captures explicit durable preferences
-  through `tools/memory_core.py` only when its instructions and tool permissions allow it.
-  Context is capped at 2,400 UTF-8 bytes and unchanged deliveries are suppressed per session.
-  Failures allow the chat to continue; no separate model service performs extraction. Context delivery
-  depends on the host's session hook implementation; automatic capture is not guaranteed.
-  See the [official sessionStart contract](https://cursor.com/docs/hooks#sessionstart).
-  The project is resolved from `workspace_roots`. The hook writes only `~/.hercules/memory/`: a single
-  `.deliveries.json` for dedupe, and a per-project store only after a capture. Known Cursor bug: the
-  Agents Window drops `sessionStart` `additional_context` (the editor agent panel and `cursor-agent` CLI
-  receive it). Context is not re-injected after compaction, because no Cursor event signals it.
+  prompt-specific retrieval is not wired. Known Cursor bug: in the Agents Window, `sessionStart`
+  `additional_context` is dropped, so memory arrives after the first tool call there; the editor agent panel
+  gets it twice per conversation (about 1.3 KB once). `preCompact` resets delivery state, so the first tool
+  call after compaction re-delivers. The existing model captures explicit durable preferences through
+  `tools/memory_core.py` only when its instructions and tool permissions allow it. Context is capped at
+  2,400 UTF-8 bytes. Failures allow the chat to continue; no separate model service performs extraction.
+  Automatic capture is not guaranteed.
+  See the [official hooks contract](https://cursor.com/docs/hooks).
+  The project is resolved from `workspace_roots`. The hook writes only `~/.hercules/memory/`: the
+  `.deliveries.json` state file, and a per-project store only after a capture. The Windows/PowerShell
+  expansion of `${CURSOR_PLUGIN_ROOT}` is unverified.
 
 Hercules ships the full Discover → Design → Build → Ship methodology on Cursor as an official plugin
 (`.cursor-plugin/plugin.json`), with the capability gaps disclosed here (the "disclose gaps, never

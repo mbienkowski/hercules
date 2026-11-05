@@ -228,10 +228,10 @@ Shared rules for every hook, on every ecosystem:
     The model performs semantic extraction; the hook neither reads transcripts nor calls a model.
     Capture writes **only** under `~/.hercules/memory/<slug>/`; containment is enforced inside
     `tools/memory_core.py` (path validation refuses symlinks, and locked read-modify-write operations use
-    atomic replacement). Delivery dedupe state is the single `~/.hercules/memory/.deliveries.json`.
+    atomic replacement). Delivery state is per session in `~/.hercules/memory/.deliveries.json`; session
+    start always delivers, and compaction events reset delivery state.
     Memory grants no action permissions. Promotion into a committed store requires explicit
-    confirmation. Context is byte-bounded and unchanged deliveries are suppressed within a session;
-    session start after compaction restores it. Failure is visible and never blocks the conversation.
+    confirmation. Context is byte-bounded. Failure is visible and never blocks the conversation.
     Host activation limits are disclosed in each edition's capabilities; component tests alone are
     not evidence of installed-host learning or lower total task-token consumption.
   A tool in `src/scripts/tools/` is likewise command-invoked, write-capable by declaration, and

@@ -6,15 +6,24 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": [
-              "${GROK_PLUGIN_ROOT}/hooks/frozen_tests.py"
-            ]
+            "command": "python3 \"${GROK_PLUGIN_ROOT}/hooks/frozen_tests.py\"",
+            "timeout": 10
           }
         ]
       }
     ],
     "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${GROK_PLUGIN_ROOT}/hooks/memory_hook.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
       {
         "hooks": [
           {

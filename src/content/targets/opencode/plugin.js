@@ -4,7 +4,7 @@
 
 const path = require("path");
 const fs = require("fs");
-const { spawnSync } = require("child_process");
+const { spawnSync, execFile } = require("child_process");
 const { readFile, frontmatter, stripFrontmatter, listMarkdown } = require("./read-file.js");
 
 // This file lives at the root of dist/opencode/; assets are its siblings.
@@ -99,28 +99,25 @@ function makeWriteGate(projectDir) {
   };
 }
 
-// Standing memory per session, cached for the process lifetime (shortcut: never evicted, fine for one
-// CLI session per process; upgrade to an LRU if a long-lived server hosts many sessions). A failure is
-// cached too, so a broken python3 is not retried on every model call.
+// Standing memory per session. The Map holds a Promise, so concurrent model calls share one spawn; a
+// failure resolves to the unavailable notice and is cached too, so a broken python3 is not retried on
+// every call. Entries drop on session.compacted (the next call recomputes) and session.deleted.
+// Title calls DO carry a sessionID (one ~600-token extra once, accepted); only Agent.generate has none.
 const MEMORY_UNAVAILABLE = "Hercules memory unavailable; this conversation continues without refreshed memory.";
-const memoryBySession = new Map();
-function sessionMemory(projectDir, sessionID) {
-  if (!memoryBySession.has(sessionID)) {
-    let text;
-    try {
-      const result = spawnSync("python3", [path.join(PLUGIN_ROOT, "hooks", "memory_hook.py"), "text"], {
-        cwd: projectDir,
-        // No session_id: memory_hook.py dedupes per session in a persistent file, so a resumed session would get blank memory. The Map cache below is the dedupe.
-        input: JSON.stringify({ cwd: projectDir }),
-        encoding: "utf8", timeout: 3000, maxBuffer: 65536,
-      });
-      if (result.error || result.status !== 0) throw new Error("memory hook unavailable");
-      text = (result.stdout || "").trim();
-    } catch (e) {
-      text = MEMORY_UNAVAILABLE;
-    }
-    memoryBySession.set(sessionID, text);
-  }
+const memoryBySession = new Map(); // sessionID -> Promise<string>
+function sessionMemory(projectDir, sessionID, client) {
+  if (!memoryBySession.has(sessionID)) memoryBySession.set(sessionID, (async () => {
+    const s = client && await client.session.get({ path: { id: sessionID } }).catch(() => null);
+    if (s && s.data && s.data.parentID) return ""; // delegates inherit the parent's context
+    return new Promise((resolve) => {
+      // No session_id: the Map is the dedupe; hook-side state would blank a resumed session.
+      const child = execFile("python3", [path.join(PLUGIN_ROOT, "hooks", "memory_hook.py"), "text"],
+        { cwd: projectDir, encoding: "utf8", timeout: 3000, maxBuffer: 65536 },
+        (err, stdout) => resolve(err ? MEMORY_UNAVAILABLE : (stdout || "").trim()));
+      child.stdin.on("error", () => {});
+      child.stdin.end(JSON.stringify({ cwd: projectDir }));
+    });
+  })().catch(() => MEMORY_UNAVAILABLE)); // a synchronous throw (python3 spawn, client) must not fail the model call
   return memoryBySession.get(sessionID);
 }
 
@@ -131,7 +128,12 @@ module.exports = {
   id: "hercules",
   server: async (input) => {
     const projectDir = (input && input.directory) || process.cwd();
+    const client = input && input.client;
     return {
+      event: async ({ event }) => {
+        if (event.type === "session.compacted") memoryBySession.delete(event.properties.sessionID);
+        if (event.type === "session.deleted") memoryBySession.delete(event.properties.info && event.properties.info.id);
+      },
       config: (cfg) => {
         cfg.default_agent = LEAD;
         // Fusion delegation needs the primary to spawn builder, and builder to spawn a read-only
@@ -188,10 +190,10 @@ module.exports = {
       "tool.execute.before": makeWriteGate(projectDir),
       // Fires on every model call (each tool-loop step), so the hook runs once per session and the
       // cached text is re-attached each time: OpenCode rebuilds `output.system` per call. Calls with no
-      // session id (title and small-model requests) get nothing and spawn nothing.
+      // session id (Agent.generate) get nothing and spawn nothing.
       "experimental.chat.system.transform": async (input, output) => {
         if (!input || !input.sessionID) return;
-        const context = sessionMemory(projectDir, input.sessionID);
+        const context = await sessionMemory(projectDir, input.sessionID, client);
         if (context) output.system.push(context);
       },
     };
