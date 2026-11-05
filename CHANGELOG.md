@@ -1,3 +1,7 @@
+## v1.21.0 (2026-11-05)
+
+* feat(memory): live project memory across all seven editions (#50)
+
 ## v1.20.0 (2026-08-07)
 
 * Rebuild the code-of-conduct generator on scripted tools instead of prose (#45)
