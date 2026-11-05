@@ -61,7 +61,7 @@ jobs:
         # Pinned to a full commit SHA, never the mutable v6.2 tag: this job holds contents:write, so a
         # re-pointed upstream tag must not become code execution here. v6.2 is an annotated tag, so
         # the pin is `git rev-parse v6.2^{commit}` — the tag object's own SHA does not resolve.
-        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
+        uses: mathieudutour/github-tag-action@af99e60ce8132224b8e6ebab5023449fe256ed46 # v7.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: minor
